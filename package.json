@@ -5,13 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ar": "vite --mode ar --host --open /ar.html",
     "build": "vue-tsc --noEmit && vite build",
+    "build:ar": "vite build --mode ar",
     "build:watch": "vite build --watch"
   },
   "devDependencies": {
+    "@8thwall/engine-binary": "latest",
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "typescript": "^5.4.0",
     "vite": "^5.0.0",
+    "vite-plugin-static-copy": "^1.0.0",
     "vue": "^3.4.0",
     "vue-tsc": "^2.0.0"
   }

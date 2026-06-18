@@ -8,11 +8,14 @@ A starter project for building **ArModule** components — Vue 3 SFCs that are c
 ar-module-template/
 ├── package.json          # deps + build/dev scripts
 ├── tsconfig.json
-├── vite.config.ts        # lib build; aliases "vue" → vue-shim; bundles src/assets; treats a-* as custom elements
+├── vite.config.ts        # lib build + VR/AR previews + standalone AR build; bundles src/assets
+├── index.html            # VR/desktop preview page  (npm run dev)
+├── ar.html               # 8th Wall AR preview page (npm run dev:ar / build:ar)
 └── src/
     ├── main.ts           # entry: re-exports the SFC as default + the generated manifest
     ├── ArModule.vue      # the user-edited component (template syntax)
-    ├── preview.ts        # standalone A-Frame preview harness (npm run dev)
+    ├── preview.ts        # VR/desktop preview harness (stock A-Frame)
+    ├── preview-ar.ts     # 8th Wall AR preview harness (8frame + engine + xrweb)
     ├── assets/           # drop .glb/.png/.mp3/… here — bundled into the manifest
     ├── manifest.d.ts     # types for the `virtual:ar-manifest` module
     └── vue-shim.ts       # statically re-exports every Vue runtime symbol from window.__VUE__
@@ -35,14 +38,20 @@ ar-module-template/
 - Mock prop data lives in `src/preview.ts` — edit it to test different inputs.
 - For LAN access (e.g. from a standalone HMD on the same network): `npm run dev -- --host`.
 
-The preview loads the host's component runtime so modules behave the same: **A-Frame 1.3.0** (the version 8thwall's `8frame` is built on), `aframe-extras` (`animation-mixer`, …) and `xrextras` (`xrextras-*`). These are vendored in `public/vendor/` (pinned to the host's versions) and served only by the dev server — `copyPublicDir: false` keeps them out of `dist/`.
+The VR preview loads the host's component runtime from CDN, pinned to the host's versions: **A-Frame 1.3.0** (the version 8thwall's `8frame` is built on), `aframe-extras` (`animation-mixer`, …) and `xrextras` (`xrextras-*`).
 
-Note we use **stock A-Frame, not `8frame`**: 8frame's render loop is driven by the 8thwall camera engine (`xr.js`), which a desktop/VR preview can't load (it needs an app key and a camera), so 8frame never paints standalone. Stock A-Frame self-renders and is binary-compatible with the same `aframe-extras`/`xrextras` the host uses. `xrextras-*` components that depend on the AR engine (e.g. `xrextras-attach` to a tracked target) simply no-op in the preview.
+Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is driven by the 8th Wall camera engine, so it never paints standalone — fine for a desktop/VR preview that has no camera. Stock A-Frame self-renders and is binary-compatible with the same `aframe-extras`/`xrextras`. `xrextras-*` components that depend on the AR engine (e.g. `xrextras-attach` to a tracked target) simply no-op here. For a true 8th Wall AR preview, see below.
 
-### Library build for the host app
+### 8th Wall AR preview (camera + world tracking)
 
-- `npm run build` → production `dist/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime).
-- `npm run build:watch` → rebuilds the library output on every save (use this when iterating against the host app rather than the standalone preview).
+- `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `src/preview-ar.ts`.
+- The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
+- **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
+
+### Builds
+
+- `npm run build` → **library** build → `dist/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
+- `npm run build:ar` → **standalone AR app** → `dist-ar/` (`ar.html` + bundled module + the engine copied into `external/xr/`). A self-contained, deployable page for testing the module in AR on a device — serve `dist-ar/` over https and open it on a phone.
 
 ## How it works
 

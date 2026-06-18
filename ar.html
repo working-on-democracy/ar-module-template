@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=no" />
+  <title>AR Module Preview (8th Wall)</title>
+  <!-- Full host runtime so the module previews exactly as it runs in production:
+       8frame (8thwall's A-Frame) → aframe-extras → xrextras → the 8th Wall engine.
+       8frame + xrextras come from the 8thwall CDN; aframe-extras from jsDelivr; the
+       engine (xr.js) is self-hosted — copied from @8thwall/engine-binary into
+       /external/xr/ by vite-plugin-static-copy (see vite.config.ts, mode "ar"). -->
+  <script src="https://cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <script src="https://cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+  <script src="/external/xr/xr.js" data-preload-chunks="slam"></script>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    .preview-overlay {
+      position: fixed; top: 12px; left: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: white; padding: 8px 12px;
+      border-radius: 8px;
+      font-family: sans-serif; font-size: 13px;
+      z-index: 100; pointer-events: none;
+      line-height: 1.4;
+    }
+    .preview-overlay strong { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="preview-overlay">
+    <strong>AR Module Preview · 8th Wall</strong><br/>
+    Grant camera access · move your device to place the scene
+  </div>
+  <div id="app"></div>
+  <script type="module" src="/src/preview-ar.ts"></script>
+</body>
+</html>

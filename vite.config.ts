@@ -88,38 +88,76 @@ function arModuleAssets() {
   };
 }
 
-export default defineConfig(({ command }) => {
-  const isLibBuild = command === "build";
+/**
+ * Three flavours, selected by command + `--mode ar`:
+ *  - `vite`              → VR/desktop preview (stock A-Frame via CDN, index.html)
+ *  - `vite --mode ar`    → 8th Wall AR preview (8frame + engine, ar.html, https)
+ *  - `vite build`        → library build → dist/ar-module.js (consumed by the host)
+ *  - `vite build --mode ar` → standalone AR app → dist-ar/ (deploy & test on device)
+ */
+export default defineConfig(async ({ command, mode }) => {
+  const isAr = mode === "ar";
+  const isLibBuild = command === "build" && !isAr;
+
+  const plugins: any[] = [
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag.startsWith("a-")
+        }
+      }
+    }),
+    arModuleAssets()
+  ];
+
+  if (isAr) {
+    // Self-host the 8th Wall engine exactly like the host app: copy the binary
+    // from node_modules into /external/xr (served in dev, emitted on build).
+    const { viteStaticCopy } = await import("vite-plugin-static-copy");
+    plugins.push(
+      viteStaticCopy({
+        targets: [{ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" }]
+      })
+    );
+    // WebAR needs a secure context (camera). localhost is exempt, but a phone on
+    // the LAN needs https — enable it when the plugin is available.
+    try {
+      const basicSsl = (await import("@vitejs/plugin-basic-ssl")).default;
+      plugins.push(basicSsl());
+    } catch {
+      /* optional: without it, use localhost or a tunnel for device testing */
+    }
+  }
 
   return {
-    plugins: [
-      vue({
-        template: {
-          compilerOptions: {
-            isCustomElement: (tag) => tag.startsWith("a-")
-          }
-        }
-      }),
-      arModuleAssets()
-    ],
+    plugins,
     resolve: {
+      // The library build shares the host's Vue via the shim. The standalone AR
+      // build and the dev previews bundle/use the real Vue.
       alias: isLibBuild
         ? { vue: fileURLToPath(new URL("./src/vue-shim.ts", import.meta.url)) }
         : {}
     },
-    build: {
-      lib: {
-        entry: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
-        formats: ["es"],
-        fileName: () => "ar-module.js"
-      },
-      rollupOptions: {
-        output: { inlineDynamicImports: true }
-      },
-      emptyOutDir: true,
-      // public/ holds the vendored A-Frame/8thwall scripts used only by the dev
-      // preview; keep them out of the published module (the host supplies them).
-      copyPublicDir: false
-    }
+    server: isAr ? { host: true } : {},
+    build: isAr
+      ? {
+          // Standalone AR app for on-device testing.
+          outDir: "dist-ar",
+          emptyOutDir: true,
+          rollupOptions: {
+            input: fileURLToPath(new URL("./ar.html", import.meta.url))
+          }
+        }
+      : {
+          lib: {
+            entry: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
+            formats: ["es"],
+            fileName: () => "ar-module.js"
+          },
+          rollupOptions: {
+            output: { inlineDynamicImports: true }
+          },
+          emptyOutDir: true
+        }
   };
 });
