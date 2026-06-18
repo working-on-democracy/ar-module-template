@@ -59,11 +59,26 @@ app.mount("#app");
 nextTick(() => {
   const scene = document.querySelector("a-scene") as (Element & { hasLoaded?: boolean }) | null;
   if (!scene) return;
-  if (scene.hasLoaded) {
+
+  const mount = () => {
     assetsReady.value = true;
-  } else {
-    scene.addEventListener("loaded", () => {
-      assetsReady.value = true;
+  };
+
+  // Mounting on the next frames guarantees the <a-asset-item> elements are in
+  // the DOM (and registered) before the module's `gltf-model="#id"` resolves its
+  // selector — without depending on the scene's `loaded` event, which some
+  // runtimes emit late or not at all.
+  if (scene.hasLoaded) mount();
+  else scene.addEventListener("loaded", mount);
+  requestAnimationFrame(() => requestAnimationFrame(mount));
+
+  // Animated skinned meshes get frustum-culled by three.js: their bind-pose
+  // bounding sphere doesn't cover where the skeleton moves the geometry, so the
+  // model silently disappears once animation-mixer runs. Disable culling on the
+  // loaded model's meshes. (The host has the same gotcha for animated glTF.)
+  scene.addEventListener("model-loaded", (e: any) => {
+    e.target?.getObject3D?.("mesh")?.traverse?.((o: any) => {
+      if (o.isMesh) o.frustumCulled = false;
     });
-  }
+  });
 });

@@ -35,6 +35,10 @@ ar-module-template/
 - Mock prop data lives in `src/preview.ts` — edit it to test different inputs.
 - For LAN access (e.g. from a standalone HMD on the same network): `npm run dev -- --host`.
 
+The preview loads the host's component runtime so modules behave the same: **A-Frame 1.3.0** (the version 8thwall's `8frame` is built on), `aframe-extras` (`animation-mixer`, …) and `xrextras` (`xrextras-*`). These are vendored in `public/vendor/` (pinned to the host's versions) and served only by the dev server — `copyPublicDir: false` keeps them out of `dist/`.
+
+Note we use **stock A-Frame, not `8frame`**: 8frame's render loop is driven by the 8thwall camera engine (`xr.js`), which a desktop/VR preview can't load (it needs an app key and a camera), so 8frame never paints standalone. Stock A-Frame self-renders and is binary-compatible with the same `aframe-extras`/`xrextras` the host uses. `xrextras-*` components that depend on the AR engine (e.g. `xrextras-attach` to a tracked target) simply no-op in the preview.
+
 ### Library build for the host app
 
 - `npm run build` → production `dist/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime).

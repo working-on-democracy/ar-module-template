@@ -116,7 +116,10 @@ export default defineConfig(({ command }) => {
       rollupOptions: {
         output: { inlineDynamicImports: true }
       },
-      emptyOutDir: true
+      emptyOutDir: true,
+      // public/ holds the vendored A-Frame/8thwall scripts used only by the dev
+      // preview; keep them out of the published module (the host supplies them).
+      copyPublicDir: false
     }
   };
 });
