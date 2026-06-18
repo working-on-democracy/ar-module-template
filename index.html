@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AR Module Preview (VR)</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; background: #0f172a; }
+    .preview-overlay {
+      position: fixed; top: 12px; left: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: white; padding: 8px 12px;
+      border-radius: 8px;
+      font-family: sans-serif; font-size: 13px;
+      z-index: 100; pointer-events: none;
+      line-height: 1.4;
+    }
+    .preview-overlay strong { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="preview-overlay">
+    <strong>AR Module Preview</strong><br/>
+    VR: "Enter VR"-Button unten-rechts (WebXR-Brille)<br/>
+    Desktop: WASD bewegen · Maus umschauen
+  </div>
+  <div id="app"></div>
+  <script type="module" src="/src/preview.ts"></script>
+</body>
+</html>
