@@ -26,6 +26,23 @@ const label = computed(
        them here by id: `fish1.glb` → id "fish1". -->
   <a-entity>
     <a-entity
+        light="
+      type: directional;
+      intensity: 2;
+      castShadow: true;
+     shadowMapHeight:2048;
+      shadowMapWidth:2048;
+      shadowCameraTop: 80;
+      shadowCameraBottom: -80;
+      shadowCameraRight: 80;
+      shadowCameraLeft: -80;
+      shadowRadius: 12"
+        xrextras-attach="target: group; offset: 1 50 15;"
+        shadow>
+    </a-entity>
+
+    <a-light type="ambient" intensity="0.7"></a-light>
+    <a-entity
         gltf-model="#fish1"
         scale="14 14 -14"
         rotation="0 90 0"

@@ -1,4 +1,4 @@
-import { createApp, h } from "vue";
+import { createApp, h, ref, nextTick } from "vue";
 import ArModule from "./ArModule.vue";
 import { manifest } from "virtual:ar-manifest";
 
@@ -13,34 +13,39 @@ const mockArModule = {
   createdAt: new Date().toISOString()
 };
 
+// Mount the module only once the scene (and its <a-assets>) has finished loading.
+// Otherwise `gltf-model="#id"` parses its selector before the dynamically
+// rendered <a-asset-item> is registered and A-Frame reports "asset not found".
+// This mirrors the host, which injects the asset items before mounting a module.
+const assetsReady = ref(false);
+
 const PreviewApp = {
   render() {
-    return h(
-      "a-scene",
-      { background: "color: #1e293b" },
-      [
-        // Mirror the host: inject the manifest's assets so the module can
-        // reference them by id (served from src/assets/ by the dev plugin).
-        h(
-          "a-assets",
-          {},
-          manifest.assets.map((a) => h("a-asset-item", { id: a.id, src: a.src }))
-        ),
-        h("a-sky", { color: "#1e293b" }),
-        h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
-        h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" }),
-        h("a-camera", {
-          position: "0 1.6 3",
-          "wasd-controls": "acceleration: 30",
-          "look-controls": ""
-        }),
-        h(
-          "a-entity",
-          { position: "0 1.5 0" },
-          [h(ArModule, { arModule: mockArModule })]
-        )
-      ]
-    );
+    const children = [
+      // Mirror the host: declare the manifest's assets up front so the module
+      // can reference them by id (served from src/assets/ by the dev plugin).
+      h(
+        "a-assets",
+        { timeout: "10000" },
+        manifest.assets.map((a) => h("a-asset-item", { id: a.id, src: a.src }))
+      ),
+      h("a-sky", { color: "#1e293b" }),
+      h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
+      h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" }),
+      h("a-camera", {
+        position: "0 1.6 3",
+        "wasd-controls": "acceleration: 30",
+        "look-controls": ""
+      })
+    ];
+
+    if (assetsReady.value) {
+      children.push(
+        h("a-entity", { position: "0 1.5 0" }, [h(ArModule, { arModule: mockArModule })])
+      );
+    }
+
+    return h("a-scene", { background: "color: #1e293b" }, children);
   }
 };
 
@@ -50,3 +55,15 @@ app.config.compilerOptions = {
   isCustomElement: (tag: string) => tag.startsWith("a-")
 };
 app.mount("#app");
+
+nextTick(() => {
+  const scene = document.querySelector("a-scene") as (Element & { hasLoaded?: boolean }) | null;
+  if (!scene) return;
+  if (scene.hasLoaded) {
+    assetsReady.value = true;
+  } else {
+    scene.addEventListener("loaded", () => {
+      assetsReady.value = true;
+    });
+  }
+});
