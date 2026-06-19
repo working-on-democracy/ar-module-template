@@ -1,10 +1,13 @@
+// NB: must NOT be window.__VUE__ — Vue's dev runtime overwrites that global
+// with `true` (devtools detection), which would shadow the host's namespace
+// and make every re-export below undefined. Use a dedicated, collision-free key.
 const V: any =
-  (typeof globalThis !== "undefined" && (globalThis as any).__VUE__) ||
-  (typeof window !== "undefined" && (window as any).__VUE__);
+  (typeof globalThis !== "undefined" && (globalThis as any).__AR_VUE__) ||
+  (typeof window !== "undefined" && (window as any).__AR_VUE__);
 
 if (!V) {
   throw new Error(
-    "ArModule template: host Vue runtime not exposed at window.__VUE__"
+    "ArModule template: host Vue runtime not exposed at window.__AR_VUE__"
   );
 }
 
