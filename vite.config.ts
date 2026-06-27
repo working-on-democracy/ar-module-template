@@ -1,10 +1,15 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
-import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, statSync, renameSync } from "node:fs";
 import { join, parse, extname } from "node:path";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
+// Image-target files (the JSON + its *_luminance/_cropped/… images) produced by
+// the 8th Wall target tool. The engine loads each target's `imagePath` as an
+// <img src>, so these must be served at /image-targets/* (dev) and shipped under
+// dist/image-targets/ (build) for detection to work.
+const IMAGE_TARGETS_SRC = fileURLToPath(new URL("./src/image-targets", import.meta.url));
 const VIRTUAL_MANIFEST_ID = "virtual:ar-manifest";
 const RESOLVED_MANIFEST_ID = "\0" + VIRTUAL_MANIFEST_ID;
 
@@ -40,6 +45,26 @@ function buildManifest() {
   return { assets: readAssets().map((a) => a.entry), components: [] as string[] };
 }
 
+/** Flat list of every file under src/image-targets/ (json + images). */
+function readImageTargetFiles(): string[] {
+  if (!existsSync(IMAGE_TARGETS_SRC)) return [];
+  return readdirSync(IMAGE_TARGETS_SRC).filter(
+    (f) => !f.startsWith(".") && statSync(join(IMAGE_TARGETS_SRC, f)).isFile()
+  );
+}
+
+/** Serve a static directory at a URL prefix from a Connect middleware stack. */
+function serveDir(server: any, prefix: string, root: string) {
+  server.middlewares.use((req: any, res: any, next: any) => {
+    const url = (req.url || "").split("?")[0];
+    if (!url.startsWith(prefix)) return next();
+    const file = join(root, decodeURIComponent(url.slice(prefix.length)));
+    if (!file.startsWith(root) || !existsSync(file)) return next();
+    res.setHeader("Content-Type", MIME[extname(file).toLowerCase()] ?? "application/octet-stream");
+    res.end(readFileSync(file));
+  });
+}
+
 /**
  * Makes module assets in `src/assets/` available everywhere:
  * - exposes the derived manifest via the `virtual:ar-manifest` module
@@ -60,23 +85,25 @@ function arModuleAssets() {
       }
     },
 
-    // Preview / dev server: serve raw asset files at /assets/*
+    // Preview / dev server: serve raw asset + image-target files.
     configureServer(server: any) {
-      server.middlewares.use((req: any, res: any, next: any) => {
-        const url = (req.url || "").split("?")[0];
-        if (!url.startsWith("/assets/")) return next();
-        const file = join(ASSETS_SRC, decodeURIComponent(url.slice("/assets/".length)));
-        if (!file.startsWith(ASSETS_SRC) || !existsSync(file)) return next();
-        res.setHeader("Content-Type", MIME[extname(file).toLowerCase()] ?? "application/octet-stream");
-        res.end(readFileSync(file));
-      });
+      serveDir(server, "/assets/", ASSETS_SRC);
+      serveDir(server, "/image-targets/", IMAGE_TARGETS_SRC);
     },
 
-    // Library build: copy assets into dist and emit the manifest file
+    // Library build: copy assets + image targets into dist and emit the manifest.
     generateBundle() {
       for (const { entry, file } of readAssets()) {
         // @ts-ignore — rollup plugin context
         this.emitFile({ type: "asset", fileName: entry.src, source: readFileSync(join(ASSETS_SRC, file)) });
+      }
+      for (const file of readImageTargetFiles()) {
+        // @ts-ignore — rollup plugin context
+        this.emitFile({
+          type: "asset",
+          fileName: `image-targets/${file}`,
+          source: readFileSync(join(IMAGE_TARGETS_SRC, file))
+        });
       }
       // @ts-ignore — rollup plugin context
       this.emitFile({
@@ -111,6 +138,39 @@ export default defineConfig(async ({ command, mode }) => {
   ];
 
   if (isAr) {
+    // The AR preview lives at /ar.html, but a phone on the LAN opens the bare
+    // network URL (https://<ip>:<port>/). Redirect / → /ar.html so it lands on
+    // the AR page instead of the VR index.html. (The `--open /ar.html` flag only
+    // opens the right path on the dev machine, not on the device.)
+    plugins.push({
+      name: "ar-index-redirect",
+      configureServer(server: any) {
+        server.middlewares.use((req: any, res: any, next: any) => {
+          const url = (req.url || "").split("?")[0];
+          if (url === "/" || url === "/index.html") {
+            res.writeHead(302, { Location: "/ar.html" });
+            res.end();
+            return;
+          }
+          next();
+        });
+      }
+    });
+
+    // Standalone AR build: emit the page as index.html (not ar.html) so serving
+    // dist-ar/ resolves the AR app at the root. Renamed on disk after the bundle
+    // is written (build-only — no effect on the dev server, which keeps serving
+    // the ar.html source).
+    plugins.push({
+      name: "ar-html-as-index",
+      writeBundle(options: any) {
+        const dir = options.dir ?? "dist-ar";
+        const from = join(dir, "ar.html");
+        const to = join(dir, "index.html");
+        if (existsSync(from)) renameSync(from, to);
+      }
+    });
+
     // Self-host the 8th Wall engine exactly like the host app: copy the binary
     // from node_modules into /external/xr (served in dev, emitted on build).
     const { viteStaticCopy } = await import("vite-plugin-static-copy");
@@ -149,6 +209,8 @@ export default defineConfig(async ({ command, mode }) => {
           }
         }
       : {
+          // The library artifact the host platform loads.
+          outDir: "dist-platform",
           lib: {
             entry: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
             formats: ["es"],

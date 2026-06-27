@@ -1,6 +1,7 @@
 import { createApp, h, ref, nextTick } from "vue";
 import ArModule from "./ArModule.vue";
-import { manifest } from "virtual:ar-manifest";
+import { manifest } from "./manifest";
+import { registerManifestComponents, applyCameraSettings, assetElement } from "./host-runtime";
 
 const mockArModule = {
   id: "preview-1",
@@ -27,7 +28,10 @@ const PreviewApp = {
       h(
         "a-assets",
         { timeout: "10000" },
-        manifest.assets.map((a) => h("a-asset-item", { id: a.id, src: a.src }))
+        manifest.assets.map((a) => {
+          const el = assetElement(a);
+          return h(el.tag, el.attrs);
+        })
       ),
       h("a-sky", { color: "#1e293b" }),
       h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
@@ -61,6 +65,10 @@ nextTick(() => {
   if (!scene) return;
 
   const mount = () => {
+    // Mirror the host: register the manifest's A-Frame components and apply its
+    // camera settings before the module renders (the template uses them).
+    registerManifestComponents(manifest);
+    applyCameraSettings(document.querySelector("a-camera"), manifest.camera);
     assetsReady.value = true;
   };
 

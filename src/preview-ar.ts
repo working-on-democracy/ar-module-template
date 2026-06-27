@@ -1,6 +1,12 @@
 import { createApp, h, ref, nextTick } from "vue";
 import ArModule from "./ArModule.vue";
-import { manifest } from "virtual:ar-manifest";
+import { manifest } from "./manifest";
+import {
+  registerManifestComponents,
+  applyCameraSettings,
+  configureImageTargets,
+  assetElement
+} from "./host-runtime";
 
 // Same data shape the host injects.
 const mockArModule = {
@@ -54,7 +60,10 @@ const ArPreviewApp = {
       h(
         "a-assets",
         { timeout: "10000" },
-        manifest.assets.map((a) => h("a-asset-item", { id: a.id, src: a.src }))
+        manifest.assets.map((a) => {
+          const el = assetElement(a);
+          return h(el.tag, el.attrs);
+        })
       ),
       h("a-light", { type: "ambient", intensity: "0.8" }),
       h("a-light", { type: "directional", position: "1 2 1", intensity: "0.9", light: "castShadow: true" }),
@@ -113,6 +122,11 @@ nextTick(() => {
       return;
     }
     const mount = () => {
+      // Mirror the host: register the manifest's A-Frame components, apply its
+      // camera settings, and feed its image targets to XR8 before mounting.
+      registerManifestComponents(manifest);
+      applyCameraSettings(document.querySelector("a-camera"), manifest.camera);
+      configureImageTargets((window as any).XR8, manifest.imageTargets);
       assetsReady.value = true;
     };
     // Mount the module after the scene/assets register, so `gltf-model="#id"`

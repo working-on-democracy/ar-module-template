@@ -12,13 +12,17 @@ ar-module-template/
 ├── index.html            # VR/desktop preview page  (npm run dev)
 ├── ar.html               # 8th Wall AR preview page (npm run dev:ar / build:ar)
 └── src/
-    ├── main.ts           # entry: re-exports the SFC as default + the generated manifest
-    ├── ArModule.vue      # the user-edited component (template syntax)
-    ├── preview.ts        # VR/desktop preview harness (stock A-Frame)
-    ├── preview-ar.ts     # 8th Wall AR preview harness (8frame + engine + xrweb)
-    ├── assets/           # drop .glb/.png/.mp3/… here — bundled into the manifest
-    ├── manifest.d.ts     # types for the `virtual:ar-manifest` module
-    └── vue-shim.ts       # statically re-exports every Vue runtime symbol from window.__VUE__
+    ├── main.ts                # entry: re-exports the SFC as default + the manifest
+    ├── ArModule.vue           # the user-edited component (template syntax)
+    ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
+    ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
+    ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
+    ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
+    ├── assets/                # drop .glb/.png/.mp3/… here — auto-derived into the manifest
+    ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
+    ├── image-targets/         # 8th Wall image-target JSON + images, referenced from manifest.ts
+    ├── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
+    └── vue-shim.ts            # statically re-exports every Vue runtime symbol from window.__AR_VUE__
 ```
 
 ## Workflow
@@ -26,7 +30,7 @@ ar-module-template/
 1. `cd ar-module-template`
 2. `npm install`
 3. Edit `src/ArModule.vue` — full SFC with `<template>`, `<script setup>`, `<style>`. The `arModule` prop matches the data shape the host injects.
-4. `npm run build` → produces `dist/ar-module.js`, a single ES module that default-exports your component.
+4. `npm run build` → produces `dist-platform/ar-module.js`, a single ES module that default-exports your component.
 5. Host that JS somewhere reachable by the AR app (e.g. `frontend/public/ar-modules/your-module.js`, or any CORS-enabled URL).
 6. Insert an `ArModule` record in Mongo whose `url` field points at that JS file.
 
@@ -50,8 +54,8 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 
 ### Builds
 
-- `npm run build` → **library** build → `dist/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
-- `npm run build:ar` → **standalone AR app** → `dist-ar/` (`ar.html` + bundled module + the engine copied into `external/xr/`). A self-contained, deployable page for testing the module in AR on a device — serve `dist-ar/` over https and open it on a phone.
+- `npm run build` → **library** build → `dist-platform/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
+- `npm run build:ar` → **standalone AR app** → `dist-ar/` (`index.html` + bundled module + the engine copied into `external/xr/`). A self-contained, deployable page for testing the module in AR on a device — serve `dist-ar/` over https and open it on a phone.
 
 ## How it works
 
@@ -87,31 +91,54 @@ Drop any binary asset (`.glb`, `.gltf`, `.png`, `.mp3`, …) into `src/assets/`.
 
 - Each file becomes a manifest entry. The **file name without its extension is the asset id**, and it is hosted at `assets/<filename>`. So `src/assets/fish1.glb` → `{ id: "fish1", src: "assets/fish1.glb" }`.
 - Reference it from `ArModule.vue` by id: `<a-entity gltf-model="#fish1">`. Do **not** declare your own `<a-assets>` — the host (and the dev preview) inject the manifest's assets into the scene's `<a-assets>` before your module mounts.
-- `npm run build` copies every asset into `dist/assets/` and writes `dist/manifest.json`. The emitted `dist/ar-module.js` also re-exports the same manifest, which is what the host reads via `mod.manifest`.
+- `npm run build` copies every asset into `dist-platform/assets/` and writes `dist-platform/manifest.json`. The emitted `dist-platform/ar-module.js` also re-exports the same manifest, which is what the host reads via `mod.manifest`.
 - `npm run dev` serves the assets at `/assets/*` and injects them into the standalone preview scene, so models resolve exactly as they will in the host.
 
-When you publish, host the **whole `dist/` folder together** so the relative `assets/…` paths in the manifest resolve next to the page that loads them.
+When you publish, host the **whole `dist-platform/` folder together** so the relative `assets/…` paths in the manifest resolve next to the page that loads them.
 
-## Assets and A-Frame components (host-declared)
+## The manifest: components, camera & image targets
 
-Beyond the bundled assets above, an ArModule record can also declare extra resources the host loads on its behalf:
+Everything the host needs to set up your scene travels in **one object** — the
+`manifest` your bundle exports (the host reads it as `mod.manifest` right after
+`import(url)`). `src/manifest.ts` is where you author it:
 
-Each ArModule record can declare extra resources the host loads on its behalf:
-
-- **`assets`** — `{ id, src }` entries the host injects into the scene's `<a-assets>` as `<a-asset-item>` tags. Reference them from your template by id, e.g. `<a-gltf-model src="#bubble">`. IDs are used as-authored, so pick names unlikely to collide with other modules.
-- **`components`** — `{ name, url }` entries pointing at JS files that self-register via `AFRAME.registerComponent(...)`. The host dynamically imports each URL **before** mounting your module, so the custom component is available the moment your template renders.
-
-Both arrays are optional. To add them, update the ArModule's Mongo record:
-
-```js
-{
-  text: "...",
-  url: "https://.../my-module.js",
-  assets: [{ id: "bubble", src: "https://.../bubble.glb" }],
-  components: [{ name: "spin", url: "https://.../spin-component.js" }],
-  // ...
-}
+```ts
+export const manifest: Manifest = {
+  assets: assetManifest.assets,          // auto-derived from src/assets/
+  camera: {                              // applied to the scene's <a-camera>
+    raycaster: "objects: .cantap",
+    cursor: "fuse: false; rayOrigin: mouse;",
+    position: "0 8 8"
+  },
+  components: {                          // name → AFRAME component definition
+    "no-frustrum-cull": noFrustrumCull
+  },
+  imageTargets: [videoTarget]            // 8th Wall image-target JSON
+};
 ```
+
+Before mounting your component, the host (`frontend/src/components/ArModule.vue`)
+walks the manifest and, in order:
+
+1. **`components`** — registers each `name → definition` via `AFRAME.registerComponent`
+   (skipping any already registered). Definitions are **bundled into your module**
+   — author them in `src/a-frame-components/` and import them into `manifest.ts`.
+   They no longer need to self-register or be hosted as separate URLs.
+2. **`camera`** — applies each attribute to the scene's `<a-camera>`, remembering
+   the previous values.
+3. **`imageTargets`** — feeds the array to `XR8.XrController.configure({ imageTargetData })`.
+   Drop the JSON the 8th Wall target tool produces (plus its images) into
+   `src/image-targets/` and `import` it into `manifest.ts`.
+4. **`assets`** — injects each `{ id, src }` into `<a-assets>` as an `<a-asset-item>`.
+
+On unmount the host tears all of this back down: it removes the injected assets,
+**restores the camera** to its previous attributes, and clears the image targets
+(`imageTargetData: []`). Registered components stay registered — A-Frame has no
+deregister — which is why registration is guarded against duplicates.
+
+The two local previews (`npm run dev` / `npm run dev:ar`) mirror this exact wiring
+via `src/host-runtime.ts`, so components, camera, and image targets behave the
+same in preview as in the host.
 
 ## Caveats
 
