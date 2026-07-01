@@ -9,8 +9,7 @@ import { ComponentDefinition } from "aframe";
 // finished loading, then traverse it and swap each mesh's material while
 // preserving its texture (`map`), alpha cutout and face `side`.
 //
-// Registered via the module manifest and applied in ArModule.vue:
-//   <a-entity gltf-model="#Rosa" unlit-materials>
+// Registered via the module.
 export default {
   init(this: any) {
     const THREE = (window as any).THREE;
@@ -33,7 +32,7 @@ export default {
         if (newMat.map) {
           newMat.map.colorSpace = THREE.SRGBColorSpace;
         }
-        newMat.toneMapped = false;
+        newMat.toneMapped = true;
 
         node.material = newMat;
       });
