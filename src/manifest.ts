@@ -14,6 +14,7 @@ import type { ComponentDefinition } from "aframe";
 
 import noFrustrumCull from "./a-frame-components/no-frustrum-cull";
 import cameraReflection from "./a-frame-components/camera-reflection";
+import unlitMaterials from "./a-frame-components/unlit-materials";
 import videoTarget from "./image-targets/video-target.json";
 
 export interface ManifestAsset {
@@ -43,7 +44,8 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustrum-cull": noFrustrumCull,
-    "camera-reflection": cameraReflection
+    "camera-reflection": cameraReflection,
+    "unlit-materials": unlitMaterials
   },
 
   imageTargets: [videoTarget]
