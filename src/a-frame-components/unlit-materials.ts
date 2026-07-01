@@ -9,7 +9,7 @@ import { ComponentDefinition } from "aframe";
 // finished loading, then traverse it and swap each mesh's material while
 // preserving its texture (`map`), alpha cutout and face `side`.
 //
-// Registered via the module.
+// Registered via the manifest.
 export default {
   init(this: any) {
     const THREE = (window as any).THREE;
