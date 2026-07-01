@@ -100,7 +100,7 @@ const ArPreviewApp = {
         "xrextras-gesture-detector": "",
         xrweb: "disableWorldTracking: false",
         "xr-mode-ui": "enabled: false",
-        renderer: "colorManagement: false"
+        renderer: "colorManagement: true"
       },
       children
     );
