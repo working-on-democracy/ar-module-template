@@ -125,6 +125,7 @@ function arModuleAssets() {
 export default defineConfig(async ({ command, mode }) => {
   const isAr = mode === "ar";
   const isLibBuild = command === "build" && !isAr;
+  const isArBuild = command === "build" && isAr;
 
   const plugins: any[] = [
     vue({
@@ -190,6 +191,9 @@ export default defineConfig(async ({ command, mode }) => {
   }
 
   return {
+    // Relative asset URLs (./assets/…) in the standalone AR build so dist-ar/
+    // can be served from any subdirectory, not just the domain root.
+    base: isArBuild ? "./" : "/",
     plugins,
     resolve: {
       // The library build shares the host's Vue via the shim. The standalone AR
