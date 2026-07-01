@@ -33,7 +33,7 @@ export default {
         if (newMat.map) {
           newMat.map.colorSpace = THREE.SRGBColorSpace;
         }
-        newMat.toneMapped = false;
+        newMat.toneMapped = true;
 
         node.material = newMat;
       });
