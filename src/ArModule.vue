@@ -29,18 +29,13 @@ const label = computed(
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
   <a-entity
       no-frustrum-cull
-  >
-    <a-text
-        :value="label"
-        position="0 5 0"
-        align="center"
-        color="#ffffff"
-        width="8"
-    />
+  ></a-entity>
+
+
     <a-entity
         light="
                     type: directional;
-                    intensity: 2;
+                    intensity: 0.1;
                     castShadow: true;
                     shadowMapHeight:2048;
                     shadowMapWidth:2048;
@@ -54,34 +49,37 @@ const label = computed(
         shadow>
     </a-entity>
 
-    <a-light type="ambient" intensity="0.7"></a-light>
+    <a-light type="ambient" intensity="0.1"></a-light>
 
-    <!-- Placeholder: a spinning mirror "diamond". The camera-reflection component
-         (registered via the manifest) reflects the live 8th Wall camera feed off
-         the surface, so the chrome material (full metalness, zero roughness)
-         mirrors the real world instead of the empty AR scene. Rotates on Y. -->
-    <a-octahedron
-        camera-reflection
-        radius="1"
-        scale="2 2 2"
-        position="0 1.5 0"
-        material="metalness: 1; roughness: 0; color: #ffffff"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-    </a-octahedron>
 
     <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
          The no-frustrum-cull component on the root entity keeps this animated
          skinned mesh from being culled once animation-mixer moves it. -->
     <a-entity
-        gltf-model="#fish1"
-        scale="14 14 -14"
-        rotation="0 90 0"
-        position="-4 18 -12"
-        animation-mixer="timeScale: 1.1"
+        gltf-model="#Wand1"
+        scale="5 5 5"
+        rotation="0 30 0"
+        position="-20 0 -25"
         shadow>
     </a-entity>
 
-    <!-- example primitive (plane) as ground -->
+    <a-entity
+        gltf-model="#WandChurch"
+        scale="5 5 5"
+        rotation="0 0 0"
+        position="0 0 -30"
+        shadow>
+    </a-entity>
+
+    <a-entity
+        gltf-model="#Wand2"
+        scale="5 5 5"
+        rotation="0 -30 0"
+        position="20 0 -25"
+        shadow>
+    </a-entity>
+
+
     <a-plane
         id="ground"
         rotation="-90 0 0"
@@ -93,14 +91,18 @@ const label = computed(
     ></a-plane>
 
 
+
+
     <!-- example Image Tracking. The target ("video-target") is declared in the
          manifest's imageTargets and configured by the host before mount; the
          #jellyfish-video / #video-target assets are auto-injected from
          src/assets/ (ids are the file names without extension). -->
+    <!--
     <xrextras-named-image-target name="video-target">
       <a-entity xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
                 geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
     </xrextras-named-image-target>
 
   </a-entity>
+  -->
 </template>
