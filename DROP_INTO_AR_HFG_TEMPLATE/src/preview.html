@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#070b0d" />
+    <title>Democracy Mirror Shards Preview</title>
+    <link rel="icon" href="./assets/dms/app-icon.svg" />
+
+    <script crossorigin="anonymous" src="./external/scripts/8frame-1.3.0.min.js"></script>
+  </head>
+  <body data-preview-mode="desktop" data-dms-tracking-mode="world">
+    <div class="fallback-scene" aria-hidden="true"></div>
+    <div id="runtimeWarning" class="runtime-warning" hidden>Runtime loading...</div>
+    <script src="bundle.js?v=20260702-white-balance-glass-v20"></script>
+
+    <a-scene
+      id="scene"
+      renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true; alpha: true"
+      vr-mode-ui="enabled: false"
+      embedded
+    >
+      <a-camera
+        id="camera"
+        position="0 2.55 0"
+        raycaster="objects: .cantap; far: 12"
+        cursor="fuse: false; rayOrigin: mouse;"
+      ></a-camera>
+
+      <a-entity light="type: ambient; intensity: 0.9; color: #e9feff"></a-entity>
+      <a-entity light="type: directional; intensity: 1.4; color: #ffffff" position="0.6 2.6 1.2"></a-entity>
+
+      <a-entity
+        id="dms-installation"
+        class="cantap"
+        position="0 -0.55 -4.35"
+        rotation="0 0 0"
+        dms-mirror-shards="
+          dataUrl: assets/dms/assets/shards-data.json;
+          seriesUrl: assets/dms/assets/single-liquid-series.json;
+          autoCycle: false;
+          panelLimit: 1;
+          enableFracture: false;
+          enableGpuMotion: true;
+          quality: high;
+          idleRotationEnabled: true;
+          idleRotationStrength: 1;
+          shockAfterglow: 1;
+          liquidShockCoupling: 1;
+          faceCameraOnStart: false;
+          layoutScale: 1.75;
+          displayScale: 1.85;
+        "
+      ></a-entity>
+    </a-scene>
+
+    <nav class="control-bar" aria-label="Prototype controls">
+      <button id="pulseButton" class="icon-button is-blue" type="button" aria-label="Add democratic blue" title="Add democratic blue">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="2.5"></circle>
+          <path d="M5.7 12a6.3 6.3 0 0 1 12.6 0"></path>
+          <path d="M3.1 12a8.9 8.9 0 0 1 17.8 0"></path>
+        </svg>
+      </button>
+      <button id="nextButton" class="icon-button is-orange" type="button" aria-label="Add authoritarian orange" title="Add authoritarian orange">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 5.5 13 12l-8 6.5Z"></path>
+          <path d="M15 6v12"></path>
+          <path d="M19 6v12"></path>
+        </svg>
+      </button>
+    </nav>
+  </body>
+</html>

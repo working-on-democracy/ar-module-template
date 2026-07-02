@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import {computed} from 'vue';
+import { onMounted } from "vue";
+import {
+  injectDmsStyles,
+  setupDmsWorldLifecycle,
+  wireDmsControls
+} from "./a-frame-components/dms-mirror-shards";
 
 interface ArModuleData {
   id: string;
@@ -12,97 +17,117 @@ interface ArModuleData {
   createdAt: string;
 }
 
-const props = defineProps<{ arModule: ArModuleData }>();
+defineProps<{ arModule: ArModuleData }>();
 
-const label = computed(
-    () => `${props.arModule.author}: ${props.arModule.text}`
-);
-
-
+// The DMS component definitions are registered by the host from
+// manifest.components before this module mounts. Here we only need to bring up
+// the DOM chrome and lifecycle wiring the prototype expects:
+//   - injectDmsStyles()      → the control-bar / status-text CSS (once)
+//   - setupDmsWorldLifecycle → drives the status text for 8th Wall world tracking
+//   - wireDmsControls()      → binds the two buttons to the installation entity
+onMounted(() => {
+  injectDmsStyles();
+  setupDmsWorldLifecycle();
+  wireDmsControls();
+});
 </script>
 
 <template>
+  <!-- Keeps any glTF models in the scene from being frustum-culled once their
+       animation moves them outside their bind-pose bounding sphere. -->
+  <a-entity no-frustrum-cull></a-entity>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- Scene lighting (from the old standalone src/index.html). -->
+  <a-entity light="type: ambient; intensity: 0.9; color: #e9feff"></a-entity>
+  <a-entity light="type: directional; intensity: 1.4; color: #ffffff" position="0.6 2.6 1.2"></a-entity>
+
+  <!-- 8th Wall world-tracking placement anchor wrapping the glass-shard
+       installation. Both components are registered from the manifest. -->
   <a-entity
-      no-frustrum-cull
-  ></a-entity>
-
-
+    id="dms-room-anchor"
+    dms-world-room-anchor="
+      autoPlace: true;
+      distance: 3.0;
+      groundY: 0.04;
+      placementDelayMs: 650;
+      minCameraTravelBeforePlace: 0;
+      minXrPoseTravelBeforePlace: 0;
+      maxXrPoseAgeMs: 700;
+      requireXrWorldPose: false;
+      requireSceneCameraMotion: false;
+      placementMode: camera;
+      minPlacementDistance: 1.2;
+      maxPlacementDistance: 5.2;
+      stablePlacementSamples: 4;
+      stablePlacementRadius: 0.28;
+      waitForRealityReady: false;
+      waitForTrackingNormal: false;
+    "
+  >
     <a-entity
-        light="
-                    type: directional;
-                    intensity: 0.1;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    target: #group;
-                    shadowRadius: 12"
-        xrextras-attach="target: group; offset: 1 50 15;"
-        shadow>
-    </a-entity>
-
-    <a-light type="ambient" intensity="0.1"></a-light>
-
-
-    <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
-         The no-frustrum-cull component on the root entity keeps this animated
-         skinned mesh from being culled once animation-mixer moves it. -->
-    <a-entity
-        gltf-model="#Wand1"
-        scale="5 5 5"
-        rotation="0 30 0"
-        position="-20 0 -25"
-        shadow>
-    </a-entity>
-
-    <a-entity
-        gltf-model="#WandChurch"
-        scale="5 5 5"
-        rotation="0 0 0"
-        position="0 0 -30"
-        shadow>
-    </a-entity>
-
-    <a-entity
-        gltf-model="#Wand2"
-        scale="5 5 5"
-        rotation="0 -30 0"
-        position="20 0 -25"
-        shadow>
-    </a-entity>
-
-
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
-
-
-
-    <!-- example Image Tracking. The target ("video-target") is declared in the
-         manifest's imageTargets and configured by the host before mount; the
-         #jellyfish-video / #video-target assets are auto-injected from
-         src/assets/ (ids are the file names without extension). -->
-    <!--
-    <xrextras-named-image-target name="video-target">
-      <a-entity xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
-                geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
-    </xrextras-named-image-target>
-
+      id="dms-installation"
+      class="cantap"
+      position="0 0 0"
+      rotation="0 0 0"
+      dms-mirror-shards="
+        autoCycle: false;
+        panelLimit: 1;
+        enableFracture: false;
+        enableGpuMotion: true;
+        quality: auto;
+        idleRotationEnabled: true;
+        idleRotationStrength: 1;
+        shockAfterglow: 1;
+        liquidShockCoupling: 1;
+        faceCameraOnStart: false;
+        layoutScale: 1.55;
+        displayScale: 2.05;
+        allowQueryScale: true;
+        queryScaleMin: 1.85;
+        queryScaleMax: 2.5;
+        placeFromCameraOnStart: false;
+        manualPlacementOnStart: false;
+        placementDistance: 3.0;
+        placementGroundY: 0.04;
+        placementDelayMs: 180;
+        autoPlacementFallbackMs: 0;
+      "
+    ></a-entity>
   </a-entity>
-  -->
+
+  <!-- DOM chrome (position:fixed, so it renders over the camera feed regardless
+       of where the module mounts in the scene graph). -->
+  <div id="runtimeWarning" class="dms-runtime-warning" hidden>Runtime loading...</div>
+  <div id="targetStatus" class="dms-target-status">
+    Starting camera AR. Move phone slowly after the poster appears...
+  </div>
+
+  <nav class="dms-control-bar" aria-label="Prototype controls">
+    <button
+      id="pulseButton"
+      class="dms-icon-button is-blue"
+      type="button"
+      aria-label="Add democratic blue"
+      title="Add democratic blue"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="2.5"></circle>
+        <path d="M5.7 12a6.3 6.3 0 0 1 12.6 0"></path>
+        <path d="M3.1 12a8.9 8.9 0 0 1 17.8 0"></path>
+      </svg>
+    </button>
+    <button
+      id="nextButton"
+      class="dms-icon-button is-orange"
+      type="button"
+      aria-label="Add authoritarian orange"
+      title="Add authoritarian orange"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5.5 13 12l-8 6.5Z"></path>
+        <path d="M15 6v12"></path>
+        <path d="M19 6v12"></path>
+      </svg>
+    </button>
+  </nav>
 </template>
