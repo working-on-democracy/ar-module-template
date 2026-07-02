@@ -57,25 +57,25 @@ const label = computed(
          skinned mesh from being culled once animation-mixer moves it. -->
     <a-entity
         gltf-model="#Wand1"
-        scale="5 5 5"
+        scale="4 4 4"
         rotation="0 30 0"
-        position="-20 0 -25"
+        position="-17 0 -15"
         shadow>
     </a-entity>
 
     <a-entity
         gltf-model="#WandChurch"
-        scale="5 5 5"
-        rotation="0 0 0"
-        position="0 0 -30"
+        scale="4 4 4"
+        rotation="0 5 0"
+        position="0 0 -20"
         shadow>
     </a-entity>
 
     <a-entity
         gltf-model="#Wand2"
-        scale="5 5 5"
+        scale="4 4 4"
         rotation="0 -30 0"
-        position="20 0 -25"
+        position="17 0 -17"
         shadow>
     </a-entity>
 
