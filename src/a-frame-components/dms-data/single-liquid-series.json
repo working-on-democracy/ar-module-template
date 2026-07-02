@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "single-liquid-poster-v1",
+  "title": "Single Liquid Poster Target",
+  "physicalHeightMeters": 1.86,
+  "streetPanelSpacingMeters": 0,
+  "streetInstallation": {
+    "layout": "single-poster",
+    "direction": "center",
+    "panelOrder": [
+      "single_liquid_final"
+    ]
+  },
+  "panels": [
+    {
+      "id": "single_liquid_final",
+      "number": "01",
+      "title": "Liquid Final Target",
+      "variant": "impact_star",
+      "src": "./assets/illustrations/single-liquid-final-target.png",
+      "authoritySrc": "./assets/illustrations/authoritarian-orange-final-target-v1.png"
+    }
+  ]
+}
