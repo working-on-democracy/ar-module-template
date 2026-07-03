@@ -131,7 +131,11 @@ export default defineConfig(async ({ command, mode }) => {
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith("a-")
+          // A-Frame primitives (a-*) and 8th Wall's xrextras components
+          // (xrextras-*, e.g. xrextras-named-image-target) are custom elements,
+          // not Vue components — otherwise the compiler emits resolveComponent()
+          // and the element is dropped with "Failed to resolve component".
+          isCustomElement: (tag) => tag.startsWith("a-") || tag.startsWith("xrextras-")
         }
       }
     }),

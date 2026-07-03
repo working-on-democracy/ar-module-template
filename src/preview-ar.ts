@@ -41,7 +41,11 @@ navigator.mediaDevices
   .catch(() => { /* user can still grant when xrweb prompts */ });
 
 XR8Promise.then((XR8: any) => {
-  XR8.XrController.configure({});
+  // Image targets are a session capability: they must be present in the FIRST
+  // configure() — before <a-scene xrweb> starts the session. Passing them later
+  // (in mount) is rejected with "Image Targets are not supported in the current
+  // session", so declare them up-front here.
+  XR8.XrController.configure({ imageTargetData: manifest.imageTargets });
   xrReady.value = true;
 });
 
