@@ -13,7 +13,6 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
 import noFrustrumCull from "./a-frame-components/no-frustrum-cull";
-import cameraReflection from "./a-frame-components/camera-reflection";
 import videoTarget from "./image-targets/video-target.json";
 
 export interface ManifestAsset {
@@ -42,8 +41,7 @@ export const manifest: Manifest = {
   },
 
   components: {
-    "no-frustrum-cull": noFrustrumCull,
-    "camera-reflection": cameraReflection
+    "no-frustrum-cull": noFrustrumCull
   },
 
   imageTargets: [videoTarget]

@@ -56,16 +56,16 @@ const label = computed(
 
     <a-light type="ambient" intensity="0.7"></a-light>
 
-    <!-- Placeholder: a spinning mirror "diamond". The camera-reflection component
-         (registered via the manifest) reflects the live 8th Wall camera feed off
-         the surface, so the chrome material (full metalness, zero roughness)
-         mirrors the real world instead of the empty AR scene. Rotates on Y. -->
+    <!-- Placeholder: a spinning glossy purple "diamond". The camera-reflection
+         component (registered via the manifest) reflects the live 8th Wall camera
+         feed off the surface (purple-tinted); this base material is the fallback
+         when there's no feed (e.g. VR/desktop preview) — glossy (low roughness)
+         and clearly purple under the scene lights. Rotates on Y. -->
     <a-octahedron
-        camera-reflection
         radius="1"
         scale="2 2 2"
-        position="0 1.5 0"
-        material="metalness: 1; roughness: 0; color: #ffffff"
+        position="2 4 -4"
+        material="metalness: 0.3; roughness: 0.1; color: #7c3aed"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
     </a-octahedron>
 
@@ -76,7 +76,7 @@ const label = computed(
         gltf-model="#fish1"
         scale="14 14 -14"
         rotation="0 90 0"
-        position="-4 18 -12"
+        position="0 8 -12"
         animation-mixer="timeScale: 1.1"
         shadow>
     </a-entity>
@@ -98,7 +98,7 @@ const label = computed(
          #jellyfish-video / #video-target assets are auto-injected from
          src/assets/ (ids are the file names without extension). -->
     <xrextras-named-image-target name="video-target">
-      <a-entity xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
+      <a-entity scale="3 3 3" xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
                 geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
     </xrextras-named-image-target>
 
