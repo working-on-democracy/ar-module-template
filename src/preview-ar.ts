@@ -7,6 +7,7 @@ import {
   configureImageTargets,
   assetElement
 } from "./host-runtime";
+import { disableFrustumCulling } from "./frustum-culling";
 
 // Same data shape the host injects.
 const mockArModule = {
@@ -147,13 +148,9 @@ nextTick(() => {
     else scene.addEventListener("loaded", mount);
     requestAnimationFrame(() => requestAnimationFrame(mount));
 
-    // Animated skinned meshes get frustum-culled by three.js; disable culling on
-    // loaded model meshes so they don't vanish once animation-mixer runs.
-    scene.addEventListener("model-loaded", (e: any) => {
-      e.target?.getObject3D?.("mesh")?.traverse?.((o: any) => {
-        if (o.isMesh) o.frustumCulled = false;
-      });
-    });
+    // Keep animated skinned meshes from being frustum-culled (see the helper).
+    // model-loaded bubbles, so one delegated listener on the scene covers all.
+    scene.addEventListener("model-loaded", (e: any) => disableFrustumCulling(e.target));
   };
   waitForScene();
 });

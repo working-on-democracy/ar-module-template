@@ -28,7 +28,7 @@ const label = computed(
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
   <a-entity
-      no-frustrum-cull
+      no-frustum-cull
   >
     <a-text
         :value="label"
@@ -70,7 +70,7 @@ const label = computed(
     </a-octahedron>
 
     <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
-         The no-frustrum-cull component on the root entity keeps this animated
+         The no-frustum-cull component on the root entity keeps this animated
          skinned mesh from being culled once animation-mixer moves it. -->
     <a-entity
         gltf-model="#fish1"
