@@ -64,7 +64,15 @@ nextTick(() => {
   const scene = document.querySelector("a-scene") as (Element & { hasLoaded?: boolean }) | null;
   if (!scene) return;
 
+  // We arm mount() via two independent triggers (below) because neither is
+  // reliable alone — but mount() is NOT idempotent: applyCameraSettings snapshots
+  // the camera's current attributes as "previous", so a second run would capture
+  // the already-applied manifest values and a later teardown would restore the
+  // wrong state. Guard so only the first trigger wins.
+  let mounted = false;
   const mount = () => {
+    if (mounted) return;
+    mounted = true;
     // Mirror the host: register the manifest's A-Frame components and apply its
     // camera settings before the module renders (the template uses them).
     registerManifestComponents(manifest);

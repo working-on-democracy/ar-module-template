@@ -125,7 +125,15 @@ nextTick(() => {
       requestAnimationFrame(waitForScene);
       return;
     }
+    // Two independent triggers arm mount() (below); neither is reliable alone.
+    // But mount() is NOT idempotent: applyCameraSettings snapshots the camera's
+    // current attributes as "previous", so a second run would capture the
+    // already-applied manifest values and a later teardown would restore the
+    // wrong state. Guard so only the first trigger wins.
+    let mounted = false;
     const mount = () => {
+      if (mounted) return;
+      mounted = true;
       // Mirror the host: register the manifest's A-Frame components, apply its
       // camera settings, and feed its image targets to XR8 before mounting.
       registerManifestComponents(manifest);
