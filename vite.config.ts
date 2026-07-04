@@ -199,13 +199,6 @@ export default defineConfig(async ({ command, mode }) => {
     // can be served from any subdirectory, not just the domain root.
     base: isArBuild ? "./" : "/",
     plugins,
-    resolve: {
-      // The library build shares the host's Vue via the shim. The standalone AR
-      // build and the dev previews bundle/use the real Vue.
-      alias: isLibBuild
-        ? { vue: fileURLToPath(new URL("./src/vue-shim.ts", import.meta.url)) }
-        : {}
-    },
     server: isAr ? { host: true } : {},
     build: isAr
       ? {
@@ -225,6 +218,12 @@ export default defineConfig(async ({ command, mode }) => {
             fileName: () => "ar-module.js"
           },
           rollupOptions: {
+            // `vue` stays a bare import in the emitted module. The host resolves
+            // it via an import map to the single Vue instance it also uses, so
+            // the module shares the host's runtime (no bundled second copy, no
+            // hand-maintained re-export shim). See the host's index.html import
+            // map and vite.config.ts.
+            external: ["vue"],
             output: { inlineDynamicImports: true }
           },
           emptyOutDir: true

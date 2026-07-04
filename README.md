@@ -21,8 +21,7 @@ ar-module-template/
     ├── assets/                # drop .glb/.png/.mp3/… here — auto-derived into the manifest
     ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
     ├── image-targets/         # 8th Wall image-target JSON + images, referenced from manifest.ts
-    ├── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
-    └── vue-shim.ts            # statically re-exports every Vue runtime symbol from window.__AR_VUE__
+    └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
 ```
 
 ## Workflow
@@ -54,15 +53,15 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 
 ### Builds
 
-- `npm run build` → **library** build → `dist-platform/ar-module.js` (uses the vue-shim alias so the module shares the host's Vue runtime). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
+- `npm run build` → **library** build → `dist-platform/ar-module.js` (`vue` is external, so the module shares the host's Vue runtime via the import map). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
 - `npm run build:ar` → **standalone AR app** → `dist-ar/` (`index.html` + bundled module + the engine copied into `external/xr/`). A self-contained, deployable page for testing the module in AR on a device — serve `dist-ar/` over https and open it on a phone.
 
 ## How it works
 
 - Vite is configured in **library mode**, so the build output is a single ES module.
-- `resolve.alias` redirects every `import { ... } from "vue"` to `src/vue-shim.ts`. The shim reads `window.__VUE__` at runtime and re-exports each public Vue symbol — including the SFC compiler's emitted helpers (`createElementBlock`, `openBlock`, `toDisplayString`, etc.). This guarantees the compiled component uses the **host's** Vue instance, not its own.
+- `vue` is marked **external** in the library build (`rollupOptions.external: ["vue"]`), so `import { ... } from "vue"` stays a bare import in the emitted `ar-module.js` — Vue is *not* bundled. At runtime the host's **import map** resolves that bare `vue` to a single, host-served Vue ESM build. Because the host app imports `vue` from the same import map, the module and the host share **one** Vue instance — no second copy, and no hand-maintained re-export shim that has to track Vue's public API.
 - `a-*` tags are registered as custom elements so A-Frame markup compiles without warnings.
-- The host (`frontend/src/main.ts`) exposes Vue via `(window as any).__VUE__ = Vue` before mounting the app, so the shim has something to read from.
+- The host (`frontend/index.html`) declares `<script type="importmap">{ "imports": { "vue": "…/vendor/vue.runtime.esm-browser*.js" } }</script>` and externalizes `vue` in its own build (`frontend/vite.config.ts`), so both sides resolve `vue` to that one file.
 
 ## The `arModule` prop
 
@@ -142,8 +141,7 @@ same in preview as in the host.
 
 ## Caveats
 
-- The shim is bundled into every output (~1 KB). Acceptable price for self-contained modules — no extra HTTP round trip, no host-side path coordination.
-- If you use a Vue API that isn't enumerated in `vue-shim.ts`, add it there. It must be a static `export const` — ES modules don't allow dynamic exports.
-- The host **must** expose Vue at `window.__VUE__` before any ArModule loads. If that wiring ever moves, every published module breaks; treat it as a stable contract.
+- `vue` is external, so nothing Vue-related is bundled into `ar-module.js` — any Vue API works (nothing to enumerate), and the whole runtime is downloaded once by the host and shared.
+- The host **must** ship an import map that resolves `vue` before any ArModule loads (and must externalize `vue` in its own build so it uses that same instance). If that wiring ever moves, every published module breaks; treat it as a stable contract.
 - Cross-origin loading: the host fetches your module via `import(url)`. The server hosting the JS must send appropriate CORS headers and the correct `Content-Type: text/javascript` (or `application/javascript`). Vite's dev server does this by default.
 - Don't add Vue to `dependencies`. It's a peer of the host runtime; bundling it would create a second Vue instance and break vnode rendering.
