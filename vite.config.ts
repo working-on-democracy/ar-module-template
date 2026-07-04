@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
-import { readdirSync, readFileSync, existsSync, statSync, renameSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
 import { join, parse, extname } from "node:path";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
@@ -53,15 +53,48 @@ function readImageTargetFiles(): string[] {
   );
 }
 
-/** Serve a static directory at a URL prefix from a Connect middleware stack. */
+/**
+ * Serve a static directory at a URL prefix from a Connect middleware stack.
+ * Honours HTTP `Range` requests (206 + `Content-Range`): iOS/Safari refuses to
+ * play a `<video>`/`<audio>` source that isn't served with range support, so
+ * without this the preview's `jellyfish-video.mp4` silently fails on iPhone —
+ * the primary AR test device. Files are streamed, not buffered whole.
+ */
 function serveDir(server: any, prefix: string, root: string) {
   server.middlewares.use((req: any, res: any, next: any) => {
     const url = (req.url || "").split("?")[0];
     if (!url.startsWith(prefix)) return next();
     const file = join(root, decodeURIComponent(url.slice(prefix.length)));
-    if (!file.startsWith(root) || !existsSync(file)) return next();
+    if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) return next();
+
+    const size = statSync(file).size;
     res.setHeader("Content-Type", MIME[extname(file).toLowerCase()] ?? "application/octet-stream");
-    res.end(readFileSync(file));
+    // Advertise range support so Safari/iOS issues byte-range requests for media.
+    res.setHeader("Accept-Ranges", "bytes");
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+    if (match) {
+      const [, rawStart, rawEnd] = match;
+      // "bytes=-N" (suffix) asks for the last N bytes; otherwise start-[end].
+      let start = rawStart === "" ? size - Number(rawEnd) : Number(rawStart);
+      let end = rawStart === "" ? size - 1 : rawEnd === "" ? size - 1 : Number(rawEnd);
+      start = Math.max(0, start);
+      end = Math.min(end, size - 1);
+      if (start > end || Number.isNaN(start) || Number.isNaN(end)) {
+        res.statusCode = 416; // Range Not Satisfiable
+        res.setHeader("Content-Range", `bytes */${size}`);
+        res.end();
+        return;
+      }
+      res.statusCode = 206;
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+      res.setHeader("Content-Length", end - start + 1);
+      createReadStream(file, { start, end }).pipe(res);
+      return;
+    }
+
+    res.setHeader("Content-Length", size);
+    createReadStream(file).pipe(res);
   });
 }
 
