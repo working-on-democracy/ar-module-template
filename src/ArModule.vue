@@ -37,7 +37,11 @@ const label = computed(
         color="#ffffff"
         width="8"
     />
+    <!-- Directional light that casts shadows onto the ground plane. Positioned
+         above the scene; with no explicit `target` it points at the origin, so
+         the fish and octahedron below cast shadows. -->
     <a-entity
+        position="1 50 15"
         light="
                     type: directional;
                     intensity: 2;
@@ -48,19 +52,15 @@ const label = computed(
                     shadowCameraBottom: -80;
                     shadowCameraRight: 80;
                     shadowCameraLeft: -80;
-                    target: #group;
                     shadowRadius: 12"
-        xrextras-attach="target: group; offset: 1 50 15;"
         shadow>
     </a-entity>
 
     <a-light type="ambient" intensity="0.7"></a-light>
 
-    <!-- Placeholder: a spinning glossy purple "diamond". The camera-reflection
-         component (registered via the manifest) reflects the live 8th Wall camera
-         feed off the surface (purple-tinted); this base material is the fallback
-         when there's no feed (e.g. VR/desktop preview) — glossy (low roughness)
-         and clearly purple under the scene lights. Rotates on Y. -->
+    <!-- Placeholder: a spinning glossy purple "diamond" — glossy (low roughness)
+         and clearly purple under the scene lights, rotating on Y. A simple stand-in
+         so the preview shows something without depending on the bundled glTF. -->
     <a-octahedron
         radius="1"
         scale="2 2 2"
