@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 import { fileURLToPath, URL } from "node:url";
 import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
-import { join, parse, extname } from "node:path";
+import { join, parse, extname, sep } from "node:path";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
 // Image-target files (the JSON + its *_luminance/_cropped/… images) produced by
@@ -65,7 +66,9 @@ function serveDir(server: any, prefix: string, root: string) {
     const url = (req.url || "").split("?")[0];
     if (!url.startsWith(prefix)) return next();
     const file = join(root, decodeURIComponent(url.slice(prefix.length)));
-    if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) return next();
+    // Confine to `root`. Compare against `root + separator` so a sibling dir with
+    // a matching prefix (e.g. `<root>-secret`) can't slip past a bare startsWith.
+    if (!file.startsWith(root + sep) || !existsSync(file) || !statSync(file).isFile()) return next();
 
     const size = statSync(file).size;
     res.setHeader("Content-Type", MIME[extname(file).toLowerCase()] ?? "application/octet-stream");
@@ -209,14 +212,6 @@ export default defineConfig(async ({ command, mode }) => {
       }
     });
 
-    // Self-host the 8th Wall engine exactly like the host app: copy the binary
-    // from node_modules into /external/xr (served in dev, emitted on build).
-    const { viteStaticCopy } = await import("vite-plugin-static-copy");
-    plugins.push(
-      viteStaticCopy({
-        targets: [{ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" }]
-      })
-    );
     // WebAR needs a secure context (camera). localhost is exempt, but a phone on
     // the LAN needs https — enable it when the plugin is available.
     try {
@@ -225,6 +220,25 @@ export default defineConfig(async ({ command, mode }) => {
     } catch {
       /* optional: without it, use localhost or a tunnel for device testing */
     }
+  }
+
+  // Self-hosted runtime dependencies, copied from node_modules (served in dev,
+  // emitted on build) so they're version-pinned via package.json instead of
+  // fetched from a mutable/unversioned CDN URL:
+  //  - xrextras: for every preview flavour (dev VR + dev:ar + build:ar). 8thwall's
+  //    CDN only serves an unversioned `xrextras.js` that mutates in place, so we
+  //    pin @8thwall/xrextras and host it locally. The library build doesn't need
+  //    it — the host provides xrextras at runtime.
+  //  - the 8th Wall engine (xr.js): AR only, exactly like the host app.
+  const copyTargets: { src: string; dest: string }[] = [];
+  if (!isLibBuild) {
+    copyTargets.push({ src: "node_modules/@8thwall/xrextras/dist/*", dest: "external/xrextras" });
+  }
+  if (isAr) {
+    copyTargets.push({ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" });
+  }
+  if (copyTargets.length) {
+    plugins.push(viteStaticCopy({ targets: copyTargets }));
   }
 
   return {
