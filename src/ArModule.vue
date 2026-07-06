@@ -32,6 +32,7 @@ const label = computed(
   >
 
 <<<<<<< HEAD
+<<<<<<< HEAD
        The custom components used below (lod-manager, lod-object, render-order,
        unlit-material, billboard, ground-decal, no-frustum-cull) are registered
        from the manifest (src/a-frame-components/*) before this template mounts. -->
@@ -147,6 +148,53 @@ const label = computed(
     </a-entity>
 
 
+=======
+    <a-entity
+        light="
+                    type: directional;
+                    intensity: 2;
+                    castShadow: true;
+                    shadowMapHeight:2048;
+                    shadowMapWidth:2048;
+                    shadowCameraTop: 80;
+                    shadowCameraBottom: -80;
+                    shadowCameraRight: 80;
+                    shadowCameraLeft: -80;
+                    target: #group;
+                    shadowRadius: 12"
+        xrextras-attach="target: group; offset: 1 50 15;"
+        shadow>
+    </a-entity>
+
+    <a-light type="ambient" intensity="2"></a-light>
+
+
+    <a-entity
+        gltf-model="#Stick1"
+        scale="10 10 10"
+        rotation="0 0 0"
+        position="-5 5 -5"
+        shadow>
+    </a-entity>
+
+    <a-entity
+        gltf-model="#Stick2"
+        scale="10 10 10"
+        rotation="0 0 0"
+        position="0 5 -5"
+        shadow>
+    </a-entity>
+
+    <a-entity
+        gltf-model="#Stick3"
+        scale="10 10 10"
+        rotation="0 0 0"
+        position="5 5 5"
+        shadow>
+    </a-entity>
+
+
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
     <a-plane
         id="ground"
         rotation="-90 0 0"
@@ -168,6 +216,9 @@ const label = computed(
                 geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
     </xrextras-named-image-target>
     -->
+<<<<<<< HEAD
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
+=======
 >>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
 
   </a-entity>

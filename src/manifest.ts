@@ -14,6 +14,7 @@ import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 <<<<<<< HEAD
+<<<<<<< HEAD
 import unlitMaterial from "./a-frame-components/unlit-material";
 import renderOrder from "./a-frame-components/render-order";
 import billboard from "./a-frame-components/billboard";
@@ -21,6 +22,9 @@ import groundDecal from "./a-frame-components/ground-decal";
 import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
 import attachTo from "./a-frame-components/attach-to";
+=======
+import videoTarget from "./image-targets/video-target.json";
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
 =======
 import videoTarget from "./image-targets/video-target.json";
 >>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
@@ -52,6 +56,7 @@ export const manifest: Manifest = {
 
   components: {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "no-frustum-cull": noFrustumCull,
     "unlit-material": unlitMaterial,
     "render-order": renderOrder,
@@ -62,6 +67,9 @@ export const manifest: Manifest = {
     "lod-manager": lodManager,
     // Makes an entity follow another's world position (our xrextras-attach stand-in).
     "attach-to": attachTo
+=======
+    "no-frustum-cull": noFrustumCull
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
 =======
     "no-frustum-cull": noFrustumCull
 >>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
