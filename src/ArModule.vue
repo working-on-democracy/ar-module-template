@@ -25,10 +25,10 @@ const label = computed(
 
   <!-- Assets are declared in the manifest (derived from src/assets/) and injected
        into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+       them here by id (file name without extension): `Rosa.glb` → id "Rosa".
+       Do NOT declare your own <a-assets> here. -->
   <a-entity
-      no-frustrum-cull
+      no-frustum-cull
   >
 
 

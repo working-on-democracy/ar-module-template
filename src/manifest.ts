@@ -15,7 +15,6 @@ import type { ComponentDefinition } from "aframe";
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import meshRenderOrder from "./a-frame-components/mesh-render-order";
 import unlitMaterials from "./a-frame-components/unlit-materials";
-import videoTarget from "./image-targets/video-target.json";
 
 export interface ManifestAsset {
   id: string;
@@ -48,7 +47,11 @@ export const manifest: Manifest = {
     "unlit-materials": unlitMaterials
   },
 
-  imageTargets: [videoTarget]
+  // No image targets in use. The image-target machinery is kept intact (this
+  // field, host-runtime's configureImageTargets, and the vite plumbing) for
+  // future use: drop a target's JSON + images into src/image-targets/, import the
+  // JSON here, and add it to this array.
+  imageTargets: []
 };
 
 export default manifest;
