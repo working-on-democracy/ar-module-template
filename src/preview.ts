@@ -2,6 +2,7 @@ import { createApp, h, ref, nextTick } from "vue";
 import ArModule from "./ArModule.vue";
 import { manifest } from "./manifest";
 import { registerManifestComponents, applyCameraSettings, assetElement } from "./host-runtime";
+import { disableFrustumCulling } from "./frustum-culling";
 
 const mockArModule = {
   id: "preview-1",
@@ -64,7 +65,15 @@ nextTick(() => {
   const scene = document.querySelector("a-scene") as (Element & { hasLoaded?: boolean }) | null;
   if (!scene) return;
 
+  // We arm mount() via two independent triggers (below) because neither is
+  // reliable alone — but mount() is NOT idempotent: applyCameraSettings snapshots
+  // the camera's current attributes as "previous", so a second run would capture
+  // the already-applied manifest values and a later teardown would restore the
+  // wrong state. Guard so only the first trigger wins.
+  let mounted = false;
   const mount = () => {
+    if (mounted) return;
+    mounted = true;
     // Mirror the host: register the manifest's A-Frame components and apply its
     // camera settings before the module renders (the template uses them).
     registerManifestComponents(manifest);
@@ -80,13 +89,7 @@ nextTick(() => {
   else scene.addEventListener("loaded", mount);
   requestAnimationFrame(() => requestAnimationFrame(mount));
 
-  // Animated skinned meshes get frustum-culled by three.js: their bind-pose
-  // bounding sphere doesn't cover where the skeleton moves the geometry, so the
-  // model silently disappears once animation-mixer runs. Disable culling on the
-  // loaded model's meshes. (The host has the same gotcha for animated glTF.)
-  scene.addEventListener("model-loaded", (e: any) => {
-    e.target?.getObject3D?.("mesh")?.traverse?.((o: any) => {
-      if (o.isMesh) o.frustumCulled = false;
-    });
-  });
+  // Keep animated skinned meshes from being frustum-culled (see the helper).
+  // model-loaded bubbles, so one delegated listener on the scene covers all.
+  scene.addEventListener("model-loaded", (e: any) => disableFrustumCulling(e.target));
 });
