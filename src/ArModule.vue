@@ -31,28 +31,11 @@ const label = computed(
       no-frustrum-cull
   >
 
-    <a-entity light="type: ambient; intensity: 1"></a-entity>
-
-    <a-entity
-                    light="
-                        type: directional;
-                        intensity: 1;
-                        castShadow: true;
-                        shadowMapHeight:4096;
-                        shadowMapWidth:4096;
-                        shadowCameraTop: 80;
-                        shadowCameraBottom: -80;
-                        shadowCameraRight: 80;
-                        shadowCameraLeft: -80;
-                        target: #group;
-                        shadowRadius: 80"
-                    xrextras-attach="target: group; offset: 0 50 1;"
-                    shadow>
-    </a-entity>
 
             <a-entity
                     gltf-model="#Rosa"
                     unlit-materials
+                    mesh-render-order
                     scale="12 12 12"
                     rotation="0 0 0"
                     position="0 0 -30"

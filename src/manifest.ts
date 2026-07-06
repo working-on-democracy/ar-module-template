@@ -13,6 +13,8 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import meshRenderOrder from "./a-frame-components/mesh-render-order";
+import unlitMaterials from "./a-frame-components/unlit-materials";
 import videoTarget from "./image-targets/video-target.json";
 
 export interface ManifestAsset {
@@ -41,7 +43,9 @@ export const manifest: Manifest = {
   },
 
   components: {
-    "no-frustum-cull": noFrustumCull
+    "no-frustum-cull": noFrustumCull,
+    "mesh-render-order": meshRenderOrder,
+    "unlit-materials": unlitMaterials
   },
 
   imageTargets: [videoTarget]
