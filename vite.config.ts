@@ -5,11 +5,6 @@ import { readdirSync, readFileSync, existsSync, statSync, renameSync } from "nod
 import { join, parse, extname } from "node:path";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
-// Image-target files (the JSON + its *_luminance/_cropped/… images) produced by
-// the 8th Wall target tool. The engine loads each target's `imagePath` as an
-// <img src>, so these must be served at /image-targets/* (dev) and shipped under
-// dist/image-targets/ (build) for detection to work.
-const IMAGE_TARGETS_SRC = fileURLToPath(new URL("./src/image-targets", import.meta.url));
 const VIRTUAL_MANIFEST_ID = "virtual:ar-manifest";
 const RESOLVED_MANIFEST_ID = "\0" + VIRTUAL_MANIFEST_ID;
 
@@ -45,14 +40,6 @@ function buildManifest() {
   return { assets: readAssets().map((a) => a.entry), components: [] as string[] };
 }
 
-/** Flat list of every file under src/image-targets/ (json + images). */
-function readImageTargetFiles(): string[] {
-  if (!existsSync(IMAGE_TARGETS_SRC)) return [];
-  return readdirSync(IMAGE_TARGETS_SRC).filter(
-    (f) => !f.startsWith(".") && statSync(join(IMAGE_TARGETS_SRC, f)).isFile()
-  );
-}
-
 /** Serve a static directory at a URL prefix from a Connect middleware stack. */
 function serveDir(server: any, prefix: string, root: string) {
   server.middlewares.use((req: any, res: any, next: any) => {
@@ -85,25 +72,16 @@ function arModuleAssets() {
       }
     },
 
-    // Preview / dev server: serve raw asset + image-target files.
+    // Preview / dev server: serve raw asset files.
     configureServer(server: any) {
       serveDir(server, "/assets/", ASSETS_SRC);
-      serveDir(server, "/image-targets/", IMAGE_TARGETS_SRC);
     },
 
-    // Library build: copy assets + image targets into dist and emit the manifest.
+    // Library build: copy assets into dist and emit the manifest.
     generateBundle() {
       for (const { entry, file } of readAssets()) {
         // @ts-ignore — rollup plugin context
         this.emitFile({ type: "asset", fileName: entry.src, source: readFileSync(join(ASSETS_SRC, file)) });
-      }
-      for (const file of readImageTargetFiles()) {
-        // @ts-ignore — rollup plugin context
-        this.emitFile({
-          type: "asset",
-          fileName: `image-targets/${file}`,
-          source: readFileSync(join(IMAGE_TARGETS_SRC, file))
-        });
       }
       // @ts-ignore — rollup plugin context
       this.emitFile({

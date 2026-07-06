@@ -25,8 +25,8 @@ const label = computed(
 
   <!-- Assets are declared in the manifest (derived from src/assets/) and injected
        into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+       them here by id (file name without extension): `Wand1.glb` → id "Wand1".
+       Do NOT declare your own <a-assets> here. -->
   <a-entity
       no-frustrum-cull
   ></a-entity>
@@ -89,20 +89,4 @@ const label = computed(
         material="shader: shadow"
         shadow
     ></a-plane>
-
-
-
-
-    <!-- example Image Tracking. The target ("video-target") is declared in the
-         manifest's imageTargets and configured by the host before mount; the
-         #jellyfish-video / #video-target assets are auto-injected from
-         src/assets/ (ids are the file names without extension). -->
-    <!--
-    <xrextras-named-image-target name="video-target">
-      <a-entity xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
-                geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
-    </xrextras-named-image-target>
-
-  </a-entity>
-  -->
 </template>

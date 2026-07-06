@@ -14,13 +14,12 @@ ar-module-template/
 └── src/
     ├── main.ts                # entry: re-exports the SFC as default + the manifest
     ├── ArModule.vue           # the user-edited component (template syntax)
-    ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
+    ├── manifest.ts            # the authored manifest: assets + camera + components
     ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
     ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
-    ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
+    ├── host-runtime.ts        # shared preview wiring (register components / camera)
     ├── assets/                # drop .glb/.png/.mp3/… here — auto-derived into the manifest
     ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
-    ├── image-targets/         # 8th Wall image-target JSON + images, referenced from manifest.ts
     ├── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
     └── vue-shim.ts            # statically re-exports every Vue runtime symbol from window.__AR_VUE__
 ```
@@ -96,7 +95,7 @@ Drop any binary asset (`.glb`, `.gltf`, `.png`, `.mp3`, …) into `src/assets/`.
 
 When you publish, host the **whole `dist-platform/` folder together** so the relative `assets/…` paths in the manifest resolve next to the page that loads them.
 
-## The manifest: components, camera & image targets
+## The manifest: components & camera
 
 Everything the host needs to set up your scene travels in **one object** — the
 `manifest` your bundle exports (the host reads it as `mod.manifest` right after
@@ -112,8 +111,7 @@ export const manifest: Manifest = {
   },
   components: {                          // name → AFRAME component definition
     "no-frustrum-cull": noFrustrumCull
-  },
-  imageTargets: [videoTarget]            // 8th Wall image-target JSON
+  }
 };
 ```
 
@@ -126,19 +124,16 @@ walks the manifest and, in order:
    They no longer need to self-register or be hosted as separate URLs.
 2. **`camera`** — applies each attribute to the scene's `<a-camera>`, remembering
    the previous values.
-3. **`imageTargets`** — feeds the array to `XR8.XrController.configure({ imageTargetData })`.
-   Drop the JSON the 8th Wall target tool produces (plus its images) into
-   `src/image-targets/` and `import` it into `manifest.ts`.
-4. **`assets`** — injects each `{ id, src }` into `<a-assets>` as an `<a-asset-item>`.
+3. **`assets`** — injects each `{ id, src }` into `<a-assets>` as an `<a-asset-item>`.
 
-On unmount the host tears all of this back down: it removes the injected assets,
-**restores the camera** to its previous attributes, and clears the image targets
-(`imageTargetData: []`). Registered components stay registered — A-Frame has no
-deregister — which is why registration is guarded against duplicates.
+On unmount the host tears all of this back down: it removes the injected assets and
+**restores the camera** to its previous attributes. Registered components stay
+registered — A-Frame has no deregister — which is why registration is guarded
+against duplicates.
 
 The two local previews (`npm run dev` / `npm run dev:ar`) mirror this exact wiring
-via `src/host-runtime.ts`, so components, camera, and image targets behave the
-same in preview as in the host.
+via `src/host-runtime.ts`, so components and camera behave the same in preview as
+in the host.
 
 ## Caveats
 

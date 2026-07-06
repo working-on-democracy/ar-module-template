@@ -4,7 +4,6 @@ import { manifest } from "./manifest";
 import {
   registerManifestComponents,
   applyCameraSettings,
-  configureImageTargets,
   assetElement
 } from "./host-runtime";
 
@@ -122,11 +121,10 @@ nextTick(() => {
       return;
     }
     const mount = () => {
-      // Mirror the host: register the manifest's A-Frame components, apply its
-      // camera settings, and feed its image targets to XR8 before mounting.
+      // Mirror the host: register the manifest's A-Frame components and apply its
+      // camera settings before mounting.
       registerManifestComponents(manifest);
       applyCameraSettings(document.querySelector("a-camera"), manifest.camera);
-      configureImageTargets((window as any).XR8, manifest.imageTargets);
       assetsReady.value = true;
     };
     // Mount the module after the scene/assets register, so `gltf-model="#id"`
