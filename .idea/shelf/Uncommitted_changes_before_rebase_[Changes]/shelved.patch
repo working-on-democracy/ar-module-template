@@ -1,0 +1,24 @@
+Index: src/manifest.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>// The module's manifest — the single object the host reads off the published\n// bundle as `mod.manifest`. It bundles everything the host must wire up *before*\n// mounting the component:\n//\n//   - assets       → injected into the scene's <a-assets> as <a-asset-item>\n//   - camera       → attributes applied to the scene's <a-camera>\n//   - components   → A-Frame components registered via AFRAME.registerComponent\n//   - imageTargets → XR8 image-target data fed to XR8.XrController.configure\n//\n// `assets` is derived automatically from `src/assets/` by the Vite plugin\n// (virtual:ar-manifest). The other three are authored here by hand.\nimport { manifest as assetManifest } from \"virtual:ar-manifest\";\nimport type { ComponentDefinition } from \"aframe\";\n\nimport noFrustumCull from \"./a-frame-components/no-frustum-cull\";\nimport unlitMaterial from \"./a-frame-components/unlit-material\";\nimport renderOrder from \"./a-frame-components/render-order\";\nimport billboard from \"./a-frame-components/billboard\";\nimport groundDecal from \"./a-frame-components/ground-decal\";\nimport lodObject from \"./a-frame-components/lod-object\";\nimport lodManager from \"./a-frame-components/lod-manager\";\nimport attachTo from \"./a-frame-components/attach-to\";\n\nexport interface ManifestAsset {\n  id: string;\n  src: string;\n}\n/** Attribute → value pairs applied to the scene's <a-camera> before mount. */\nexport type CameraSettings = Record<string, string>;\nexport interface Manifest {\n  assets: ManifestAsset[];\n  camera: CameraSettings;\n  /** A-Frame component name → definition, registered before the module mounts. */\n  components: Record<string, ComponentDefinition>;\n  /** XR8 image-target descriptors (the JSON exported by the 8th Wall target tool). */\n  imageTargets: unknown[];\n}\n\nexport const manifest: Manifest = {\n  // Auto-scanned from src/assets/; file name (sans extension) is the asset id.\n  assets: assetManifest.assets,\n\n  camera: {\n    // `id: camera` lets the module attach a camera-following point light via\n    // xrextras-attach=\"target: camera\" (the lightstick scene relies on it).\n    id: \"camera\",\n    raycaster: \"objects: .cantap\",\n    cursor: \"fuse: false; rayOrigin: mouse;\",\n    position: \"0 8 8\"\n  },\n\n  components: {\n    \"no-frustum-cull\": noFrustumCull,\n    \"unlit-material\": unlitMaterial,\n    \"render-order\": renderOrder,\n    billboard: billboard,\n    \"ground-decal\": groundDecal,\n    \"lod-object\": lodObject,\n    // Drives every lod-object; place it on the module root (see ArModule.vue).\n    \"lod-manager\": lodManager,\n    // Makes an entity follow another's world position (our xrextras-attach stand-in).\n    \"attach-to\": attachTo\n  },\n\n  // The lightstick module uses SLAM/world tracking only — no image targets.\n  imageTargets: []\n};\n\nexport default manifest;\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/manifest.ts b/src/manifest.ts
+--- a/src/manifest.ts	(revision d6f0469b206ef270015bfecf3975a7f5d7ca6dce)
++++ b/src/manifest.ts	(date 1783354420459)
+@@ -41,12 +41,7 @@
+   assets: assetManifest.assets,
+ 
+   camera: {
+-    // `id: camera` lets the module attach a camera-following point light via
+-    // xrextras-attach="target: camera" (the lightstick scene relies on it).
+-    id: "camera",
+-    raycaster: "objects: .cantap",
+-    cursor: "fuse: false; rayOrigin: mouse;",
+-    position: "0 8 8"
++
+   },
+ 
+   components: {

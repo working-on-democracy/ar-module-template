@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="add asset files">
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/Halo.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/HaloSphere.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/app.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/index.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/index.html" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Merge.Settings">
+    <option name="BRANCH" value="origin/main" />
+  </component>
+  <component name="Git.Rebase.Settings">
+    <option name="NEW_BASE" value="Gyumin" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="Gyumin5" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;working-on-democracy&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/working-on-democracy/ar-module-template.git&quot;,
+    &quot;accountId&quot;: &quot;6fd54158-0fb4-40db-a6a8-8a9b7454e07c&quot;
+  }
+}</component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.0166677384293394" />
+      <entry key="MS500" value="1.8548931147229193" />
+      <entry key="S2" value="4.627477392739322" />
+      <entry key="S5" value="6.311591982154338" />
+      <entry key="S10" value="7.083769692356215" />
+      <entry key="S30" value="7.676764322703924" />
+      <entry key="S60" value="7.836035555815193" />
+      <entry key="M2" value="7.924715048669443" />
+      <entry key="M5" value="8.557663780813787" />
+      <entry key="M10" value="11.285303988222484" />
+      <entry key="M15" value="15.231785905852467" />
+      <entry key="M30" value="31.15015730808194" />
+      <entry key="H1" value="57.84743256449514" />
+      <entry key="H2" value="84.18002758596768" />
+      <entry key="H4" value="102.97702716182471" />
+      <entry key="D1" value="122.57387968216143" />
+      <entry key="W1" value="126.35647836846013" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="2.6116E-320" />
+      <entry key="S10" value="1.6159641383237755E-160" />
+      <entry key="S30" value="5.446831071186028E-54" />
+      <entry key="S60" value="2.33384469731514E-27" />
+      <entry key="M2" value="4.830988198407385E-14" />
+      <entry key="M5" value="4.716440832644134E-6" />
+      <entry key="M10" value="0.002171736823983084" />
+      <entry key="M15" value="0.016770195683266646" />
+      <entry key="M30" value="0.1294997902827129" />
+      <entry key="H1" value="0.3598607929223647" />
+      <entry key="H2" value="0.5998839828853275" />
+      <entry key="H4" value="0.7745217768954773" />
+      <entry key="D1" value="0.958309085307513" />
+      <entry key="W1" value="0.993934907805196" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.9752333924152914" />
+      <entry key="MS500" value="1.8292659919948877" />
+      <entry key="S2" value="4.5938926516582015" />
+      <entry key="S5" value="6.291104457111947" />
+      <entry key="S10" value="7.0719248764756735" />
+      <entry key="S30" value="7.672409682392464" />
+      <entry key="S60" value="7.833803930549712" />
+      <entry key="M2" value="7.923579461379428" />
+      <entry key="M5" value="8.557031690853952" />
+      <entry key="M10" value="11.28678553376202" />
+      <entry key="M15" value="15.247807004344708" />
+      <entry key="M30" value="31.278820412672445" />
+      <entry key="H1" value="58.20652122987966" />
+      <entry key="H2" value="84.77935396893399" />
+      <entry key="H4" value="103.75120903766984" />
+      <entry key="D1" value="123.53212149327008" />
+      <entry key="W1" value="127.3504033724775" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3G8RSQzqm1zGptKRBxAXKtwsjNX" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "Gyumin",
+    "git.auto.fetch.suggestion.counter": "3",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/Users/hfg_kd/Downloads/ar-module-template/node_modules/typescript/lib",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="ar-module-template" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="ar-module-template" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.24374.151" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.24374.151" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task id="LOCAL-00001" summary="Resolved merge issues and cleanup. optimized the placing of the mirror shards object.">
+      <option name="closed" value="true" />
+      <created>1783351127632</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1783351127632</updated>
+    </task>
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="Resolved merge issues and cleanup. optimized the placing of the mirror shards object." />
+      <created>1783351213619</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1783351213619</updated>
+      <workItem from="1783351215977" duration="3374000" />
+      <workItem from="1783356562606" duration="266000" />
+      <workItem from="1783356834993" duration="18000" />
+      <workItem from="1783356866474" duration="455000" />
+    </task>
+    <task id="LOCAL-00002" summary="unversioned files">
+      <option name="closed" value="true" />
+      <created>1783356293714</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1783356293714</updated>
+    </task>
+    <task id="LOCAL-00003" summary="add asset files">
+      <option name="closed" value="true" />
+      <created>1783357011660</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1783357011660</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Resolved merge issues and cleanup. optimized the placing of the mirror shards object." />
+    <MESSAGE value="unversioned files" />
+    <MESSAGE value="add asset files" />
+    <option name="LAST_COMMIT_MESSAGE" value="add asset files" />
+  </component>
+</project>
