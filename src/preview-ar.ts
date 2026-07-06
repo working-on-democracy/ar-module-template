@@ -76,9 +76,15 @@ const ArPreviewApp = {
         position: "0 0 0",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;"
+      }),
+      h("a-plane", {
+        id: "ground",
+        rotation: "-90 0 0",
+        width: "100",
+        height: "100",
+        material: "shader: shadow",
+        shadow: ""
       })
-      // The module (ArModule.vue) provides its own #ground shadow plane, so the
-      // preview no longer adds one (a second id="ground" would clash).
     ];
 
     if (assetsReady.value) {

@@ -13,6 +13,7 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+<<<<<<< HEAD
 import unlitMaterial from "./a-frame-components/unlit-material";
 import renderOrder from "./a-frame-components/render-order";
 import billboard from "./a-frame-components/billboard";
@@ -20,6 +21,9 @@ import groundDecal from "./a-frame-components/ground-decal";
 import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
 import attachTo from "./a-frame-components/attach-to";
+=======
+import videoTarget from "./image-targets/video-target.json";
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
 
 export interface ManifestAsset {
   id: string;
@@ -41,15 +45,13 @@ export const manifest: Manifest = {
   assets: assetManifest.assets,
 
   camera: {
-    // `id: camera` lets the module attach a camera-following point light via
-    // xrextras-attach="target: camera" (the lightstick scene relies on it).
-    id: "camera",
     raycaster: "objects: .cantap",
     cursor: "fuse: false; rayOrigin: mouse;",
     position: "0 8 8"
   },
 
   components: {
+<<<<<<< HEAD
     "no-frustum-cull": noFrustumCull,
     "unlit-material": unlitMaterial,
     "render-order": renderOrder,
@@ -60,10 +62,12 @@ export const manifest: Manifest = {
     "lod-manager": lodManager,
     // Makes an entity follow another's world position (our xrextras-attach stand-in).
     "attach-to": attachTo
+=======
+    "no-frustum-cull": noFrustumCull
+>>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
   },
 
-  // The lightstick module uses SLAM/world tracking only — no image targets.
-  imageTargets: []
+  imageTargets: [videoTarget]
 };
 
 export default manifest;
