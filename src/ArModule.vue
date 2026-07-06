@@ -29,7 +29,7 @@ const label = computed(
        Do NOT declare your own <a-assets> here. -->
   <a-entity no-frustrum-cull>
 
-    <a-entity
+   <a-entity
         light="
                     type: directional;
                     intensity: 0.1;
@@ -46,7 +46,9 @@ const label = computed(
         shadow>
     </a-entity>
 
-    <a-light type="ambient" intensity="0.1"></a-light>
+
+
+     <a-light type="ambient" intensity="0.1"></a-light>
 
 
     <!-- Wand models — ids come from the file names in src/assets/ (Wand1.glb →
