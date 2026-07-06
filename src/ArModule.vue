@@ -27,10 +27,7 @@ const label = computed(
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `Wand1.glb` → id "Wand1".
        Do NOT declare your own <a-assets> here. -->
-  <a-entity
-      no-frustrum-cull
-  ></a-entity>
-
+  <a-entity no-frustrum-cull>
 
     <a-entity
         light="
@@ -52,9 +49,9 @@ const label = computed(
     <a-light type="ambient" intensity="0.1"></a-light>
 
 
-    <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
-         The no-frustrum-cull component on the root entity keeps this animated
-         skinned mesh from being culled once animation-mixer moves it. -->
+    <!-- Wand models — ids come from the file names in src/assets/ (Wand1.glb →
+         "Wand1"). The no-frustrum-cull component on the root entity keeps any
+         animated skinned meshes from being culled once they move. -->
     <a-entity
         gltf-model="#Wand1"
         scale="4 4 4"
@@ -89,4 +86,6 @@ const label = computed(
         material="shader: shadow"
         shadow
     ></a-plane>
+
+  </a-entity>
 </template>

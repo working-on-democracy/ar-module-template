@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
-import { readdirSync, readFileSync, existsSync, statSync, renameSync } from "node:fs";
-import { join, parse, extname } from "node:path";
+import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
+import { join, parse, extname, sep } from "node:path";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
 const VIRTUAL_MANIFEST_ID = "virtual:ar-manifest";
@@ -217,13 +218,6 @@ export default defineConfig(async ({ command, mode }) => {
     // can be served from any subdirectory, not just the domain root.
     base: isArBuild ? "./" : "/",
     plugins,
-    resolve: {
-      // The library build shares the host's Vue via the shim. The standalone AR
-      // build and the dev previews bundle/use the real Vue.
-      alias: isLibBuild
-        ? { vue: fileURLToPath(new URL("./src/vue-shim.ts", import.meta.url)) }
-        : {}
-    },
     server: isAr ? { host: true } : {},
     build: isAr
       ? {

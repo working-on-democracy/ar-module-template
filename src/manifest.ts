@@ -5,14 +5,13 @@
 //   - assets       → injected into the scene's <a-assets> as <a-asset-item>
 //   - camera       → attributes applied to the scene's <a-camera>
 //   - components   → A-Frame components registered via AFRAME.registerComponent
-//   - imageTargets → XR8 image-target data fed to XR8.XrController.configure
 //
 // `assets` is derived automatically from `src/assets/` by the Vite plugin
 // (virtual:ar-manifest). The other two are authored here by hand.
 import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
-import noFrustrumCull from "./a-frame-components/no-frustrum-cull";
+import noFrustrumCull from "./a-frame-components/no-frustum-cull";
 import cameraReflection from "./a-frame-components/camera-reflection";
 
 export interface ManifestAsset {
@@ -40,6 +39,7 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustrum-cull": noFrustrumCull,
+    "camera-reflection": cameraReflection
   }
 };
 
