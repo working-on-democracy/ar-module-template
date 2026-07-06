@@ -7,6 +7,7 @@ import {
   configureImageTargets,
   assetElement
 } from "./host-runtime";
+import { disableFrustumCulling } from "./frustum-culling";
 
 // Same data shape the host injects.
 const mockArModule = {
@@ -41,7 +42,11 @@ navigator.mediaDevices
   .catch(() => { /* user can still grant when xrweb prompts */ });
 
 XR8Promise.then((XR8: any) => {
-  XR8.XrController.configure({});
+  // Image targets are a session capability: they must be present in the FIRST
+  // configure() — before <a-scene xrweb> starts the session. Passing them later
+  // (in mount) is rejected with "Image Targets are not supported in the current
+  // session", so declare them up-front here.
+  XR8.XrController.configure({ imageTargetData: manifest.imageTargets });
   xrReady.value = true;
 });
 
@@ -121,7 +126,15 @@ nextTick(() => {
       requestAnimationFrame(waitForScene);
       return;
     }
+    // Two independent triggers arm mount() (below); neither is reliable alone.
+    // But mount() is NOT idempotent: applyCameraSettings snapshots the camera's
+    // current attributes as "previous", so a second run would capture the
+    // already-applied manifest values and a later teardown would restore the
+    // wrong state. Guard so only the first trigger wins.
+    let mounted = false;
     const mount = () => {
+      if (mounted) return;
+      mounted = true;
       // Mirror the host: register the manifest's A-Frame components, apply its
       // camera settings, and feed its image targets to XR8 before mounting.
       registerManifestComponents(manifest);
@@ -135,13 +148,9 @@ nextTick(() => {
     else scene.addEventListener("loaded", mount);
     requestAnimationFrame(() => requestAnimationFrame(mount));
 
-    // Animated skinned meshes get frustum-culled by three.js; disable culling on
-    // loaded model meshes so they don't vanish once animation-mixer runs.
-    scene.addEventListener("model-loaded", (e: any) => {
-      e.target?.getObject3D?.("mesh")?.traverse?.((o: any) => {
-        if (o.isMesh) o.frustumCulled = false;
-      });
-    });
+    // Keep animated skinned meshes from being frustum-culled (see the helper).
+    // model-loaded bubbles, so one delegated listener on the scene covers all.
+    scene.addEventListener("model-loaded", (e: any) => disableFrustumCulling(e.target));
   };
   waitForScene();
 });
