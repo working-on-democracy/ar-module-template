@@ -23,41 +23,33 @@ defineProps<{ arModule: ArModuleData }>();
        The custom components used below (lod-manager, lod-object, render-order,
        unlit-material, billboard, ground-decal, no-frustum-cull) are registered
        from the manifest (src/a-frame-components/*) before this template mounts. -->
-  <a-entity no-frustum-cull lod-manager="chunksPerCycle: 9">
+  <a-entity no-frustum-cull lod-manager="chunksPerCycle: 6">
 
-    <!-- Key light, attached to the #group anchor and casting the shadow that
-         lands on the #ground plane below. -->
+    <!-- Key light, attached to the #group anchor and aimed at it. Dynamic shadows
+         are disabled (castShadow: false) — we rely on the ground decals instead. -->
     <a-entity
         light="
                     type: directional;
                     intensity: 0.5;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 180;
-                    shadowCameraBottom: -180;
-                    shadowCameraRight: 180;
-                    shadowCameraLeft: -180;
-                    target: #group;
-                    shadowRadius: 5"
-        xrextras-attach="target: group; offset: 0 2 10;"
-        shadow>
+                    castShadow: false;
+                    target: #group"
+        attach-to="target: #group; offset: 0 2 10">
     </a-entity>
 
     <!-- Fill light that follows the camera (in the original this was a child of
-         the <a-camera>; here it tracks the camera via xrextras-attach, since the
-         camera is provided by the host, not this module). -->
+         the <a-camera>; here it tracks the camera via our attach-to component,
+         since the camera is provided by the host, not this module). -->
     <a-entity
-        light="type: point; distance: 12; intensity: 4;"
-        xrextras-attach="target: camera; offset: 0 0 0;">
+        light="type: point; distance: 12; intensity: 4; color: #ffffff;"
+        attach-to="target: #camera; offset: 0 0 0">
     </a-entity>
 
 
     <!-- Lightstick instance 1 (AESPA1) -->
     <a-entity class="lightstick-instance"
               lod-object="nearDistance: 25; farDistance: 30"
-              position="3 7 -15"
-              scale="7 7 7"
+              position="3 5 -15"
+              scale="5 5 5"
               rotation="6 0 -30">
 
       <a-entity class="lod-mesh-group" visible="true">
@@ -78,8 +70,8 @@ defineProps<{ arModule: ArModuleData }>();
     <!-- Lightstick instance 2 (AESPA2) -->
     <a-entity class="lightstick-instance"
               lod-object="nearDistance: 25; farDistance: 30"
-              position="-3 7 -15"
-              scale="7 7 7"
+              position="-3 5 -15"
+              scale="5 5 5"
               rotation="20 0 12">
 
       <a-entity class="lod-mesh-group" visible="true">
@@ -97,17 +89,6 @@ defineProps<{ arModule: ArModuleData }>();
 
     <!-- Anchor the key light aims at / attaches to. -->
     <a-entity id="group" position="3 12 -10"></a-entity>
-
-
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
 
   </a-entity>
 </template>

@@ -19,6 +19,7 @@ import billboard from "./a-frame-components/billboard";
 import groundDecal from "./a-frame-components/ground-decal";
 import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
+import attachTo from "./a-frame-components/attach-to";
 
 export interface ManifestAsset {
   id: string;
@@ -56,7 +57,9 @@ export const manifest: Manifest = {
     "ground-decal": groundDecal,
     "lod-object": lodObject,
     // Drives every lod-object; place it on the module root (see ArModule.vue).
-    "lod-manager": lodManager
+    "lod-manager": lodManager,
+    // Makes an entity follow another's world position (our xrextras-attach stand-in).
+    "attach-to": attachTo
   },
 
   // The lightstick module uses SLAM/world tracking only — no image targets.
