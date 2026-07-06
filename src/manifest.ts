@@ -13,8 +13,6 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
-<<<<<<< HEAD
-<<<<<<< HEAD
 import unlitMaterial from "./a-frame-components/unlit-material";
 import renderOrder from "./a-frame-components/render-order";
 import billboard from "./a-frame-components/billboard";
@@ -22,12 +20,7 @@ import groundDecal from "./a-frame-components/ground-decal";
 import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
 import attachTo from "./a-frame-components/attach-to";
-=======
 import videoTarget from "./image-targets/video-target.json";
->>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
-=======
-import videoTarget from "./image-targets/video-target.json";
->>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
 
 export interface ManifestAsset {
   id: string;
@@ -49,14 +42,14 @@ export const manifest: Manifest = {
   assets: assetManifest.assets,
 
   camera: {
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
+    // Gives the host/preview <a-camera> the id ArModule.vue's fill light targets
+    // via `attach-to="target: #camera"` (the module can't edit the host camera
+    // element directly, so it's applied here). Removing this silently stops the
+    // fill light from following the camera.
+    id: "camera"
   },
 
   components: {
-<<<<<<< HEAD
-<<<<<<< HEAD
     "no-frustum-cull": noFrustumCull,
     "unlit-material": unlitMaterial,
     "render-order": renderOrder,
@@ -67,12 +60,6 @@ export const manifest: Manifest = {
     "lod-manager": lodManager,
     // Makes an entity follow another's world position (our xrextras-attach stand-in).
     "attach-to": attachTo
-=======
-    "no-frustum-cull": noFrustumCull
->>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
-=======
-    "no-frustum-cull": noFrustumCull
->>>>>>> parent of 4a901b3 (Claude imported the prototype that I built in the old system and rewrote it to fit to the new module system.)
   },
 
   imageTargets: [videoTarget]

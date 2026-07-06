@@ -4,20 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="add asset files">
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA1_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/AESPA2_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/Halo.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/HaloSphere.glb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/app.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/index.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/old/ar-hfg-template-Gyumin2/src/index.html" beforeDir="false" />
+    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="re added component scripts">
+      <change beforePath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ArModule.vue" beforeDir="false" afterPath="$PROJECT_DIR$/src/ArModule.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/a-frame-components/lod-object.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/a-frame-components/lod-object.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/manifest.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/manifest.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,61 +45,61 @@
 }</component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0166677384293394" />
-      <entry key="MS500" value="1.8548931147229193" />
-      <entry key="S2" value="4.627477392739322" />
-      <entry key="S5" value="6.311591982154338" />
-      <entry key="S10" value="7.083769692356215" />
-      <entry key="S30" value="7.676764322703924" />
-      <entry key="S60" value="7.836035555815193" />
-      <entry key="M2" value="7.924715048669443" />
-      <entry key="M5" value="8.557663780813787" />
-      <entry key="M10" value="11.285303988222484" />
-      <entry key="M15" value="15.231785905852467" />
-      <entry key="M30" value="31.15015730808194" />
-      <entry key="H1" value="57.84743256449514" />
-      <entry key="H2" value="84.18002758596768" />
-      <entry key="H4" value="102.97702716182471" />
-      <entry key="D1" value="122.57387968216143" />
-      <entry key="W1" value="126.35647836846013" />
+      <entry key="MS100" value="1.0000255405327954" />
+      <entry key="MS500" value="1.4120717051999407" />
+      <entry key="S2" value="4.025240591050277" />
+      <entry key="S5" value="5.556614880759504" />
+      <entry key="S10" value="6.2276211463474125" />
+      <entry key="S30" value="6.730355803136368" />
+      <entry key="S60" value="6.865474282219955" />
+      <entry key="M2" value="7.1032339957179405" />
+      <entry key="M5" value="10.768910120927028" />
+      <entry key="M10" value="21.08629457605784" />
+      <entry key="M15" value="31.589481881919458" />
+      <entry key="M30" value="58.37661934946208" />
+      <entry key="H1" value="96.6937852597117" />
+      <entry key="H2" value="137.0532228881479" />
+      <entry key="H4" value="168.2253000251654" />
+      <entry key="D1" value="202.87437942386993" />
+      <entry key="W1" value="209.81181551540095" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
       <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="2.6116E-320" />
-      <entry key="S10" value="1.6159641383237755E-160" />
-      <entry key="S30" value="5.446831071186028E-54" />
-      <entry key="S60" value="2.33384469731514E-27" />
-      <entry key="M2" value="4.830988198407385E-14" />
-      <entry key="M5" value="4.716440832644134E-6" />
-      <entry key="M10" value="0.002171736823983084" />
-      <entry key="M15" value="0.016770195683266646" />
-      <entry key="M30" value="0.1294997902827129" />
-      <entry key="H1" value="0.3598607929223647" />
-      <entry key="H2" value="0.5998839828853275" />
-      <entry key="H4" value="0.7745217768954773" />
-      <entry key="D1" value="0.958309085307513" />
-      <entry key="W1" value="0.993934907805196" />
+      <entry key="S2" value="2.1573887085866003E-149" />
+      <entry key="S5" value="3.4164208256299273E-60" />
+      <entry key="S10" value="1.8483562496526284E-30" />
+      <entry key="S30" value="1.227237338346499E-10" />
+      <entry key="S60" value="1.1078074464213072E-5" />
+      <entry key="M2" value="0.0033283741472696646" />
+      <entry key="M5" value="0.10206877365987593" />
+      <entry key="M10" value="0.31957996411527584" />
+      <entry key="M15" value="0.46946258244923567" />
+      <entry key="M30" value="0.7297159968228107" />
+      <entry key="H1" value="1.0415109987947528" />
+      <entry key="H2" value="1.372647291349756" />
+      <entry key="H4" value="1.6342698745413626" />
+      <entry key="D1" value="1.9300135720828588" />
+      <entry key="W1" value="1.9897525503343283" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9752333924152914" />
-      <entry key="MS500" value="1.8292659919948877" />
-      <entry key="S2" value="4.5938926516582015" />
-      <entry key="S5" value="6.291104457111947" />
-      <entry key="S10" value="7.0719248764756735" />
-      <entry key="S30" value="7.672409682392464" />
-      <entry key="S60" value="7.833803930549712" />
-      <entry key="M2" value="7.923579461379428" />
-      <entry key="M5" value="8.557031690853952" />
-      <entry key="M10" value="11.28678553376202" />
-      <entry key="M15" value="15.247807004344708" />
-      <entry key="M30" value="31.278820412672445" />
-      <entry key="H1" value="58.20652122987966" />
-      <entry key="H2" value="84.77935396893399" />
-      <entry key="H4" value="103.75120903766984" />
-      <entry key="D1" value="123.53212149327008" />
-      <entry key="W1" value="127.3504033724775" />
+      <entry key="MS100" value="0.0020607975935018025" />
+      <entry key="MS500" value="0.6981461464118346" />
+      <entry key="S2" value="3.7523251560906568" />
+      <entry key="S5" value="5.436151746095909" />
+      <entry key="S10" value="6.165298578468647" />
+      <entry key="S30" value="6.70909521348869" />
+      <entry key="S60" value="6.854788334769415" />
+      <entry key="M2" value="7.100905875199026" />
+      <entry key="M5" value="10.865853957704832" />
+      <entry key="M10" value="21.400041724737665" />
+      <entry key="M15" value="32.05338031772228" />
+      <entry key="M30" value="59.102008538889514" />
+      <entry key="H1" value="97.73234700599859" />
+      <entry key="H2" value="138.42404966562225" />
+      <entry key="H4" value="169.8585357861764" />
+      <entry key="D1" value="204.80419858014287" />
+      <entry key="W1" value="211.80153967211461" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -132,15 +124,21 @@
     "git.auto.fetch.suggestion.counter": "3",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/hfg_kd/Downloads/ar-module-template/src/a-frame-components",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "/Users/hfg_kd/Downloads/ar-module-template/node_modules/typescript/lib",
+    "ts.external.directory.path": "/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/a-frame-components" />
+    </key>
+  </component>
   <component name="RunManager">
     <configuration default="true" type="JetRunConfigurationType">
       <module name="ar-module-template" />
@@ -198,7 +196,15 @@
       <option name="project" value="LOCAL" />
       <updated>1783357011660</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="re added component scripts">
+      <option name="closed" value="true" />
+      <created>1783357582856</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1783357582856</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -219,6 +225,7 @@
     <MESSAGE value="Resolved merge issues and cleanup. optimized the placing of the mirror shards object." />
     <MESSAGE value="unversioned files" />
     <MESSAGE value="add asset files" />
-    <option name="LAST_COMMIT_MESSAGE" value="add asset files" />
+    <MESSAGE value="re added component scripts" />
+    <option name="LAST_COMMIT_MESSAGE" value="re added component scripts" />
   </component>
 </project>

@@ -103,14 +103,47 @@ export default {
     // The lod-manager was a scene system in the prototype; here it's a component
     // on an ancestor (the module root). Resolve it by walking up to the nearest
     // [lod-manager] entity and registering with its component instance.
-    const managerEl = self.el.closest("[lod-manager]");
-    self.manager = managerEl ? managerEl.components["lod-manager"] : null;
-    if (self.manager) self.manager.register(self);
-    else console.warn("[lod-object] no ancestor [lod-manager] found; LOD blending disabled");
+    //
+    // A-Frame loads children before parents (ANode.load waits on child `loaded`
+    // before running the parent's updateComponents), so at this point the
+    // ancestor's lod-manager component is usually NOT initialized yet. Its
+    // instance may already sit in `el.components` while its `init()` (which
+    // creates `objects`) hasn't run — registering then would `objects.push` on
+    // undefined and crash node loading. So gate on the component's `initialized`
+    // flag, not mere presence: register synchronously only once it's truly ready,
+    // otherwise wait for its `componentinitialized` event.
+    const managerEl = self.el.closest("[lod-manager]") as any;
+    if (!managerEl) {
+      console.warn("[lod-object] no ancestor [lod-manager] found; LOD blending disabled");
+      return;
+    }
+
+    const registerWithManager = () => {
+      self.manager = managerEl.components["lod-manager"];
+      if (self.manager) self.manager.register(self);
+    };
+
+    const managerComp = managerEl.components["lod-manager"];
+    if (managerComp && managerComp.initialized) {
+      registerWithManager();
+    } else {
+      const onInit = (e: any) => {
+        if (e.detail.name !== "lod-manager") return;
+        managerEl.removeEventListener("componentinitialized", onInit);
+        registerWithManager();
+      };
+      managerEl.addEventListener("componentinitialized", onInit);
+      self._onManagerInit = onInit;
+      self._managerEl = managerEl;
+    }
   },
 
   remove() {
     const self = this as any;
     if (self.manager) self.manager.unregister(self);
+    // Removed before the manager ever initialized — drop the pending listener.
+    else if (self._managerEl && self._onManagerInit) {
+      self._managerEl.removeEventListener("componentinitialized", self._onManagerInit);
+    }
   }
 } as ComponentDefinition;
