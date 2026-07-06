@@ -1,5 +1,5 @@
 import type { ComponentDefinition } from "aframe";
-import { disableFrustumCulling } from "../frustum-culling";
+import { disableFrustumCulling } from "../../lib/frustum-culling";
 
 // Keeps animated skinned meshes under this entity from being frustum-culled.
 //

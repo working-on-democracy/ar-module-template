@@ -7,8 +7,8 @@ interface ArModuleData {
   url: string;
   author: string;
   location: { lat: number; lng: number };
-  assets: { id: string; src: string }[];
-  components: { name: string; url: string }[];
+  assets?: { id: string; src: string }[];
+  components?: { name: string; url: string }[];
   createdAt: string;
 }
 
@@ -28,11 +28,12 @@ const label = computed(
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
   <a-entity
+      position="0 -2 0"
       no-frustum-cull
   >
     <a-text
         :value="label"
-        position="0 5 0"
+        position="0 2.5 -4"
         align="center"
         color="#ffffff"
         width="8"
@@ -64,7 +65,7 @@ const label = computed(
     <a-octahedron
         radius="1"
         scale="2 2 2"
-        position="2 4 -4"
+        position="2 0 -4"
         material="metalness: 0.3; roughness: 0.1; color: #7c3aed"
         animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
     </a-octahedron>
@@ -76,7 +77,7 @@ const label = computed(
         gltf-model="#fish1"
         scale="14 14 -14"
         rotation="0 90 0"
-        position="0 8 -12"
+        position="0 4 -12"
         animation-mixer="timeScale: 1.1"
         shadow>
     </a-entity>
@@ -98,7 +99,7 @@ const label = computed(
          #jellyfish-video / #video-target assets are auto-injected from
          src/assets/ (ids are the file names without extension). -->
     <xrextras-named-image-target name="video-target">
-      <a-entity scale="3 3 3" xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
+      <a-entity  scale="1 1 1" xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
                 geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
     </xrextras-named-image-target>
 

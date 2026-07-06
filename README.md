@@ -105,9 +105,8 @@ Everything the host needs to set up your scene travels in **one object** — the
 export const manifest: Manifest = {
   assets: assetManifest.assets,          // auto-derived from src/assets/
   camera: {                              // applied to the scene's <a-camera>
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
+    "look-controls": "enabled: false",
+    "wasd-controls": "acceleration: 30"
   },
   components: {                          // name → AFRAME component definition
     "no-frustrum-cull": noFrustrumCull
@@ -115,6 +114,25 @@ export const manifest: Manifest = {
   imageTargets: [videoTarget]            // 8th Wall image-target JSON
 };
 ```
+
+### Camera keys are restricted
+
+`camera` is typed as `CameraSettings`, not the full set of `<a-camera>` attributes:
+`id`, `position`, `cursor`, and `raycaster` (`CAMERA_PROPS_FORBIDDEN` in `lib/manifest.types.ts`)
+are **excluded at the type level** — `manifest.ts` won't compile if you set them. The
+host owns those four because it places and interacts with the *one* shared `<a-camera>`
+in its own scene (see `frontend/src/components/ArScene.vue`): it sets `id="camera"` so
+other code can look the element up, `position` to locate the viewer, and `cursor`/`raycaster`
+to make posts tappable. A module that overrode them would relocate or break interaction
+with the host's UI for every other module sharing that camera. Anything else on
+`<a-camera>` — `rotation`, the built-in `camera` component (fov/zoom/near/far/active),
+`look-controls`, `wasd-controls` — is fair game and gets applied (and reverted on
+unmount) as shown above.
+
+The scene's `<a-camera>` always has `id="camera"` — in the host, and in both local
+previews (`lib/preview.ts`, `lib/preview-ar.ts`), which construct their own `<a-camera>`
+to match. Query it with `document.querySelector("#camera")` (or `a-camera`, since
+there's only ever one) if a component needs to reach it directly.
 
 Before mounting your component, the host (`frontend/src/components/ArModule.vue`)
 walks the manifest and, in order:

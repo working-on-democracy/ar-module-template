@@ -260,7 +260,7 @@ export default defineConfig(async ({ command, mode }) => {
           // The library artifact the host platform loads.
           outDir: "dist-platform",
           lib: {
-            entry: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
+            entry: fileURLToPath(new URL("./lib/main.ts", import.meta.url)),
             formats: ["es"],
             fileName: () => "ar-module.js"
           },

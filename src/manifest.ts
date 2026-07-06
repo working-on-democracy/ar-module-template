@@ -10,35 +10,14 @@
 // `assets` is derived automatically from `src/assets/` by the Vite plugin
 // (virtual:ar-manifest). The other three are authored here by hand.
 import { manifest as assetManifest } from "virtual:ar-manifest";
-import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import videoTarget from "./image-targets/video-target.json";
-
-export interface ManifestAsset {
-  id: string;
-  src: string;
-}
-/** Attribute → value pairs applied to the scene's <a-camera> before mount. */
-export type CameraSettings = Record<string, string>;
-export interface Manifest {
-  assets: ManifestAsset[];
-  camera: CameraSettings;
-  /** A-Frame component name → definition, registered before the module mounts. */
-  components: Record<string, ComponentDefinition>;
-  /** XR8 image-target descriptors (the JSON exported by the 8th Wall target tool). */
-  imageTargets: unknown[];
-}
+import type { Manifest } from "../lib/manifest.types";
 
 export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
   assets: assetManifest.assets,
-
-  camera: {
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
-  },
 
   components: {
     "no-frustum-cull": noFrustumCull

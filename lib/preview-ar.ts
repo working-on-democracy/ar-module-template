@@ -1,6 +1,6 @@
 import { createApp, h, ref, nextTick } from "vue";
-import ArModule from "./ArModule.vue";
-import { manifest } from "./manifest";
+import ArModule from "../src/ArModule.vue";
+import { manifest } from "../src/manifest";
 import {
   registerManifestComponents,
   applyCameraSettings,
@@ -65,25 +65,16 @@ const ArPreviewApp = {
       h(
         "a-assets",
         { timeout: "10000" },
-        manifest.assets.map((a) => {
+        manifest.assets && manifest.assets.map((a) => {
           const el = assetElement(a);
           return h(el.tag, el.attrs);
         })
       ),
-      h("a-light", { type: "ambient", intensity: "0.8" }),
-      h("a-light", { type: "directional", position: "1 2 1", intensity: "0.9", light: "castShadow: true" }),
       h("a-camera", {
+        id: "camera",
         position: "0 0 0",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;"
-      }),
-      h("a-plane", {
-        id: "ground",
-        rotation: "-90 0 0",
-        width: "100",
-        height: "100",
-        material: "shader: shadow",
-        shadow: ""
       })
     ];
 
@@ -138,8 +129,8 @@ nextTick(() => {
       // Mirror the host: register the manifest's A-Frame components, apply its
       // camera settings, and feed its image targets to XR8 before mounting.
       registerManifestComponents(manifest);
-      applyCameraSettings(document.querySelector("a-camera"), manifest.camera);
-      configureImageTargets((window as any).XR8, manifest.imageTargets);
+      applyCameraSettings(document.querySelector("a-camera"), manifest.camera || {});
+      configureImageTargets((window as any).XR8, manifest.imageTargets || []);
       assetsReady.value = true;
     };
     // Mount the module after the scene/assets register, so `gltf-model="#id"`
