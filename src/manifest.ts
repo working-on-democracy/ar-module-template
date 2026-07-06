@@ -13,7 +13,7 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
-import videoTarget from "./image-targets/video-target.json";
+import { getDmsComponents } from "./a-frame-components/dms-mirror-shards";
 
 export interface ManifestAsset {
   id: string;
@@ -41,10 +41,18 @@ export const manifest: Manifest = {
   },
 
   components: {
-    "no-frustum-cull": noFrustumCull
+    "no-frustum-cull": noFrustumCull,
+    // The DMS "mirror shards" A-Frame components used by ArModule.vue
+    // (dms-mirror-shards, dms-world-room-anchor, + inert diagnostic helpers),
+    // captured from their registration wrappers. See getDmsComponents().
+    ...getDmsComponents()
   },
 
-  imageTargets: [videoTarget]
+  // No image targets on this branch — the DMS scene uses 8th Wall world tracking.
+  // The image-target machinery (this field, host-runtime's configureImageTargets,
+  // and the vite plumbing) is kept intact for future use: drop a target's JSON +
+  // images into src/image-targets/, import the JSON here, and add it to this array.
+  imageTargets: []
 };
 
 export default manifest;

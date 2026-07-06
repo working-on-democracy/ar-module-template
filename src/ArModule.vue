@@ -35,7 +35,7 @@ onMounted(() => {
 <template>
   <!-- Keeps any glTF models in the scene from being frustum-culled once their
        animation moves them outside their bind-pose bounding sphere. -->
-  <a-entity no-frustrum-cull></a-entity>
+  <a-entity no-frustum-cull></a-entity>
 
   <!-- Scene lighting (from the old standalone src/index.html). -->
   <a-entity light="type: ambient; intensity: 0.9; color: #e9feff"></a-entity>
@@ -47,7 +47,7 @@ onMounted(() => {
     id="dms-room-anchor"
     dms-world-room-anchor="
       autoPlace: true;
-      distance: 3.0;
+      distance: 5;
       groundY: 0.04;
       placementDelayMs: 650;
       minCameraTravelBeforePlace: 0;
@@ -56,8 +56,8 @@ onMounted(() => {
       requireXrWorldPose: false;
       requireSceneCameraMotion: false;
       placementMode: camera;
-      minPlacementDistance: 1.2;
-      maxPlacementDistance: 5.2;
+      minPlacementDistance: 5;
+      maxPlacementDistance: 7;
       stablePlacementSamples: 4;
       stablePlacementRadius: 0.28;
       waitForRealityReady: false;
@@ -67,7 +67,7 @@ onMounted(() => {
     <a-entity
       id="dms-installation"
       class="cantap"
-      position="0 0 0"
+      position="0 6 0"
       rotation="0 0 0"
       dms-mirror-shards="
         autoCycle: false;
@@ -81,9 +81,9 @@ onMounted(() => {
         liquidShockCoupling: 1;
         faceCameraOnStart: false;
         layoutScale: 1.55;
-        displayScale: 2.05;
+        displayScale: 2;
         allowQueryScale: true;
-        queryScaleMin: 1.85;
+        queryScaleMin: 1.5;
         queryScaleMax: 2.5;
         placeFromCameraOnStart: false;
         manualPlacementOnStart: false;
