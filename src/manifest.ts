@@ -20,6 +20,7 @@ import groundDecal from "./a-frame-components/ground-decal";
 import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
 import attachTo from "./a-frame-components/attach-to";
+import glowstickField from "./a-frame-components/glowstick-field";
 import videoTarget from "./image-targets/video-target.json";
 
 export interface ManifestAsset {
@@ -59,7 +60,9 @@ export const manifest: Manifest = {
     // Drives every lod-object; place it on the module root (see ArModule.vue).
     "lod-manager": lodManager,
     // Makes an entity follow another's world position (our xrextras-attach stand-in).
-    "attach-to": attachTo
+    "attach-to": attachTo,
+    // Auto-places the whole glowstick field (see the component for parameters).
+    "glowstick-field": glowstickField
   },
 
   imageTargets: [videoTarget]

@@ -53,46 +53,34 @@ const label = computed(
     </a-entity>
 
 
-    <!-- Lightstick instance 1 (AESPA1) -->
-    <a-entity class="lightstick-instance"
-              lod-object="nearDistance: 15; farDistance: 20"
-              position="3 -2 -10"
-              scale="3 3 3"
-              rotation="6 0 -30">
-
-      <a-entity class="lod-mesh-group" visible="true">
-        <a-entity class="lod-mesh" gltf-model="#HaloSphere" scale="1 1 1" material="opacity:0.1" render-order="0" unlit-material data-lod-near="7" data-lod-far="10" billboard></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA1_01" render-order="1"></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA1_02" render-order="2"></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA1_03" render-order="3"></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA1_LICHT" render-order="4" unlit-material data-lod-near="2" data-lod-far="6"></a-entity>
-      </a-entity>
-
-      <a-entity class="lod-billboard" gltf-model="#AESPA1_PNG" render-order="5" billboard unlit-material></a-entity>
-
-      <a-entity geometry="primitive: plane; width: 0.8; height: 0.8" material="src: #Halo; opacity: 0.5; transparent: true" data-lod-near="6" data-lod-far="11" render-order="0" ground-decal="groundY: 0"></a-entity>
-
-    </a-entity>
-
-
-    <!-- Lightstick instance 2 (AESPA2) -->
-    <a-entity class="lightstick-instance"
-              lod-object="nearDistance: 25; farDistance: 30"
-              position="-3 -2 -10"
-              scale="3 3 3"
-              rotation="20 0 12">
-
-      <a-entity class="lod-mesh-group" visible="true">
-        <a-entity class="lod-mesh" gltf-model="#HaloSphere" scale="1 1 1" material="opacity:0.1" render-order="0" unlit-material data-lod-near="7" data-lod-far="10" billboard></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA2" render-order="1"></a-entity>
-        <a-entity class="lod-mesh" gltf-model="#AESPA2_LICHT" render-order="2" unlit-material data-lod-near="7" data-lod-far="10"></a-entity>
-      </a-entity>
-
-      <a-entity class="lod-billboard" gltf-model="#AESPA2_PNG" render-order="0" billboard unlit-material></a-entity>
-
-      <a-entity geometry="primitive: plane; width: 0.8; height: 0.8" material="src: #Halo; opacity: 0.5; transparent: true" data-lod-near="6" data-lod-far="11" render-order="0" ground-decal="groundY: 0"></a-entity>
-
-    </a-entity>
+    <!-- The whole glowstick field. glowstick-field auto-discovers every glowstick
+         from <a-assets> (by the PREFIX_01 / PREFIX_LICHT / PREFIX_PNG convention)
+         and builds one lod-object instance per stick — the same structure the two
+         hand-written AESPA examples used, so all existing LOD/billboard/decal
+         behaviour is reused unchanged. Parameters:
+           areaWidth                  FIXED width (X), centred on the viewer (equal left/right)
+           elevation / elevationVariation   base Y height + random ± offset
+           minDistance / maxDistance  spacing between sticks, both honoured exactly
+           tiltMin / tiltMax          random X/Z tilt magnitude range in degrees (± each, Y is always fully random)
+           copies                     1 = 25 sticks, 2 = 50, 3 = 75, …
+           scale                      per-stick scale
+           lodNear / lodFar           global LOD group fade thresholds
+           lichtNear / lichtFar       global custom near/far for the LICHT glow parts
+         There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
+    <a-entity glowstick-field="
+        areaWidth: 6;
+        elevation: 0;
+        elevationVariation: 0.3;
+        minDistance: 0.8;
+        maxDistance: 3;
+        tiltMin: 0;
+        tiltMax: 15;
+        copies: 2;
+        scale: 1;
+        lodNear: 8;
+        lodFar: 10;
+        lichtNear: 1;
+        lichtFar: 4"></a-entity>
 
 
     <!-- Anchor the key light aims at / attaches to. -->

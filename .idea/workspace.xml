@@ -4,11 +4,141 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="re added component scripts">
+    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="let claude fix merge errors">
+      <change afterPath="$PROJECT_DIR$/src/assets/BAP_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BAP_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BAP_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BAP_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_06.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BOA_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/BTS_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/EXO_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_06.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/IU_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/NTX_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_06.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/POW_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_05.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_06.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_PNG.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_01.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_02.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_03.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_04.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_LICHT.glb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_PNG.glb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ArModule.vue" beforeDir="false" afterPath="$PROJECT_DIR$/src/ArModule.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/a-frame-components/lod-object.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/a-frame-components/lod-object.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/manifest.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/manifest.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -45,61 +175,61 @@
 }</component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000255405327954" />
-      <entry key="MS500" value="1.4120717051999407" />
-      <entry key="S2" value="4.025240591050277" />
-      <entry key="S5" value="5.556614880759504" />
-      <entry key="S10" value="6.2276211463474125" />
-      <entry key="S30" value="6.730355803136368" />
-      <entry key="S60" value="6.865474282219955" />
-      <entry key="M2" value="7.1032339957179405" />
-      <entry key="M5" value="10.768910120927028" />
-      <entry key="M10" value="21.08629457605784" />
-      <entry key="M15" value="31.589481881919458" />
-      <entry key="M30" value="58.37661934946208" />
-      <entry key="H1" value="96.6937852597117" />
-      <entry key="H2" value="137.0532228881479" />
-      <entry key="H4" value="168.2253000251654" />
-      <entry key="D1" value="202.87437942386993" />
-      <entry key="W1" value="209.81181551540095" />
+      <entry key="MS100" value="1.000000104038886" />
+      <entry key="MS500" value="1.1414581469326521" />
+      <entry key="S2" value="3.3224057838967824" />
+      <entry key="S5" value="5.100363442271999" />
+      <entry key="S10" value="5.959472987348236" />
+      <entry key="S30" value="6.831351397211533" />
+      <entry key="S60" value="8.279660439025433" />
+      <entry key="M2" value="13.046954784827573" />
+      <entry key="M5" value="28.37147547614026" />
+      <entry key="M10" value="44.29284181890604" />
+      <entry key="M15" value="54.7081885431791" />
+      <entry key="M30" value="80.77552685435566" />
+      <entry key="H1" value="128.76128953328424" />
+      <entry key="H2" value="195.23686775647082" />
+      <entry key="H4" value="257.96350420269664" />
+      <entry key="D1" value="339.2116878969045" />
+      <entry key="W1" value="356.919372031415" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
       <entry key="MS500" value="0.0" />
-      <entry key="S2" value="2.1573887085866003E-149" />
-      <entry key="S5" value="3.4164208256299273E-60" />
-      <entry key="S10" value="1.8483562496526284E-30" />
-      <entry key="S30" value="1.227237338346499E-10" />
-      <entry key="S60" value="1.1078074464213072E-5" />
-      <entry key="M2" value="0.0033283741472696646" />
-      <entry key="M5" value="0.10206877365987593" />
-      <entry key="M10" value="0.31957996411527584" />
-      <entry key="M15" value="0.46946258244923567" />
-      <entry key="M30" value="0.7297159968228107" />
-      <entry key="H1" value="1.0415109987947528" />
-      <entry key="H2" value="1.372647291349756" />
-      <entry key="H4" value="1.6342698745413626" />
-      <entry key="D1" value="1.9300135720828588" />
-      <entry key="W1" value="1.9897525503343283" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="1.6848919966735382E-212" />
+      <entry key="S30" value="2.563641868946545E-71" />
+      <entry key="S60" value="5.063241914965675E-36" />
+      <entry key="M2" value="2.250164863952342E-18" />
+      <entry key="M5" value="8.727417987503192E-8" />
+      <entry key="M10" value="2.955125867117348E-4" />
+      <entry key="M15" value="0.004455864166965834" />
+      <entry key="M30" value="0.07109177322763957" />
+      <entry key="H1" value="0.3250847528081203" />
+      <entry key="H2" value="0.7668763196208732" />
+      <entry key="H4" value="1.2215379394496537" />
+      <entry key="D1" value="1.838615401994522" />
+      <entry key="W1" value="1.9760100353305587" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.0020607975935018025" />
-      <entry key="MS500" value="0.6981461464118346" />
-      <entry key="S2" value="3.7523251560906568" />
-      <entry key="S5" value="5.436151746095909" />
-      <entry key="S10" value="6.165298578468647" />
-      <entry key="S30" value="6.70909521348869" />
-      <entry key="S60" value="6.854788334769415" />
-      <entry key="M2" value="7.100905875199026" />
-      <entry key="M5" value="10.865853957704832" />
-      <entry key="M10" value="21.400041724737665" />
-      <entry key="M15" value="32.05338031772228" />
-      <entry key="M30" value="59.102008538889514" />
-      <entry key="H1" value="97.73234700599859" />
-      <entry key="H2" value="138.42404966562225" />
-      <entry key="H4" value="169.8585357861764" />
-      <entry key="D1" value="204.80419858014287" />
-      <entry key="W1" value="211.80153967211461" />
+      <entry key="MS100" value="5.711296555077265E-7" />
+      <entry key="MS500" value="0.1948106767495988" />
+      <entry key="S2" value="2.801386267036671" />
+      <entry key="S5" value="4.845013826472083" />
+      <entry key="S10" value="5.822340424964898" />
+      <entry key="S30" value="6.783242740858663" />
+      <entry key="S60" value="8.254300738473257" />
+      <entry key="M2" value="13.03098410656408" />
+      <entry key="M5" value="28.36027006583354" />
+      <entry key="M10" value="44.28516146283114" />
+      <entry key="M15" value="54.70640542786705" />
+      <entry key="M30" value="80.8424166536457" />
+      <entry key="H1" value="129.0832725304338" />
+      <entry key="H2" value="196.00153199031718" />
+      <entry key="H4" value="259.18363953889667" />
+      <entry key="D1" value="341.05000802119133" />
+      <entry key="W1" value="358.8953380097599" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -124,7 +254,7 @@
     "git.auto.fetch.suggestion.counter": "3",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/hfg_kd/Downloads/ar-module-template/src/a-frame-components",
+    "last_opened_file_path": "/Users/hfg_kd/Downloads/ar-module-template/src/assets",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
@@ -136,6 +266,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/assets" />
       <recent name="$PROJECT_DIR$/src/a-frame-components" />
     </key>
   </component>
@@ -204,7 +335,15 @@
       <option name="project" value="LOCAL" />
       <updated>1783357582856</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="let claude fix merge errors">
+      <option name="closed" value="true" />
+      <created>1783360509224</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1783360509224</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -226,6 +365,7 @@
     <MESSAGE value="unversioned files" />
     <MESSAGE value="add asset files" />
     <MESSAGE value="re added component scripts" />
-    <option name="LAST_COMMIT_MESSAGE" value="re added component scripts" />
+    <MESSAGE value="let claude fix merge errors" />
+    <option name="LAST_COMMIT_MESSAGE" value="let claude fix merge errors" />
   </component>
 </project>
