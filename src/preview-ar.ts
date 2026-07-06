@@ -6,6 +6,7 @@ import {
   applyCameraSettings,
   assetElement
 } from "./host-runtime";
+import { disableFrustumCulling } from "./frustum-culling";
 
 // Same data shape the host injects.
 const mockArModule = {
@@ -99,7 +100,7 @@ const ArPreviewApp = {
         "xrextras-gesture-detector": "",
         xrweb: "disableWorldTracking: false",
         "xr-mode-ui": "enabled: false",
-        renderer: "colorManagement: false"
+        renderer: "colorManagement: true"
       },
       children
     );
@@ -120,6 +121,12 @@ nextTick(() => {
       requestAnimationFrame(waitForScene);
       return;
     }
+    // Two independent triggers arm mount() (below); neither is reliable alone.
+    // But mount() is NOT idempotent: applyCameraSettings snapshots the camera's
+    // current attributes as "previous", so a second run would capture the
+    // already-applied manifest values and a later teardown would restore the
+    // wrong state. Guard so only the first trigger wins.
+    let mounted = false;
     const mount = () => {
       // Mirror the host: register the manifest's A-Frame components and apply its
       // camera settings before mounting.
@@ -133,13 +140,9 @@ nextTick(() => {
     else scene.addEventListener("loaded", mount);
     requestAnimationFrame(() => requestAnimationFrame(mount));
 
-    // Animated skinned meshes get frustum-culled by three.js; disable culling on
-    // loaded model meshes so they don't vanish once animation-mixer runs.
-    scene.addEventListener("model-loaded", (e: any) => {
-      e.target?.getObject3D?.("mesh")?.traverse?.((o: any) => {
-        if (o.isMesh) o.frustumCulled = false;
-      });
-    });
+    // Keep animated skinned meshes from being frustum-culled (see the helper).
+    // model-loaded bubbles, so one delegated listener on the scene covers all.
+    scene.addEventListener("model-loaded", (e: any) => disableFrustumCulling(e.target));
   };
   waitForScene();
 });

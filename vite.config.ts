@@ -46,9 +46,38 @@ function serveDir(server: any, prefix: string, root: string) {
     const url = (req.url || "").split("?")[0];
     if (!url.startsWith(prefix)) return next();
     const file = join(root, decodeURIComponent(url.slice(prefix.length)));
-    if (!file.startsWith(root) || !existsSync(file)) return next();
+    // Confine to `root`. Compare against `root + separator` so a sibling dir with
+    // a matching prefix (e.g. `<root>-secret`) can't slip past a bare startsWith.
+    if (!file.startsWith(root + sep) || !existsSync(file) || !statSync(file).isFile()) return next();
+
+    const size = statSync(file).size;
     res.setHeader("Content-Type", MIME[extname(file).toLowerCase()] ?? "application/octet-stream");
-    res.end(readFileSync(file));
+    // Advertise range support so Safari/iOS issues byte-range requests for media.
+    res.setHeader("Accept-Ranges", "bytes");
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+    if (match) {
+      const [, rawStart, rawEnd] = match;
+      // "bytes=-N" (suffix) asks for the last N bytes; otherwise start-[end].
+      let start = rawStart === "" ? size - Number(rawEnd) : Number(rawStart);
+      let end = rawStart === "" ? size - 1 : rawEnd === "" ? size - 1 : Number(rawEnd);
+      start = Math.max(0, start);
+      end = Math.min(end, size - 1);
+      if (start > end || Number.isNaN(start) || Number.isNaN(end)) {
+        res.statusCode = 416; // Range Not Satisfiable
+        res.setHeader("Content-Range", `bytes */${size}`);
+        res.end();
+        return;
+      }
+      res.statusCode = 206;
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+      res.setHeader("Content-Length", end - start + 1);
+      createReadStream(file, { start, end }).pipe(res);
+      return;
+    }
+
+    res.setHeader("Content-Length", size);
+    createReadStream(file).pipe(res);
   });
 }
 
@@ -103,12 +132,17 @@ function arModuleAssets() {
 export default defineConfig(async ({ command, mode }) => {
   const isAr = mode === "ar";
   const isLibBuild = command === "build" && !isAr;
+  const isArBuild = command === "build" && isAr;
 
   const plugins: any[] = [
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith("a-")
+          // A-Frame primitives (a-*) and 8th Wall's xrextras components
+          // (xrextras-*, e.g. xrextras-named-image-target) are custom elements,
+          // not Vue components — otherwise the compiler emits resolveComponent()
+          // and the element is dropped with "Failed to resolve component".
+          isCustomElement: (tag) => tag.startsWith("a-") || tag.startsWith("xrextras-")
         }
       }
     }),
@@ -149,14 +183,6 @@ export default defineConfig(async ({ command, mode }) => {
       }
     });
 
-    // Self-host the 8th Wall engine exactly like the host app: copy the binary
-    // from node_modules into /external/xr (served in dev, emitted on build).
-    const { viteStaticCopy } = await import("vite-plugin-static-copy");
-    plugins.push(
-      viteStaticCopy({
-        targets: [{ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" }]
-      })
-    );
     // WebAR needs a secure context (camera). localhost is exempt, but a phone on
     // the LAN needs https — enable it when the plugin is available.
     try {
@@ -167,7 +193,29 @@ export default defineConfig(async ({ command, mode }) => {
     }
   }
 
+  // Self-hosted runtime dependencies, copied from node_modules (served in dev,
+  // emitted on build) so they're version-pinned via package.json instead of
+  // fetched from a mutable/unversioned CDN URL:
+  //  - xrextras: for every preview flavour (dev VR + dev:ar + build:ar). 8thwall's
+  //    CDN only serves an unversioned `xrextras.js` that mutates in place, so we
+  //    pin @8thwall/xrextras and host it locally. The library build doesn't need
+  //    it — the host provides xrextras at runtime.
+  //  - the 8th Wall engine (xr.js): AR only, exactly like the host app.
+  const copyTargets: { src: string; dest: string }[] = [];
+  if (!isLibBuild) {
+    copyTargets.push({ src: "node_modules/@8thwall/xrextras/dist/*", dest: "external/xrextras" });
+  }
+  if (isAr) {
+    copyTargets.push({ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" });
+  }
+  if (copyTargets.length) {
+    plugins.push(viteStaticCopy({ targets: copyTargets }));
+  }
+
   return {
+    // Relative asset URLs (./assets/…) in the standalone AR build so dist-ar/
+    // can be served from any subdirectory, not just the domain root.
+    base: isArBuild ? "./" : "/",
     plugins,
     resolve: {
       // The library build shares the host's Vue via the shim. The standalone AR
@@ -195,6 +243,12 @@ export default defineConfig(async ({ command, mode }) => {
             fileName: () => "ar-module.js"
           },
           rollupOptions: {
+            // `vue` stays a bare import in the emitted module. The host resolves
+            // it via an import map to the single Vue instance it also uses, so
+            // the module shares the host's runtime (no bundled second copy, no
+            // hand-maintained re-export shim). See the host's index.html import
+            // map and vite.config.ts.
+            external: ["vue"],
             output: { inlineDynamicImports: true }
           },
           emptyOutDir: true
