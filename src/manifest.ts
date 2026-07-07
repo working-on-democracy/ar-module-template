@@ -11,6 +11,7 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import forceShadowMap from "./a-frame-components/force-shadow-map";
 import soundButtonManager from "./a-frame-components/sound-button-manager";
 import soundButtonGroup from "./a-frame-components/sound-button-group";
 import soundButton from "./a-frame-components/sound-button";
@@ -22,6 +23,7 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustum-cull": noFrustumCull,
+    "force-shadow-map": forceShadowMap,
     "sound-button-manager": soundButtonManager,
     "sound-button-group": soundButtonGroup,
     "sound-button": soundButton
