@@ -3,7 +3,7 @@
 // the manifest's A-Frame components, apply its camera settings, and configure its
 // image targets — then tear them all down again. Each apply* returns a teardown
 // fn so previews can clean up on hot-reload / unmount, mirroring the host.
-import type { Manifest, ManifestAsset } from "./manifest";
+import {CAMERA_PROPS_FORBIDDEN, Manifest, ManifestAsset} from './manifest.types';
 
 declare const AFRAME: any;
 
@@ -55,6 +55,9 @@ export function applyCameraSettings(
   if (!camera) return () => {};
   const previous: Record<string, unknown> = {};
   for (const [attr, value] of Object.entries(settings ?? {})) {
+    if(CAMERA_PROPS_FORBIDDEN.includes(attr as unknown as any)){
+      continue;
+    }
     previous[attr] = camera.getAttribute(attr);
     camera.setAttribute(attr, value);
   }

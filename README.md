@@ -11,16 +11,19 @@ ar-module-template/
 ├── vite.config.ts        # lib build + VR/AR previews + standalone AR build; bundles src/assets
 ├── index.html            # VR/desktop preview page  (npm run dev)
 ├── ar.html               # 8th Wall AR preview page (npm run dev:ar / build:ar)
-└── src/
+├── src/                   # everything a fork is expected to edit
+│   ├── ArModule.vue           # the user-edited component (template syntax)
+│   ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
+│   ├── assets/                 # drop .glb/.png/.mp3/… here — auto-derived into the manifest
+│   ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
+│   └── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
+└── lib/                   # internal plumbing — not meant to be edited by a fork
     ├── main.ts                # entry: re-exports the SFC as default + the manifest
-    ├── ArModule.vue           # the user-edited component (template syntax)
-    ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
+    ├── manifest.types.ts      # Manifest/CameraProps/CameraSettings/ManifestAsset types
     ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
     ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
     ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
-    ├── assets/                # drop .glb/.png/.mp3/… here — auto-derived into the manifest
-    ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
-    ├── image-targets/         # 8th Wall image-target JSON + images, referenced from manifest.ts
+    ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
     └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
 ```
 
@@ -38,7 +41,7 @@ ar-module-template/
 - `npm run dev` starts a Vite dev server (with HMR) that mounts `ArModule.vue` standalone inside an A-Frame scene. Open the printed URL in a browser.
 - The scene shows A-Frame's built-in **"Enter VR"** button (bottom-right). Any WebXR-compatible HMD (Quest browser, SteamVR, etc.) can enter immersive mode.
 - Desktop fallback: WASD to move, mouse drag to look around.
-- Mock prop data lives in `src/preview.ts` — edit it to test different inputs.
+- Mock prop data lives in `lib/preview.ts` — edit it to test different inputs.
 - For LAN access (e.g. from a standalone HMD on the same network): `npm run dev -- --host`.
 
 The VR preview loads the host's component runtime from CDN, pinned to the host's versions: **A-Frame 1.3.0** (the version 8thwall's `8frame` is built on), `aframe-extras` (`animation-mixer`, …) and `xrextras` (`xrextras-*`).
@@ -47,7 +50,7 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 
 ### 8th Wall AR preview (camera + world tracking)
 
-- `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `src/preview-ar.ts`.
+- `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `lib/preview-ar.ts`.
 - The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
 - **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
 
@@ -105,9 +108,8 @@ Everything the host needs to set up your scene travels in **one object** — the
 export const manifest: Manifest = {
   assets: assetManifest.assets,          // auto-derived from src/assets/
   camera: {                              // applied to the scene's <a-camera>
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
+    "look-controls": "enabled: false",
+    "wasd-controls": "acceleration: 30"
   },
   components: {                          // name → AFRAME component definition
     "no-frustrum-cull": noFrustrumCull
@@ -115,6 +117,25 @@ export const manifest: Manifest = {
   imageTargets: [videoTarget]            // 8th Wall image-target JSON
 };
 ```
+
+### Camera keys are restricted
+
+`camera` is typed as `CameraSettings`, not the full set of `<a-camera>` attributes:
+`id`, `position`, `cursor`, and `raycaster` (`CAMERA_PROPS_FORBIDDEN` in `lib/manifest.types.ts`)
+are **excluded at the type level** — `manifest.ts` won't compile if you set them. The
+host owns those four because it places and interacts with the *one* shared `<a-camera>`
+in its own scene (see `frontend/src/components/ArScene.vue`): it sets `id="camera"` so
+other code can look the element up, `position` to locate the viewer, and `cursor`/`raycaster`
+to make posts tappable. A module that overrode them would relocate or break interaction
+with the host's UI for every other module sharing that camera. Anything else on
+`<a-camera>` — `rotation`, the built-in `camera` component (fov/zoom/near/far/active),
+`look-controls`, `wasd-controls` — is fair game and gets applied (and reverted on
+unmount) as shown above.
+
+The scene's `<a-camera>` always has `id="camera"` — in the host, and in both local
+previews (`lib/preview.ts`, `lib/preview-ar.ts`), which construct their own `<a-camera>`
+to match. Query it with `document.querySelector("#camera")` (or `a-camera`, since
+there's only ever one) if a component needs to reach it directly.
 
 Before mounting your component, the host (`frontend/src/components/ArModule.vue`)
 walks the manifest and, in order:
@@ -136,7 +157,7 @@ On unmount the host tears all of this back down: it removes the injected assets,
 deregister — which is why registration is guarded against duplicates.
 
 The two local previews (`npm run dev` / `npm run dev:ar`) mirror this exact wiring
-via `src/host-runtime.ts`, so components, camera, and image targets behave the
+via `lib/host-runtime.ts`, so components, camera, and image targets behave the
 same in preview as in the host.
 
 ## Caveats

@@ -12,6 +12,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "lib/**/*"],
   "exclude": ["node_modules", "dist", "dist-platform", "dist-ar"]
 }

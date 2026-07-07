@@ -10,59 +10,17 @@
 // `assets` is derived automatically from `src/assets/` by the Vite plugin
 // (virtual:ar-manifest). The other three are authored here by hand.
 import { manifest as assetManifest } from "virtual:ar-manifest";
-import type { ComponentDefinition } from "aframe";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
-import unlitMaterial from "./a-frame-components/unlit-material";
-import renderOrder from "./a-frame-components/render-order";
-import billboard from "./a-frame-components/billboard";
-import groundDecal from "./a-frame-components/ground-decal";
-import lodObject from "./a-frame-components/lod-object";
-import lodManager from "./a-frame-components/lod-manager";
-import attachTo from "./a-frame-components/attach-to";
-import glowstickField from "./a-frame-components/glowstick-field";
 import videoTarget from "./image-targets/video-target.json";
-
-export interface ManifestAsset {
-  id: string;
-  src: string;
-}
-/** Attribute → value pairs applied to the scene's <a-camera> before mount. */
-export type CameraSettings = Record<string, string>;
-export interface Manifest {
-  assets: ManifestAsset[];
-  camera: CameraSettings;
-  /** A-Frame component name → definition, registered before the module mounts. */
-  components: Record<string, ComponentDefinition>;
-  /** XR8 image-target descriptors (the JSON exported by the 8th Wall target tool). */
-  imageTargets: unknown[];
-}
+import type { Manifest } from "../lib/manifest.types";
 
 export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
   assets: assetManifest.assets,
 
-  camera: {
-    // Gives the host/preview <a-camera> the id ArModule.vue's fill light targets
-    // via `attach-to="target: #camera"` (the module can't edit the host camera
-    // element directly, so it's applied here). Removing this silently stops the
-    // fill light from following the camera.
-    id: "camera"
-  },
-
   components: {
-    "no-frustum-cull": noFrustumCull,
-    "unlit-material": unlitMaterial,
-    "render-order": renderOrder,
-    billboard: billboard,
-    "ground-decal": groundDecal,
-    "lod-object": lodObject,
-    // Drives every lod-object; place it on the module root (see ArModule.vue).
-    "lod-manager": lodManager,
-    // Makes an entity follow another's world position (our xrextras-attach stand-in).
-    "attach-to": attachTo,
-    // Auto-places the whole glowstick field (see the component for parameters).
-    "glowstick-field": glowstickField
+    "no-frustum-cull": noFrustumCull
   },
 
   imageTargets: [videoTarget]
