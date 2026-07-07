@@ -28,6 +28,27 @@ export default {
     self.billboardEl = self.el.querySelector(".lod-billboard");
     self.meshGroupObj = self.el.querySelector(".lod-mesh-group").object3D;
 
+    // Inter-stick render-order banding support. Read the internal draw order
+    // authored on each rendered child (set by glowstick-field via the render-order
+    // component) straight from its attribute — available before the model loads —
+    // and normalize it to a 0-based *local* range. The lod-manager later adds a
+    // per-instance base (ranked by camera distance) so whole sticks sort back-to-
+    // front while this internal order is preserved within each stick. Without the
+    // base, sticks share the same small render-order values and transparent meshes
+    // of different sticks interleave (see lod-manager.updateRenderOrder).
+    const orderEls = [...self.meshEls, self.billboardEl].filter(Boolean);
+    let minOrder = Infinity;
+    let maxOrder = -Infinity;
+    orderEls.forEach((el: any) => {
+      const ro = Number(el.getAttribute("render-order")) || 0;
+      el._lodRenderOrder = ro;
+      if (ro < minOrder) minOrder = ro;
+      if (ro > maxOrder) maxOrder = ro;
+    });
+    self._minOrder = isFinite(minOrder) ? minOrder : 0;
+    self.renderSpan = isFinite(maxOrder) ? maxOrder - self._minOrder : 0; // width of this stick's band
+    self.renderNodes = []; // { node, localOrder } for every rendered mesh node below
+
     self.meshMaterials = []; // parts WITHOUT their own thresholds
     self.overrides = []; // parts WITH their own thresholds (data-lod-near/-far)
 
@@ -57,6 +78,7 @@ export default {
 
       el.addEventListener("model-loaded", () => {
         const mesh = el.getObject3D("mesh");
+        const localOrder = (el._lodRenderOrder || 0) - self._minOrder;
         mesh.traverse((node: any) => {
           if (node.isMesh) {
             // Clone so fading this instance's opacity doesn't affect shared
@@ -73,6 +95,8 @@ export default {
                 self.meshMaterials.push(m);
               }
             });
+            // Record for the manager's inter-stick render-order banding.
+            self.renderNodes.push({ node, localOrder });
           }
         });
       });
@@ -82,6 +106,7 @@ export default {
     self.billboardEl.addEventListener("model-loaded", () => {
       self.billboardObj = self.billboardEl.getObject3D("mesh"); // a Group, not one mesh
       self.billboardMaterials = [];
+      const bbLocalOrder = (self.billboardEl._lodRenderOrder || 0) - self._minOrder;
       self.billboardObj.traverse((node: any) => {
         if (node.isMesh) {
           node.material = Array.isArray(node.material)
@@ -95,6 +120,8 @@ export default {
             m.opacity = 1 - self.currentBlend; // start correct, not at default opacity
             self.billboardMaterials.push(m);
           });
+          // Record for the manager's inter-stick render-order banding.
+          self.renderNodes.push({ node, localOrder: bbLocalOrder });
         }
       });
       self.billboardObj.visible = self.currentBlend < 0.99; // start correct, not default "true"

@@ -72,6 +72,59 @@ export default {
       const target = 1 - (dist - obj.nearDistance) / (obj.farDistance - obj.nearDistance);
       self.applyBlend(obj, target, delta);
     }
+
+    // Re-rank the whole field by depth once per full cycle (cheap: O(n) + one
+    // sort) and repack each instance into its own render-order band so transparent
+    // meshes of different sticks never interleave. Doing it per cycle rather than
+    // per frame is plenty responsive for camera movement and keeps the cost off the
+    // hot path.
+    if (self.frameCounter % chunksPerCycle === 0) self.updateRenderOrder();
+  },
+
+  /**
+   * Assign every registered instance a non-overlapping render-order band, ordered
+   * back-to-front by camera distance: the farthest stick gets the lowest band (drawn
+   * first, behind) and the nearest the highest (drawn last, on top) — the correct
+   * order for alpha-blended transparency. Each mesh's final renderOrder is
+   * `rank * band + localOrder`, so the per-mesh order authored in ArModule.vue is
+   * preserved *within* each stick while whole sticks sort correctly *between*
+   * themselves. `band` is the widest single-stick span (+1) so no two bands overlap.
+   */
+  updateRenderOrder() {
+    const self = this as any;
+    const objects = self.objects;
+    const n = objects.length;
+    if (!n) return;
+
+    // Fresh camera distance for every instance so the ranking is a consistent
+    // snapshot (the chunked LOD loop above only refreshes a fraction each frame).
+    for (let i = 0; i < n; i++) {
+      const obj = objects[i];
+      obj.el.object3D.getWorldPosition(self.tmpWorldPos);
+      obj._renderDistSq = self.tmpWorldPos.distanceToSquared(self.camPos);
+    }
+
+    const order = (self._rankOrder ||= []);
+    order.length = n;
+    for (let i = 0; i < n; i++) order[i] = i;
+    order.sort((a: number, b: number) => objects[b]._renderDistSq - objects[a]._renderDistSq);
+
+    // Band must exceed the widest per-stick local span so bands can't overlap.
+    let band = 1;
+    for (let i = 0; i < n; i++) {
+      const span = objects[i].renderSpan || 0;
+      if (span + 1 > band) band = span + 1;
+    }
+
+    for (let rank = 0; rank < n; rank++) {
+      const obj = objects[order[rank]];
+      const base = rank * band;
+      const nodes = obj.renderNodes;
+      if (!nodes) continue;
+      for (let k = 0; k < nodes.length; k++) {
+        nodes[k].node.renderOrder = base + nodes[k].localOrder;
+      }
+    }
   },
 
   applyBlend(obj: any, groupTarget: number, delta: number) {
