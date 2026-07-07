@@ -141,7 +141,8 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
            areaWidth                  FIXED width (X), centred on the viewer (equal left/right)
            elevation / elevationVariation   base Y height + random ± offset
            minDistance / maxDistance  spacing between sticks, both honoured exactly
-           tiltMin / tiltMax          random X/Z tilt magnitude range in degrees (± each, Y is always fully random)
+           yawMax                     max random Y-axis spin in degrees (± each direction; 180 = fully random, 0 = all face forward)
+           tiltMin / tiltMax          random X/Z tilt magnitude range in degrees (± each)
            copies                     1 = 25 sticks, 2 = 50, 3 = 75, …
            minCopyDistance            min ground gap between two copies of the SAME type (0 = off; only matters when copies > 1)
            scale                      per-stick scale
@@ -154,6 +155,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         elevationVariation: 0.15;
         minDistance: 1;
         maxDistance: 3;
+        yawMax: 2;
         tiltMin: 0;
         tiltMax: 15;
         copies: 2;

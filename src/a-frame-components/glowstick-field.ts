@@ -55,10 +55,15 @@ export default {
     elevation: { type: "number", default: 0 }, // base Y height of every glowstick
     elevationVariation: { type: "number", default: 0 }, // ± random offset from `elevation`
 
-    // --- Random tilt. Every stick always gets a fully random Y spin (0–360°, not
-    //     configurable). X and Z additionally get an independent random tilt whose
-    //     magnitude is a random value in [tiltMin, tiltMax] degrees, applied in a
-    //     random direction (±). Leave both at 0 to keep the sticks upright. ---
+    // --- Random Y-axis spin. Each stick is rotated around Y by a random angle in
+    //     [-yawMax, +yawMax] degrees. 180 (default) = fully random heading (the old
+    //     behaviour); smaller values keep the sticks pointing roughly forward
+    //     (e.g. 15 = at most 15° either way); 0 = no spin (all face the same way). ---
+    yawMax: { type: "number", default: 180 }, // max Y rotation, ± each direction (degrees)
+
+    // --- Random tilt. X and Z each get an independent random tilt whose magnitude
+    //     is a random value in [tiltMin, tiltMax] degrees, applied in a random
+    //     direction (±). Leave both at 0 to keep the sticks upright. ---
     tiltMin: { type: "number", default: 0 }, // min tilt magnitude for X and Z (degrees)
     tiltMax: { type: "number", default: 0 }, // max tilt magnitude for X and Z (degrees)
 
@@ -124,8 +129,12 @@ export default {
     const count = Math.min(queue.length, positions.length);
     for (let i = 0; i < count; i++) {
       const y = data.elevation + (Math.random() * 2 - 1) * data.elevationVariation;
-      // Y: fully random spin. X and Z: independent random tilts within the configured range.
-      const rot = { x: self.randomTilt(), y: Math.random() * 360, z: self.randomTilt() };
+      // Y: random spin within ±yawMax. X and Z: independent random tilts within range.
+      const rot = {
+        x: self.randomTilt(),
+        y: (Math.random() * 2 - 1) * self.data.yawMax,
+        z: self.randomTilt()
+      };
       const inst = self.buildGlowstick(queue[i], placement[i], y, rot);
       self.el.appendChild(inst);
     }
