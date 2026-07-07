@@ -129,15 +129,14 @@ onUnmounted(() => {
   <a-entity ref="rootEntity" no-frustum-cull force-shadow-map sound-button-manager>
 
 
-     <a-light type="ambient" intensity="0"></a-light>
+     <a-light type="ambient" intensity="0.3"></a-light>
 
-    <!-- Casts the Wands' shadows onto the ground plane. Sits on x=0 (straight
-         ahead of #WandChurch, which is also at x=0), 1 unit in front of it
-         (z=-4.5 vs. WandChurch's -5.5) and 5 units up, aimed back down at
-         WandChurch's own origin via `target`. -->
+    <!-- Casts the Wands' shadows onto the ground plane. Aimed at
+         WandChurch's own origin via `target`. See SHADOWS.md for how to
+         tune position/shadow-camera bounds/shadowBias. -->
     <a-entity
-        light="type: directional; intensity: 2; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: 15; shadowCameraBottom: -15; shadowCameraLeft: -15; shadowCameraRight: 15; shadowRadius: 4; target: #wand-church-anchor"
-        position="0 5 -4.5">
+        light="type: directional; intensity: 1; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: 30; shadowCameraBottom: -30; shadowCameraLeft: -30; shadowCameraRight: 30; shadowRadius: 8; shadowBias: -0.001; target: #wand-church-anchor"
+        position="0 2 -3">
     </a-entity>
 
 
@@ -148,7 +147,7 @@ onUnmounted(() => {
         gltf-model="#Wand1"
         scale="1.0 1.0 1.0"
         rotation="0 37 0"
-        position="-3.5 -0.05 -4"
+        position="-3.5 -0.01 -4"
         shadow>
       <a-entity id="eng_sound_left" sound="src: #English_wand_1; autoplay: false" position="0 1 0"></a-entity>
       <a-entity id="ger_sound_left" sound="src: #Deutsch_wand1; autoplay: false" position="0 1 0"></a-entity>
@@ -174,7 +173,7 @@ onUnmounted(() => {
         gltf-model="#WandChurch"
         scale="1.0 1.0 1.0"
         rotation="0 0 0"
-        position="0 -0.05 -5.5"
+        position="0 -0.01 -5.5"
         shadow>
     </a-entity>
 
@@ -182,7 +181,7 @@ onUnmounted(() => {
         gltf-model="#Wand2"
         scale="1.0 1.0 1.0"
         rotation="0 -33 0"
-        position="3.5 -0.05 -4"
+        position="3.5 -0.01 -4"
         shadow>
       <a-entity id="eng_sound_right" sound="src: #English_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
       <a-entity id="ger_sound_right" sound="src: #Deutsch_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
@@ -197,28 +196,16 @@ onUnmounted(() => {
     </a-entity>
 
 
+    <!-- Invisible except where a shadow falls; a real AR camera feed shows
+         through the rest. See SHADOWS.md for the light/shadow setup. -->
     <a-plane
         id="ground"
         rotation="-90 0 0"
-        position="-50 0.01 -50"
+        position="-50 -0.01 -50"
         width="500"
         height="500"
         material="shader: shadow"
         shadow
-    ></a-plane>
-    t
-    <!-- DEBUG: opaque grey backdrop, purely so the shadow below is visible
-         against something in preview — #ground's "shader: shadow" material is
-         invisible everywhere except where a shadow actually falls (by design,
-         so a real AR camera feed shows through it instead). Sits just under
-         #ground to avoid z-fighting two coplanar planes. Remove once shadows
-         are confirmed working. -->
-    <a-plane
-        rotation="-90 0 0"
-        position="-50 -0.02 -50"
-        width="500"
-        height="500"
-        material="shader: flat; color: #888888"
     ></a-plane>
 
 
