@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
 
 interface ArModuleData {
   id: string;
@@ -18,7 +18,106 @@ const label = computed(
     () => `${props.arModule.author}: ${props.arModule.text}`
 );
 
+// 2D sound-control GUI (start/stop/play-pause). It lives outside the A-Frame
+// scene graph entirely (see the template's second root node), so it can't read
+// sound-button-manager's state directly — the manager emits "sound-state-changed"
+// on the root entity (see notifyStateChange() there) and this listens for it.
+type SoundStatus = "idle" | "playing" | "paused";
 
+const rootEntity = ref<HTMLElement | null>(null);
+const soundStatus = ref<SoundStatus>("idle");
+
+function onSoundStateChanged(e: Event) {
+  soundStatus.value = (e as CustomEvent).detail.status;
+}
+
+function getManager(): any {
+  return (rootEntity.value as any)?.components?.["sound-button-manager"];
+}
+
+function onStart() {
+  getManager()?.restartActive();
+}
+
+function onStop() {
+  getManager()?.stopActive();
+}
+
+function onPlayPause() {
+  getManager()?.togglePlayPause();
+}
+
+// The four control icons are plain PNGs in src/assets/, auto-injected as
+// <img id="..."> into <a-assets> by the host (same pipeline as every other
+// asset) before this module mounts — reuse that already-resolved URL rather
+// than guessing the host's asset base path ourselves.
+function iconSrc(id: string): string {
+  return (document.getElementById(id) as HTMLImageElement | null)?.src ?? "";
+}
+
+// Inline styles, not a <style> block: the library build extracts SFC styles
+// into a CSS file the host never loads (README "Caveats") — an ArModule only
+// ships as JS. Inline styles compile into the render function itself, so they
+// work in the real host, not just the local previews. The panel stays mounted
+// at all times and fades via a bound `opacity` + `transition` — no v-if, so
+// the CSS transition has something to animate between.
+const panelVisible = computed(() => soundStatus.value !== "idle");
+
+const panelStyle = computed(() => ({
+  position: "fixed",
+  left: "50%",
+  bottom: "10%",
+  transform: "translateX(-50%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6%",
+  maxWidth: "66%",
+  zIndex: 1000,
+  opacity: panelVisible.value ? 1 : 0,
+  pointerEvents: panelVisible.value ? "auto" : "none",
+  transition: "opacity 0.35s ease"
+} as const));
+
+const buttonStyle = {
+  flex: "0 0 auto",
+  margin: 0,
+  padding: 0,
+  border: "none",
+  background: "none",
+  cursor: "pointer"
+} as const;
+
+// White square behind each icon — the PNGs have real alpha transparency, not a
+// white background baked in. The <img> below is a normal DOM child of this
+// span, so it always paints above the span's own background; no z-index
+// needed for that ordering.
+const squareStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "16vw",
+  height: "16vw",
+  maxWidth: "64px",
+  maxHeight: "64px",
+  background: "#ffffff",
+  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.35)"
+} as const;
+
+const iconStyle = {
+  display: "block",
+  width: "70%",
+  height: "70%",
+  objectFit: "contain"
+} as const;
+
+onMounted(() => {
+  rootEntity.value?.addEventListener("sound-state-changed", onSoundStateChanged);
+});
+
+onUnmounted(() => {
+  rootEntity.value?.removeEventListener("sound-state-changed", onSoundStateChanged);
+});
 </script>
 
 <template>
@@ -27,28 +126,10 @@ const label = computed(
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `Wand1.glb` → id "Wand1".
        Do NOT declare your own <a-assets> here. -->
-  <a-entity no-frustum-cull>
-
-   <a-entity
-        light="
-                    type: directional;
-                    intensity: 0.1;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    target: #group;
-                    shadowRadius: 12"
-        xrextras-attach="target: group; offset: 1 50 15;"
-        shadow>
-    </a-entity>
+  <a-entity ref="rootEntity" no-frustum-cull sound-button-manager>
 
 
-
-     <a-light type="ambient" intensity="0.1"></a-light>
+     <a-light type="ambient" intensity="1"></a-light>
 
 
     <!-- Wand models — ids come from the file names in src/assets/ (Wand1.glb →
@@ -56,26 +137,41 @@ const label = computed(
          animated skinned meshes from being culled once they move. -->
     <a-entity
         gltf-model="#Wand1"
-        scale="4 4 4"
+        scale="0.8 0.8 0.8"
         rotation="0 30 0"
-        position="-17 0 -15"
+        position="-3 0 -3"
         shadow>
+      <a-entity id="eng_sound_left" sound="src: #English_wand_1; autoplay: false" position="0 1 0"></a-entity>
+      <a-entity id="ger_sound_left" sound="src: #Deutsch_wand1; autoplay: false" position="0 1 0"></a-entity>
+        <!-- near/far (metres) control when these buttons fade in as the visitor
+             approaches; pulse is the uniform x/y scale bump (0.15 = +15%) applied
+             while a button is being looked at. Tune per-Wand here. -->
+        <a-entity sound-button-group="near: 1; far: 2.5; pulse: 0.15" position="1.6 0 0.85" rotation="-10 -4 0">
+          <a-plane id="eng_left" sound-button="sound: #eng_sound_left" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.26 0"></a-plane>
+          <a-plane id="ger_left" sound-button="sound: #ger_sound_left" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.07 0"></a-plane>
+        </a-entity>
     </a-entity>
 
     <a-entity
         gltf-model="#WandChurch"
-        scale="4 4 4"
+        scale="0.8 0.8 0.8"
         rotation="0 5 0"
-        position="0 0 -20"
+        position="0 0 -4"
         shadow>
     </a-entity>
 
     <a-entity
         gltf-model="#Wand2"
-        scale="4 4 4"
+        scale="0.8 0.8 0.8"
         rotation="0 -30 0"
-        position="17 0 -17"
+        position="3 0 -3"
         shadow>
+      <a-entity id="eng_sound_right" sound="src: #English_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
+      <a-entity id="gerI_sound_right" sound="src: #Deutsch_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
+      <a-entity sound-button-group="near: 1; far: 2.5; pulse: 0.15" position="1.6 0 0.85" rotation="-10 -4 0">
+        <a-plane id="eng_right" sound-button="sound: #eng_sound_right" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.26 0"></a-plane>
+        <a-plane id="ger_right" sound-button="sound: #ger_sound_right" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.07 0"></a-plane>
+      </a-entity>
     </a-entity>
 
 
@@ -90,4 +186,28 @@ const label = computed(
     ></a-plane>
 
   </a-entity>
+
+  <!-- 2D sound-control GUI — screen-space overlay, NOT part of the 3D scene.
+       Always mounted (so the opacity transition below has something to
+       animate between); visible only while a sound is playing or paused, and
+       faded out again once back to idle. Order: restart-from-start, stop,
+       play/pause toggle. Styling is all inline — see the comment above
+       panelStyle for why this can't be a <style> block. -->
+  <div :style="panelStyle">
+    <button :style="buttonStyle" type="button" aria-label="Restart from beginning" @click.stop="onStart">
+      <span :style="squareStyle"><img :style="iconStyle" :src="iconSrc('start')" alt="" /></span>
+    </button>
+    <button :style="buttonStyle" type="button" aria-label="Stop" @click.stop="onStop">
+      <span :style="squareStyle"><img :style="iconStyle" :src="iconSrc('stop')" alt="" /></span>
+    </button>
+    <button
+        :style="buttonStyle"
+        type="button"
+        :aria-label="soundStatus === 'playing' ? 'Pause' : 'Play'"
+        @click.stop="onPlayPause">
+      <span :style="squareStyle">
+        <img :style="iconStyle" :src="iconSrc(soundStatus === 'playing' ? 'pause' : 'play')" alt="" />
+      </span>
+    </button>
+  </div>
 </template>

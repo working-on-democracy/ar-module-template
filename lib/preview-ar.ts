@@ -46,7 +46,7 @@ XR8Promise.then((XR8: any) => {
   // configure() — before <a-scene xrweb> starts the session. Passing them later
   // (in mount) is rejected with "Image Targets are not supported in the current
   // session", so declare them up-front here.
-  XR8.XrController.configure({ imageTargetData: manifest.imageTargets });
+  XR8.XrController.configure({ imageTargetData: manifest.imageTargets || [] });
   xrReady.value = true;
 });
 
@@ -82,7 +82,7 @@ const ArPreviewApp = {
       // Placed like the host (AR_MODULE_POSITION) so the module previews where it
       // would actually appear in the app.
       children.push(
-        h("a-entity", { id: "module-root", position: "0 1.6 -3" }, [
+        h("a-entity", { id: "module-root", position: "0 0 -3" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );

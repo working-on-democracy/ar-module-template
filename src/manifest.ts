@@ -11,6 +11,9 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import soundButtonManager from "./a-frame-components/sound-button-manager";
+import soundButtonGroup from "./a-frame-components/sound-button-group";
+import soundButton from "./a-frame-components/sound-button";
 import type { Manifest } from "../lib/manifest.types";
 
 export const manifest: Manifest = {
@@ -18,7 +21,10 @@ export const manifest: Manifest = {
   assets: assetManifest.assets,
 
   components: {
-    "no-frustum-cull": noFrustumCull
+    "no-frustum-cull": noFrustumCull,
+    "sound-button-manager": soundButtonManager,
+    "sound-button-group": soundButtonGroup,
+    "sound-button": soundButton
   }
 };
 
