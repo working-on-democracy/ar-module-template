@@ -7,8 +7,8 @@ interface ArModuleData {
   url: string;
   author: string;
   location: { lat: number; lng: number };
-  assets: { id: string; src: string }[];
-  components: { name: string; url: string }[];
+  assets?: { id: string; src: string }[];
+  components?: { name: string; url: string }[];
   createdAt: string;
 }
 
@@ -27,7 +27,7 @@ const label = computed(
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `Wand1.glb` → id "Wand1".
        Do NOT declare your own <a-assets> here. -->
-  <a-entity no-frustrum-cull>
+  <a-entity no-frustum-cull>
 
    <a-entity
         light="
@@ -52,7 +52,7 @@ const label = computed(
 
 
     <!-- Wand models — ids come from the file names in src/assets/ (Wand1.glb →
-         "Wand1"). The no-frustrum-cull component on the root entity keeps any
+         "Wand1"). The no-frustum-cull component on the root entity keeps any
          animated skinned meshes from being culled once they move. -->
     <a-entity
         gltf-model="#Wand1"
