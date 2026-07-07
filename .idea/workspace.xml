@@ -4,142 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="let claude fix merge errors">
-      <change afterPath="$PROJECT_DIR$/src/assets/BAP_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BAP_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BAP_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BAP_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_06.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BILLIE_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BOA_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/BTS_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EVNNE_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/EXO_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_06.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GFRIEND_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/GOT7_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/I-DLE_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/IU_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/NTX_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_06.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/POW_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_05.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_06.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/SUPERM_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/TVXQ_PNG.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_01.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_02.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_03.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_04.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_LICHT.glb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/assets/VERIVERY_PNG.glb" afterDir="false" />
+    <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="resolved issue with untracked file">
       <change beforePath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ArModule.vue" beforeDir="false" afterPath="$PROJECT_DIR$/src/ArModule.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/manifest.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/manifest.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -175,61 +43,61 @@
 }</component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.000000104038886" />
-      <entry key="MS500" value="1.1414581469326521" />
-      <entry key="S2" value="3.3224057838967824" />
-      <entry key="S5" value="5.100363442271999" />
-      <entry key="S10" value="5.959472987348236" />
-      <entry key="S30" value="6.831351397211533" />
-      <entry key="S60" value="8.279660439025433" />
-      <entry key="M2" value="13.046954784827573" />
-      <entry key="M5" value="28.37147547614026" />
-      <entry key="M10" value="44.29284181890604" />
-      <entry key="M15" value="54.7081885431791" />
-      <entry key="M30" value="80.77552685435566" />
-      <entry key="H1" value="128.76128953328424" />
-      <entry key="H2" value="195.23686775647082" />
-      <entry key="H4" value="257.96350420269664" />
-      <entry key="D1" value="339.2116878969045" />
-      <entry key="W1" value="356.919372031415" />
+      <entry key="MS100" value="1.0000077551710858" />
+      <entry key="MS500" value="1.3107440302316862" />
+      <entry key="S2" value="3.8076910414105014" />
+      <entry key="S5" value="5.421128919735952" />
+      <entry key="S10" value="6.149030724168552" />
+      <entry key="S30" value="6.70363792328733" />
+      <entry key="S60" value="6.978276009440187" />
+      <entry key="M2" value="8.17923225524979" />
+      <entry key="M5" value="14.27626918309581" />
+      <entry key="M10" value="23.980665018375706" />
+      <entry key="M15" value="31.897967122630416" />
+      <entry key="M30" value="54.69409147645324" />
+      <entry key="H1" value="102.72575343772202" />
+      <entry key="H2" value="182.15845947835737" />
+      <entry key="H4" value="269.8220950029373" />
+      <entry key="D1" value="399.2802787661193" />
+      <entry key="W1" value="429.64369731597327" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
       <entry key="MS500" value="0.0" />
       <entry key="S2" value="0.0" />
       <entry key="S5" value="0.0" />
-      <entry key="S10" value="1.6848919966735382E-212" />
-      <entry key="S30" value="2.563641868946545E-71" />
-      <entry key="S60" value="5.063241914965675E-36" />
-      <entry key="M2" value="2.250164863952342E-18" />
-      <entry key="M5" value="8.727417987503192E-8" />
-      <entry key="M10" value="2.955125867117348E-4" />
-      <entry key="M15" value="0.004455864166965834" />
-      <entry key="M30" value="0.07109177322763957" />
-      <entry key="H1" value="0.3250847528081203" />
-      <entry key="H2" value="0.7668763196208732" />
-      <entry key="H4" value="1.2215379394496537" />
-      <entry key="D1" value="1.838615401994522" />
-      <entry key="W1" value="1.9760100353305587" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="1.4689877221118722E-123" />
+      <entry key="S60" value="3.8327375622547664E-62" />
+      <entry key="M2" value="1.9577378686266326E-31" />
+      <entry key="M5" value="5.208370344065538E-13" />
+      <entry key="M10" value="7.219116060397191E-7" />
+      <entry key="M15" value="8.082343492391656E-5" />
+      <entry key="M30" value="0.009574630592425387" />
+      <entry key="H1" value="0.11930205943692382" />
+      <entry key="H2" value="0.46456982456714097" />
+      <entry key="H4" value="0.9507575770175191" />
+      <entry key="D1" value="1.7634021516267353" />
+      <entry key="W1" value="1.9642546267473981" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="5.711296555077265E-7" />
-      <entry key="MS500" value="0.1948106767495988" />
-      <entry key="S2" value="2.801386267036671" />
-      <entry key="S5" value="4.845013826472083" />
-      <entry key="S10" value="5.822340424964898" />
-      <entry key="S30" value="6.783242740858663" />
-      <entry key="S60" value="8.254300738473257" />
-      <entry key="M2" value="13.03098410656408" />
-      <entry key="M5" value="28.36027006583354" />
-      <entry key="M10" value="44.28516146283114" />
-      <entry key="M15" value="54.70640542786705" />
-      <entry key="M30" value="80.8424166536457" />
-      <entry key="H1" value="129.0832725304338" />
-      <entry key="H2" value="196.00153199031718" />
-      <entry key="H4" value="259.18363953889667" />
-      <entry key="D1" value="341.05000802119133" />
-      <entry key="W1" value="358.8953380097599" />
+      <entry key="MS100" value="1.0797268133490915E-4" />
+      <entry key="MS500" value="0.46606535494911355" />
+      <entry key="S2" value="3.4312979043951324" />
+      <entry key="S5" value="5.248266087909067" />
+      <entry key="S10" value="6.058349043449999" />
+      <entry key="S30" value="6.672409075798273" />
+      <entry key="S60" value="6.962502484396231" />
+      <entry key="M2" value="8.171100858823333" />
+      <entry key="M5" value="14.272209252868187" />
+      <entry key="M10" value="23.97792830947263" />
+      <entry key="M15" value="31.89578188898149" />
+      <entry key="M30" value="54.70166456492563" />
+      <entry key="H1" value="102.84300430031986" />
+      <entry key="H2" value="182.62115400360761" />
+      <entry key="H4" value="270.7714677032218" />
+      <entry key="D1" value="401.0433446558316" />
+      <entry key="W1" value="431.60790045491734" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -241,29 +109,29 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "Gyumin",
-    "git.auto.fetch.suggestion.counter": "3",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/hfg_kd/Downloads/ar-module-template/src/assets",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "to.speed.mode.migration.done": "true",
-    "ts.external.directory.path": "/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;Gyumin&quot;,
+    &quot;git.auto.fetch.suggestion.counter&quot;: &quot;3&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/hfg_kd/Downloads/ar-module-template/src/assets&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/assets" />
