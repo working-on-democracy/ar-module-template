@@ -1,9 +1,9 @@
 // Shared "host" wiring used by the local previews so they mount a module exactly
 // like the production host (frontend/src/components/ArModule.vue) does: register
-// the manifest's A-Frame components and apply its camera settings — then tear them
-// down again. Each apply* returns a teardown fn so previews can clean up on
-// hot-reload / unmount, mirroring the host.
-import type { Manifest, ManifestAsset } from "./manifest";
+// the manifest's A-Frame components, apply its camera settings, and configure its
+// image targets — then tear them all down again. Each apply* returns a teardown
+// fn so previews can clean up on hot-reload / unmount, mirroring the host.
+import {CAMERA_PROPS_FORBIDDEN, Manifest, ManifestAsset} from './manifest.types';
 
 declare const AFRAME: any;
 
@@ -13,10 +13,11 @@ const AUDIO_EXT = ["mp3", "wav", "aac", "m4a", "ogg"];
 
 /**
  * The right <a-assets> child for an asset, chosen by file extension. A-Frame
- * needs media as the matching element type — a `<video>` for clips, an `<img>`
- * for textures, an `<audio>` for sound — and `<a-asset-item>` for everything else
- * (glTF, bin, …). Injecting everything as `<a-asset-item>` loads videos as opaque
- * blobs that can't play.
+ * needs media as the matching element type — a `<video>` for clips (so
+ * `xrextras-play-video="video: #id"` has something playable), an `<img>` for
+ * textures/thumbs, an `<audio>` for sound — and `<a-asset-item>` for everything
+ * else (glTF, bin, …). Injecting everything as `<a-asset-item>` loads videos as
+ * opaque blobs that can't play.
  */
 export function assetElement(a: ManifestAsset): { tag: string; attrs: Record<string, unknown> } {
   const ext = (a.src.split(".").pop() ?? "").toLowerCase();
@@ -54,6 +55,9 @@ export function applyCameraSettings(
   if (!camera) return () => {};
   const previous: Record<string, unknown> = {};
   for (const [attr, value] of Object.entries(settings ?? {})) {
+    if(CAMERA_PROPS_FORBIDDEN.includes(attr as unknown as any)){
+      continue;
+    }
     previous[attr] = camera.getAttribute(attr);
     camera.setAttribute(attr, value);
   }
@@ -62,5 +66,25 @@ export function applyCameraSettings(
       if (value === null || value === undefined) camera.removeAttribute(attr);
       else camera.setAttribute(attr, value as any);
     }
+  };
+}
+
+/**
+ * Feed image targets to the 8th Wall controller, returning a teardown that clears
+ * them again. No-ops without XR8 (e.g. the stock-A-Frame VR preview).
+ */
+export function configureImageTargets(xr: any, imageTargets: unknown[]): () => void {
+  if (!xr?.XrController?.configure || !imageTargets?.length) return () => {};
+  try {
+    xr.XrController.configure({ imageTargetData: imageTargets });
+  } catch (e) {
+    // A malformed target must not take the camera pipeline down with it.
+    console.error("[ar-module] image-target configure failed", e);
+    return () => {};
+  }
+  return () => {
+    try {
+      xr.XrController.configure({ imageTargetData: [] });
+    } catch { /* engine already torn down */ }
   };
 }

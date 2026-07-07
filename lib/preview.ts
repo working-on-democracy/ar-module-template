@@ -1,6 +1,6 @@
 import { createApp, h, ref, nextTick } from "vue";
-import ArModule from "./ArModule.vue";
-import { manifest } from "./manifest";
+import ArModule from "../src/ArModule.vue";
+import { manifest } from "../src/manifest";
 import { registerManifestComponents, applyCameraSettings, assetElement } from "./host-runtime";
 import { disableFrustumCulling } from "./frustum-culling";
 
@@ -29,16 +29,16 @@ const PreviewApp = {
       h(
         "a-assets",
         { timeout: "10000" },
-        manifest.assets.map((a) => {
+        manifest.assets && manifest.assets.map((a) => {
           const el = assetElement(a);
           return h(el.tag, el.attrs);
         })
       ),
-      h("a-sky", { color: "#1e293b" }),
-      h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
-      h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" }),
       h("a-camera", {
-        position: "0 1.6 3",
+        id: "camera",
+        position: "0 0 0",
+        raycaster: "objects: .cantap",
+        cursor: "fuse: false; rayOrigin: mouse;",
         "wasd-controls": "acceleration: 30",
         "look-controls": ""
       })
