@@ -7,48 +7,89 @@ declare const THREE: any;
 
 // Replaces a loaded model's PBR materials with flat MeshBasicMaterials, so it
 // renders fully lit regardless of scene lighting — used for neon/glow meshes and
-// the billboard PNG. Ported verbatim from the prototype's `unlit-material`.
+// the billboard PNG. Ported from the prototype's `unlit-material`, hardened so it:
+//   - converts even if `model-loaded` already fired before this component's init
+//     (otherwise a preloaded/cached model can stay a lit — and in a dim scene,
+//     black — MeshStandardMaterial),
+//   - is idempotent, so running twice (or after another component re-clones the
+//     material) never double-wraps,
+//   - falls back to the emissive texture when there's no base-colour texture, so a
+//     mesh whose artwork lives in an emission shader still shows it.
 export default {
   schema: {
     // Fold a material's emissive glow into the flat base color, so effects like
     // neon leuchten survive the conversion to an unlit material.
-    keepEmissive: { type: "boolean", default: true }
+    keepEmissive: { type: "boolean", default: true },
+    // Uniform multiplier on the flat colour (after the emissive fold). 1 = as-is;
+    // < 1 darkens (e.g. 0.5 = half as bright); 0 = black. Since the material is
+    // unlit, this is the only way to dim it.
+    brightness: { type: "number", default: 1 }
   },
 
   init() {
     const self = this as any;
-    self.el.addEventListener("model-loaded", () => {
-      const mesh = self.el.getObject3D("mesh");
-      if (!mesh) return;
+    self.applyUnlit = self.applyUnlit.bind(self);
+    // The model may already be present (event fired before we initialised); if so,
+    // convert now. Always (re)listen so a later load / re-parse is handled too.
+    if (self.el.getObject3D("mesh")) self.applyUnlit();
+    self.el.addEventListener("model-loaded", self.applyUnlit);
+  },
 
-      mesh.traverse((node: any) => {
-        if (!node.isMesh) return;
+  applyUnlit() {
+    const self = this as any;
+    const mesh = self.el.getObject3D("mesh");
+    if (!mesh) return;
 
-        const mats = Array.isArray(node.material) ? node.material : [node.material];
-        const newMats = mats.map((oldMat: any) => {
-          const basicMat = new THREE.MeshBasicMaterial({
-            map: oldMat.map || null,
-            color: oldMat.color ? oldMat.color.clone() : new THREE.Color(0xffffff),
-            transparent: oldMat.transparent,
-            opacity: oldMat.opacity,
-            side: oldMat.side,
-            alphaTest: oldMat.alphaTest,
-            depthWrite: oldMat.depthWrite,
-            vertexColors: oldMat.vertexColors
-          });
+    mesh.traverse((node: any) => {
+      if (!node.isMesh) return;
 
-          // Carry an emissive glow over as color so the visual effect survives.
-          if (self.data.keepEmissive && oldMat.emissive && oldMat.emissiveIntensity > 0) {
-            basicMat.color.lerp(oldMat.emissive, Math.min(oldMat.emissiveIntensity, 1));
-          }
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      const newMats = mats.map((oldMat: any) => {
+        // Idempotent: leave a material we already converted alone.
+        if (oldMat && oldMat.isMeshBasicMaterial && oldMat.userData && oldMat.userData.unlit) {
+          return oldMat;
+        }
 
-          return basicMat;
+        // Prefer the base-colour texture; fall back to the emissive texture so a
+        // model that carries its artwork purely in an emission shader still shows it
+        // instead of converting to a flat (often black) base colour.
+        const map = oldMat.map || oldMat.emissiveMap || null;
+
+        const basicMat = new THREE.MeshBasicMaterial({
+          map,
+          color: oldMat.color ? oldMat.color.clone() : new THREE.Color(0xffffff),
+          transparent: oldMat.transparent,
+          opacity: oldMat.opacity,
+          side: oldMat.side,
+          alphaTest: oldMat.alphaTest,
+          depthWrite: oldMat.depthWrite,
+          vertexColors: oldMat.vertexColors
         });
 
-        node.material = Array.isArray(node.material) ? newMats : newMats[0];
-        node.castShadow = false; // unlit objects sensibly cast no shadow…
-        node.receiveShadow = false; // …and receive none either
+        // Carry an emissive glow over as color so the visual effect survives.
+        // Guard on the emissive being an actual (non-black) colour: a plain
+        // base-colour material has emissive = black with emissiveIntensity 1, and
+        // lerping toward black would turn the flat colour — and thus the whole
+        // textured billboard — black. That's exactly what happened to the
+        // base-colour-only PNGs while emissive ones (AESPA) were unaffected.
+        const e = oldMat.emissive;
+        const emissiveLit = e && (e.r > 0 || e.g > 0 || e.b > 0) && oldMat.emissiveIntensity > 0;
+        if (self.data.keepEmissive && emissiveLit) {
+          basicMat.color.lerp(e, Math.min(oldMat.emissiveIntensity, 1));
+        }
+
+        // Optional uniform dim (default 1 = no change).
+        if (self.data.brightness !== 1) {
+          basicMat.color.multiplyScalar(Math.max(0, self.data.brightness));
+        }
+
+        basicMat.userData.unlit = true;
+        return basicMat;
       });
+
+      node.material = Array.isArray(node.material) ? newMats : newMats[0];
+      node.castShadow = false; // unlit objects sensibly cast no shadow…
+      node.receiveShadow = false; // …and receive none either
     });
   }
 } as ComponentDefinition;
