@@ -157,7 +157,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
     <a-entity glowstick-field="
         areaWidth: 5;
-        elevation: -2;
+        elevation: -1.5;
         elevationVariation: 0.2;
         minDistance: 1.8;
         maxDistance: 2.3;
@@ -166,7 +166,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         tiltMax: 12;
         copies: 2;
         minCopyDistance: 3.5;
-        scale: 0.8;
+        scale: 1.1;
         billboardBrightness: 0.4;
         lodNear: 4;
         lodFar: 6;
