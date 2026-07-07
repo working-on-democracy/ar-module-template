@@ -146,6 +146,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
            copies                     1 = 25 sticks, 2 = 50, 3 = 75, …
            minCopyDistance            min ground gap between two copies of the SAME type (0 = off; only matters when copies > 1)
            scale                      per-stick scale
+           billboardBrightness        dims the unlit far-LOD PNG billboard (1 = full, <1 darker, 0 = black)
            lodNear / lodFar           global LOD group fade thresholds
            lichtNear / lichtFar       global custom near/far for the LICHT glow parts
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
@@ -161,6 +162,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         copies: 2;
         minCopyDistance: 5;
         scale: 1;
+        billboardBrightness: 0.4;
         lodNear: 4;
         lodFar: 5;
         lichtNear: 1;

@@ -85,6 +85,11 @@ export default {
     // --- Per-instance scale (the examples used 3–5) ---
     scale: { type: "number", default: 3 },
 
+    // --- Billboard brightness. The _PNG billboard is unlit, so this uniformly dims
+    //     its texture: 1 = full brightness (unchanged); < 1 darker (e.g. 0.5 = half);
+    //     0 = black. Only affects the far-LOD billboard, not the detailed meshes. ---
+    billboardBrightness: { type: "number", default: 1 },
+
     // --- Global LOD tuning, applied to every generated instance ---
     lodNear: { type: "number", default: 15 }, // lod-object nearDistance (fully detailed)
     lodFar: { type: "number", default: 20 }, // lod-object farDistance (fully billboard)
@@ -376,7 +381,7 @@ export default {
   /** Assemble one glowstick's entity subtree (matches the ArModule.vue examples). */
   buildGlowstick(def: GlowstickDef, pos: Point, y: number, rot: { x: number; y: number; z: number }): Element {
     const self = this as any;
-    const { scale, lodNear, lodFar, lichtNear, lichtFar } = self.data;
+    const { scale, lodNear, lodFar, lichtNear, lichtFar, billboardBrightness } = self.data;
     const near = String(lichtNear);
     const far = String(lichtFar);
 
@@ -446,7 +451,7 @@ export default {
     bb.setAttribute("gltf-model", `#${def.png}`);
     bb.setAttribute("render-order", String(pngOrder));
     bb.setAttribute("billboard", "");
-    bb.setAttribute("unlit-material", "");
+    bb.setAttribute("unlit-material", `brightness: ${billboardBrightness}`);
     inst.appendChild(bb);
 
     // lod-object goes on last: its init queries the children built above, and A-Frame
