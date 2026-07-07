@@ -110,7 +110,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
                     type: directional;
                     intensity: 1;
                     castShadow: false;
-                    target: #group
+                    target: #group;
                     color: #ffe3f8"
         attach-to="target: #group; offset: 5 10 -5">
     </a-entity>
@@ -119,7 +119,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         light="
                     type: ambient;
                     intensity: 0.2;
-                    castShadow: false
+                    castShadow: false;
                     color: #e8f1ff">
     </a-entity>
 
