@@ -11,6 +11,17 @@ const PULSE_SPEED = 6; // rad/s — one full grow/shrink cycle roughly every sec
 //
 // `active` (toggled by the sibling sound-button-group as it fades the button
 // in/out) gates whether the manager will ever raycast against this button.
+//
+// Scale, not opacity, drives both the distance fade (fadeFactor, set by
+// sound-button-group) and the gaze pulse (pulseScale, below) — this is the
+// single place either of those may write `object3D.scale`, so they compose
+// (multiply) instead of stomping each other. Opacity-based fade was tried
+// first and reverted: it fought with the button material's `alpha-test`
+// (needed for crisp, sorting-artifact-free icon edges — see ArModule.vue),
+// since any value between alphaTest and 1 is a partially-blended fragment
+// that needs correct back-to-front sorting, which broke down with two
+// close, overlapping transparent button planes. Shrinking to nothing never
+// touches blending at all, so it can't reintroduce that problem.
 export default {
   schema: {
     sound: { type: "selector" }
@@ -22,7 +33,14 @@ export default {
     self.pulsing = false;
     self.pulseAmount = 0;
     self.pulsePhase = 0;
+    self.pulseScale = 1;
+    self.fadeFactor = 1;
     self.baseScale = self.el.object3D.scale.clone();
+    // Optional invisible, wider plane (see ArModule.vue) that the manager
+    // raycasts against instead of this button's own visible mesh, so the
+    // gaze/tap-active area can be bigger than the icon without enlarging it.
+    // Inherits this entity's scale (fade/pulse) automatically as a child.
+    self.hitAreaEl = self.el.querySelector(".sound-button-hit-area");
 
     const managerEl = self.el.closest("[sound-button-manager]");
     self.manager = managerEl ? managerEl.components["sound-button-manager"] : null;
@@ -52,13 +70,37 @@ export default {
     if (self.pulsing) {
       self.pulsePhase += delta / 1000;
       const osc = Math.sin(self.pulsePhase * PULSE_SPEED) * 0.5 + 0.5; // 0..1
-      const scaleFactor = 1 + self.pulseAmount * osc;
-      obj.scale.set(self.baseScale.x * scaleFactor, self.baseScale.y * scaleFactor, self.baseScale.z);
-    } else if (!obj.scale.equals(self.baseScale)) {
+      self.pulseScale = 1 + self.pulseAmount * osc;
+    } else if (self.pulseScale !== 1) {
       // Ease back to rest size instead of snapping, so the pulse stop reads as
       // a settle rather than a pop.
-      obj.scale.lerp(self.baseScale, Math.min(delta / 150, 1));
+      self.pulseScale += (1 - self.pulseScale) * Math.min(delta / 150, 1);
     }
+
+    const fade = self.fadeFactor;
+    obj.scale.set(
+      self.baseScale.x * fade * self.pulseScale,
+      self.baseScale.y * fade * self.pulseScale,
+      self.baseScale.z * fade
+    );
+  },
+
+  // Called every tick by the sibling sound-button-group as it fades this
+  // button in/out by camera distance — 1 = full size, 0 = shrunk away.
+  setFadeFactor(factor: number) {
+    (this as any).fadeFactor = factor;
+  },
+
+  // What sound-button-manager raycasts against for gaze detection: the wider
+  // invisible hit-area if one is present, otherwise this button's own visible
+  // mesh.
+  getHitMesh() {
+    const self = this as any;
+    if (self.hitAreaEl) {
+      const hitMesh = self.hitAreaEl.getObject3D("mesh");
+      if (hitMesh) return hitMesh;
+    }
+    return self.el.getObject3D("mesh");
   },
 
   startPulse(amount: number) {

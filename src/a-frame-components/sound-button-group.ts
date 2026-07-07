@@ -8,6 +8,14 @@ declare const THREE: any;
 //
 // `near`/`far` are world-space distances (metres): fully visible at/inside
 // `near`, fully hidden at/beyond `far`, cross-fading (smoothstepped) between.
+//
+// The fade is driven by scale (sound-button.setFadeFactor), not material
+// opacity. Opacity fought with the button material's `alpha-test` (needed for
+// crisp cutout icon edges without transparency-sorting artifacts): any value
+// between alphaTest and 1 is a partially-blended fragment that needs correct
+// back-to-front sorting, which broke down with two close, overlapping
+// transparent button planes. Shrinking never touches blending, so it can't
+// reintroduce that.
 export default {
   schema: {
     near: { type: "number", default: 1 },
@@ -47,14 +55,11 @@ export default {
   applyFactor(factor: number) {
     const self = this as any;
     for (const buttonEl of self.buttons) {
-      const mesh = buttonEl.getObject3D("mesh");
-      if (mesh && mesh.material) {
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of mats) m.opacity = factor;
-      }
       const buttonComp = buttonEl.components && buttonEl.components["sound-button"];
+      if (!buttonComp) continue;
+      buttonComp.setFadeFactor(factor);
       // Keep near-invisible buttons out of the gaze raycast and un-pulsatable.
-      if (buttonComp) buttonComp.active = factor > 0.05;
+      buttonComp.active = factor > 0.05;
     }
   },
 

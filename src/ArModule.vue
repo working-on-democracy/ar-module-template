@@ -136,41 +136,53 @@ onUnmounted(() => {
          "Wand1"). The no-frustum-cull component on the root entity keeps any
          animated skinned meshes from being culled once they move. -->
     <a-entity
-        gltf-model="#Wand1"
-        scale="0.8 0.8 0.8"
-        rotation="0 30 0"
-        position="-3 0 -3"
+        gltf-model="#Wand2"
+        scale="1.1 1.1 1.1"
+        rotation="0 37 0"
+        position="-4 0 -4"
         shadow>
       <a-entity id="eng_sound_left" sound="src: #English_wand_1; autoplay: false" position="0 1 0"></a-entity>
       <a-entity id="ger_sound_left" sound="src: #Deutsch_wand1; autoplay: false" position="0 1 0"></a-entity>
         <!-- near/far (metres) control when these buttons fade in as the visitor
              approaches; pulse is the uniform x/y scale bump (0.15 = +15%) applied
              while a button is being looked at. Tune per-Wand here. -->
-        <a-entity sound-button-group="near: 1; far: 2.5; pulse: 0.15" position="1.6 0 0.85" rotation="-10 -4 0">
-          <a-plane id="eng_left" sound-button="sound: #eng_sound_left" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.26 0"></a-plane>
-          <a-plane id="ger_left" sound-button="sound: #ger_sound_left" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.07 0"></a-plane>
+        <a-entity sound-button-group="near: 5; far: 8; pulse: 0.15" position="1.6 0.15commit 0.85" rotation="-10 -4 0">
+          <a-plane id="eng_left" sound-button="sound: #eng_sound_left" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="1" height="0.24" position="0 0.28 0">
+            <!-- Invisible, wider/taller raycast target — extends the gaze/tap-
+                 active area 1 unit left/right and (this being the top button of
+                 the pair) 0.4 units upward, without enlarging the visible icon. -->
+            <a-plane class="sound-button-hit-area" material="opacity: 0; transparent: true; depthWrite: false" width="2.8" height="0.6" position="0 0.2 0"></a-plane>
+          </a-plane>
+          <a-plane id="ger_left" sound-button="sound: #ger_sound_left" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="1" height="0.24" position="0 0.05 0">
+            <!-- Bottom button of the pair — extends downward instead. -->
+            <a-plane class="sound-button-hit-area" material="opacity: 0; transparent: true; depthWrite: false" width="2.8" height="0.6" position="0 -0.2 0"></a-plane>
+          </a-plane>
         </a-entity>
     </a-entity>
 
     <a-entity
         gltf-model="#WandChurch"
-        scale="0.8 0.8 0.8"
-        rotation="0 5 0"
-        position="0 0 -4"
+        scale="1.1 1.1 1.1"
+        rotation="0 0 0"
+        position="0 0 -5.5"
         shadow>
     </a-entity>
 
     <a-entity
-        gltf-model="#Wand2"
-        scale="0.8 0.8 0.8"
-        rotation="0 -30 0"
-        position="3 0 -3"
+        gltf-model="#Wand1"
+        scale="1.1 1.1 1.1"
+        rotation="0 -33 0"
+        position="4 0 -4"
         shadow>
       <a-entity id="eng_sound_right" sound="src: #English_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
-      <a-entity id="gerI_sound_right" sound="src: #Deutsch_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
-      <a-entity sound-button-group="near: 1; far: 2.5; pulse: 0.15" position="1.6 0 0.85" rotation="-10 -4 0">
-        <a-plane id="eng_right" sound-button="sound: #eng_sound_right" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.26 0"></a-plane>
-        <a-plane id="ger_right" sound-button="sound: #ger_sound_right" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="0.8" height="0.2" position="0 0.07 0"></a-plane>
+      <a-entity id="ger_sound_right" sound="src: #Deutsch_Wand2_OF; autoplay: false" position="0 1 0"></a-entity>
+      <a-entity sound-button-group="near: 5; far: 8; pulse: 0.15" position="1.6 0.15 0.85" rotation="-10 -4 0">
+        <a-plane id="eng_right" sound-button="sound: #eng_sound_right" src="#Readittome" material="shader:flat; transparent: true; alpha-test: 0.8" width="1" height="0.24" position="0 0.28 0">
+          <a-plane class="sound-button-hit-area" material="opacity: 0; transparent: true; depthWrite: false" width="2.8" height="0.6" position="0 0.2 0"></a-plane>
+        </a-plane>
+        <a-plane id="ger_right" sound-button="sound: #ger_sound_right" src="#liesesmirvor" material="shader:flat; transparent: true; alpha-test: 0.8" width="1" height="0.24" position="0 0.05 0">
+          <a-plane class="sound-button-hit-area" material="opacity: 0; transparent: true; depthWrite: false" width="2.8" height="0.6" position="0 -0.2 0"></a-plane>
+        </a-plane>
       </a-entity>
     </a-entity>
 

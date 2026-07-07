@@ -11,21 +11,37 @@ declare const THREE: any;
 //      whichever one is closest along the ray — never more than one, since
 //      only the nearest hit is chosen and every other button is told to stop.
 //
-//   2. Tap: a single document-level `click` (fires for touch taps on both
-//      Android and iOS, not just mouse) acts on whatever button is currently
-//      gazed at, per the play/pause/resume/switch state machine in onTap()
-//      below — only one button's sound ever plays module-wide. We can't use
-//      A-Frame's cursor/raycaster component for this because the host forbids
-//      modules from setting `cursor`/`raycaster` on the shared camera (see
+//   2. Tap: a document-level `pointerdown`/`pointerup` pair (not `click` —
+//      see below) acts on whatever button is currently gazed at, per the
+//      play/pause/resume/switch state machine in onTap() below — only one
+//      button's sound ever plays module-wide. We can't use A-Frame's
+//      cursor/raycaster component for this because the host forbids modules
+//      from setting `cursor`/`raycaster` on the shared camera (see
 //      lib/manifest.types.ts CAMERA_PROPS_FORBIDDEN) — so gaze + tap are both
 //      hand-rolled here instead.
 //
+// Why pointerdown/pointerup and not `click`: `xrextras-gesture-detector` (on
+// the scene, for pinch/rotate) calls preventDefault() on touch events for its
+// own gesture handling, and iOS Safari — much more aggressively than Android
+// Chrome — suppresses the synthetic `click` that would otherwise follow a
+// touch once something upstream in that touch sequence called
+// preventDefault(). That silently broke tapping the 3D buttons on iPad
+// specifically. pointerdown/pointerup are primary input events, not a
+// second-order synthesis derived from touch, so they aren't subject to that
+// suppression. onPointerUp() only reacts to taps that (a) landed on the AR
+// canvas itself — not the 2D sound-control panel's real <button> elements,
+// which handle their own clicks and already stop that event's propagation —
+// and (b) didn't move far from where the press started, so a camera
+// drag/pinch gesture doesn't also register as a tap.
+//
 // Audio unlock: browsers (iOS Safari in particular) refuse to start a Web
 // Audio context until it's resumed from inside a real user-gesture handler.
-// The `click` handler below is exactly that gesture, so we resume the shared
+// onPointerUp is exactly that gesture, so we resume the shared
 // THREE.AudioContext (the one A-Frame's `sound` component plays through)
-// synchronously on every tap, before asking the button to play. Once resumed
-// it stays resumed for the rest of the session.
+// synchronously there, before asking the button to play. Once resumed it
+// stays resumed for the rest of the session.
+const TAP_MOVE_THRESHOLD = 10; // px
+
 export default {
   init() {
     const self = this as any;
@@ -41,14 +57,18 @@ export default {
     self.raycaster = new THREE.Raycaster();
     self.camPos = new THREE.Vector3();
     self.camDir = new THREE.Vector3();
+    self.pointerDownPos = null;
 
-    self.onTap = self.onTap.bind(this);
-    document.addEventListener("click", self.onTap);
+    self.onPointerDown = self.onPointerDown.bind(this);
+    self.onPointerUp = self.onPointerUp.bind(this);
+    document.addEventListener("pointerdown", self.onPointerDown);
+    document.addEventListener("pointerup", self.onPointerUp);
   },
 
   remove() {
     const self = this as any;
-    document.removeEventListener("click", self.onTap);
+    document.removeEventListener("pointerdown", self.onPointerDown);
+    document.removeEventListener("pointerup", self.onPointerUp);
     self.gazed = null;
     self.activeButton = null;
   },
@@ -76,7 +96,7 @@ export default {
     const camera = self.el.sceneEl.camera;
     if (!camera) return;
 
-    const candidates = self.buttons.filter((b: any) => b.active && b.el.getObject3D("mesh"));
+    const candidates = self.buttons.filter((b: any) => b.active && b.getHitMesh());
     if (!candidates.length) {
       self.setGazed(null);
       return;
@@ -86,14 +106,16 @@ export default {
     camera.getWorldDirection(self.camDir);
     self.raycaster.set(self.camPos, self.camDir);
 
-    const meshes = candidates.map((b: any) => b.el.getObject3D("mesh"));
+    // Raycasts against each button's (possibly wider, invisible) hit-area
+    // mesh, not necessarily its visible one — see sound-button.getHitMesh().
+    const meshes = candidates.map((b: any) => b.getHitMesh());
     const hits = self.raycaster.intersectObjects(meshes, false);
     if (!hits.length) {
       self.setGazed(null);
       return;
     }
 
-    const hitButton = candidates.find((b: any) => b.el.getObject3D("mesh") === hits[0].object) ?? null;
+    const hitButton = candidates.find((b: any) => b.getHitMesh() === hits[0].object) ?? null;
     self.setGazed(hitButton);
   },
 
@@ -107,6 +129,29 @@ export default {
       const group = groupEl && groupEl.components["sound-button-group"];
       self.gazed.startPulse(group ? group.getPulseAmount() : 0.15);
     }
+  },
+
+  onPointerDown(e: PointerEvent) {
+    (this as any).pointerDownPos = { x: e.clientX, y: e.clientY };
+  },
+
+  onPointerUp(e: PointerEvent) {
+    const self = this as any;
+    const downPos = self.pointerDownPos;
+    self.pointerDownPos = null;
+
+    // Only a tap that started and ended on the AR canvas counts as "tap the
+    // scene" — the 2D sound-control panel's buttons are real <button>
+    // elements with their own @click.stop handlers.
+    if (!e.target || (e.target as HTMLElement).tagName !== "CANVAS") return;
+
+    if (downPos) {
+      const dx = e.clientX - downPos.x;
+      const dy = e.clientY - downPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) > TAP_MOVE_THRESHOLD) return; // was a drag/gesture, not a tap
+    }
+
+    self.onTap();
   },
 
   // Only one sound plays module-wide, ever:

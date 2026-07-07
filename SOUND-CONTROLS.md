@@ -52,12 +52,25 @@ On each `sound-button-group` entity:
 <a-entity sound-button-group="near: 1; far: 2.5; pulse: 0.15" ...>
 ```
 
-- `near` / `far` — world-space **metres**. Buttons are fully visible at/inside
-  `near`, fully invisible at/beyond `far`, smoothstep-fading between. Buttons
-  fully faded out (opacity ≤ 0.05) are also excluded from the gaze raycast and
-  can't pulsate or be tapped.
+- `near` / `far` — world-space **metres**. Buttons are full size at/inside
+  `near`, shrunk to nothing at/beyond `far`, smoothstep-fading between. Buttons
+  shrunk below 5% size are also excluded from the gaze raycast and can't
+  pulsate or be tapped.
 - `pulse` — uniform x/y scale bump while a button is gazed at, e.g. `0.15` =
-  the button grows to 115% of its rest size at the peak of the pulse.
+  the button grows to 115% of its (faded) size at the peak of the pulse.
+
+The distance fade is driven by **scale**, not material opacity —
+`sound-button-group` calls `setFadeFactor()` on each button, and
+`sound-button.tick()` is the single place that writes `object3D.scale`,
+multiplying that fade factor together with its own gaze-pulse factor. Opacity
+was tried first and reverted: it fought with the button material's
+`alpha-test: 0.8` (needed for crisp, sorting-artifact-free icon edges — see
+the `material` attribute on each button `a-plane` in `ArModule.vue`). Any
+material opacity strictly between the alphaTest threshold and `1` is a
+partially-blended fragment that needs correct back-to-front sort order, which
+broke down visibly (flicker/artifacts) with two close, overlapping
+transparent button planes. Shrinking never touches blending, so it can't
+reintroduce that problem — don't reach for opacity here again.
 
 ## Gaze + pulse
 
@@ -71,14 +84,75 @@ component, because the host **forbids** modules from setting `cursor`/
 `CAMERA_PROPS_FORBIDDEN`) — multiple modules share one camera, and a module
 overriding those would break tap interaction for every other module.
 
+### Gaze/tap-active area vs. the visible icon
+
+The manager doesn't raycast against the button's own visible plane — it calls
+`sound-button.getHitMesh()`, which returns a wider, fully invisible
+(`opacity: 0`, `depthWrite: false`) sibling `a-plane` nested inside the button
+(class `sound-button-hit-area`) if one exists, falling back to the visible
+mesh otherwise. This is how the active area is bigger than the icon: give the
+hit-area a bigger `width`/`height` than the visible button, independent of the
+icon's own size. It's a plain child entity, so it automatically inherits the
+button's scale (fade/pulse) — no extra wiring needed when tuning those. Give
+it `depthWrite: false` since A-Frame's `material` component defaults
+`depthWrite` to `true` even when `transparent: true`; without it, this
+invisible plane would still occupy the depth buffer at full size and could
+silently occlude real geometry behind it.
+
+The hit-area's `width`/`height` are independent, fixed values — not computed
+from the visible button's own `width`/`height` — so resizing the visible
+plane (see below) never changes the trigger zone, and vice versa.
+
+Currently each button's hit-area is 1 unit wider on each side (`width: 2.8`,
+regardless of the visible plane's own width) and 0.4 units taller on
+whichever side that button faces outward — extended **upward** for the top
+button of a pair (`eng_left`/`eng_right`, at local `position="0 0.28 0"`) and
+**downward** for the bottom one (`ger_left`/`ger_right`, at
+`position="0 0.05 0"`). Both directions were originally 0.2, matching the
+top/bottom edges' geometric mirror of each other; the downward one was
+doubled to 0.4 because it read as noticeably smaller in practice at that
+size — likely the group's `rotation` tilting the local up/down axis relative
+to the camera, combined with perspective, so equal world-space extension
+doesn't read as equally sized on screen — and the upward one was then
+matched to the same 0.4 for consistency. Since `a-plane` geometry is
+centered, extending in only one direction means growing the height by the
+extension amount **and** shifting the hit-area's own `position` by half of
+that in the same direction, so the near edge (the one facing the other
+button) stays put and only the outward edge moves — both buttons are
+currently `height="0.6"`, `position="0 0.2 0"` (top) /
+`position="0 -0.2 0"` (bottom).
+
+### Visible icon size vs. the gap between the two buttons in a pair
+
+The visible button's own `width`/`height` (currently `1` / `0.24`, up from
+the original `0.8` / `0.2`) control only the rendered icon plane — resizing
+these has no effect on the hit-area (see above). Because the top and bottom
+button in a pair are close together (`eng_left`/`eng_right` at local
+`position="0 0.28 0"`, `ger_left`/`ger_right` at `position="0 0.05 0"` — a
+`0.23` gap between centers), growing `height` eats directly into the space
+between them: at the original `height="0.2"` the two plane quads already
+just barely touched, so any increase overlaps them unless the pair's
+positions also move apart to compensate. When tuning `width`/`height`,
+preserve the existing edge-to-edge gap by nudging the top button's `position`
+up and the bottom button's down by **half of the height increase each** —
+e.g. going from `height="0.2"` to `height="0.24"` (an increase of `0.04`)
+moved the top button's `y` from `0.26` to `0.28` (`+0.02`) and the bottom
+button's from `0.07` to `0.05` (`-0.02`).
+
+To see the true bounds instead of reasoning about them blind, temporarily
+change a hit-area's `material` from `opacity: 0; transparent: true; ...` to
+something like `opacity: 0.35; color: #ff00ff; transparent: true; ...` — this
+tints it magenta and semi-opaque instead of invisible. **Revert before
+shipping**: back to `opacity: 0`, drop the `color` key, on all four
+`sound-button-hit-area` planes in `ArModule.vue`.
+
 ## Play / pause / resume / stop state machine
 
 `sound-button-manager` tracks a single `activeButton` + `activeStatus`
 (`idle` / `playing` / `paused`) **module-wide** — only one sound ever plays at
 a time, no matter how many Wands/buttons exist.
 
-Tapping (a document-level `click`, so it fires for touch taps on both Android
-and iOS) acts on whatever button is currently gazed at:
+Tapping acts on whatever button is currently gazed at:
 
 | Situation                                   | Result                                    |
 |----------------------------------------------|--------------------------------------------|
@@ -91,6 +165,28 @@ and iOS) acts on whatever button is currently gazed at:
 Natural completion is detected via the `sound` component's own `sound-ended`
 event: pausing/stopping programmatically nulls out that event first (see
 A-Frame's `sound.js`), so it only ever fires when a clip reaches its own end.
+
+### Why `pointerdown`/`pointerup`, not `click`
+
+`sound-button-manager` listens for `pointerdown`/`pointerup` on `document`,
+not `click`. `click` broke tapping the 3D buttons on iPad specifically:
+`xrextras-gesture-detector` (on the scene, for pinch/rotate) calls
+`preventDefault()` on touch events for its own gesture handling, and iOS
+Safari — much more aggressively than Android Chrome — suppresses the
+synthetic `click` that would otherwise follow a touch once something
+upstream in that touch sequence called `preventDefault()`. This wasn't a
+build/compilation issue — the standalone build (`dist-ar`) runs the exact
+same `lib/preview-ar.ts` entry as the dev preview, just bundled, so the same
+bug would reproduce in `npm run dev:ar` on the same device too.
+`pointerdown`/`pointerup` are primary input events, not a second-order
+synthesis derived from touch, so they aren't subject to that suppression.
+
+`onPointerUp()` only treats a press as a scene tap if it (a) landed on the AR
+canvas itself (`event.target.tagName === "CANVAS"`) — not the 2D
+sound-control panel's real `<button>` elements, which handle their own
+clicks and already stop that event's propagation — and (b) didn't move more
+than `TAP_MOVE_THRESHOLD` (10px) from where the press started, so a
+camera drag/pinch gesture doesn't also register as a tap.
 
 ### Why `pauseAudio()`, not `pause()`
 
