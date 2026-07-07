@@ -7,8 +7,8 @@ interface ArModuleData {
   url: string;
   author: string;
   location: { lat: number; lng: number };
-  assets: { id: string; src: string }[];
-  components: { name: string; url: string }[];
+  assets?: { id: string; src: string }[];
+  components?: { name: string; url: string }[];
   createdAt: string;
 }
 
