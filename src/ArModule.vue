@@ -156,16 +156,16 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
            idleRadius                 amplitude of the subtle always-on idle float (0 = off)
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
     <a-entity glowstick-field="
-        areaWidth: 5.5;
+        areaWidth: 5;
         elevation: -2;
         elevationVariation: 0.2;
-        minDistance: 1.5;
-        maxDistance: 2.5;
+        minDistance: 1.8;
+        maxDistance: 2.3;
         yawMax: 2;
         tiltMin: 0;
         tiltMax: 12;
-        copies: 3;
-        minCopyDistance: 4;
+        copies: 2;
+        minCopyDistance: 3.5;
         scale: 0.8;
         billboardBrightness: 0.4;
         lodNear: 4;
