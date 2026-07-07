@@ -111,7 +111,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
                     intensity: 1;
                     castShadow: false;
                     target: #group;
-                    color: #ffe3f8"
+                    color: #88c9f7"
         attach-to="target: #group; offset: 5 10 -5">
     </a-entity>
 
@@ -120,7 +120,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
                     type: ambient;
                     intensity: 0.2;
                     castShadow: false;
-                    color: #e8f1ff">
+                    color: #cecdfa">
     </a-entity>
 
 
@@ -128,8 +128,8 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
          the <a-camera>; here it tracks the camera via our attach-to component,
          since the camera is provided by the host, not this module). -->
     <a-entity
-        light="type: point; distance: 2; intensity: 1.5; color: white;"
-        attach-to="target: #camera; offset: 0 0.5 0">
+        light="type: point; distance: 2; intensity: 2; color: #facdd1;"
+        attach-to="target: #camera; offset: -0.2 0.5 -0.5">
     </a-entity>
 
 
@@ -156,24 +156,24 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
            idleRadius                 amplitude of the subtle always-on idle float (0 = off)
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
     <a-entity glowstick-field="
-        areaWidth: 5;
-        elevation: -1.6;
-        elevationVariation: 0.15;
-        minDistance: 1;
-        maxDistance: 3;
+        areaWidth: 5.5;
+        elevation: -2;
+        elevationVariation: 0.2;
+        minDistance: 1.5;
+        maxDistance: 2.5;
         yawMax: 2;
         tiltMin: 0;
-        tiltMax: 15;
-        copies: 2;
-        minCopyDistance: 5;
-        scale: 1;
+        tiltMax: 12;
+        copies: 3;
+        minCopyDistance: 4;
+        scale: 0.8;
         billboardBrightness: 0.4;
         lodNear: 4;
-        lodFar: 5;
+        lodFar: 6;
         lichtNear: 1;
-        lichtFar: 3;
+        lichtFar: 4;
         waveNear: 2;
-        waveFar: 4;
+        waveFar: 5;
         waveIntensity: 25;
         waveSpeed: 4;
         wavePivotY: -0.5;

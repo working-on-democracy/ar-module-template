@@ -425,8 +425,8 @@ export default {
     const halo = document.createElement("a-entity");
     halo.setAttribute("class", "lod-mesh");
     halo.setAttribute("gltf-model", "#HaloSphere");
-    halo.setAttribute("position", "0 0.05 0"); // nudge the glow aura slightly up
-    halo.setAttribute("scale", "1 1 1");
+    halo.setAttribute("position", "0 0.02 0"); // nudge the glow aura slightly up
+    halo.setAttribute("scale", "1.3 1.4 0.8");
     halo.setAttribute("material", "opacity:0.1");
     halo.setAttribute("render-order", String(haloOrder));
     halo.setAttribute("unlit-material", "");
