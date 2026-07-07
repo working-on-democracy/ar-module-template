@@ -149,6 +149,11 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
            billboardBrightness        dims the unlit far-LOD PNG billboard (1 = full, <1 darker, 0 = black)
            lodNear / lodFar           global LOD group fade thresholds
            lichtNear / lichtFar       global custom near/far for the LICHT glow parts
+           waveNear / waveFar         distance band over which the approach wave fades in (≤near full, ≥far off)
+           waveIntensity              peak wave swing each way, in degrees
+           waveSpeed                  wave swing rate (higher = faster)
+           wavePivotY                 Y offset of the wave pivot along the stick (0 = origin, negative = lower toward the base)
+           idleRadius                 amplitude of the subtle always-on idle float (0 = off)
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
     <a-entity glowstick-field="
         areaWidth: 5;
@@ -166,7 +171,13 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         lodNear: 4;
         lodFar: 5;
         lichtNear: 1;
-        lichtFar: 3"
+        lichtFar: 3;
+        waveNear: 2;
+        waveFar: 4;
+        waveIntensity: 25;
+        waveSpeed: 4;
+        wavePivotY: -0.5;
+        idleRadius: 0.03"
         :data-render-order="glowstickRenderOrderJson"></a-entity>
 
 

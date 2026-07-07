@@ -20,6 +20,7 @@ import lodObject from "./a-frame-components/lod-object";
 import lodManager from "./a-frame-components/lod-manager";
 import attachTo from "./a-frame-components/attach-to";
 import glowstickField from "./a-frame-components/glowstick-field";
+import glowstickMotion from "./a-frame-components/glowstick-motion";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -43,7 +44,9 @@ export const manifest: Manifest = {
     // Makes an entity follow another's world position (our xrextras-attach stand-in).
     "attach-to": attachTo,
     // Auto-places the whole glowstick field (see the component for parameters).
-    "glowstick-field": glowstickField
+    "glowstick-field": glowstickField,
+    // Per-stick wave (on approach) + idle float; authored by glowstick-field.
+    "glowstick-motion": glowstickMotion
   },
 
   imageTargets: [videoTarget]

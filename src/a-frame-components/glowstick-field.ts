@@ -94,7 +94,16 @@ export default {
     lodNear: { type: "number", default: 15 }, // lod-object nearDistance (fully detailed)
     lodFar: { type: "number", default: 20 }, // lod-object farDistance (fully billboard)
     lichtNear: { type: "number", default: 7 }, // data-lod-near for the glow parts (LICHT + HaloSphere)
-    lichtFar: { type: "number", default: 10 } // data-lod-far for the glow parts
+    lichtFar: { type: "number", default: 10 }, // data-lod-far for the glow parts
+
+    // --- Motion (see glowstick-motion). Each stick waves forward/back along its own
+    //     lean direction as the camera approaches, and always floats subtly. ---
+    waveNear: { type: "number", default: 2 }, // ≤ this distance ⇒ full wave
+    waveFar: { type: "number", default: 5 }, // ≥ this distance ⇒ no wave
+    waveIntensity: { type: "number", default: 20 }, // peak wave swing each way (degrees)
+    waveSpeed: { type: "number", default: 3 }, // wave swing rate (higher = faster)
+    wavePivotY: { type: "number", default: 0 }, // wave pivot Y offset (negative = lower)
+    idleRadius: { type: "number", default: 0.02 } // idle float amplitude (0 = no float)
   },
 
   init() {
@@ -382,6 +391,7 @@ export default {
   buildGlowstick(def: GlowstickDef, pos: Point, y: number, rot: { x: number; y: number; z: number }): Element {
     const self = this as any;
     const { scale, lodNear, lodFar, lichtNear, lichtFar, billboardBrightness } = self.data;
+    const { waveNear, waveFar, waveIntensity, waveSpeed, wavePivotY, idleRadius } = self.data;
     const near = String(lichtNear);
     const far = String(lichtFar);
 
@@ -453,6 +463,14 @@ export default {
     bb.setAttribute("billboard", "");
     bb.setAttribute("unlit-material", `brightness: ${billboardBrightness}`);
     inst.appendChild(bb);
+
+    // Per-stick wave (on approach) + idle float. It reads the base rotation/position
+    // set above, so it must be attached after them.
+    inst.setAttribute(
+      "glowstick-motion",
+      `waveNear: ${waveNear}; waveFar: ${waveFar}; waveIntensity: ${waveIntensity}; ` +
+        `waveSpeed: ${waveSpeed}; pivotY: ${wavePivotY}; idleRadius: ${idleRadius}`
+    );
 
     // lod-object goes on last: its init queries the children built above, and A-Frame
     // initialises children before the parent, so they're all present by then.
