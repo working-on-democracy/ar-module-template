@@ -61,9 +61,9 @@ const label = computed(
 
 
     <a-entity
-        gltf-model="#MainCharacter"
+        gltf-model="#MainCharacter_optimized"
         scale="5 5 5"
-        rotation="0 90 0"
+        rotation="20 90 0"
         position="0 4 -2"
         animation-mixer="timeScale: 0.4"
         shadow>
