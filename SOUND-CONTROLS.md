@@ -263,10 +263,28 @@ element were removed from the DOM outright).
 
 Browsers (iOS Safari in particular) refuse to run a Web Audio context until
 it's resumed from inside a real user-gesture handler. `sound-button-manager`'s
-document `click` handler *is* that gesture, so `unlockAudio()` resumes the
-shared `THREE.AudioContext` synchronously on every tap, before asking a button
-to play. No separate "enable sound" prompt is needed — the existing tap-to-play
-interaction already provides the required gesture.
+document `pointerdown`/`pointerup` pair *is* that gesture, so `unlockAudio()`
+resumes the shared `THREE.AudioContext` synchronously before asking a button
+to play — called from `onTap()` (3D gaze+tap) and from the 2D panel's
+`restartActive()`/`togglePlayPause()`, so every path that can start audio
+unlocks it first. No separate "enable sound" prompt is needed — the existing
+tap-to-play interaction already provides the required gesture.
+
+`ctx.resume()` alone isn't enough on iPhone specifically: iOS's hardware
+Ring/Silent switch mutes Web Audio API output independently of the
+autoplay-gesture policy, even once the context reports `"running"` — most
+iPads have no such switch, so a module can pass on iPad and stay silent on
+iPhone with identical code. `unlockAudio()` also opts out of that, two ways,
+from inside the same gesture:
+
+- `navigator.audioSession.type = "playback"` where supported (Safari 17+,
+  the documented API for this).
+- A fallback for older Safari: playing one real, silent `HTMLAudioElement`
+  (built at runtime in `createSilentUnlockAudio()` — a tiny in-memory WAV, no
+  checked-in asset) once per session. A genuine HTMLMediaElement `play()`
+  call from inside a user gesture flips the page's iOS audio session into the
+  switch-ignoring category, and it stays flipped for the rest of the session,
+  including for later Web Audio API playback.
 
 ## Adding new assets during development
 
