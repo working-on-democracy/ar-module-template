@@ -69,7 +69,7 @@ const label = computed(
             gltf-model="#Seeds"
             scale="2 2 2"
             rotation="0 0 0"
-            position="0 0.5 -8"
+            position="0 0 -8"
             trim-loop-clip="timeScale: 0.4; loop: pingpong"
             shadow>
         </a-entity>

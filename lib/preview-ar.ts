@@ -72,7 +72,7 @@ const ArPreviewApp = {
       ),
       h("a-camera", {
         id: "camera",
-        position: "0 0.5 0",
+        position: "0 1 0",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
