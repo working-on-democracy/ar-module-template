@@ -59,26 +59,13 @@ const label = computed(
 
     <a-light type="ambient" intensity="0.7"></a-light>
 
-    <!-- Placeholder: a spinning glossy purple "diamond" — glossy (low roughness)
-         and clearly purple under the scene lights, rotating on Y. A simple stand-in
-         so the preview shows something without depending on the bundled glTF. -->
-    <a-octahedron
-        radius="1"
-        scale="2 2 2"
-        position="2 0 -4"
-        material="metalness: 0.3; roughness: 0.1; color: #7c3aed"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-    </a-octahedron>
 
-    <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
-         The no-frustum-cull component on the root entity keeps this animated
-         skinned mesh from being culled once animation-mixer moves it. -->
     <a-entity
-        gltf-model="#fish1"
-        scale="14 14 -14"
+        gltf-model="#MainCharacter"
+        scale="5 5 5"
         rotation="0 90 0"
-        position="0 4 -12"
-        animation-mixer="timeScale: 1.1"
+        position="0 4 -2"
+        animation-mixer="timeScale: 0.4"
         shadow>
     </a-entity>
 
@@ -94,14 +81,6 @@ const label = computed(
     ></a-plane>
 
 
-    <!-- example Image Tracking. The target ("video-target") is declared in the
-         manifest's imageTargets and configured by the host before mount; the
-         #jellyfish-video / #video-target assets are auto-injected from
-         src/assets/ (ids are the file names without extension). -->
-    <xrextras-named-image-target name="video-target">
-      <a-entity  scale="1 1 1" xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
-                geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
-    </xrextras-named-image-target>
 
   </a-entity>
 </template>
