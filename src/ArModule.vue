@@ -61,7 +61,7 @@ const label = computed(
 
 
     <a-entity
-        gltf-model="#MainCharacter_optimized"
+        gltf-model="#MainCharacter"
         scale="5 5 5"
         rotation="20 90 0"
         position="0 4 -2"
