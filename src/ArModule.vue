@@ -18,76 +18,254 @@ const label = computed(
     () => `${props.arModule.author}: ${props.arModule.text}`
 );
 
-// ── Glowstick internal render order ──────────────────────────────────────────
-// Per-mesh draw order *within* each glowstick. Higher number = drawn later, i.e.
-// on top of lower numbers. The values only matter relative to the other parts of
-// the SAME stick (each stick is sorted independently).
+// ── Glowstick per-stick tuning ────────────────────────────────────────────────
+// Everything you can tune per idol's glowstick, in one place, keyed by prefix
+// (e.g. "BTS"). Each block:
 //
-// Listed here are the meshes you control: each stick's numbered body meshes
-// (e.g. BTS_01…BTS_05) and its glow part (BTS_LICHT). Two parts are handled
-// automatically and intentionally NOT listed:
-//   • HaloSphere      → always drawn FIRST in the stick, so its transparent glow
-//                        aura never obscures the body (fixed to lowest − 1).
-//   • <PREFIX>_PNG    → always drawn LAST in the stick, so the billboard fully
-//                        covers the stick as the LOD system fades it in (fixed to
-//                        highest + 1).
+//   order          Draw order *within* that stick, keyed by each part's full
+//                   mesh id (e.g. "BTS_01", "BTS_LICHT" — the numbered body
+//                   meshes plus the glow part). Higher = drawn later, i.e. on
+//                   top of lower numbers; only matters relative to the other
+//                   parts of the SAME stick. Omit an id to fall back to the
+//                   default sequential order (body meshes in file order, then
+//                   the light). HaloSphere and <PREFIX>_PNG are deliberately
+//                   NOT listed here — they're always forced first/last (see
+//                   glowstick-field.ts) so an entry for them has no effect.
+//                   This is real distance-based draw sequencing (depthWrite
+//                   stays on, matching each mesh's glTF-authored default), so
+//                   it composes correctly with occlusion between different
+//                   sticks and against anything else in the scene.
 //
-// Edit any number to reorder that mesh. The defaults below reproduce the original
-// order (body meshes in file order, then the light). Passed to <glowstick-field>
-// via :data-render-order below.
-const glowstickRenderOrder: Record<string, number> = {
-  // AESPA1
-  "AESPA1_01": 4, "AESPA1_02": 2, "AESPA1_03": 1, "AESPA1_LICHT": 3,
-  // AESPA2 (single un-numbered body mesh)
-  "AESPA2": 1, "AESPA2_LICHT": 2,
-  // BAP
-  "BAP_01": 1, "BAP_02": 2, "BAP_03": 3, "BAP_LICHT": 4,
-  // BILLIE
-  "BILLIE_01": 1, "BILLIE_02": 2, "BILLIE_03": 3, "BILLIE_04": 4, "BILLIE_05": 5, "BILLIE_06": 6, "BILLIE_LICHT": 7,
-  // BLACKPINK
-  "BLACKPINK_01": 1, "BLACKPINK_02": 2, "BLACKPINK_LICHT": 3,
-  // BOA
-  "BOA_01": 1, "BOA_02": 2, "BOA_03": 3, "BOA_04": 4, "BOA_LICHT": 5,
-  // BTS
-  "BTS_01": 1, "BTS_02": 2, "BTS_03": 3, "BTS_04": 4, "BTS_05": 5, "BTS_LICHT": 6,
-  // EVNNE
-  "EVNNE_01": 1, "EVNNE_02": 2, "EVNNE_LICHT": 3,
-  // EXO
-  "EXO_01": 1, "EXO_02": 2, "EXO_03": 3, "EXO_04": 4, "EXO_LICHT": 5,
-  // GFRIEND
-  "GFRIEND_01": 1, "GFRIEND_02": 2, "GFRIEND_03": 3, "GFRIEND_04": 4, "GFRIEND_05": 5, "GFRIEND_06": 6, "GFRIEND_LICHT": 7,
-  // GIRLSGENERATION
-  "GIRLSGENERATION_01": 1, "GIRLSGENERATION_02": 2, "GIRLSGENERATION_03": 3, "GIRLSGENERATION_04": 4, "GIRLSGENERATION_LICHT": 5,
-  // GOT7
-  "GOT7_01": 1, "GOT7_02": 2, "GOT7_03": 3, "GOT7_LICHT": 4,
-  // I-DLE
-  "I-DLE_01": 1, "I-DLE_02": 2, "I-DLE_LICHT": 3,
-  // IU
-  "IU_01": 1, "IU_02": 2, "IU_03": 3, "IU_04": 4, "IU_05": 5, "IU_LICHT": 6,
-  // KISSOFLIFE
-  "KISSOFLIFE_01": 1, "KISSOFLIFE_02": 2, "KISSOFLIFE_03": 3, "KISSOFLIFE_LICHT": 4,
-  // LESSERAFIM
-  "LESSERAFIM_01": 1, "LESSERAFIM_LICHT": 2,
-  // MAMAMOO
-  "MAMAMOO_01": 1, "MAMAMOO_02": 2, "MAMAMOO_LICHT": 3,
-  // NEWJEANS
-  "NEWJEANS_01": 1, "NEWJEANS_02": 2, "NEWJEANS_03": 3, "NEWJEANS_LICHT": 4,
-  // NTX
-  "NTX_01": 1, "NTX_02": 2, "NTX_03": 3, "NTX_04": 4, "NTX_LICHT": 5,
-  // POW
-  "POW_01": 1, "POW_02": 2, "POW_03": 3, "POW_04": 4, "POW_05": 5, "POW_06": 6, "POW_LICHT": 7,
-  // SEVENTEEN
-  "SEVENTEEN_01": 1, "SEVENTEEN_02": 2, "SEVENTEEN_03": 3, "SEVENTEEN_04": 4, "SEVENTEEN_LICHT": 5,
-  // STRAYKIDS
-  "STRAYKIDS_01": 1, "STRAYKIDS_02": 2, "STRAYKIDS_03": 3, "STRAYKIDS_04": 4, "STRAYKIDS_05": 5, "STRAYKIDS_06": 6, "STRAYKIDS_LICHT": 7,
-  // SUPERM
-  "SUPERM_01": 1, "SUPERM_02": 2, "SUPERM_03": 3, "SUPERM_LICHT": 4,
-  // TVXQ
-  "TVXQ_01": 1, "TVXQ_02": 2, "TVXQ_03": 3, "TVXQ_LICHT": 4,
-  // VERIVERY
-  "VERIVERY_01": 1, "VERIVERY_02": 2, "VERIVERY_03": 3, "VERIVERY_04": 4, "VERIVERY_LICHT": 5
+//                   For a mesh that's genuinely translucent in the source
+//                   .glb (alphaMode: BLEND — e.g. tinted glass enclosing
+//                   LICHT), its own true opacity is now preserved through the
+//                   LOD fade instead of being forced fully opaque (see
+//                   lod-object.ts / lod-manager.ts), so LICHT shows through
+//                   it correctly by ordinary alpha blending — AS LONG AS
+//                   LICHT is drawn BEFORE that translucent mesh (lower order
+//                   number), so it's already in the frame for the glass to
+//                   blend over. Order relative to genuinely opaque parts
+//                   doesn't matter — real depth resolves those correctly
+//                   regardless of draw sequence.
+//   haloColor      Tint for the shared HaloSphere glow aura. "" = untinted
+//                   (white). Every copy of this stick gets its own HaloSphere
+//                   material clone, so all copies share this colour
+//                   automatically.
+//   lichtColor     Tint for this stick's own LICHT mesh (the light part built
+//                   into that idol's model, not the shared HaloSphere). "" =
+//                   untinted (LICHT's own authored colour).
+//   lichtIntensity Brightness multiplier for LICHT, on top of its glTF-authored
+//                   emissiveIntensity/emissiveStrength (see
+//                   emissive-material.ts). 1 = as-authored.
+//   opacity        Manual opacity ceiling per full mesh id (e.g. "BOA_01"),
+//                   keyed only for meshes you want to override — replaces
+//                   whatever the glTF itself authored rather than dimming on
+//                   top of it. For a mesh that's technically alphaMode: BLEND
+//                   but barely translucent as modelled (its own authored
+//                   alpha close to 1), this is how to make it actually
+//                   see-through enough to show something behind it (like
+//                   LICHT) without re-exporting the source .glb. {} = every
+//                   mesh keeps its own authored opacity.
+//
+// Passed to <glowstick-field> as one JSON blob via :data-glowstick-overrides
+// below; glowstick-field.ts distributes each field to the component that
+// actually owns that visual (render-order, unlit-material, emissive-material,
+// lod-object's opacity handling).
+const glowstickOverrides: Record<string, {
+  order: Record<string, number>;
+  haloColor: string;
+  lichtColor: string;
+  lichtIntensity: number;
+  opacity: Record<string, number>;
+}> = {
+  AESPA1: {
+    order: { "AESPA1_01": 4, "AESPA1_02": 2, "AESPA1_03": 1, "AESPA1_LICHT": 3 },
+    haloColor: "#ffbaf7",
+    lichtColor: "#ffbaf7",
+    lichtIntensity: 2,
+    opacity: {}
+  },
+  // AESPA2 has a single un-numbered body mesh, named just the prefix itself.
+  AESPA2: {
+    order: { "AESPA2": 1, "AESPA2_LICHT": 2 },
+    haloColor: "#baefff",
+    lichtColor: "#baefff",
+    lichtIntensity: 2,
+    opacity: {}
+  },
+  // BAP_01 and BAP_03 are alphaMode: BLEND (genuinely translucent — the rods
+  // and outer body); BAP_02 is opaque-authored. LICHT is ordered first (0) so
+  // it draws before the translucent parts and shows through their real alpha.
+  // opacity overrides both to 0.2 as a starting guess — trim/tune per part.
+  BAP: {
+    order: { "BAP_02": 1, "BAP_03": 3, "BAP_01": 4, "BAP_LICHT": 0 },
+    haloColor: "#95ff6b",
+    lichtColor: "#95ff6b",
+    lichtIntensity: 1,
+    opacity: { "BAP_02": 0.5, "BAP_01": 1 }
+  },
+  BILLIE: {
+    order: { "BILLIE_01": 1, "BILLIE_02": 2, "BILLIE_03": 3, "BILLIE_04": 4, "BILLIE_05": 5, "BILLIE_06": 6, "BILLIE_LICHT": 7 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 2,
+    opacity: {}
+  },
+  BLACKPINK: {
+    order: { "BLACKPINK_01": 1, "BLACKPINK_02": 2, "BLACKPINK_LICHT": 3 },
+    haloColor: "#fa93d4",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  // BOA_01 ("GLAS_KUGEL", glass sphere) and BOA_04 are alphaMode: BLEND
+  // (genuinely translucent); BOA_02/03 are opaque-authored. LICHT ordered
+  // first (0) so it draws before the translucent glass parts and shows
+  // through their real alpha instead of being forced fully opaque.
+  // BOA_01's own authored alpha is 0.9 (barely translucent) — overridden to
+  // 0.2 as a starting guess so LICHT actually shows through; tune to taste.
+  BOA: {
+    order: { "BOA_01": 1, "BOA_02": 2, "BOA_03": 3, "BOA_04": 4, "BOA_LICHT": 0 },
+    haloColor: "#f8fcc2",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: { "BOA_01": 0.2 }
+  },
+  BTS: {
+    order: { "BTS_01": 1, "BTS_02": 2, "BTS_03": 3, "BTS_04": 4, "BTS_05": 5, "BTS_LICHT": 6 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  EVNNE: {
+    order: { "EVNNE_01": 1, "EVNNE_02": 2, "EVNNE_LICHT": 3 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  EXO: {
+    order: { "EXO_01": 1, "EXO_02": 2, "EXO_03": 3, "EXO_04": 4, "EXO_LICHT": 5 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  GFRIEND: {
+    order: { "GFRIEND_01": 1, "GFRIEND_02": 2, "GFRIEND_03": 3, "GFRIEND_04": 4, "GFRIEND_05": 5, "GFRIEND_06": 6, "GFRIEND_LICHT": 7 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  GIRLSGENERATION: {
+    order: { "GIRLSGENERATION_01": 1, "GIRLSGENERATION_02": 2, "GIRLSGENERATION_03": 3, "GIRLSGENERATION_04": 4, "GIRLSGENERATION_LICHT": 5 },
+    haloColor: "#f77ee7",
+    lichtColor: "#f77ee7",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  GOT7: {
+    order: { "GOT7_01": 1, "GOT7_02": 2, "GOT7_03": 3, "GOT7_LICHT": 4 },
+    haloColor: "#d6ffc4",
+    lichtColor: "#d6ffc4",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  "I-DLE": {
+    order: { "I-DLE_01": 1, "I-DLE_02": 2, "I-DLE_LICHT": 3 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  IU: {
+    order: { "IU_01": 1, "IU_02": 2, "IU_03": 3, "IU_04": 4, "IU_05": 5, "IU_LICHT": 6 },
+    haloColor: "#d6ffc4",
+    lichtColor: "#d6ffc4",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  KISSOFLIFE: {
+    order: { "KISSOFLIFE_01": 1, "KISSOFLIFE_02": 2, "KISSOFLIFE_03": 3, "KISSOFLIFE_LICHT": 4 },
+    haloColor: "#ff6171",
+    lichtColor: "#ff6171",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  LESSERAFIM: {
+    order: { "LESSERAFIM_01": 1, "LESSERAFIM_LICHT": 2 },
+    haloColor: "#7dadff",
+    lichtColor: "#7dadff",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  MAMAMOO: {
+    order: { "MAMAMOO_01": 1, "MAMAMOO_02": 2, "MAMAMOO_LICHT": 3 },
+    haloColor: "#e7ffe3",
+    lichtColor: "#e7ffe3",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  NEWJEANS: {
+    order: { "NEWJEANS_01": 1, "NEWJEANS_02": 2, "NEWJEANS_03": 3, "NEWJEANS_LICHT": 4 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  NTX: {
+    order: { "NTX_01": 1, "NTX_02": 2, "NTX_03": 3, "NTX_04": 4, "NTX_LICHT": 5 },
+    haloColor: "#ffc2e5",
+    lichtColor: "#ffc2e5",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  POW: {
+    order: { "POW_01": 1, "POW_02": 2, "POW_03": 3, "POW_04": 4, "POW_05": 5, "POW_06": 6, "POW_LICHT": 7 },
+    haloColor: "#c4c2ff",
+    lichtColor: "#c4c2ff",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  SEVENTEEN: {
+    order: { "SEVENTEEN_01": 1, "SEVENTEEN_02": 2, "SEVENTEEN_03": 3, "SEVENTEEN_04": 4, "SEVENTEEN_LICHT": 5 },
+    haloColor: "#c4c2ff",
+    lichtColor: "#c4c2ff",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  STRAYKIDS: {
+    order: { "STRAYKIDS_01": 1, "STRAYKIDS_02": 2, "STRAYKIDS_03": 3, "STRAYKIDS_04": 4, "STRAYKIDS_05": 5, "STRAYKIDS_06": 6, "STRAYKIDS_LICHT": 7 },
+    haloColor: "#ff7a88",
+    lichtColor: "#ff7a88",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  SUPERM: {
+    order: { "SUPERM_01": 1, "SUPERM_02": 2, "SUPERM_03": 3, "SUPERM_LICHT": 4 },
+    haloColor: "",
+    lichtColor: "",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  TVXQ: {
+    order: { "TVXQ_01": 1, "TVXQ_02": 2, "TVXQ_03": 3, "TVXQ_LICHT": 4 },
+    haloColor: "#f23a4d",
+    lichtColor: "#f23a4d",
+    lichtIntensity: 3,
+    opacity: {}
+  },
+  VERIVERY: {
+    order: { "VERIVERY_01": 1, "VERIVERY_02": 2, "VERIVERY_03": 3, "VERIVERY_04": 4, "VERIVERY_LICHT": 5 },
+    haloColor: "#f3b5ff",
+    lichtColor: "#f3b5ff",
+    lichtIntensity: 3,
+    opacity: {}
+  }
 };
-const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
+const glowstickOverridesJson = JSON.stringify(glowstickOverrides);
 
 </script>
 
@@ -157,7 +335,7 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
          There is no depth setting — depth grows automatically in front of the viewer to fit every stick. -->
     <a-entity glowstick-field="
         areaWidth: 5;
-        elevation: -1.5;
+        elevation: 0.8;
         elevationVariation: 0.2;
         minDistance: 1.8;
         maxDistance: 2.3;
@@ -168,17 +346,17 @@ const glowstickRenderOrderJson = JSON.stringify(glowstickRenderOrder);
         minCopyDistance: 3.5;
         scale: 1.1;
         billboardBrightness: 0.4;
-        lodNear: 4;
-        lodFar: 6;
-        lichtNear: 1;
-        lichtFar: 4;
+        lodNear: 6;
+        lodFar: 8;
+        lichtNear: 3.8;
+        lichtFar: 3.9;
         waveNear: 2;
         waveFar: 5;
         waveIntensity: 25;
         waveSpeed: 4;
         wavePivotY: -0.5;
         idleRadius: 0.03"
-        :data-render-order="glowstickRenderOrderJson"></a-entity>
+        :data-glowstick-overrides="glowstickOverridesJson"></a-entity>
 
 
     <!-- Anchor the key light aims at / attaches to. -->

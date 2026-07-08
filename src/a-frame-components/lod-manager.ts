@@ -73,12 +73,17 @@ export default {
       self.applyBlend(obj, target, delta);
     }
 
-    // Re-rank the whole field by depth once per full cycle (cheap: O(n) + one
-    // sort) and repack each instance into its own render-order band so transparent
-    // meshes of different sticks never interleave. Doing it per cycle rather than
-    // per frame is plenty responsive for camera movement and keeps the cost off the
-    // hot path.
-    if (self.frameCounter % chunksPerCycle === 0) self.updateRenderOrder();
+    // Re-rank the whole field by depth every frame (cheap: one sort over the
+    // sticks + a loop over their mesh nodes) and repack each instance into its
+    // own render-order band so transparent meshes of different sticks never
+    // interleave. This has to stay in step with the camera, not just the LOD
+    // blend loop above: any part that lacks real depth-writing (billboards
+    // always do, and a genuinely translucent — alphaMode: BLEND — lightstick
+    // mesh now correctly does too, see lod-object.ts) has NO depth buffer to
+    // fall back on if this band assignment is stale, so it visibly renders in
+    // the wrong order relative to other such parts the moment ranks change —
+    // unlike an opaque mesh, where real depth still masks a stale band.
+    self.updateRenderOrder();
   },
 
   /**
@@ -142,7 +147,13 @@ export default {
 
     if (meshVisible) {
       if (groupChanged) {
-        for (const m of obj.meshMaterials) m.opacity = obj.currentBlend;
+        // Multiply by each material's true (glTF-authored) opacity rather
+        // than overwriting it outright — a genuinely translucent part (e.g.
+        // tinted glass at alpha 0.3) must stay translucent even at full LOD
+        // blend, not get forced fully opaque, or anything meant to show
+        // through it (e.g. LICHT) silently disappears. An ordinary opaque
+        // part has trueOpacity 1, so this is a no-op for it — unchanged.
+        for (const m of obj.meshMaterials) m.opacity = (m.userData.trueOpacity ?? 1) * obj.currentBlend;
       }
 
       // Parts with their own data-lod-near/-far thresholds fade independently,
@@ -162,14 +173,60 @@ export default {
         ov.currentBlend = ov.currentBlend + (ovTarget - ov.currentBlend) * Math.min(ovSpeed, 1);
 
         const finalOpacity = ov.currentBlend * obj.currentBlend;
-        for (const m of ov.materials) m.opacity = finalOpacity;
+        for (const m of ov.materials) {
+          const fade = (m.userData.trueOpacity ?? 1) * finalOpacity;
+          // Dither-flagged overrides (LICHT) drive the discard threshold set
+          // up by lod-object's setupDitherMaterial instead of real opacity —
+          // see that method for why. Everything else (e.g. the halo) is
+          // unchanged, real alpha blending.
+          if (ov.dither && m.userData.ditherFade) {
+            m.userData.ditherFade.value = fade;
+          } else {
+            m.opacity = fade;
+          }
+        }
       }
     }
 
     if (obj.billboardObj) {
       obj.billboardObj.visible = billboardVisible;
       if (billboardVisible) {
-        for (const m of obj.billboardMaterials) m.opacity = 1 - obj.currentBlend;
+        // Once fully faded out of the detailed mesh (no active crossfade
+        // with this stick's own other parts), the billboard can safely
+        // write real depth again — there's nothing left in this stick it
+        // needs to composite smoothly against. That lets real 3D distance,
+        // not just the coarser origin-point render-order band, resolve
+        // overlaps against OTHER sticks' billboards — a single flat plane
+        // that always faces the camera is large enough on screen that the
+        // band's one-point-per-stick approximation isn't reliable enough on
+        // its own once many billboards are simultaneously visible.
+        const settled = obj.currentBlend < 0.01;
+
+        // With depthWrite on, ordinary alpha blending still writes depth
+        // across the WHOLE quad — including the PNG's transparent
+        // background — since nothing discards those fragments. That punches
+        // an opaque, plane-shaped hole in the depth buffer that occludes
+        // anything drawn afterward at those pixels, including another
+        // stick's billboard behind it: exactly the black gaps seen BETWEEN
+        // billboards (as opposed to within one translucent mesh, which never
+        // enables depthWrite). alphaTest discards the transparent background
+        // before it can write depth, so only the actual artwork occludes.
+        // Only touch it on an actual settle/unsettle transition — alphaTest
+        // is a shader recompile (needsUpdate), not a cheap per-frame toggle —
+        // and keep it off (0) while fading, per the comment in lod-object.ts,
+        // so the crossfade itself stays a smooth blend rather than a cutout.
+        if (settled !== obj._billboardSettled) {
+          obj._billboardSettled = settled;
+          for (const m of obj.billboardMaterials) {
+            m.alphaTest = settled ? 0.5 : 0;
+            m.needsUpdate = true;
+          }
+        }
+
+        for (const m of obj.billboardMaterials) {
+          m.depthWrite = settled;
+          m.opacity = 1 - obj.currentBlend;
+        }
       }
     }
   }

@@ -23,6 +23,7 @@ export default {
     self.farDistanceSq = self.farDistance * self.farDistance;
     self.fadeSpeed = self.data.fadeSpeed;
     self.currentBlend = 1;
+    self._billboardSettled = false; // tracks depthWrite/alphaTest transitions in lod-manager.applyBlend
 
     self.meshEls = Array.from(self.el.querySelectorAll(".lod-mesh"));
     self.billboardEl = self.el.querySelector(".lod-billboard");
@@ -60,6 +61,19 @@ export default {
       const farAttr = el.getAttribute("data-lod-far");
       const hasOverride = nearAttr !== null && farAttr !== null;
 
+      // Manual opacity ceiling authored in ArModule.vue (glowstick-field's
+      // `opacity` override), replacing whatever the glTF itself authored —
+      // for a mesh that's technically alphaMode: BLEND but barely
+      // translucent as modelled (e.g. 0.9 alpha), this is how to actually
+      // make it see-through without re-exporting the source .glb.
+      const opacityOverrideAttr = el.getAttribute("data-opacity-override");
+      const opacityOverride = opacityOverrideAttr !== null ? parseFloat(opacityOverrideAttr) : null;
+
+      // Opt-in (glowstick-field sets this on LICHT only, not the halo) for a
+      // dithered discard fade instead of real alpha blending — see
+      // setupDitherMaterial below for why.
+      const useDither = el.getAttribute("data-lod-dither") !== null;
+
       let overrideEntry: any = null;
       if (hasOverride) {
         const near = parseFloat(nearAttr);
@@ -71,6 +85,7 @@ export default {
           farDistanceSq: far * far,
           currentBlend: 1,
           fadeSpeed: self.fadeSpeed,
+          dither: useDither,
           materials: []
         };
         self.overrides.push(overrideEntry);
@@ -88,7 +103,33 @@ export default {
               : node.material.clone();
             const mats = Array.isArray(node.material) ? node.material : [node.material];
             mats.forEach((m: any) => {
-              m.transparent = true;
+              // Captured before the LOD fade ever touches opacity below —
+              // this is the glTF-authored alpha (1 for a normal opaque part,
+              // < 1 for something genuinely translucent like tinted glass).
+              // lod-manager.applyBlend() multiplies by this instead of
+              // overwriting opacity outright, so a translucent part stays
+              // translucent (letting whatever's behind it, e.g. LICHT, show
+              // through) even once the group is fully faded in — without
+              // this, every mesh gets forced fully opaque at full blend
+              // regardless of its true material. An explicit data-opacity-
+              // override attribute (see above) replaces this authored value
+              // outright, for a mesh that's technically translucent but not
+              // translucent *enough* as modelled.
+              m.userData.trueOpacity = opacityOverride !== null ? opacityOverride : m.opacity;
+              if (hasOverride && overrideEntry.dither) {
+                // Dithered fade: stays (or is forced) opaque/depth-writing —
+                // see setupDitherMaterial — instead of joining the transparent
+                // queue, so it never depends on render-order against whatever
+                // translucent mesh is supposed to reveal it.
+                self.setupDitherMaterial(m);
+              } else {
+                m.transparent = true;
+                // depthWrite is deliberately left as whatever the glTF
+                // authored (true for opaque-authored parts, false for
+                // alphaMode: BLEND) — this is what makes real distance
+                // correctly govern occlusion both between sticks and against
+                // anything else in the scene.
+              }
               if (hasOverride) {
                 overrideEntry.materials.push(m);
               } else {
@@ -163,6 +204,56 @@ export default {
       self._onManagerInit = onInit;
       self._managerEl = managerEl;
     }
+  },
+
+  /**
+   * Converts a material's distance-based fade from real alpha blending to a
+   * screen-door dither discard, driven by `m.userData.ditherFade.value`
+   * (0 = fully discarded, 1 = fully solid; lod-manager.applyBlend sets it in
+   * place of `m.opacity` for dither-flagged overrides).
+   *
+   * Why: LICHT's own near/far fade used to work like every other translucent
+   * part — `transparent = true` + real opacity — which only reveals it
+   * correctly if the translucent body mesh in front of it (e.g. BAP_02, which
+   * is opaque-authored/depthWrite:true but forced translucent via an opacity
+   * override) draws AFTER it, i.e. depends on render-order/banding being
+   * exactly right every frame. Discarding fragments instead of blending them
+   * lets the material stay `transparent = false` (forced here regardless of
+   * how the glTF authored it) and `depthWrite = true`, so three.js puts it in
+   * the OPAQUE render queue — which unconditionally draws, and writes real
+   * depth, before ANY transparent object, every frame, with no render-order
+   * involved at all. Every translucent mesh drawn afterwards then depth-tests
+   * against LICHT's real geometry and reveals it correctly through ordinary
+   * alpha blending, regardless of render-order bookkeeping.
+   *
+   * customProgramCacheKey pins every dithered material to one shared compiled
+   * program: three.js's default cache key doesn't account for onBeforeCompile
+   * edits, so without this, a dithered material could silently share a cached
+   * program with (or get shared onto) a non-dithered one with otherwise
+   * identical properties.
+   */
+  setupDitherMaterial(m: any) {
+    const fadeUniform = { value: 1 };
+    m.userData.ditherFade = fadeUniform;
+    m.transparent = false;
+    m.depthWrite = true;
+    m.customProgramCacheKey = () => "lod-dither-v1";
+    m.onBeforeCompile = (shader: any) => {
+      shader.uniforms.uDitherFade = fadeUniform;
+      shader.fragmentShader =
+        "uniform highp float uDitherFade;\n" +
+        shader.fragmentShader.replace(
+          "#include <clipping_planes_fragment>",
+          `#include <clipping_planes_fragment>
+          {
+            // Interleaved gradient noise (Jimenez) — cheap, array-free, avoids
+            // GLSL ES 1.0's shaky dynamic-index support a Bayer matrix would need.
+            float ditherNoise = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+            if (ditherNoise > uDitherFade) discard;
+          }`
+        );
+    };
+    m.needsUpdate = true;
   },
 
   remove() {

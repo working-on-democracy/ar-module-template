@@ -13,6 +13,7 @@ import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import unlitMaterial from "./a-frame-components/unlit-material";
+import emissiveMaterial from "./a-frame-components/emissive-material";
 import renderOrder from "./a-frame-components/render-order";
 import billboard from "./a-frame-components/billboard";
 import groundDecal from "./a-frame-components/ground-decal";
@@ -35,6 +36,7 @@ export const manifest: Manifest = {
   components: {
     "no-frustum-cull": noFrustumCull,
     "unlit-material": unlitMaterial,
+    "emissive-material": emissiveMaterial,
     "render-order": renderOrder,
     billboard: billboard,
     "ground-decal": groundDecal,

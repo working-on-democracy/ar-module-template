@@ -7,7 +7,8 @@ import type { ComponentDefinition } from "aframe";
 // the exact same DOM structure as the hand-written examples that used to live in
 // ArModule.vue, so it reuses the existing components verbatim —
 //   lod-object / lod-manager  → distance-based cross-fade to the billboard
-//   unlit-material            → flat glow materials on HaloSphere / LICHT / PNG
+//   unlit-material            → flat glow materials on HaloSphere / PNG
+//   emissive-material         → real PBR + boosted emissive glow on LICHT
 //   render-order              → transparent draw order
 //   billboard                 → HaloSphere + PNG face the camera
 // This component only *authors* those entities; it changes none of them.
@@ -34,6 +35,27 @@ interface GlowstickDef {
   meshes: string[]; // opaque body meshes, in draw order (numbered, or a single base)
   licht: string; // the _LICHT glow part
   png: string; // the _PNG billboard
+}
+
+// Every per-stick tweak ArModule.vue can author, grouped under one prefix
+// (e.g. "BTS") instead of scattered across separate top-level maps — see
+// parseGlowstickOverrides(). All fields optional; a prefix left out of
+// data-glowstick-overrides entirely, or any field left out of its entry,
+// just uses the relevant default (sequential render order, untinted,
+// as-authored intensity).
+interface GlowstickOverride {
+  order?: Record<string, number>; // full mesh id (e.g. "BTS_01", "BTS_LICHT") → draw order
+  haloColor?: string; // HaloSphere tint, "" = untinted
+  lichtColor?: string; // this stick's own LICHT tint, "" = untinted
+  lichtIntensity?: number; // LICHT brightness multiplier, 1 = as-authored
+  // Manual opacity ceiling per full mesh id (e.g. "BOA_01"), overriding
+  // whatever the glTF itself authored (see lod-object.ts's trueOpacity — this
+  // replaces it rather than multiplying, so it's an absolute value, not a
+  // further dimming on top). For a mesh that's technically alphaMode: BLEND
+  // but barely translucent as authored (e.g. 0.9 alpha), this is how to
+  // actually make it see-through enough to show something behind it (like
+  // LICHT) without re-exporting the source .glb.
+  opacity?: Record<string, number>;
 }
 
 interface Point {
@@ -110,9 +132,19 @@ export default {
     const self = this as any;
     const data = self.data;
 
-    // Per-mesh render-order overrides authored in ArModule.vue (JSON on this
-    // entity's data-render-order attribute). Empty → the default sequential order.
-    self.renderOrderOverrides = self.parseRenderOrderOverrides();
+    // Per-prefix overrides authored in ArModule.vue as one object (JSON on
+    // this entity's data-glowstick-overrides attribute) — render order, halo
+    // tint, and LICHT tint/intensity all live together per stick there
+    // instead of four separate maps. See GlowstickOverride and buildGlowstick.
+    self.overridesByPrefix = self.parseGlowstickOverrides();
+
+    // Flattened once here into a full-mesh-id → order lookup, since
+    // buildGlowstick indexes by each mesh's own id regardless of which
+    // prefix's block it came from.
+    self.renderOrderOverrides = {};
+    for (const ov of Object.values(self.overridesByPrefix) as GlowstickOverride[]) {
+      if (ov.order) Object.assign(self.renderOrderOverrides, ov.order);
+    }
 
     const defs = self.discoverGlowsticks();
     if (!defs.length) {
@@ -259,27 +291,25 @@ export default {
   },
 
   /**
-   * Read the per-mesh render-order overrides authored in ArModule.vue, passed as a
-   * JSON object ({ "BTS_01": 1, "BTS_LICHT": 6, … }) on this entity's
-   * `data-render-order` attribute. Returns a mesh-id → order map; missing or
-   * non-numeric entries fall back to the default sequential order in buildGlowstick.
-   * Only the numbered body meshes and the _LICHT part are honoured — HaloSphere and
-   * _PNG are always forced first/last there, so listing them here has no effect.
+   * Read the per-prefix overrides authored in ArModule.vue, passed as one JSON
+   * object ({ "BTS": { order: {...}, haloColor: "...", ... }, … }) on this
+   * entity's `data-glowstick-overrides` attribute. A malformed entry for one
+   * prefix is dropped on its own rather than discarding the whole map, so a
+   * typo in one stick's block doesn't blank out every other stick's tuning.
    */
-  parseRenderOrderOverrides(): Record<string, number> {
+  parseGlowstickOverrides(): Record<string, GlowstickOverride> {
     const self = this as any;
-    const raw = self.el.dataset ? self.el.dataset.renderOrder : null;
+    const raw = self.el.dataset ? self.el.dataset.glowstickOverrides : null;
     if (!raw) return {};
     try {
       const parsed = JSON.parse(raw);
-      const out: Record<string, number> = {};
-      for (const [id, value] of Object.entries(parsed)) {
-        const n = Number(value);
-        if (Number.isFinite(n)) out[id] = n;
+      const out: Record<string, GlowstickOverride> = {};
+      for (const [prefix, value] of Object.entries(parsed)) {
+        if (value && typeof value === "object") out[prefix] = value as GlowstickOverride;
       }
       return out;
     } catch (e) {
-      console.warn("[glowstick-field] invalid data-render-order JSON; using default order", e);
+      console.warn("[glowstick-field] invalid data-glowstick-overrides JSON; all overrides ignored", e);
       return {};
     }
   },
@@ -395,13 +425,18 @@ export default {
     const near = String(lichtNear);
     const far = String(lichtFar);
 
-    // Resolve the draw order of each part. Per-mesh overrides (authored in
-    // ArModule.vue → data-render-order) win; otherwise fall back to the default
-    // sequential order (body meshes 1..n in file order, then LICHT). The HaloSphere
-    // and _PNG are deliberately NOT author-controllable: the halo is forced just
-    // below the lowest part of this stick (drawn first, so its transparent glow
-    // never obscures the body) and the _PNG billboard just above the highest (drawn
-    // last, so it fully covers the stick as the LOD system fades it in).
+    // This stick's whole override block (authored in ArModule.vue → one
+    // entry per prefix on data-glowstick-overrides) — render order, halo
+    // tint, LICHT tint/intensity all come from here.
+    const ov: GlowstickOverride = (self.overridesByPrefix || {})[def.prefix] || {};
+
+    // Resolve the draw order of each part. Per-mesh overrides win; otherwise
+    // fall back to the default sequential order (body meshes 1..n in file
+    // order, then LICHT). The HaloSphere and _PNG are deliberately NOT
+    // author-controllable: the halo is forced just below the lowest part of
+    // this stick (drawn first, so its transparent glow never obscures the
+    // body) and the _PNG billboard just above the highest (drawn last, so it
+    // fully covers the stick as the LOD system fades it in).
     const overrides: Record<string, number> = self.renderOrderOverrides || {};
     const bodyOrders: number[] = def.meshes.map((id: string, i: number) =>
       id in overrides ? overrides[id] : i + 1
@@ -429,7 +464,7 @@ export default {
     halo.setAttribute("scale", "1.3 1.4 0.8");
     halo.setAttribute("material", "opacity:0.1");
     halo.setAttribute("render-order", String(haloOrder));
-    halo.setAttribute("unlit-material", "");
+    halo.setAttribute("unlit-material", ov.haloColor ? `tint: ${ov.haloColor}` : "");
     halo.setAttribute("data-lod-near", near);
     halo.setAttribute("data-lod-far", far);
     halo.setAttribute("billboard", "");
@@ -440,17 +475,31 @@ export default {
       m.setAttribute("class", "lod-mesh");
       m.setAttribute("gltf-model", `#${meshId}`);
       m.setAttribute("render-order", String(bodyOrders[i]));
+      const opacityOverride = ov.opacity && ov.opacity[meshId];
+      if (typeof opacityOverride === "number") m.setAttribute("data-opacity-override", String(opacityOverride));
       group.appendChild(m);
     });
 
-    // LICHT: the glowing part, flat-lit and on the global custom near/far.
+    // LICHT: the glowing part, on the global custom near/far. Real PBR
+    // material (see emissive-material) so it still responds to scene
+    // lighting, but glows via its emissive channel regardless of ambient level.
     const licht = document.createElement("a-entity");
     licht.setAttribute("class", "lod-mesh");
     licht.setAttribute("gltf-model", `#${def.licht}`);
     licht.setAttribute("render-order", String(lichtOrder));
-    licht.setAttribute("unlit-material", "");
+    const lichtMaterialParts: string[] = [];
+    if (ov.lichtColor) lichtMaterialParts.push(`tint: ${ov.lichtColor}`);
+    if (typeof ov.lichtIntensity === "number") lichtMaterialParts.push(`intensity: ${ov.lichtIntensity}`);
+    licht.setAttribute("emissive-material", lichtMaterialParts.join("; "));
     licht.setAttribute("data-lod-near", near);
     licht.setAttribute("data-lod-far", far);
+    // Dithered (stipple-discard) fade instead of real alpha blending — see
+    // lod-object.ts's setupDitherMaterial. Keeps LICHT in three.js's opaque
+    // render queue (always drawn, and depth-written, before ANY transparent
+    // object — a stronger guarantee than render-order/banding) so every
+    // translucent body mesh on every glowstick correctly reveals it through
+    // the real depth buffer, regardless of stick-to-stick render-order.
+    licht.setAttribute("data-lod-dither", "true");
     group.appendChild(licht);
 
     inst.appendChild(group);

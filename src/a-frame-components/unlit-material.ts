@@ -23,7 +23,13 @@ export default {
     // Uniform multiplier on the flat colour (after the emissive fold). 1 = as-is;
     // < 1 darkens (e.g. 0.5 = half as bright); 0 = black. Since the material is
     // unlit, this is the only way to dim it.
-    brightness: { type: "number", default: 1 }
+    brightness: { type: "number", default: 1 },
+    // Optional hex colour (e.g. "#ff2d55") multiplied into the flat colour, after
+    // the emissive fold and brightness. Empty (default) = no tint. Multiplying
+    // rather than replacing keeps any texture/emissive shading on the mesh
+    // intact — a white/grey source material (e.g. HaloSphere) takes the tint
+    // directly, since multiplying by white is a no-op.
+    tint: { type: "string", default: "" }
   },
 
   init() {
@@ -81,6 +87,11 @@ export default {
         // Optional uniform dim (default 1 = no change).
         if (self.data.brightness !== 1) {
           basicMat.color.multiplyScalar(Math.max(0, self.data.brightness));
+        }
+
+        // Optional per-instance tint (default "" = no change).
+        if (self.data.tint) {
+          basicMat.color.multiply(new THREE.Color(self.data.tint));
         }
 
         basicMat.userData.unlit = true;

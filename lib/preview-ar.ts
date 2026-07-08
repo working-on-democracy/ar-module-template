@@ -72,7 +72,7 @@ const ArPreviewApp = {
       ),
       h("a-camera", {
         id: "camera",
-        position: "0 1 0",
+        position: "0 0.5 0",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
@@ -82,7 +82,7 @@ const ArPreviewApp = {
       // Placed like the host (AR_MODULE_POSITION) so the module previews where it
       // would actually appear in the app.
       children.push(
-        h("a-entity", { id: "module-root", position: "0 2.6 -3" }, [
+        h("a-entity", { id: "module-root", position: "0 0 -1" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );
