@@ -61,17 +61,16 @@ const label = computed(
         scale="2 2 2"
         rotation="30 0 0"
         position="0 10 -8"
-        animation-mixer="timeScale: 0.4"
+        trim-loop-clip="timeScale: 0.4; loop: pingpong"
         shadow>
     </a-entity>
 
         <a-entity
             gltf-model="#Seeds"
-            dither-transparency
             scale="2 2 2"
             rotation="30 0 0"
             position="0 0.5 -8"
-            animation-mixer="timeScale: 0.4"
+            trim-loop-clip="timeScale: 0.4; loop: pingpong"
             shadow>
         </a-entity>
 

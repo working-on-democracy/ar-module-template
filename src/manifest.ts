@@ -18,6 +18,7 @@ import "./meshopt";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import ditherTransparency from "./a-frame-components/dither-transparency";
+import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -27,7 +28,8 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustum-cull": noFrustumCull,
-    "dither-transparency": ditherTransparency
+    "dither-transparency": ditherTransparency,
+    "trim-loop-clip": trimLoopClip
   },
 
   imageTargets: [videoTarget]
