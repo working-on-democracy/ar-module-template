@@ -11,9 +11,9 @@
     "build:watch": "vite build --watch"
   },
   "devDependencies": {
-    "@types/aframe": "1.2.9",
     "@8thwall/engine-binary": "1.0.0",
     "@8thwall/xrextras": "1.0.0",
+    "@types/aframe": "1.2.9",
     "@vitejs/plugin-basic-ssl": "^1.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "typescript": "^5.4.0",
@@ -21,5 +21,8 @@
     "vite-plugin-static-copy": "^1.0.0",
     "vue": "^3.4.0",
     "vue-tsc": "^2.0.0"
+  },
+  "dependencies": {
+    "meshoptimizer": "^1.2.0"
   }
 }

@@ -11,7 +11,13 @@
 // (virtual:ar-manifest). The other three are authored here by hand.
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
+// Side-effect import: attaches a meshopt decoder to A-Frame's GLTF loader so
+// meshopt-compressed .glb files load (A-Frame doesn't wire one up). Runs once
+// when the bundle is evaluated — in the host and both previews. See src/meshopt.ts.
+import "./meshopt";
+
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import ditherTransparency from "./a-frame-components/dither-transparency";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -20,7 +26,8 @@ export const manifest: Manifest = {
   assets: assetManifest.assets,
 
   components: {
-    "no-frustum-cull": noFrustumCull
+    "no-frustum-cull": noFrustumCull,
+    "dither-transparency": ditherTransparency
   },
 
   imageTargets: [videoTarget]

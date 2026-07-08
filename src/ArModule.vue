@@ -18,7 +18,6 @@ const label = computed(
     () => `${props.arModule.author}: ${props.arModule.text}`
 );
 
-
 </script>
 
 <template>
@@ -31,13 +30,7 @@ const label = computed(
       position="0 -2 0"
       no-frustum-cull
   >
-    <a-text
-        :value="label"
-        position="0 2.5 -4"
-        align="center"
-        color="#ffffff"
-        width="8"
-    />
+
     <!-- Directional light that casts shadows onto the ground plane. Positioned
          above the scene; with no explicit `target` it points at the origin, so
          the fish and octahedron below cast shadows. -->
@@ -45,7 +38,7 @@ const label = computed(
         position="1 50 15"
         light="
                     type: directional;
-                    intensity: 2;
+                    intensity: 1;
                     castShadow: true;
                     shadowMapHeight:2048;
                     shadowMapWidth:2048;
@@ -57,17 +50,31 @@ const label = computed(
         shadow>
     </a-entity>
 
-    <a-light type="ambient" intensity="0.7"></a-light>
+    <a-light type="ambient" intensity="0.2"></a-light>
+
+        <a-light type="point" position="0 6 -7" intensity="1"></a-light>
 
 
     <a-entity
         gltf-model="#MainCharacter"
-        scale="5 5 5"
-        rotation="20 90 0"
-        position="0 4 -2"
+        dither-transparency
+        scale="2 2 2"
+        rotation="30 0 0"
+        position="0 10 -8"
         animation-mixer="timeScale: 0.4"
         shadow>
     </a-entity>
+
+        <a-entity
+            gltf-model="#Seeds"
+            dither-transparency
+            scale="2 2 2"
+            rotation="30 0 0"
+            position="0 0.5 -8"
+            animation-mixer="timeScale: 0.4"
+            shadow>
+        </a-entity>
+
 
     <!-- example primitive (plane) as ground -->
     <a-plane
