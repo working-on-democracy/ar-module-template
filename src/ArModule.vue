@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import {computed} from 'vue';
 
 interface ArModuleData {
   id: string;
@@ -13,73 +12,120 @@ interface ArModuleData {
 }
 
 const props = defineProps<{ arModule: ArModuleData }>();
-
-const label = computed(
-    () => `${props.arModule.author}: ${props.arModule.text}`
-);
-
-
 </script>
 
 <template>
 
   <!-- Assets are declared in the manifest (derived from src/assets/) and injected
        into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+       them here by id (file name without extension): `Aussen1.glb` → id
+       "Aussen1". Do NOT declare your own <a-assets> here. -->
   <a-entity
       position="0 -2 0"
       no-frustum-cull
   >
-    <a-text
-        :value="label"
-        position="0 2.5 -4"
-        align="center"
-        color="#ffffff"
-        width="8"
-    />
-    <!-- Directional light that casts shadows onto the ground plane. Positioned
-         above the scene; with no explicit `target` it points at the origin, so
-         the fish and octahedron below cast shadows. -->
+    <!-- Lighting, ported from ar-hfg-template's src/app.js scene (replaces the
+         single directional + ambient light that was here before). The key
+         directional light follows #scene-content around via xrextras-attach, at
+         a fixed offset, and points at it via `target` — same behaviour as the
+         original, which followed its (now removed) demo model the same way.
+         Unlike the original (castShadow: false), this casts shadows onto the
+         ground plane's shadow-catcher material. -->
     <a-entity
-        position="1 50 15"
         light="
                     type: directional;
-                    intensity: 2;
+                    intensity: 1.5 ;
                     castShadow: true;
+                    target: #scene-content;
+                    shadowRadius: 5;
                     shadowMapHeight:2048;
                     shadowMapWidth:2048;
                     shadowCameraTop: 80;
                     shadowCameraBottom: -80;
                     shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
+                    shadowCameraLeft: -80;"
+        xrextras-attach="target: scene-content; offset: 5 10 2;"
         shadow>
     </a-entity>
 
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Placeholder: a spinning glossy purple "diamond" — glossy (low roughness)
-         and clearly purple under the scene lights, rotating on Y. A simple stand-in
-         so the preview shows something without depending on the bundled glTF. -->
-    <a-octahedron
-        radius="1"
-        scale="2 2 2"
-        position="2 0 -4"
-        material="metalness: 0.3; roughness: 0.1; color: #7c3aed"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-    </a-octahedron>
-
-    <!-- example 3D model (fish) — id "fish1" comes from src/assets/fish1.glb.
-         The no-frustum-cull component on the root entity keeps this animated
-         skinned mesh from being culled once animation-mixer moves it. -->
     <a-entity
-        gltf-model="#fish1"
-        scale="14 14 -14"
-        rotation="0 90 0"
-        position="0 4 -12"
-        animation-mixer="timeScale: 1.1"
-        shadow>
+        light="type: point; intensity: 0.3;"
+        position="0 1 -1"
+    shadow>
+    </a-entity>
+
+
+    <a-entity
+        light="type: point; intensity: 0.15; color: #ffc5f2"
+        position="740 -2">
+    </a-entity>
+
+    <a-light type="point" color="#84e8ff" intensity="0.4" position="0 5 0"></a-light>
+
+
+    <!-- Uber parent for all 3 object groups — a single point to move/animate
+         the whole placed scene from. The groups below now sit at 0 0 0 within
+         it (they used to each carry the -10 z offset individually) and don't
+         need their own scale value (they default to 1 1 1). Rotation matches
+         "test"/"test2" in ar-hfg-template's scene — the object nearest its
+         camera (position "-10 8 -40" vs. the camera at "0 8 8"). -->
+    <a-entity id="scene-content" position="0 -0.2 -1" rotation="2 -45 -1" scale="0.7 0.7 0.7">
+
+      <!-- Aussen: 5 glbs sharing one origin, wrapped in a transform entity. The
+           dithered camera-proximity cutout (see proximity-cutout.ts) is attached
+           once here — `model-loaded` bubbles up from each child model, so this
+           single component patches all 5 as they load. Values match the original
+           ar-hfg-template scene (radius: 12; feather: 5). -->
+      <a-entity
+          id="aussen"
+          position="0 0 0"
+          proximity-cutout="radius: 1; feather: 0.3">
+
+        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+      </a-entity>
+
+      <!-- Uses the real alpha-transparency variant (see proximity-fade.ts) —
+           these fragments don't overlap other transparent objects, so plain
+           blending is fine here. -->
+      <a-entity
+          id="aussen_fragments"
+          position="0 0 0"
+          proximity-fade="fadeOutStart: 3.5; fadeOutEnd: 1.5; target: 1.8 0 0.3">
+
+        <a-entity gltf-model="#Aussen1" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen3" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen4" position="0 0 0" shadow></a-entity>
+      </a-entity>
+
+      <!-- Gitter: 5 glbs sharing one origin. The camera-distance opacity fade
+           is attached once here for the same bubbling reason, using the
+           dithered variant (see proximity-fade-dither.ts) since Gitter
+           overlaps other transparent objects in the scene — real alpha
+           blending there would glitch. `target: 1.8 0 0.3` is a local offset
+           from this entity (converted to world space every frame) — a debug
+           marker placed as a child at the same local coordinates would mark
+           exactly the point being measured from. Window as the camera
+           approaches that point: transparent beyond 3, fades in 3→2, stays
+           opaque 2→1, fades out 1→0, transparent at the point itself. -->
+      <a-entity
+          id="gitter"
+          position="0 0 0"
+          proximity-fade-dither="fadeInStart: 3.5; fadeInEnd: 2; fadeOutStart: 2; fadeOutEnd: 0.4; target: 1.8 0 0.3"
+          >
+
+        <a-entity gltf-model="#Gitter2" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Gitter3" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Gitter4" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Gitter5" position="0 0 0" shadow></a-entity>
+      </a-entity>
+
+      <!-- Innen_ganz: single glb, same transform-entity structure as the other two
+           (no proximity functionality applied). -->
+      <a-entity id="innen-ganz" position="0 0 0">
+        <a-entity gltf-model="#Innen_ganz" position="0 0 0" proximity-fade="fadeInStart: 2.5; fadeInEnd:0; target: 0 0 0" shadow></a-entity>
+      </a-entity>
+
     </a-entity>
 
     <!-- example primitive (plane) as ground -->
@@ -93,15 +139,6 @@ const label = computed(
         shadow
     ></a-plane>
 
-
-    <!-- example Image Tracking. The target ("video-target") is declared in the
-         manifest's imageTargets and configured by the host before mount; the
-         #jellyfish-video / #video-target assets are auto-injected from
-         src/assets/ (ids are the file names without extension). -->
-    <xrextras-named-image-target name="video-target">
-      <a-entity  scale="1 1 1" xrextras-play-video="video: #jellyfish-video; thumb: #video-target; canstop: true"
-                geometry="primitive: plane; height: 1; width: 0.79;"></a-entity>
-    </xrextras-named-image-target>
-
   </a-entity>
 </template>
+w

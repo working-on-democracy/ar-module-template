@@ -12,6 +12,9 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import proximityFade from "./a-frame-components/proximity-fade";
+import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
+import proximityCutout from "./a-frame-components/proximity-cutout";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -20,7 +23,10 @@ export const manifest: Manifest = {
   assets: assetManifest.assets,
 
   components: {
-    "no-frustum-cull": noFrustumCull
+    "no-frustum-cull": noFrustumCull,
+    "proximity-fade": proximityFade,
+    "proximity-fade-dither": proximityFadeDither,
+    "proximity-cutout": proximityCutout
   },
 
   imageTargets: [videoTarget]
