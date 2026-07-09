@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
 
 interface ArModuleData {
   id: string;
@@ -18,6 +18,103 @@ const label = computed(
     () => `${props.arModule.author}: ${props.arModule.text}`
 );
 
+// Mobile browsers start the Web Audio context suspended until a genuine user
+// gesture resumes it, so the `sound` components' `autoplay` below can go out
+// silently. We first try to piggyback on whatever gesture the user makes
+// anywhere on the page (e.g. the tap that starts the AR session); if the
+// context is still suspended shortly after mount, we fall back to an explicit
+// "tap to enable sound" overlay.
+const mainEntity = ref<any>(null);
+const seed1Entity = ref<any>(null);
+const seed2Entity = ref<any>(null);
+const seed3Entity = ref<any>(null);
+
+let overlayEl: HTMLDivElement | null = null;
+let overlayTimer: ReturnType<typeof setTimeout> | null = null;
+let unlocked = false;
+
+function soundEntities(): any[] {
+  return [mainEntity.value, seed1Entity.value, seed2Entity.value, seed3Entity.value].filter(Boolean);
+}
+
+function getAudioContext(): AudioContext | null {
+  for (const el of soundEntities()) {
+    const ctx = el.sceneEl?.audioListener?.context;
+    if (ctx) return ctx;
+  }
+  return null;
+}
+
+function clearOverlayTimer() {
+  if (overlayTimer) {
+    clearTimeout(overlayTimer);
+    overlayTimer = null;
+  }
+}
+
+function removeOverlay() {
+  overlayEl?.remove();
+  overlayEl = null;
+}
+
+function showSoundOverlay() {
+  if (overlayEl || unlocked) return;
+  const el = document.createElement('div');
+  el.textContent = '🔊 Tap to enable sound';
+  Object.assign(el.style, {
+    position: 'fixed',
+    left: '50%',
+    bottom: '32px',
+    transform: 'translateX(-50%)',
+    background: 'rgba(15, 23, 42, 0.85)',
+    color: '#fff',
+    padding: '10px 20px',
+    borderRadius: '999px',
+    fontFamily: 'sans-serif',
+    fontSize: '14px',
+    zIndex: '1000',
+    cursor: 'pointer'
+  } satisfies Partial<CSSStyleDeclaration>);
+  document.body.appendChild(el);
+  overlayEl = el;
+}
+
+function unlockSound() {
+  if (unlocked) return;
+  unlocked = true;
+  clearOverlayTimer();
+  document.removeEventListener('pointerdown', unlockSound, true);
+  document.removeEventListener('keydown', unlockSound, true);
+
+  const ctx = getAudioContext();
+  const finish = () => {
+    soundEntities().forEach((el) => {
+      try {
+        el.components?.sound?.playSound();
+      } catch { /* sound component not initialised yet */ }
+    });
+    removeOverlay();
+  };
+  if (ctx && ctx.state !== 'running') ctx.resume().then(finish, finish);
+  else finish();
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', unlockSound, {capture: true});
+  document.addEventListener('keydown', unlockSound, {capture: true});
+  // Give an already-in-flight gesture (e.g. the tap that starts the AR
+  // session) a moment to land before nagging the user with our own prompt.
+  overlayTimer = setTimeout(() => {
+    if (!unlocked) showSoundOverlay();
+  }, 1500);
+});
+
+onUnmounted(() => {
+  clearOverlayTimer();
+  document.removeEventListener('pointerdown', unlockSound, true);
+  document.removeEventListener('keydown', unlockSound, true);
+  removeOverlay();
+});
 </script>
 
 <template>
@@ -56,23 +153,50 @@ const label = computed(
 
 
     <a-entity
-        gltf-model="#MainCharacter"
-        dither-transparency
+        ref="mainEntity"
+        gltf-model="#MainCharacter2"
         scale="2 2 2"
-        rotation="30 0 0"
-        position="0 10 -8"
+        rotation="0 0 0"
+        position="0 0 -10"
         trim-loop-clip="timeScale: 0.4; loop: pingpong"
+        sound="src: #Main; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3; rolloffFactor: 1; maxDistance: 20"
         shadow>
     </a-entity>
 
         <a-entity
-            gltf-model="#Seeds"
+            ref="seed1Entity"
+            gltf-model="#Seed1"
             scale="2 2 2"
-            rotation="0 0 0"
-            position="0 0 -8"
+            rotation="0 -10 0"
+            position="-5 0 -6"
             trim-loop-clip="timeScale: 0.4; loop: pingpong"
+            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
             shadow>
         </a-entity>
+
+    <a-entity
+        ref="seed2Entity"
+        gltf-model="#Seed2"
+        scale="2 2 2"
+        rotation="0 0 0"
+        position="-5 0 -2"
+        trim-loop-clip="timeScale: 0.4; loop: pingpong"
+        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
+        shadow>
+    </a-entity>
+
+
+    <a-entity
+        ref="seed3Entity"
+        gltf-model="#Seed3"
+        scale="2 2 2"
+        rotation="0 10 0"
+        position="10 0 -4"
+        trim-loop-clip="timeScale: 0.4; loop: pingpong"
+        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
+        shadow>
+    </a-entity>
+
 
 
     <!-- example primitive (plane) as ground -->
