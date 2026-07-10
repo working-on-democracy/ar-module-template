@@ -4,3 +4,7 @@ dist-platform/
 dist-ar/
 *.log
 .DS_Store
+
+# IDE / editor / local tooling config
+.idea/
+.ai/
