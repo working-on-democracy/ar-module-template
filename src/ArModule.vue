@@ -60,7 +60,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
          need their own scale value (they default to 1 1 1). Rotation matches
          "test"/"test2" in ar-hfg-template's scene — the object nearest its
          camera (position "-10 8 -40" vs. the camera at "0 8 8"). -->
-    <a-entity id="scene-content" position="0 0.5 -15" rotation="0 135 0" scale="4 4 4">
+    <a-entity id="scene-content" position="0 0.5 -15" rotation="0 135 0" scale="3.5 3.5 3.5">
 
       <!-- Aussen: 5 glbs sharing one origin, wrapped in a transform entity. The
            dithered camera-proximity cutout (see proximity-cutout.ts) is attached
@@ -151,7 +151,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
         <a-entity gltf-model="#Innen_ganz" position="0 0 0" proximity-fade="fadeInStart: 11; fadeInEnd:6; target: 0 0 0" shadow></a-entity>
       </a-entity>
 
-     <a-entity gltf-model="#Kueche_packed" rotation="-0.02 -2 0" position="0.01 0 -0.02" shadow></a-entity>
+     <a-entity gltf-model="#Kueche_packed" rotation="-0.04 -2 0" position="0.05 0 -0.02" shadow></a-entity>
 
     </a-entity>
 
