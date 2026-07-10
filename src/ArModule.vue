@@ -73,6 +73,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
           proximity-cutout="radius: 2.5; feather: 0.3">
 
         <a-entity gltf-model="#Aussen1" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
       </a-entity>
 
       <!-- Uses the real alpha-transparency variant (see proximity-fade.ts) —
@@ -88,7 +89,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
         <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Aussen3" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Aussen4" position="0 0 0" shadow></a-entity>
-        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+
 
       </a-entity>
 
