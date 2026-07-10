@@ -50,7 +50,11 @@ const PreviewApp = {
       );
     }
 
-    return h("a-scene", { background: "color: #1e293b" }, children);
+    return h(
+      "a-scene",
+      { background: "color: #1e293b", renderer: "colorManagement: true" },
+      children
+    );
   }
 };
 
