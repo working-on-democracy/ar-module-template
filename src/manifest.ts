@@ -19,6 +19,8 @@ import "./meshopt";
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import ditherTransparency from "./a-frame-components/dither-transparency";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
+import wanderInBand from "./a-frame-components/wander-in-band";
+import followNode from "./a-frame-components/follow-node";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -29,7 +31,9 @@ export const manifest: Manifest = {
   components: {
     "no-frustum-cull": noFrustumCull,
     "dither-transparency": ditherTransparency,
-    "trim-loop-clip": trimLoopClip
+    "trim-loop-clip": trimLoopClip,
+    "wander-in-band": wanderInBand,
+    "follow-node": followNode
   },
 
   imageTargets: [videoTarget]

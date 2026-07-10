@@ -25,6 +25,7 @@ const label = computed(
 // context is still suspended shortly after mount, we fall back to an explicit
 // "tap to enable sound" overlay.
 const mainEntity = ref<any>(null);
+const mainSoundEntity = ref<any>(null);
 const seed1Entity = ref<any>(null);
 const seed2Entity = ref<any>(null);
 const seed3Entity = ref<any>(null);
@@ -34,7 +35,7 @@ let overlayTimer: ReturnType<typeof setTimeout> | null = null;
 let unlocked = false;
 
 function soundEntities(): any[] {
-  return [mainEntity.value, seed1Entity.value, seed2Entity.value, seed3Entity.value].filter(Boolean);
+  return [mainSoundEntity.value, seed1Entity.value, seed2Entity.value, seed3Entity.value].filter(Boolean);
 }
 
 function getAudioContext(): AudioContext | null {
@@ -149,18 +150,30 @@ onUnmounted(() => {
 
     <a-light type="ambient" intensity="0.2"></a-light>
 
-        <a-light type="point" position="0 6 -7" intensity="1"></a-light>
+        <a-light type="point" position="5 10 -7" intensity="1"></a-light>
+
+    <a-light type="point" position="-5 1 5" intensity="0.2"></a-light>
 
 
     <a-entity
+        id="mainEntity"
         ref="mainEntity"
-        gltf-model="#MainCharacter2"
+        gltf-model="#MainCharacter3"
         scale="2 2 2"
         rotation="0 0 0"
         position="0 0 -10"
         trim-loop-clip="timeScale: 0.4; loop: pingpong"
-        sound="src: #Main; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3; rolloffFactor: 1; maxDistance: 20"
         shadow>
+    </a-entity>
+
+    <!-- Carries the main character's sound source, positioned to continuously
+         track the "shapekey_object" node's animated position within
+         MainCharacter3's glTF (see src/a-frame-components/follow-node.ts)
+         rather than sitting fixed at mainEntity's static transform. -->
+    <a-entity
+        ref="mainSoundEntity"
+        follow-node="target: #mainEntity; node: shapekey_object"
+        sound="src: #Main; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: exponential; refDistance: 1.5; rolloffFactor: 1; maxDistance: 20">
     </a-entity>
 
         <a-entity
@@ -168,9 +181,10 @@ onUnmounted(() => {
             gltf-model="#Seed1"
             scale="2 2 2"
             rotation="0 -10 0"
-            position="-5 0 -6"
-            trim-loop-clip="timeScale: 0.4; loop: pingpong"
-            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
+            position="-5 0.5 -6"
+            trim-loop-clip="timeScale: 0.5; loop: pingpong"
+            wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.35; chaos: 0.15"
+            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
             shadow>
         </a-entity>
 
@@ -179,11 +193,13 @@ onUnmounted(() => {
         gltf-model="#Seed2"
         scale="2 2 2"
         rotation="0 0 0"
-        position="-5 0 -2"
+        position="-5 0.5 -2"
         trim-loop-clip="timeScale: 0.4; loop: pingpong"
-        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
+        wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.4; chaos: 0.1"
+        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
+
 
 
     <a-entity
@@ -191,9 +207,10 @@ onUnmounted(() => {
         gltf-model="#Seed3"
         scale="2 2 2"
         rotation="0 10 0"
-        position="10 0 -4"
-        trim-loop-clip="timeScale: 0.4; loop: pingpong"
-        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 1; rolloffFactor: 1; maxDistance: 8"
+        position="10 0.5 -4"
+        trim-loop-clip="timeScale: 0.3; loop: pingpong"
+        wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.3; chaos: 0.21"
+        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
 

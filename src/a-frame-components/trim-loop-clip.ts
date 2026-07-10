@@ -16,6 +16,25 @@ import type { ComponentDefinition } from "aframe";
 //
 //   <a-entity gltf-model="#MainCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
 //   <a-entity gltf-model="#Seeds" trim-loop-clip="loop: repeat"></a-entity>
+//
+// When a model has multiple clips (e.g. a rig animation plus a separately
+// keyed submesh), each clip's own trimmed duration is rarely identical —
+// looping them independently via the mixer's normal per-action bookkeeping,
+// each bounces/wraps at its own length and drifts out of phase a little more
+// every cycle, even though they start in sync. (three.js's built-in
+// `AnimationAction.syncWith()` looks like the fix for exactly this, but in
+// practice its synced relationship resets at every loop boundary when the
+// clip lengths differ, producing a step-drift once per master cycle instead
+// of none.) So with more than one clip, this component takes over time
+// advancement itself: every action is driven directly off ONE shared clock —
+// the *longest* clip's duration sets the loop period, and every action's
+// `.time` is that same raw elapsed value, clamped to its own (possibly
+// shorter) duration. This plays each clip at its natural authored rate
+// rather than stretching it to fit the master's length — stretching a
+// slightly-shorter clip to always finish exactly when the master does makes
+// it play a little slower than 1:1, which reads as "lagging behind" for the
+// whole cycle. A clip that finishes early just holds its final pose until
+// the shared clock (and the master with it) also completes and reflects.
 
 declare const AFRAME: any;
 const THREE = (AFRAME as any).THREE;
@@ -58,6 +77,17 @@ function trimClipLeadIn(clip: any): void {
   clip.duration = lastTime - firstTime;
 }
 
+// Maps unbounded elapsed time into a clip-relative 0..1 phase, replicating
+// each THREE.Loop* mode's wrap behavior. Shared across every action so they
+// can each be evaluated at `phase * ownDuration` and stay in lockstep.
+function phaseFor(elapsed: number, mode: string): number {
+  if (mode === "once") return Math.min(elapsed, 1);
+  if (mode === "repeat") return elapsed % 1;
+  // pingpong: 0→1→0→1… triangle wave over a period of 2.
+  const t = elapsed % 2;
+  return t <= 1 ? t : 2 - t;
+}
+
 export default {
   schema: {
     // Which clip(s) to play. '*' = all clips found on the model.
@@ -74,6 +104,8 @@ export default {
     const self = this as any;
     self.mixer = null;
     self.actions = [];
+    self.masterDuration = 0;
+    self.phaseElapsed = 0; // seconds, only used once there's >1 clip to sync
 
     self.onModelLoaded = (e: any) => {
       const model = e.detail?.model || self.el.getObject3D("mesh");
@@ -93,6 +125,7 @@ export default {
 
     self.mixer.stopAllAction();
     self.actions = [];
+    self.phaseElapsed = 0;
 
     const wanted = self.data.clip === "*"
       ? clips
@@ -109,6 +142,14 @@ export default {
       action.play();
       self.actions.push(action);
     }
+
+    // With only one clip there's nothing to desync, so let the mixer drive
+    // it the normal way. With more than one, this component owns time
+    // advancement instead (see phaseFor / tick) — the longest clip sets the
+    // shared loop period so nothing gets cut off early.
+    self.masterDuration = self.actions.length > 1
+      ? Math.max(...self.actions.map((a: any) => a.getClip().duration))
+      : 0;
   },
 
   update() {
@@ -120,7 +161,18 @@ export default {
 
   tick(_time: number, timeDelta: number) {
     const self = this as any;
-    if (self.mixer) self.mixer.update((timeDelta / 1000) * self.data.timeScale);
+    if (!self.mixer) return;
+    const dt = (timeDelta / 1000) * self.data.timeScale;
+
+    if (self.masterDuration > 0) {
+      self.phaseElapsed += dt;
+      const phase = phaseFor(self.phaseElapsed / self.masterDuration, self.data.loop);
+      const sharedTime = phase * self.masterDuration;
+      for (const action of self.actions) action.time = Math.min(sharedTime, action.getClip().duration);
+      self.mixer.update(0); // apply poses at the times just set, without further auto-advance
+    } else {
+      self.mixer.update(dt);
+    }
   },
 
   remove() {
