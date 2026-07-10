@@ -5,9 +5,109 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9cb366c2-4ce6-42d3-bc54-8bb1a619a24f" name="Changes" comment="exchanged PNG file for testing">
-      <change beforePath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" beforeDir="false" afterPath="$PROJECT_DIR$/.claude/worktrees/unlit-materials" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/ArModule.vue" beforeDir="false" afterPath="$PROJECT_DIR$/src/ArModule.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/preview-ar.ts" beforeDir="false" afterPath="$PROJECT_DIR$/lib/preview-ar.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/AESPA1_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/AESPA1_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/AESPA1_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/AESPA1_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/AESPA1_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/AESPA1_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/AESPA2.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/AESPA2.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/AESPA2_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/AESPA2_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BAP_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BAP_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BAP_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BAP_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BAP_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BAP_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BAP_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_06.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_06.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BILLIE_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BILLIE_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BLACKPINK_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BLACKPINK_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BLACKPINK_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BLACKPINK_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BOA_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BOA_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BOA_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BOA_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BTS_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BTS_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BTS_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BTS_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BTS_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BTS_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/BTS_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/BTS_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EVNNE_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EVNNE_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EVNNE_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EVNNE_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EVNNE_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EVNNE_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EXO_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EXO_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EXO_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EXO_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EXO_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EXO_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/EXO_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/EXO_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_06.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_06.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GFRIEND_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GFRIEND_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GIRLSGENERATION_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GOT7_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GOT7_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GOT7_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GOT7_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GOT7_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GOT7_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/GOT7_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/GOT7_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/HaloSphere.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/HaloSphere.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/I-DLE_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/I-DLE_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/I-DLE_LICHT.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/I-DLE_LICHT.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/I-DLE_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/I-DLE_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_LICHT.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_LICHT.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/IU_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/IU_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/KISSOFLIFE_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/KISSOFLIFE_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/KISSOFLIFE_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/KISSOFLIFE_LICHT.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_LICHT.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/KISSOFLIFE_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/KISSOFLIFE_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/LESSERAFIM_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/LESSERAFIM_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/LESSERAFIM_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/MAMAMOO_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/MAMAMOO_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/MAMAMOO_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/MAMAMOO_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NEWJEANS_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NEWJEANS_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NEWJEANS_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NEWJEANS_LICHT.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_LICHT.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NEWJEANS_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NEWJEANS_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NTX_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NTX_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NTX_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NTX_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NTX_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NTX_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/NTX_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/NTX_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_06.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_06.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/POW_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/POW_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SEVENTEEN_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SEVENTEEN_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SEVENTEEN_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SEVENTEEN_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_05.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_05.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_06.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_06.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/STRAYKIDS_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/STRAYKIDS_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SUPERM_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SUPERM_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SUPERM_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SUPERM_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/SUPERM_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/SUPERM_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/TVXQ_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/TVXQ_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/TVXQ_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/TVXQ_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/TVXQ_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/TVXQ_PNG.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/VERIVERY_01.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/VERIVERY_01.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/VERIVERY_02.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/VERIVERY_02.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/VERIVERY_03.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/VERIVERY_03.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/VERIVERY_04.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/VERIVERY_04.glb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/assets/VERIVERY_PNG.glb" beforeDir="false" afterPath="$PROJECT_DIR$/src/assets/VERIVERY_PNG.glb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,6 +141,10 @@
     &quot;accountId&quot;: &quot;6fd54158-0fb4-40db-a6a8-8a9b7454e07c&quot;
   }
 }</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
       <entry key="MS100" value="1.0000002516267372" />
@@ -109,29 +213,29 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;Gyumin&quot;,
-    &quot;git.auto.fetch.suggestion.counter&quot;: &quot;3&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/hfg_kd/Downloads/ar-module-template/src/assets&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "Gyumin__production",
+    "git.auto.fetch.suggestion.counter": "3",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/hfg_kd/Downloads/ar-module-template/src/assets",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/assets" />

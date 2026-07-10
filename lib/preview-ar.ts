@@ -82,7 +82,7 @@ const ArPreviewApp = {
       // Placed like the host (AR_MODULE_POSITION) so the module previews where it
       // would actually appear in the app.
       children.push(
-        h("a-entity", { id: "module-root", position: "0 0 -1" }, [
+        h("a-entity", { id: "module-root", position: "0 0 -2" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );
