@@ -151,7 +151,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
         <a-entity gltf-model="#Innen_ganz" position="0 0 0" proximity-fade="fadeInStart: 11; fadeInEnd:6; target: 0 0 0" shadow></a-entity>
       </a-entity>
 
-     <a-entity gltf-model="#Kueche_packed" rotation="-0.02-2 0" position="0.01 0 -0.02" shadow></a-entity>
+     <a-entity gltf-model="#Kueche_packed" rotation="-0.02 -2 0" position="0.01 0 -0.02" shadow></a-entity>
 
     </a-entity>
 
