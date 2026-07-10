@@ -34,33 +34,24 @@ const props = defineProps<{ arModule: ArModuleData }>();
     <a-entity
         light="
                     type: directional;
-                    intensity: 1.5 ;
+                    intensity: 0.9 ;
                     castShadow: true;
                     target: #scene-content;
                     shadowRadius: 5;
+                    shadowBias: -0.001;
                     shadowMapHeight:2048;
                     shadowMapWidth:2048;
                     shadowCameraTop: 80;
                     shadowCameraBottom: -80;
                     shadowCameraRight: 80;
                     shadowCameraLeft: -80;"
-        xrextras-attach="target: scene-content; offset: 5 10 2;"
+        xrextras-attach="target: scene-content; offset: -5 10 4;"
         shadow>
     </a-entity>
 
     <a-entity
-        light="type: point; intensity: 0.3;"
-        position="0 1 -1"
-    shadow>
+        light="type: ambient; intensity: 0.5;">
     </a-entity>
-
-
-    <a-entity
-        light="type: point; intensity: 0.15; color: #ffc5f2"
-        position="740 -2">
-    </a-entity>
-
-    <a-light type="point" color="#84e8ff" intensity="0.4" position="0 5 0"></a-light>
 
 
     <!-- Uber parent for all 3 object groups — a single point to move/animate
@@ -69,7 +60,7 @@ const props = defineProps<{ arModule: ArModuleData }>();
          need their own scale value (they default to 1 1 1). Rotation matches
          "test"/"test2" in ar-hfg-template's scene — the object nearest its
          camera (position "-10 8 -40" vs. the camera at "0 8 8"). -->
-    <a-entity id="scene-content" position="0 -0.2 -1" rotation="2 -45 -1" scale="0.7 0.7 0.7">
+    <a-entity id="scene-content" position="0 0.5 -15" rotation="0 135 0" scale="4 4 4">
 
       <!-- Aussen: 5 glbs sharing one origin, wrapped in a transform entity. The
            dithered camera-proximity cutout (see proximity-cutout.ts) is attached
@@ -79,9 +70,9 @@ const props = defineProps<{ arModule: ArModuleData }>();
       <a-entity
           id="aussen"
           position="0 0 0"
-          proximity-cutout="radius: 1; feather: 0.3">
+          proximity-cutout="radius: 2.5; feather: 0.3">
 
-        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen1" position="0 0 0" shadow></a-entity>
       </a-entity>
 
       <!-- Uses the real alpha-transparency variant (see proximity-fade.ts) —
@@ -90,12 +81,37 @@ const props = defineProps<{ arModule: ArModuleData }>();
       <a-entity
           id="aussen_fragments"
           position="0 0 0"
-          proximity-fade="fadeOutStart: 3.5; fadeOutEnd: 1.5; target: 1.8 0 0.3">
+          proximity-fade="fadeOutStart: 14; fadeOutEnd: 11; target: 0 0 0">
+      
 
-        <a-entity gltf-model="#Aussen1" position="0 0 0" shadow></a-entity>
+
         <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Aussen3" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Aussen4" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+
+      </a-entity>
+
+      <a-entity
+          id="aussen_fragments_innen"
+          position="0 0 0"
+          proximity-fade="fadeInStart: 6; fadeInEnd: 4; target: 0 0 0">
+
+        <a-entity gltf-model="#Aussen3" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen4" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
+
+      </a-entity>
+
+      <a-entity
+          id="aussen_fragments_door"
+          position="0 0 0"
+          proximity-fade-dither="fadeInStart: 4; fadeInEnd: 2; target: 0 0 0">
+
+        <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
+
+
       </a-entity>
 
       <!-- Gitter: 5 glbs sharing one origin. The camera-distance opacity fade
@@ -111,20 +127,31 @@ const props = defineProps<{ arModule: ArModuleData }>();
       <a-entity
           id="gitter"
           position="0 0 0"
-          proximity-fade-dither="fadeInStart: 3.5; fadeInEnd: 2; fadeOutStart: 2; fadeOutEnd: 0.4; target: 1.8 0 0.3"
+          proximity-fade-dither="fadeInStart: 12; fadeInEnd: 9; fadeOutStart: 7; fadeOutEnd: 4; target: -1 0 -0.3"
           >
-
         <a-entity gltf-model="#Gitter2" position="0 0 0" shadow></a-entity>
+
+      </a-entity>
+
+      <a-entity
+          id="gitter_fragments"
+          position="0 0 0"
+          proximity-fade-dither="fadeInStart: 18; fadeInEnd: 14; target: -1.7 0 -0.3">
+
         <a-entity gltf-model="#Gitter3" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Gitter4" position="0 0 0" shadow></a-entity>
         <a-entity gltf-model="#Gitter5" position="0 0 0" shadow></a-entity>
       </a-entity>
 
+
+
       <!-- Innen_ganz: single glb, same transform-entity structure as the other two
            (no proximity functionality applied). -->
       <a-entity id="innen-ganz" position="0 0 0">
-        <a-entity gltf-model="#Innen_ganz" position="0 0 0" proximity-fade="fadeInStart: 2.5; fadeInEnd:0; target: 0 0 0" shadow></a-entity>
+        <a-entity gltf-model="#Innen_ganz" position="0 0 0" proximity-fade="fadeInStart: 11; fadeInEnd:6; target: 0 0 0" shadow></a-entity>
       </a-entity>
+
+     <a-entity gltf-model="#Kueche_packed" rotation="-0.02-2 0" position="0.01 0 -0.02" shadow></a-entity>
 
     </a-entity>
 
@@ -140,5 +167,6 @@ const props = defineProps<{ arModule: ArModuleData }>();
     ></a-plane>
 
   </a-entity>
+
+
 </template>
-w
