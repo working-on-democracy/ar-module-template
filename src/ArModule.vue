@@ -38,6 +38,36 @@ function soundEntities(): any[] {
   return [mainSoundEntity.value, seed1Entity.value, seed2Entity.value, seed3Entity.value].filter(Boolean);
 }
 
+// All 4 clips loop and share the same ~58s duration, each with a quiet
+// stretch at its start/end — starting them all from position 0 makes every
+// one go silent at once, which reads as a glitch rather than ambience.
+// Staggering each one's *starting position within its own clip* (not a
+// delay before it starts playing) spreads those quiet stretches out, and
+// keeps them that way forever: `THREE.Audio.play()` only consults `.offset`
+// for the very first play — after that, the native Web Audio loop just wraps
+// 0→duration, so a one-time offset is a permanent phase shift as long as
+// every clip is the same length (verified: all 4 are 58.05s).
+//
+// `.offset` has to be set *before* the underlying THREE.Audio's first
+// `.play()` call — once playing, it's inert until the sound is stopped and
+// restarted. `sound`'s `pool` (holding the Audio instances `.offset` lives
+// on) is created synchronously in setupSound(); only the actual buffer
+// fetch/decode that precedes `autoplay` firing is async — so setting it here
+// in onMounted (itself synchronous) is guaranteed to land first.
+const SOUND_OFFSETS: [() => any, number][] = [
+  [() => mainSoundEntity.value, 0],
+  [() => seed1Entity.value, 10],
+  [() => seed2Entity.value, 20],
+  [() => seed3Entity.value, 30]
+];
+
+function applySoundOffsets() {
+  for (const [getEl, offset] of SOUND_OFFSETS) {
+    const pool = getEl()?.components?.sound?.pool;
+    pool?.children?.forEach((audio: any) => { audio.offset = offset; });
+  }
+}
+
 function getAudioContext(): AudioContext | null {
   for (const el of soundEntities()) {
     const ctx = el.sceneEl?.audioListener?.context;
@@ -89,6 +119,7 @@ function unlockSound() {
 
   const ctx = getAudioContext();
   const finish = () => {
+    applySoundOffsets(); // no-op if already playing; covers the rare case onMounted ran too early
     soundEntities().forEach((el) => {
       try {
         el.components?.sound?.playSound();
@@ -101,6 +132,7 @@ function unlockSound() {
 }
 
 onMounted(() => {
+  applySoundOffsets();
   document.addEventListener('pointerdown', unlockSound, {capture: true});
   document.addEventListener('keydown', unlockSound, {capture: true});
   // Give an already-in-flight gesture (e.g. the tap that starts the AR
