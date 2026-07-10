@@ -15,6 +15,13 @@ import type { ComponentDefinition } from "aframe";
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
 import meshRenderOrder from "./a-frame-components/mesh-render-order";
 import unlitMaterials from "./a-frame-components/unlit-materials";
+import { patchGLTFLoaderWithMeshoptDecoder } from "./gltf-meshopt-setup";
+
+// Runs as soon as this module is imported — by the local previews AND by the
+// production host, since both must import `manifest` to do anything with this
+// module. Lets glb assets compressed with `gltfpack -c` actually load; see
+// gltf-meshopt-setup.ts for why this is necessary.
+patchGLTFLoaderWithMeshoptDecoder();
 
 export interface ManifestAsset {
   id: string;
