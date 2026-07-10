@@ -16,6 +16,13 @@ import soundButtonManager from "./a-frame-components/sound-button-manager";
 import soundButtonGroup from "./a-frame-components/sound-button-group";
 import soundButton from "./a-frame-components/sound-button";
 import type { Manifest } from "../lib/manifest.types";
+import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
+
+// Runs as soon as this module is imported — by the local previews AND by the
+// production host, since both must import `manifest` to do anything with this
+// module. Lets glb assets compressed with `gltfpack -c` actually load; see
+// gltf-meshopt-setup.ts for why this is necessary.
+patchGLTFLoaderWithMeshoptDecoder();
 
 export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
