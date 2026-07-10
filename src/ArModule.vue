@@ -19,11 +19,10 @@ const label = computed(
 );
 
 // Mobile browsers start the Web Audio context suspended until a genuine user
-// gesture resumes it, so the `sound` components' `autoplay` below can go out
-// silently. We first try to piggyback on whatever gesture the user makes
-// anywhere on the page (e.g. the tap that starts the AR session); if the
-// context is still suspended shortly after mount, we fall back to an explicit
-// "tap to enable sound" overlay.
+// gesture resumes it. We first try to piggyback on whatever gesture the user
+// makes anywhere on the page (e.g. the tap that starts the AR session); if
+// the context is still suspended shortly after mount, we fall back to an
+// explicit "tap to enable sound" overlay.
 const mainEntity = ref<any>(null);
 const mainSoundEntity = ref<any>(null);
 const seed1Entity = ref<any>(null);
@@ -38,22 +37,23 @@ function soundEntities(): any[] {
   return [mainSoundEntity.value, seed1Entity.value, seed2Entity.value, seed3Entity.value].filter(Boolean);
 }
 
+function getAudioContext(): AudioContext | null {
+  for (const el of soundEntities()) {
+    const ctx = el.sceneEl?.audioListener?.context;
+    if (ctx) return ctx;
+  }
+  return null;
+}
+
 // All 4 clips loop and share the same ~58s duration, each with a quiet
 // stretch at its start/end — starting them all from position 0 makes every
 // one go silent at once, which reads as a glitch rather than ambience.
-// Staggering each one's *starting position within its own clip* (not a
-// delay before it starts playing) spreads those quiet stretches out, and
-// keeps them that way forever: `THREE.Audio.play()` only consults `.offset`
-// for the very first play — after that, the native Web Audio loop just wraps
+// Staggering each one's *starting position within its own clip* (not a delay
+// before it starts playing) spreads those quiet stretches out, and keeps
+// them that way forever: `THREE.Audio.play()` only consults `.offset` for
+// the very first play — after that, the native Web Audio loop just wraps
 // 0→duration, so a one-time offset is a permanent phase shift as long as
 // every clip is the same length (verified: all 4 are 58.05s).
-//
-// `.offset` has to be set *before* the underlying THREE.Audio's first
-// `.play()` call — once playing, it's inert until the sound is stopped and
-// restarted. `sound`'s `pool` (holding the Audio instances `.offset` lives
-// on) is created synchronously in setupSound(); only the actual buffer
-// fetch/decode that precedes `autoplay` firing is async — so setting it here
-// in onMounted (itself synchronous) is guaranteed to land first.
 const SOUND_OFFSETS: [() => any, number][] = [
   [() => mainSoundEntity.value, 0],
   [() => seed1Entity.value, 10],
@@ -61,19 +61,42 @@ const SOUND_OFFSETS: [() => any, number][] = [
   [() => seed3Entity.value, 30]
 ];
 
-function applySoundOffsets() {
-  for (const [getEl, offset] of SOUND_OFFSETS) {
-    const pool = getEl()?.components?.sound?.pool;
-    pool?.children?.forEach((audio: any) => { audio.offset = offset; });
-  }
+// `.offset` has to be set *before* the underlying THREE.Audio's first
+// `.play()` call — once playing, it's inert until the sound is stopped and
+// restarted. The `pool` it lives on (built by the `sound` component's own
+// update(), not init()) isn't reliably ready by the time Vue's onMounted
+// fires, so poll a few frames instead of assuming the timing — `autoplay` is
+// off in the template specifically so nothing can start (from offset 0)
+// while we wait.
+function waitForSoundPool(el: any, timeoutMs = 3000): Promise<any> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const check = () => {
+      const pool = el?.components?.sound?.pool;
+      if (pool?.children?.length) { resolve(pool); return; }
+      if (performance.now() - start > timeoutMs) { resolve(null); return; }
+      requestAnimationFrame(check);
+    };
+    check();
+  });
 }
 
-function getAudioContext(): AudioContext | null {
-  for (const el of soundEntities()) {
-    const ctx = el.sceneEl?.audioListener?.context;
-    if (ctx) return ctx;
-  }
-  return null;
+// Starts each sound exactly once, offset into its own clip. Safe to call
+// while the AudioContext is still suspended — a source can be scheduled on a
+// suspended context, it just stays silent (with no drift once resumed,
+// since a suspended context's clock doesn't advance) until
+// unlockAudioContext() below resumes it.
+async function startStaggeredSounds() {
+  await Promise.all(SOUND_OFFSETS.map(async ([getEl, offset]) => {
+    const el = getEl();
+    if (!el) return;
+    const pool = await waitForSoundPool(el);
+    if (!pool) return;
+    pool.children.forEach((audio: any) => { audio.offset = offset; });
+    try {
+      el.components?.sound?.playSound();
+    } catch { /* sound component not initialised yet */ }
+  }));
 }
 
 function clearOverlayTimer() {
@@ -110,33 +133,35 @@ function showSoundOverlay() {
   overlayEl = el;
 }
 
-function unlockSound() {
+// Only resumes the AudioContext — playback itself is already scheduled (see
+// startStaggeredSounds), this just makes it audible. Only marks `unlocked`
+// once resume is *confirmed*, not merely attempted: calling `.resume()`
+// outside a real user gesture can silently fail to actually resume, and
+// marking unlocked / tearing down the listeners regardless would strand the
+// page with sound permanently stuck silent.
+function unlockAudioContext() {
   if (unlocked) return;
-  unlocked = true;
-  clearOverlayTimer();
-  document.removeEventListener('pointerdown', unlockSound, true);
-  document.removeEventListener('keydown', unlockSound, true);
-
   const ctx = getAudioContext();
-  const finish = () => {
-    applySoundOffsets(); // no-op if already playing; covers the rare case onMounted ran too early
-    soundEntities().forEach((el) => {
-      try {
-        el.components?.sound?.playSound();
-      } catch { /* sound component not initialised yet */ }
-    });
+  if (!ctx) return; // sound components not ready yet; a later gesture retries
+
+  const confirmUnlocked = () => {
+    unlocked = true;
+    clearOverlayTimer();
+    document.removeEventListener('pointerdown', unlockAudioContext, true);
+    document.removeEventListener('keydown', unlockAudioContext, true);
     removeOverlay();
   };
-  if (ctx && ctx.state !== 'running') ctx.resume().then(finish, finish);
-  else finish();
+  if (ctx.state === 'running') confirmUnlocked();
+  else ctx.resume().then(() => { if (ctx.state === 'running') confirmUnlocked(); });
 }
 
 onMounted(() => {
-  applySoundOffsets();
-  document.addEventListener('pointerdown', unlockSound, {capture: true});
-  document.addEventListener('keydown', unlockSound, {capture: true});
-  // Give an already-in-flight gesture (e.g. the tap that starts the AR
-  // session) a moment to land before nagging the user with our own prompt.
+  startStaggeredSounds();
+  document.addEventListener('pointerdown', unlockAudioContext, {capture: true});
+  document.addEventListener('keydown', unlockAudioContext, {capture: true});
+  // In case the context is already running (e.g. a prior gesture elsewhere
+  // on the page already unlocked it) — avoids waiting for a second gesture.
+  unlockAudioContext();
   overlayTimer = setTimeout(() => {
     if (!unlocked) showSoundOverlay();
   }, 1500);
@@ -144,8 +169,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearOverlayTimer();
-  document.removeEventListener('pointerdown', unlockSound, true);
-  document.removeEventListener('keydown', unlockSound, true);
+  document.removeEventListener('pointerdown', unlockAudioContext, true);
+  document.removeEventListener('keydown', unlockAudioContext, true);
   removeOverlay();
 });
 </script>
@@ -205,7 +230,7 @@ onUnmounted(() => {
     <a-entity
         ref="mainSoundEntity"
         follow-node="target: #mainEntity; node: shapekey_object"
-        sound="src: #Main; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: exponential; refDistance: 1.5; rolloffFactor: 1; maxDistance: 20">
+        sound="src: #Main; autoplay: false; loop: true; positional: true; volume: 1; distanceModel: exponential; refDistance: 1.5; rolloffFactor: 1; maxDistance: 20">
     </a-entity>
 
         <a-entity
@@ -215,7 +240,7 @@ onUnmounted(() => {
             position="-5 0.5 -6"
             trim-loop-clip="timeScale: 0.5; loop: pingpong"
             wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.35; chaos: 0.15"
-            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
+            sound="src: #seed1; autoplay: false; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
             shadow>
         </a-entity>
 
@@ -226,7 +251,7 @@ onUnmounted(() => {
         position="-5 0.5 -2"
         trim-loop-clip="timeScale: 0.4; loop: pingpong"
         wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.4; chaos: 0.1"
-        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
+        sound="src: #seed2; autoplay: false; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
 
@@ -239,7 +264,7 @@ onUnmounted(() => {
         position="10 0.5 -4"
         trim-loop-clip="timeScale: 0.3; loop: pingpong"
         wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.3; chaos: 0.21"
-        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
+        sound="src: #seed3; autoplay: false; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
 
