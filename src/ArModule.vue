@@ -180,11 +180,10 @@ onUnmounted(() => {
             ref="seed1Entity"
             gltf-model="#Seed1"
             scale="2 2 2"
-            rotation="0 -10 0"
             position="-5 0.5 -6"
             trim-loop-clip="timeScale: 0.5; loop: pingpong"
             wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.35; chaos: 0.15"
-            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
+            sound="src: #seed1; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
             shadow>
         </a-entity>
 
@@ -192,11 +191,10 @@ onUnmounted(() => {
         ref="seed2Entity"
         gltf-model="#Seed2"
         scale="2 2 2"
-        rotation="0 0 0"
         position="-5 0.5 -2"
         trim-loop-clip="timeScale: 0.4; loop: pingpong"
         wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.4; chaos: 0.1"
-        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
+        sound="src: #seed2; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
 
@@ -206,11 +204,10 @@ onUnmounted(() => {
         ref="seed3Entity"
         gltf-model="#Seed3"
         scale="2 2 2"
-        rotation="0 10 0"
         position="10 0.5 -4"
         trim-loop-clip="timeScale: 0.3; loop: pingpong"
         wander-in-band="center: #mainEntity; innerRadius: 6; outerRadius: 12; floatIntensity: 0.05; speed: 0.3; chaos: 0.21"
-        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 4; rolloffFactor: 1; maxDistance: 8"
+        sound="src: #seed3; autoplay: true; loop: true; positional: true; volume: 1; distanceModel: linear; refDistance: 3.5; rolloffFactor: 1; maxDistance: 8"
         shadow>
     </a-entity>
 
