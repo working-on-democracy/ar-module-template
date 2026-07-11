@@ -181,8 +181,16 @@ onUnmounted(() => {
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- Position includes a compensating offset of "0 -0.65 0.8" on top of the
+       original "0 -2 0": this branch doesn't set manifest.camera, so the host's
+       real default camera ("0 0.35 0.8", confirmed from the deployed
+       oplooi.uber.space/an-alle/ bundle) is what actually applies in
+       production, not the "0 1 0" this module's own lib/preview-ar.ts used to
+       mock. The offset keeps this content at the same position relative to the
+       camera that the standalone build showed. Untested on-device — nudge if
+       the framing looks off. -->
   <a-entity
-      position="0 -2 0"
+      position="0 -2.65 0.8"
       no-frustum-cull
   >
 

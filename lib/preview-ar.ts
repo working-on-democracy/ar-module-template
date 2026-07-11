@@ -70,10 +70,15 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
+      // Matches the real platform host's <a-camera> defaults exactly (confirmed
+      // from the deployed bundle at oplooi.uber.space/an-alle/). This manifest
+      // doesn't set a `camera` field, so the host's own default is what's
+      // actually used in production — this mock used to guess "0 1 0", which
+      // is why ArModule.vue carries a compensating offset (see there).
       h("a-camera", {
         id: "camera",
-        position: "0 1 0",
-        raycaster: "objects: .cantap",
+        position: "0 0.35 0.8",
+        raycaster: "objects: .cantap; interval: 100",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
     ];
