@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
+import { manifest } from './manifest';
+import { trackAssetLoading } from './asset-loading-overlay';
 
 interface ArModuleData {
   id: string;
@@ -267,6 +269,48 @@ const glowstickOverrides: Record<string, {
 };
 const glowstickOverridesJson = JSON.stringify(glowstickOverrides);
 
+// Thin top-of-screen progress bar for the manifest's own assets (the glbs) —
+// see asset-loading-overlay.ts. This is the phase that's actually visible to
+// users: the host's dynamic import() of this module's own JS happens before
+// any of this code runs, so it can't be tracked from here; this covers the
+// (usually much larger) asset payload that streams in after the module has
+// already mounted. Inline styles only — a <style> block never ships to the
+// host (see README "Caveats").
+const loadProgress = ref(0);
+const assetsLoaded = ref(false);
+let stopAssetTracking: (() => void) | null = null;
+
+const loadBarTrackStyle = computed(() => ({
+  position: 'fixed' as const,
+  top: '0',
+  left: '0',
+  width: '100%',
+  height: '3px',
+  background: 'rgba(255,255,255,0.15)',
+  zIndex: '9999',
+  pointerEvents: 'none' as const,
+  opacity: assetsLoaded.value ? '0' : '1',
+  transition: 'opacity 0.4s ease-out'
+}));
+
+const loadBarFillStyle = computed(() => ({
+  height: '100%',
+  width: `${Math.round(loadProgress.value * 100)}%`,
+  background: 'rgba(255,255,255,0.9)',
+  transition: 'width 0.2s ease-out'
+}));
+
+onMounted(() => {
+  stopAssetTracking = trackAssetLoading(
+    manifest.assets ?? [],
+    (loaded, total) => { loadProgress.value = loaded / total; },
+    () => { assetsLoaded.value = true; }
+  );
+});
+
+onUnmounted(() => {
+  stopAssetTracking?.();
+});
 </script>
 
 <template>
@@ -364,4 +408,10 @@ const glowstickOverridesJson = JSON.stringify(glowstickOverrides);
 
 
   </a-entity>
+
+  <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene.
+       Fades out once every manifest asset has loaded. -->
+  <div :style="loadBarTrackStyle">
+    <div :style="loadBarFillStyle"></div>
+  </div>
 </template>
