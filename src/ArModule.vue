@@ -323,7 +323,19 @@ onUnmounted(() => {
        The custom components used below (lod-manager, lod-object, render-order,
        unlit-material, billboard, ground-decal, no-frustum-cull) are registered
        from the manifest (src/a-frame-components/*) before this template mounts. -->
-  <a-entity no-frustum-cull lod-manager="chunksPerCycle: 6">
+  <!-- position is a compensating offset: this branch doesn't set
+       manifest.camera, so the host's real default camera ("0 0.35 0.8") and
+       module-root ("0 1.6 -3", confirmed from the deployed
+       oplooi.uber.space/an-alle/ bundle) apply as-is in production — not the
+       "0 0.5 0" camera / "0 0 -2" module-root this module's own
+       lib/preview-ar.ts mocked. Only glowstick-field itself needs this: the
+       #group anchor and both lights are deliberately camera-relative via
+       attach-to (see their own comments) and already self-correct for any
+       parent offset, since attach-to converts its target's world position
+       into *this* entity's parent space every frame regardless of what that
+       parent's own transform is. Untested on-device — nudge if the framing
+       looks off. -->
+  <a-entity position="0 -1.75 1.8" no-frustum-cull lod-manager="chunksPerCycle: 6">
 
     <!-- Key light, attached to the #group anchor and aimed at it. Dynamic shadows
          are disabled (castShadow: false) — we rely on the ground decals instead. -->
