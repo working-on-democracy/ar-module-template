@@ -64,6 +64,27 @@ const loadBarFillStyle = computed(() => ({
   transition: "width 0.2s ease-out"
 }));
 
+// Centre-screen spinner + backdrop, fading with the same assetsLoaded state
+// as the top bar. Added for consistency with the other five _module
+// branches — in practice this is a no-op here, since manifest.assets is
+// empty (no files in src/assets/) so assetsLoaded flips true immediately,
+// and the installation's own visibility is already governed by
+// dms-world-room-anchor's own placement lifecycle, not by this. The spin
+// animation is SMIL (<animateTransform>) rather than a CSS @keyframes rule,
+// since a <style> block never ships to the host.
+const loadSpinnerBackdropStyle = computed(() => ({
+  position: "fixed" as const,
+  inset: "0",
+  display: "flex" as const,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  background: "rgba(0,0,0,0.55)",
+  zIndex: "9998",
+  pointerEvents: "none" as const,
+  opacity: assetsLoaded.value ? "0" : "1",
+  transition: "opacity 0.4s ease-out"
+}));
+
 onMounted(() => {
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
@@ -181,5 +202,15 @@ onUnmounted(() => {
        see the comment above). -->
   <div :style="loadBarTrackStyle">
     <div :style="loadBarFillStyle"></div>
+  </div>
+
+  <!-- Centre-screen spinner, added for consistency (see comment above — a
+       no-op in practice on this branch). -->
+  <div :style="loadSpinnerBackdropStyle">
+    <svg viewBox="0 0 50 50" width="48" height="48">
+      <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="90 150">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
   </div>
 </template>
