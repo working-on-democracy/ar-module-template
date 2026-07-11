@@ -47,6 +47,27 @@ const loadBarFillStyle = computed(() => ({
   transition: 'width 0.2s ease-out'
 }));
 
+// Centre-screen spinner + backdrop, shown/hidden by the same assetsLoaded
+// state as the top bar. The 3D content below is bound :visible="assetsLoaded"
+// so models don't pop in one by one as their glbs finish — they keep loading
+// in the background (visible:false doesn't pause loading) and only appear
+// once everything's ready, all at once. The spin animation is SMIL
+// (<animateTransform>) rather than a CSS @keyframes rule, since a <style>
+// block never ships to the host — this needs to work from inline
+// markup/styles alone.
+const loadSpinnerBackdropStyle = computed(() => ({
+  position: 'fixed' as const,
+  inset: '0',
+  display: 'flex' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  background: 'rgba(0,0,0,0.55)',
+  zIndex: '9998',
+  pointerEvents: 'none' as const,
+  opacity: assetsLoaded.value ? '0' : '1',
+  transition: 'opacity 0.4s ease-out'
+}));
+
 onMounted(() => {
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
@@ -86,6 +107,7 @@ onUnmounted(() => {
   <a-entity
       position="0 -4.45 3.8"
       no-frustum-cull
+      :visible="assetsLoaded"
   >
     <!-- Lighting, ported from ar-hfg-template's src/app.js scene (replaces the
          single directional + ambient light that was here before). The key
@@ -236,5 +258,15 @@ onUnmounted(() => {
        Fades out once every manifest asset has loaded. -->
   <div :style="loadBarTrackStyle">
     <div :style="loadBarFillStyle"></div>
+  </div>
+
+  <!-- Centre-screen spinner, shown while the 3D content above stays hidden
+       (:visible="assetsLoaded" on its root) so nothing pops in piecemeal. -->
+  <div :style="loadSpinnerBackdropStyle">
+    <svg viewBox="0 0 50 50" width="48" height="48">
+      <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="90 150">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
   </div>
 </template>
