@@ -20,8 +20,25 @@ const props = defineProps<{ arModule: ArModuleData }>();
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `Aussen1.glb` → id
        "Aussen1". Do NOT declare your own <a-assets> here. -->
+  <!-- Position includes a compensating offset of "0 -2.45 3.8" on top of the
+       original "0 -2 0": this branch doesn't set manifest.camera, so the
+       host's real default camera ("0 0.35 0.8", confirmed from the deployed
+       oplooi.uber.space/an-alle/ bundle) is what actually applies in
+       production, not the "0 1.2 0" this module's own lib/preview-ar.ts used
+       to mock. The offset keeps this content at the same position relative to
+       the camera that the standalone build showed.
+
+       NOTE: the "scene-content" entity below carries its own comment saying
+       its rotation/position were ported from an even older prototype
+       ("ar-hfg-template") tuned against a camera at "0 8 8" — a different
+       number again from this branch's own "0 1.2 0" preview mock. This offset
+       corrects for the mismatch against *this* branch's own standalone build
+       (what dist-ar / dev:ar actually show today), not that older heritage
+       value; if the standalone build itself never quite matched that
+       original design, this won't fix that pre-existing gap. Untested
+       on-device either way — nudge if the framing looks off. -->
   <a-entity
-      position="0 -2 0"
+      position="0 -4.45 3.8"
       no-frustum-cull
   >
     <!-- Lighting, ported from ar-hfg-template's src/app.js scene (replaces the
