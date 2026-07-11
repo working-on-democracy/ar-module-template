@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
   injectDmsStyles,
   setupDmsWorldLifecycle,
   wireDmsControls
 } from "./a-frame-components/dms-mirror-shards";
+import { manifest } from "./manifest";
+import { trackAssetLoading } from "./asset-loading-overlay";
 
 interface ArModuleData {
   id: string;
@@ -29,6 +31,49 @@ onMounted(() => {
   injectDmsStyles();
   setupDmsWorldLifecycle();
   wireDmsControls();
+});
+
+// Thin top-of-screen progress bar for the manifest's own assets — see
+// asset-loading-overlay.ts. This branch's manifest.assets is empty (no files
+// in src/assets/), so in practice this bar never appears; the installation's
+// own "Starting camera AR..." status text (see dms-mirror-shards.ts) already
+// covers the world-tracking startup phase, which is a different thing.
+// Inline styles only — a <style> block never ships to the host (see README
+// "Caveats").
+const loadProgress = ref(0);
+const assetsLoaded = ref(false);
+let stopAssetTracking: (() => void) | null = null;
+
+const loadBarTrackStyle = computed(() => ({
+  position: "fixed" as const,
+  top: "0",
+  left: "0",
+  width: "100%",
+  height: "3px",
+  background: "rgba(255,255,255,0.15)",
+  zIndex: "9999",
+  pointerEvents: "none" as const,
+  opacity: assetsLoaded.value ? "0" : "1",
+  transition: "opacity 0.4s ease-out"
+}));
+
+const loadBarFillStyle = computed(() => ({
+  height: "100%",
+  width: `${Math.round(loadProgress.value * 100)}%`,
+  background: "rgba(255,255,255,0.9)",
+  transition: "width 0.2s ease-out"
+}));
+
+onMounted(() => {
+  stopAssetTracking = trackAssetLoading(
+    manifest.assets ?? [],
+    (loaded, total) => { loadProgress.value = loaded / total; },
+    () => { assetsLoaded.value = true; }
+  );
+});
+
+onUnmounted(() => {
+  stopAssetTracking?.();
 });
 </script>
 
@@ -130,4 +175,11 @@ onMounted(() => {
       </svg>
     </button>
   </nav>
+
+  <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene.
+       Fades out once every manifest asset has loaded (in practice, instantly:
+       see the comment above). -->
+  <div :style="loadBarTrackStyle">
+    <div :style="loadBarFillStyle"></div>
+  </div>
 </template>
