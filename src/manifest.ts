@@ -34,11 +34,23 @@ export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
   assets: assetManifest.assets,
 
-  camera: {
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
-  },
+  // The platform host owns one <a-camera> shared by every module on screen and
+  // applies whatever's in this object with no filtering (confirmed from the
+  // deployed oplooi.uber.space/an-alle/ bundle) — unlike this branch's own
+  // standalone preview, it has no notion of "forbidden" camera keys. Setting
+  // position/cursor/raycaster here, as this manifest did, would relocate the
+  // shared camera and drop its tap-raycast interval for every other module on
+  // screen while this one is mounted.
+  //
+  // Unlike Rosa (a static scene), dms-installation below is placed by
+  // dms-world-room-anchor's own live SLAM-based auto-placement (`placementMode:
+  // camera`, `autoPlace: true`), relative to wherever the *live* camera pose
+  // is each session — not a fixed offset from a static camera position. So
+  // there's no build-time constant that can compensate for the camera's
+  // baseline moving from "0 8 8" to the host's real default here; the
+  // placement parameters (distance/groundY/etc. on dms-world-room-anchor) will
+  // very likely need re-tuning on an actual device against the real host.
+  camera: {},
 
   components: {
     "no-frustum-cull": noFrustumCull,
