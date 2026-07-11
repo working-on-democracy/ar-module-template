@@ -126,7 +126,15 @@ onUnmounted(() => {
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `Wand1.glb` → id "Wand1".
        Do NOT declare your own <a-assets> here. -->
-  <a-entity ref="rootEntity" no-frustum-cull force-shadow-map sound-button-manager>
+  <!-- position is a compensating offset: this branch doesn't set
+       manifest.camera, so the host's real default camera ("0 0.35 0.8",
+       confirmed from the deployed oplooi.uber.space/an-alle/ bundle) is what
+       actually applies in production, not the "0 1 0" this module's own
+       lib/preview-ar.ts used to mock. The offset keeps this content (and the
+       church/wands it contains) at the same position relative to the camera
+       that the standalone build showed. Untested on-device — nudge if the
+       framing looks off. -->
+  <a-entity ref="rootEntity" position="0 -2.25 2.8" no-frustum-cull force-shadow-map sound-button-manager>
 
 
      <a-light type="ambient" intensity="0.3"></a-light>
