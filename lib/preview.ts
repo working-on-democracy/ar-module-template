@@ -34,9 +34,19 @@ const PreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
+      // Matches the real platform host's <a-camera>/module-root defaults
+      // exactly (confirmed from the deployed bundle at
+      // oplooi.uber.space/an-alle/) — this mock had never been reconciled
+      // against the host before (unlike lib/preview-ar.ts, which went
+      // through several rounds of manual "aesthetic" tuning), so it was
+      // still sitting at its original template placeholder values
+      // ("0 0 0" / "0 1.5 0"). Viewing this module's content — already
+      // compensated for the real host's camera/module-root — through this
+      // stale mock instead would put it far too close (even behind the
+      // camera in Z), which is likely what "too near" in `npm run dev` was.
       h("a-camera", {
         id: "camera",
-        position: "0 0 0",
+        position: "0 0.35 0.8",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;",
         "wasd-controls": "acceleration: 30",
@@ -46,7 +56,7 @@ const PreviewApp = {
 
     if (assetsReady.value) {
       children.push(
-        h("a-entity", { position: "0 1.5 0" }, [h(ArModule, { arModule: mockArModule })])
+        h("a-entity", { position: "0 1.6 -3" }, [h(ArModule, { arModule: mockArModule })])
       );
     }
 
