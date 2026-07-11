@@ -70,10 +70,18 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
+      // Matches the real platform host's <a-camera> defaults exactly (confirmed
+      // from the deployed bundle at oplooi.uber.space/an-alle/). This manifest
+      // doesn't set a `camera` field, so the host's own default is what's
+      // actually used in production. No compensating offset is needed in
+      // ArModule.vue for this module: its content is entirely attached to
+      // #camera/#group via the custom attach-to component (by design — see
+      // ArModule.vue's own comments), so it re-centers on the camera wherever
+      // that camera actually is, regardless of this mock's old wrong guess.
       h("a-camera", {
         id: "camera",
-        position: "0 0.5 0",
-        raycaster: "objects: .cantap",
+        position: "0 0.35 0.8",
+        raycaster: "objects: .cantap; interval: 100",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
     ];
@@ -82,7 +90,7 @@ const ArPreviewApp = {
       // Placed like the host (AR_MODULE_POSITION) so the module previews where it
       // would actually appear in the app.
       children.push(
-        h("a-entity", { id: "module-root", position: "0 0 -2" }, [
+        h("a-entity", { id: "module-root", position: "0 1.6 -3" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );
