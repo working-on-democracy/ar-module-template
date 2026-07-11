@@ -112,7 +112,7 @@ onUnmounted(() => {
     <a-entity
       id="dms-installation"
       class="cantap"
-      position="0 6 0"
+      position="0 1 0"
       rotation="0 0 0"
       dms-mirror-shards="
         autoCycle: false;
