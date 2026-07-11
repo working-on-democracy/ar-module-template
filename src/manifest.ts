@@ -42,11 +42,18 @@ export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
   assets: assetManifest.assets,
 
-  camera: {
-    raycaster: "objects: .cantap",
-    cursor: "fuse: false; rayOrigin: mouse;",
-    position: "0 8 8"
-  },
+  // The platform host owns one <a-camera> shared by every module on screen: it
+  // sets id/position (to place the viewer) and cursor/raycaster (to make posts
+  // tappable) itself, and applies whatever this object contains on top with no
+  // filtering — unlike this branch's own standalone preview, the real host has
+  // no notion of "forbidden" camera keys. Setting position/cursor/raycaster
+  // here would relocate the *shared* camera and drop its tap-raycast interval
+  // for every other module on screen while this one is mounted. This used to
+  // set position: "0 8 8" (plus cursor/raycaster) to get an elevated, pulled-
+  // back overview of the scene in the standalone build — see ArModule.vue for
+  // the compensating position that now recreates that same framing without
+  // touching the camera.
+  camera: {},
 
   components: {
     "no-frustum-cull": noFrustumCull,
