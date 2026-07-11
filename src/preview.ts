@@ -37,8 +37,16 @@ const PreviewApp = {
       h("a-sky", { color: "#1e293b" }),
       h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
       h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" }),
+      // Matches the real platform host's <a-camera>/module-root defaults
+      // exactly (confirmed from the deployed bundle at
+      // oplooi.uber.space/an-alle/) — this mock had never been reconciled
+      // against the host before (unlike src/preview-ar.ts, which is where
+      // manifest.camera used to get applied on top before that override was
+      // removed — see manifest.ts). Its old value ("0 1.6 3") was a
+      // hand-picked guess, unrelated to either the host or to whatever this
+      // module's content was actually tuned against.
       h("a-camera", {
-        position: "0 1.6 3",
+        position: "0 0.35 0.8",
         "wasd-controls": "acceleration: 30",
         "look-controls": ""
       })
@@ -46,7 +54,7 @@ const PreviewApp = {
 
     if (assetsReady.value) {
       children.push(
-        h("a-entity", { position: "0 1.5 0" }, [h(ArModule, { arModule: mockArModule })])
+        h("a-entity", { position: "0 1.6 -3" }, [h(ArModule, { arModule: mockArModule })])
       );
     }
 
