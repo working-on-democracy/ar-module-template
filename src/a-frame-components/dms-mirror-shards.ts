@@ -24,8 +24,8 @@
 import shardsData from './dms-data/shards-data.json'
 import shardsImpactStarData from './dms-data/shards-impact-star.json'
 import seriesData from './dms-data/single-liquid-series.json'
-import finalTargetUrl from './dms-data/single-liquid-final-target.png'
-import authorityTargetUrl from './dms-data/authoritarian-orange-final-target-v1.png'
+import finalTargetUrl from './dms-data/single-liquid-final-target.webp'
+import authorityTargetUrl from './dms-data/authoritarian-orange-final-target-v1.webp'
 
 // Original poster paths (as they appear in single-liquid-series.json) → the
 // bundled URLs Vite produced for them. normalizeDmsPath() maps by file name.
