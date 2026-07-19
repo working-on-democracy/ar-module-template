@@ -46,6 +46,8 @@ import billboard from "./a-frame-components/billboard";
 import unlitMaterial from "./a-frame-components/unlit-material";
 import renderOrder from "./a-frame-components/render-order";
 import meshRenderOrder from "./a-frame-components/mesh-render-order";
+import materialProperties from "./a-frame-components/material-properties";
+import ditherMaterial from "./a-frame-components/dither-material";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -113,7 +115,22 @@ export const manifest: Manifest = {
     // See mesh-render-order.ts, examples/mesh-render-order-usage.html, and
     // MESH-RENDER-ORDER-FEATURE-GUIDE.md (incompatible with lod-object —
     // see that guide's incompatibilities section).
-    "mesh-render-order": meshRenderOrder
+    "mesh-render-order": meshRenderOrder,
+    // Manual PBR material tuning (roughness/metalness/opacity/emissive) for
+    // any loaded model — see material-properties.ts,
+    // examples/material-properties-usage.html, and
+    // MATERIAL-PROPERTIES-FEATURE-GUIDE.md. Tunes the existing material in
+    // place (unlike unlit-material, which replaces it outright) — don't
+    // combine the two on the same entity, see that guide's incompatibilities
+    // section.
+    "material-properties": materialProperties,
+    // Manual (non-distance-driven) dithered transparency — see
+    // dither-material.ts, examples/dither-material-usage.html, and
+    // DITHER-MATERIAL-FEATURE-GUIDE.md. A fourth material.onBeforeCompile
+    // writer alongside proximity-fade-dither/proximity-cutout/lod-object's
+    // internal dithering — see RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4
+    // before combining any two of them on the same material.
+    "dither-material": ditherMaterial
   },
 
   imageTargets: [videoTarget]

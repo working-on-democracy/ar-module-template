@@ -26,6 +26,8 @@ the index — descriptions here are one line on purpose.
 | [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) |
 | [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) |
 | [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
+| [Material Properties](#material-properties) | Manually tunes roughness/metalness/opacity/emissive on a loaded model | `Gyumin_module` | [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) |
+| [Dither Material](#dither-material) | Manual (non-distance-driven) dithered transparency for a loaded model | `Fanyu_module` | [DITHER-MATERIAL-FEATURE-GUIDE.md](DITHER-MATERIAL-FEATURE-GUIDE.md) |
 
 Not covered here: `main`'s own baseline demo content (`fish1.glb`,
 `jellyfish-video.mp4`, the `video-target` image target) — that's the
@@ -34,8 +36,8 @@ template's own placeholder scene content, not a universalized feature.
 **Cross-feature reference docs** — not tied to one feature, so not listed
 above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 (how draw order and material patching interact across Render Order,
-Mesh Render Order, LOD + Billboard, Proximity Fade, and Proximity Cutout —
-read before combining any of those).
+Mesh Render Order, LOD + Billboard, Material Properties, Dither Material,
+Proximity Fade, and Proximity Cutout — read before combining any of those).
 
 ## Shared building blocks
 
@@ -342,6 +344,55 @@ and the guide's own incompatibilities section.
 | Asset | Used by | Function |
 |---|---|---|
 | [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
+
+## Material Properties
+
+Guide: [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Manually tunes a loaded model's PBR material properties — roughness,
+metalness, opacity, and emissive intensity/tint — directly on whatever
+material is already there, without discarding it the way
+[LOD + Billboard](#lod--billboard)'s `unlit-material` does. Combines two
+needs into one component: manual roughness/metalness/opacity control (no
+equivalent existed in any source branch) and `Gyumin_module`'s
+`emissive-material` (emissive glow tuning). See the guide for why these
+were merged rather than kept separate, and why `disableShadow` defaults to
+off unlike the source it was ported from.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `material-properties` | [`material-properties.ts`](src/a-frame-components/material-properties.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`material-properties-usage.html`](examples/material-properties-usage.html)
+
+## Dither Material
+
+Guide: [DITHER-MATERIAL-FEATURE-GUIDE.md](DITHER-MATERIAL-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Ordered-dithering ("screen-door") transparency for a loaded model — a
+**manual, fixed-opacity** dither, unlike the two distance-driven dither
+variants already in this template ([Proximity Cutout](#proximity-cutout),
+[Proximity Fade](#proximity-fade)'s dither variant). Ported from
+`Fanyu_module`'s `dither-transparency.ts` (found registered but unused in
+that branch's own scene) and renamed to fit this project's `[x]-material`
+naming. Two real fixes made during the port: primitive support
+(`object3dset` instead of `model-loaded`) and a previously-latent
+shared-material bug (the source mutated materials in place rather than
+cloning them first) — see the guide's §3.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `dither-material` | [`dither-material.ts`](src/a-frame-components/dither-material.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
 
 Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
 [`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)

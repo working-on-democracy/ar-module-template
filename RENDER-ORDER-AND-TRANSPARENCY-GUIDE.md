@@ -5,6 +5,8 @@ transparent surfaces, and where the sharp edges are when combining
 [Render Order](RENDER-ORDER-FEATURE-GUIDE.md),
 [Mesh Render Order](MESH-RENDER-ORDER-FEATURE-GUIDE.md),
 [LOD + Billboard](LOD-BILLBOARD-FEATURE-GUIDE.md),
+[Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md),
+[Dither Material](DITHER-MATERIAL-FEATURE-GUIDE.md),
 or any other feature that patches materials (`proximity-fade`,
 `proximity-cutout`) in the same scene. Adapted and generalized from an
 internal engineering doc written on `Gyumin_production` (source branch:
@@ -198,19 +200,21 @@ program with — or have one shared onto it by — a materially different
 `onBeforeCompile` callback that happens to produce the same default cache
 key.
 
-**This isn't just an LOD concern** — `proximity-fade`/`proximity-fade-dither`
-and `proximity-cutout` (see their own guides) both already use
-`onBeforeCompile` + a pinned `customProgramCacheKey` for the same reason.
-If a project combines LOD's dithered parts with either proximity feature on
-overlapping materials, follow the same rule those guides already document
-for combining *with each other*: whichever feature patches a given
-material's `onBeforeCompile` **last wins** — the two don't compose, each
-just overwrites what was there. Don't nest an `lod-object` dithered part
-and a `proximity-fade`/`proximity-cutout` wrapper around the exact same
-`gltf-model` unless you're prepared for only one of the two effects to
-actually render. Any future `onBeforeCompile` use on this branch should
-follow the same pattern: pin a distinguishing `customProgramCacheKey` if
-the injected GLSL differs from the material's stock shader.
+**This isn't just an LOD concern** — `proximity-fade`/`proximity-fade-dither`,
+`proximity-cutout`, and [`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md)
+(see their own guides) all already use `onBeforeCompile` + a pinned
+`customProgramCacheKey` for the same reason — four independent writers in
+total, counting LOD's own `setupDitherMaterial()`. If a project combines
+any two of these four on overlapping materials, follow the same rule those
+guides already document for combining *with each other*: whichever one
+patches a given material's `onBeforeCompile` **last wins** — they don't
+compose, each just overwrites what was there. Don't nest an `lod-object`
+dithered part, a `proximity-fade`/`proximity-cutout` wrapper, and/or a
+`dither-material` entity around the exact same `gltf-model` unless you're
+prepared for only one of the effects to actually render. Any future
+`onBeforeCompile` use on this branch should follow the same pattern: pin a
+distinguishing `customProgramCacheKey` if the injected GLSL differs from
+the material's stock shader.
 
 ### 4.5 `unlit-material` *replaces* materials — a different risk than `onBeforeCompile` collisions
 
@@ -236,6 +240,19 @@ Either order loses one effect. This hasn't been checked against the exact
 shader chunk list `MeshBasicMaterial` compiles at the three.js revision
 this project pins — don't combine `unlit-material` with `proximity-fade`/
 `proximity-cutout` on the same entity without testing directly.
+
+The same replace-vs-tune conflict applies to
+[`material-properties`](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) and
+[`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md) — both clone and
+*mutate* whatever material is already there rather than patching shader
+code, so the mechanism differs slightly from the proximity features above,
+but the outcome is the same: `MeshBasicMaterial` has no
+`roughness`/`metalness`/`emissive` for `material-properties` to tune (a
+silent no-op, guarded rather than a crash — see that component's own
+`"roughness" in owned` checks), and whichever of `unlit-material`/
+`dither-material` runs second either discards the other's clone or clones
+a `MeshBasicMaterial` that has nothing worth dithering into visually.
+Don't combine either with `unlit-material` on the same entity.
 
 ### 4.6 The billboard's `alphaTest`/`depthWrite` toggle is deliberately rare
 
@@ -304,4 +321,7 @@ in `el.components` means "ready."
 | `lod-manager.ts`'s `applyBlend`/`updateRenderOrder` | Runs for *every* registered instance every frame — a per-object branch here is a per-frame cost multiplied by field size; keep new logic cheap. |
 | `proximity-fade`/`proximity-fade-dither`/`proximity-cutout` alongside LOD | Don't target the exact same material with both an LOD dithered part and a proximity effect (§4.4) — last `onBeforeCompile` patch wins, the other goes silently inert. |
 | `unlit-material` alongside `proximity-fade`/`proximity-cutout` | Don't put both on the same entity (§4.5) — `unlit-material` replaces the material object outright, not just patches it, so whichever runs first silently discards the other's effect. Not fully verified against this project's pinned three.js shader chunks; test directly if combined. |
+| [`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md) alongside LOD, `proximity-fade-dither`, or `proximity-cutout` | A fourth `onBeforeCompile` writer (§4.4) — don't target the same material with two of these four at once, last patch wins. |
+| [`material-properties`](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) or `dither-material` alongside `unlit-material` | Don't put either on the same entity as `unlit-material` (§4.5) — same replace-vs-tune conflict as the proximity features above. |
+| `material-properties` alongside `dither-material` | Both clone-then-mutate (not replace), so combining is supported — but same-element registration order decides who tunes whose output (§5.2). Author `material-properties` first if you want its values to be what gets dithered. |
 | Adding any new material-mutating component | Ask: does it run on the same element as another material-mutating component? If yes, registration order decides who sees whose output (§5.2) — make that explicit in a comment. |
