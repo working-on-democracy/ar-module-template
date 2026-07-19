@@ -2,7 +2,9 @@
 
 A cross-feature reference for how three.js actually resolves overlapping
 transparent surfaces, and where the sharp edges are when combining
-[Render Order](RENDER-ORDER-FEATURE-GUIDE.md), [LOD + Billboard](LOD-BILLBOARD-FEATURE-GUIDE.md),
+[Render Order](RENDER-ORDER-FEATURE-GUIDE.md),
+[Mesh Render Order](MESH-RENDER-ORDER-FEATURE-GUIDE.md),
+[LOD + Billboard](LOD-BILLBOARD-FEATURE-GUIDE.md),
 or any other feature that patches materials (`proximity-fade`,
 `proximity-cutout`) in the same scene. Adapted and generalized from an
 internal engineering doc written on `Gyumin_production` (source branch:
@@ -92,6 +94,22 @@ on where you use it. Outside any `lod-object` group, it's the real,
 permanent runtime value. Inside one, it's a *local* order among that one
 group's own children — the real runtime value is always `lod-manager`'s to
 decide, every frame.
+
+### `mesh-render-order` does *not* compose the same way — real conflict, not just a nuance
+
+[`mesh-render-order`](MESH-RENDER-ORDER-FEATURE-GUIDE.md) sets `renderOrder`
+per **named sub-mesh** within one loaded model, a finer granularity than
+`render-order`'s one-value-per-whole-model. Unlike `render-order` above,
+this one does **not** survive being placed inside an `lod-object` group:
+`lod-object.ts` records exactly one `localOrder` per `.lod-mesh` child and
+`lod-manager.updateRenderOrder()` overwrites `node.renderOrder` uniformly
+for *every* mesh node under that child, every frame. Any per-name
+distinction `mesh-render-order` set is silently collapsed back to one
+shared value on the very next tick. This is confirmed by tracing
+`lod-manager`'s render-order assignment directly, not a "might" — don't put
+`mesh-render-order` on a `.lod-mesh`/`.lod-billboard` child or anywhere
+under an active `lod-object`. Full writeup in
+[MESH-RENDER-ORDER-FEATURE-GUIDE.md §4](MESH-RENDER-ORDER-FEATURE-GUIDE.md#4-incompatibilities-risks--troubleshooting).
 
 ## 3. Real alpha blending vs. dithering: pick correctly
 
@@ -281,6 +299,7 @@ in `el.components` means "ready."
 |---|---|
 | A standalone [`render-order`](RENDER-ORDER-FEATURE-GUIDE.md) value | Nothing, as long as it's outside any `lod-object` group — `RENDER_ORDER_BASE` guarantees LOD's own dynamic bands can't collide with it (§2). |
 | `render-order` inside an `lod-object` group | Only affects ordering *within* that one instance's own transparent-list members (§2) — not a substitute for `data-lod-dither` (§3) when something MUST reliably show through a translucent neighbour. |
+| [`mesh-render-order`](MESH-RENDER-ORDER-FEATURE-GUIDE.md) alongside LOD + Billboard | Real conflict, not just a nuance — never place on a `.lod-mesh`/`.lod-billboard` child or anywhere under an active `lod-object` (§2). `lod-manager` overwrites every mesh in that child with one shared `renderOrder` value every frame. |
 | `lod-object.ts`'s material clone/mutate block | Registration order relative to any other material-mutating component on the same element (§5.2). Also: a new override flag (like `dither`) needs a matching branch in `lod-manager.ts`'s `applyBlend()`, or the fade will silently do nothing. |
 | `lod-manager.ts`'s `applyBlend`/`updateRenderOrder` | Runs for *every* registered instance every frame — a per-object branch here is a per-frame cost multiplied by field size; keep new logic cheap. |
 | `proximity-fade`/`proximity-fade-dither`/`proximity-cutout` alongside LOD | Don't target the exact same material with both an LOD dithered part and a proximity effect (§4.4) — last `onBeforeCompile` patch wins, the other goes silently inert. |

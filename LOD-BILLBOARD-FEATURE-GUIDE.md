@@ -145,15 +145,24 @@ that child, not on the `lod-object` entity):
 
 ### `unlit-material`
 
+Not owned by this feature — a generic shared building block (see
+`FEATURE-CATALOG.md`'s "Shared building blocks" table) that also has a
+genuinely standalone, non-LOD use case: flattening a full model's own
+materials to always-lit/toon-style shading regardless of scene lighting.
+See `examples/unlit-material-usage.html` for that standalone case.
+
 | Attribute | Type | Default | Meaning |
 |---|---|---|---|
 | `keepEmissive` | boolean | `true` | Fold any emissive glow into the flat colour so it survives flattening. |
 | `brightness` | number | `1` | Uniform dim on the flat colour (the only way to dim an unlit material) — `0.5` = half, `0` = black. |
 | `tint` | color | `""` (none) | Multiplied into the flat colour. |
+| `alphaTest` | number | `-1` (don't override) | Forces a specific alphaTest cutout on the converted material, instead of preserving whatever alphaTest the original material had. Added while verifying this component against a standalone, non-LOD use case: a full unlit-shaded model with `alphaMode: BLEND` materials that still wanted a hard cutout once converted (e.g. to discard very-transparent fringes on flame/foliage-style parts). Not typically needed for the billboard use case above. |
+| `keepShadowBehavior` | boolean | `false` | If `true`, leaves this mesh's `castShadow`/`receiveShadow` exactly as already set (e.g. by an A-Frame `shadow` component on the same entity) instead of forcing both off. `false` (default) matches the original billboard behaviour here — correct for a flat glow-style surface, which shouldn't cast or receive shadows — but a full unlit-shaded character model generally wants `true`, so it can still ground itself with a cast shadow. |
 
 See `examples/lod-billboard-usage.html` for three worked examples (single
 part, multi-part with fade overrides and dithering, and combined with
-`random-field`).
+`random-field`), and `examples/unlit-material-usage.html` for the
+standalone (non-LOD) `alphaTest`/`keepShadowBehavior` case.
 
 ## 3. Under the hood
 
@@ -227,6 +236,19 @@ as *local* order and the real runtime value is always `lod-manager`'s to
 compute; outside one, it's untouched by LOD at all, and `lod-manager`
 reserves a numeric range (`RENDER_ORDER_BASE`) its own dynamic bands never
 enter, so a standalone value can never collide with them either.
+
+### Real conflict with `mesh-render-order` — do not combine on the same child
+
+[`mesh-render-order`](MESH-RENDER-ORDER-FEATURE-GUIDE.md) (per-named-submesh
+draw order within one asset) does not survive being placed on a
+`.lod-mesh`/`.lod-billboard` child, or anywhere under an active
+`lod-object` — `lod-manager` assigns exactly one `renderOrder` per
+`.lod-mesh` child and overwrites it uniformly across every mesh node in
+that child every frame, silently erasing any per-name distinction. Unlike
+the `render-order` case above, this is a confirmed conflict, not a checked
+non-issue — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#mesh-render-order-does-not-compose-the-same-way--real-conflict-not-just-a-nuance)
+and [MESH-RENDER-ORDER-FEATURE-GUIDE.md §4](MESH-RENDER-ORDER-FEATURE-GUIDE.md#4-incompatibilities-risks--troubleshooting).
 
 ### Interaction with `proximity-fade`/`proximity-cutout` — same-material patch collision
 

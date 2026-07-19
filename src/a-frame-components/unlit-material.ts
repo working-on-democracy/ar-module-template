@@ -15,6 +15,13 @@ declare const THREE: any;
 //     material) never double-wraps,
 //   - falls back to the emissive texture when there's no base-colour texture, so a
 //     mesh whose artwork lives in an emission shader still shows it.
+//   - can force an alphaTest cutout (`alphaTest`) and/or preserve the
+//     original mesh's shadow behavior (`keepShadowBehavior`), found and
+//     added while verifying this against a full-character unlit-shaded
+//     model with alphaMode: BLEND materials — see this component's section
+//     in LOD-BILLBOARD-FEATURE-GUIDE.md for why either might matter for a
+//     given asset, and examples/unlit-material-usage.html for a standalone
+//     (non-LOD) worked example.
 export default {
   schema: {
     // Fold a material's emissive glow into the flat base color, so effects like
@@ -29,7 +36,24 @@ export default {
     // rather than replacing keeps any texture/emissive shading on the mesh
     // intact — a white/grey source material (e.g. HaloSphere) takes the tint
     // directly, since multiplying by white is a no-op.
-    tint: { type: "string", default: "" }
+    tint: { type: "string", default: "" },
+    // Forces a specific alphaTest cutout on the converted material, instead
+    // of preserving whatever the original material's own alphaTest was
+    // (the default, -1, means "don't override"). Real-world need: a
+    // material authored as alphaMode: BLEND (real alpha blending, no
+    // meaningful alphaTest of its own) can still want a hard cutout once
+    // converted to unlit — e.g. to discard very-transparent fringes and
+    // reduce transparency-sorting artifacts on effects like flames/foliage,
+    // at the cost of a hard edge instead of a soft blended one.
+    alphaTest: { type: "number", default: -1 },
+    // If true, leaves this mesh's castShadow/receiveShadow exactly as they
+    // already are (e.g. from a `shadow` component on the same entity)
+    // instead of forcing both off. Default false matches the original
+    // behavior here (correct for the common case — a flat/glow-style unlit
+    // surface, like an LOD billboard, usually shouldn't cast or receive
+    // shadows) — set true for something like a full unlit-shaded character
+    // model that should still ground itself with a cast shadow.
+    keepShadowBehavior: { type: "boolean", default: false }
   },
 
   init() {
@@ -100,13 +124,21 @@ export default {
           basicMat.color.multiply(new THREE.Color(self.data.tint));
         }
 
+        // Optional forced alphaTest cutout (default -1 = leave whatever was
+        // already carried over from oldMat.alphaTest above untouched).
+        if (self.data.alphaTest >= 0) {
+          basicMat.alphaTest = self.data.alphaTest;
+        }
+
         basicMat.userData.unlit = true;
         return basicMat;
       });
 
       node.material = Array.isArray(node.material) ? newMats : newMats[0];
-      node.castShadow = false; // unlit objects sensibly cast no shadow…
-      node.receiveShadow = false; // …and receive none either
+      if (!self.data.keepShadowBehavior) {
+        node.castShadow = false; // unlit objects sensibly cast no shadow…
+        node.receiveShadow = false; // …and receive none either
+      }
     });
   }
 } as ComponentDefinition;

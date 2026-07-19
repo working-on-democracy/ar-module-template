@@ -45,6 +45,7 @@ import lodManager from "./a-frame-components/lod-manager";
 import billboard from "./a-frame-components/billboard";
 import unlitMaterial from "./a-frame-components/unlit-material";
 import renderOrder from "./a-frame-components/render-order";
+import meshRenderOrder from "./a-frame-components/mesh-render-order";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -106,7 +107,13 @@ export const manifest: Manifest = {
     // Per-mesh draw order for overlapping transparent surfaces — see
     // render-order.ts, examples/render-order-usage.html, and
     // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md.
-    "render-order": renderOrder
+    "render-order": renderOrder,
+    // Per-NAMED-mesh draw order within a single glTF asset — a finer
+    // granularity than render-order above (whole-model vs. named-submesh).
+    // See mesh-render-order.ts, examples/mesh-render-order-usage.html, and
+    // MESH-RENDER-ORDER-FEATURE-GUIDE.md (incompatible with lod-object —
+    // see that guide's incompatibilities section).
+    "mesh-render-order": meshRenderOrder
   },
 
   imageTargets: [videoTarget]

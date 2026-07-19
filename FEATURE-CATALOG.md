@@ -25,6 +25,7 @@ the index — descriptions here are one line on purpose.
 | [Proximity Wave](#proximity-wave) | Proximity-triggered wave + idle motion, single entity or a whole group | `Gyumin_module` | [PROXIMITY-WAVE-FEATURE-GUIDE.md](PROXIMITY-WAVE-FEATURE-GUIDE.md) |
 | [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) |
 | [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) |
+| [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
 
 Not covered here: `main`'s own baseline demo content (`fish1.glb`,
 `jellyfish-video.mp4`, the `video-target` image target) — that's the
@@ -33,8 +34,8 @@ template's own placeholder scene content, not a universalized feature.
 **Cross-feature reference docs** — not tied to one feature, so not listed
 above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 (how draw order and material patching interact across Render Order,
-LOD + Billboard, Proximity Fade, and Proximity Cutout — read before
-combining any of those).
+Mesh Render Order, LOD + Billboard, Proximity Fade, and Proximity Cutout —
+read before combining any of those).
 
 ## Shared building blocks
 
@@ -47,6 +48,7 @@ here rather than repeated under every feature that uses them.
 | `no-frustum-cull` | [`src/a-frame-components/no-frustum-cull.ts`](src/a-frame-components/no-frustum-cull.ts) | Keeps an animated glTF mesh from being frustum-culled once it moves outside its bind-pose bounding sphere | `main` template baseline | Template baseline (`main`); any feature with animated models |
 | `ar-button` | [`src/a-frame-components/ar-button.ts`](src/a-frame-components/ar-button.ts) | Declares an entity as a tappable/gazable button with a bounding-box trigger zone, gaze pulse, and optional distance fade | Written fresh while porting [Sound](#sound) from `Jakob_module` — generalized out of that source's tap/gaze code, not copied verbatim | [Sound](#sound) |
 | `ar-button-manager` | [`src/a-frame-components/ar-button-manager.ts`](src/a-frame-components/ar-button-manager.ts) | One per module; owns the gaze raycast and tap routing for every `ar-button` | Same as `ar-button` | [Sound](#sound) |
+| `unlit-material` | [`src/a-frame-components/unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Replaces a loaded model's PBR materials with flat, fully-lit MeshBasicMaterials — typically the LOD billboard's flat/shadeless look, but also usable standalone on a full model (`examples/unlit-material-usage.html`) | Written while porting [LOD + Billboard](#lod--billboard) from `Gyumin_module`; extended (`alphaTest`, `keepShadowBehavior` attributes) while comparing against `Rosa_module`'s own, separate `unlit-materials` component — confirmed this shared one already covers that use case once extended, so no duplicate was created | [LOD + Billboard](#lod--billboard); usable standalone by any feature |
 
 ## Sound
 
@@ -283,7 +285,7 @@ two combine). Composes closely with
 | `lod-object` | [`lod-object.ts`](src/a-frame-components/lod-object.ts) | One per LOD instance — gathers materials, registers with the manager |
 | `lod-manager` | [`lod-manager.ts`](src/a-frame-components/lod-manager.ts) | One per module; ticks every `lod-object`, drives the crossfade + render-order banding |
 | `billboard` | [`billboard.ts`](src/a-frame-components/billboard.ts) | Spins an entity about Y to face the camera |
-| `unlit-material` | [`unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Flat/shadeless material technique, typically used on the billboard |
+| `unlit-material` | [`unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Flat/shadeless material technique, typically used on the billboard — a [shared building block](#shared-building-blocks), not owned by this feature |
 
 **Assets:** none.
 
@@ -313,3 +315,33 @@ patching.
 
 Examples: [`render-order-usage.html`](examples/render-order-usage.html),
 [`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Mesh Render Order
+
+Guide: [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Rosa_module`
+
+Sets three.js `renderOrder` on individual **named** meshes inside a single
+loaded model, for controlling draw order among one asset's own
+overlapping/layered internal parts, relative to each other — finer
+granularity than [Render Order](#render-order), which sets one value
+across a whole model. The source hardcoded both the mesh names and their
+order in TypeScript for one specific asset; this version takes the
+name→order mapping as a runtime attribute. **Real, confirmed conflict**
+with [LOD + Billboard](#lod--billboard) — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+and the guide's own incompatibilities section.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `mesh-render-order` | [`mesh-render-order.ts`](src/a-frame-components/mesh-render-order.ts) | The whole feature — one file |
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
+
+Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
+[`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
