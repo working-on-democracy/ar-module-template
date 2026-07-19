@@ -68,4 +68,5 @@ them and look at the result.
 | [README.md](README.md) | The full technical documentation — build details, project structure, how the module talks to the host app. Read this if you need more depth than this page or hit something technical this page doesn't cover. |
 | [FEATURE-CATALOG.md](FEATURE-CATALOG.md) | The index of every available feature, with links to each one's guide. Start here when looking for a specific effect. |
 | `<FEATURE>-FEATURE-GUIDE.md` (one per feature) | How to use one specific feature: setup steps, every attribute you can set, and anything to watch out for. |
+| Cross-feature reference docs (e.g. `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`) | Not tied to one feature — covers a topic that spans several (like how draw order and see-through materials interact). Linked from the "Incompatibilities" section of any feature guide it applies to; only worth opening on its own if you're combining several features that touch the same thing (materials, draw order, ...). |
 | [UNIVERSALIZING-FEATURES.md](UNIVERSALIZING-FEATURES.md) | Only relevant if you're the one *building a new feature into* this template — not needed just to use what's already here. |

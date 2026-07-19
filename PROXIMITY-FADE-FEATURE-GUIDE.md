@@ -302,6 +302,17 @@ reached via a bubbled `model-loaded` event from a `gltf-model` descendant;
 material, not a `gltf-model`, so it never triggers `model-loaded` and is
 never touched by this feature regardless of scene nesting.
 
+### Interaction with LOD + Billboard's dithered fade
+
+Same category of risk as the `proximity-cutout` one above, found while
+porting that feature (see `LOD-BILLBOARD-FEATURE-GUIDE.md`): an
+`lod-object`'s `data-lod-dither` part also patches `material.onBeforeCompile`
++ `customProgramCacheKey`. Nest `proximity-fade`/`-dither` and a dithered
+LOD part around the exact same `gltf-model` and only one of the two
+effects renders — neither composes with the other, whichever attaches last
+wins. Full mental model in
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+
 ### General constraints
 
 - **No document-level listeners, no singleton/manager entity.** Unlike the

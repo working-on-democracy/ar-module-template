@@ -37,6 +37,14 @@ import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
 import wanderInBand from "./a-frame-components/wander-in-band";
+import randomField from "./a-frame-components/random-field";
+import proximityWave from "./a-frame-components/proximity-wave";
+import proximityWaveGroup from "./a-frame-components/proximity-wave-group";
+import lodObject from "./a-frame-components/lod-object";
+import lodManager from "./a-frame-components/lod-manager";
+import billboard from "./a-frame-components/billboard";
+import unlitMaterial from "./a-frame-components/unlit-material";
+import renderOrder from "./a-frame-components/render-order";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -76,7 +84,29 @@ export const manifest: Manifest = {
     // (no document listeners, no camera, no materials), so they're free to
     // combine with any other feature or with each other.
     "follow-node": followNode,
-    "wander-in-band": wanderInBand
+    "wander-in-band": wanderInBand,
+    // Random placement field — see random-field.ts and
+    // examples/random-field-usage.html. Clones entities you reference by
+    // id; knows nothing about LOD, render order, or motion.
+    "random-field": randomField,
+    // Proximity-triggered wave/idle motion — see proximity-wave.ts /
+    // proximity-wave-group.ts and examples/proximity-wave-usage.html.
+    "proximity-wave": proximityWave,
+    "proximity-wave-group": proximityWaveGroup,
+    // LOD + billboard cross-fade system — see lod-object.ts / lod-manager.ts,
+    // examples/lod-billboard-usage.html, and
+    // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for how this composes with
+    // render-order below. unlit-material is the flat/shadeless material
+    // technique the billboard side typically wants (generic, not
+    // LOD-specific — see unlit-material.ts).
+    "lod-object": lodObject,
+    "lod-manager": lodManager,
+    billboard: billboard,
+    "unlit-material": unlitMaterial,
+    // Per-mesh draw order for overlapping transparent surfaces — see
+    // render-order.ts, examples/render-order-usage.html, and
+    // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md.
+    "render-order": renderOrder
   },
 
   imageTargets: [videoTarget]

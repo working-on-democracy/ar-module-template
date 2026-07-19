@@ -170,6 +170,17 @@ button is visually unusual but not a code conflict (this feature doesn't
 touch `object3D.scale`, `ar-button`'s own fade/raycast mechanism, or vice
 versa).
 
+### Interaction with LOD + Billboard's dithered fade
+
+Same category of risk as the `proximity-fade` one above, found while
+porting the LOD feature (see `LOD-BILLBOARD-FEATURE-GUIDE.md`): an
+`lod-object`'s `data-lod-dither` part also patches `material.onBeforeCompile`
++ `customProgramCacheKey`. Nest `proximity-cutout` and a dithered LOD part
+around the exact same `gltf-model` and only one of the two effects renders
+— neither composes with the other, whichever attaches last wins. Full
+mental model in
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+
 ### General constraints
 
 - **No document-level listeners, no singleton/manager entity, no per-module

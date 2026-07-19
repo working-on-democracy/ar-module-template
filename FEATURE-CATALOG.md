@@ -21,10 +21,20 @@ the index — descriptions here are one line on purpose.
 | [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) |
 | [Follow Node](#follow-node) | Tracks a named node inside another entity's animated glTF | `Fanyu_module` | [FOLLOW-NODE-FEATURE-GUIDE.md](FOLLOW-NODE-FEATURE-GUIDE.md) |
 | [Wander In Band](#wander-in-band) | Orbits an entity within a band around a center entity | `Fanyu_module` | [WANDER-IN-BAND-FEATURE-GUIDE.md](WANDER-IN-BAND-FEATURE-GUIDE.md) |
+| [Random Field](#random-field) | Scatters clones of referenced entities across an area, spacing/copies configurable | `Gyumin_module` | [RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) |
+| [Proximity Wave](#proximity-wave) | Proximity-triggered wave + idle motion, single entity or a whole group | `Gyumin_module` | [PROXIMITY-WAVE-FEATURE-GUIDE.md](PROXIMITY-WAVE-FEATURE-GUIDE.md) |
+| [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) |
+| [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) |
 
 Not covered here: `main`'s own baseline demo content (`fish1.glb`,
 `jellyfish-video.mp4`, the `video-target` image target) — that's the
 template's own placeholder scene content, not a universalized feature.
+
+**Cross-feature reference docs** — not tied to one feature, so not listed
+above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+(how draw order and material patching interact across Render Order,
+LOD + Billboard, Proximity Fade, and Proximity Cutout — read before
+combining any of those).
 
 ## Shared building blocks
 
@@ -204,3 +214,102 @@ both being ported from the same source branch in the same batch.
 **Assets:** none.
 
 Examples: [`wander-in-band-usage.html`](examples/wander-in-band-usage.html)
+
+## Random Field
+
+Guide: [RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Scatters clones of one or more referenced entities (by id) across a
+fixed-width strip, using Poisson-disk sampling so a min/max spacing and a
+per-entity copy count are honoured exactly. Reworked from the source's
+`glowstick-field`, which bundled this together with auto-discovering assets
+by naming convention and building LOD structure from scratch — this version
+only places; what it clones is entirely up to what you author and
+reference by id (see [LOD + Billboard](#lod--billboard)).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `random-field` | [`random-field.ts`](src/a-frame-components/random-field.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`random-field-usage.html`](examples/random-field-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Proximity Wave
+
+Guide: [PROXIMITY-WAVE-FEATURE-GUIDE.md](PROXIMITY-WAVE-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Proximity-gated wave (fades in as the camera approaches) plus a subtle
+always-on idle float. `proximity-wave` works standalone on one entity;
+`proximity-wave-group` broadcasts one shared parameter set to every direct
+child of a group (a plain hand-authored group, or a
+[Random Field](#random-field) entity — same component either way).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `proximity-wave` | [`proximity-wave.ts`](src/a-frame-components/proximity-wave.ts) | Per-entity motion — works standalone |
+| `proximity-wave-group` | [`proximity-wave-group.ts`](src/a-frame-components/proximity-wave-group.ts) | Applies one shared config to every direct child |
+
+**Assets:** none.
+
+Examples: [`proximity-wave-usage.html`](examples/proximity-wave-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## LOD + Billboard
+
+Guide: [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Cross-fades a detailed 3D model (optionally split into several parts) into
+a flat, always-camera-facing billboard image by distance. The
+`.lod-mesh`/`.lod-mesh-group`/`.lod-billboard` structure `lod-object` reads
+was already fully generic in the source (driven by CSS class, not any
+naming convention) — the only change is that the source's field-population
+component used to build this structure programmatically; here it's
+authored directly in the scene (see
+[RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) for how the
+two combine). Composes closely with
+[Render Order](#render-order) — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `lod-object` | [`lod-object.ts`](src/a-frame-components/lod-object.ts) | One per LOD instance — gathers materials, registers with the manager |
+| `lod-manager` | [`lod-manager.ts`](src/a-frame-components/lod-manager.ts) | One per module; ticks every `lod-object`, drives the crossfade + render-order banding |
+| `billboard` | [`billboard.ts`](src/a-frame-components/billboard.ts) | Spins an entity about Y to face the camera |
+| `unlit-material` | [`unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Flat/shadeless material technique, typically used on the billboard |
+
+**Assets:** none.
+
+Examples: [`lod-billboard-usage.html`](examples/lod-billboard-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Render Order
+
+Guide: [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Sets three.js `renderOrder` on every mesh of a loaded model, for
+controlling draw order among overlapping transparent surfaces. Applicable
+to any entity. Ported unchanged — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+for how this composes with [LOD + Billboard](#lod--billboard) (inside an
+`lod-object` group, this value means local order within that one group,
+not the final runtime value) and with Proximity Fade/Cutout's own material
+patching.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `render-order` | [`render-order.ts`](src/a-frame-components/render-order.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`render-order-usage.html`](examples/render-order-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
