@@ -56,8 +56,8 @@ same entity — the two would fight over driving the same model's pose (see
 | `clampWhenFinished` | boolean | `false` | Hold the final frame when a non-looping (`"once"`) clip finishes, instead of snapping back. |
 
 ```html
-<a-entity gltf-model="#MainCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
-<a-entity gltf-model="#Seeds" trim-loop-clip="loop: repeat"></a-entity>
+<a-entity gltf-model="#AnimatedCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
+<a-entity gltf-model="#AnimatedProp" trim-loop-clip="loop: repeat"></a-entity>
 ```
 
 Nothing to call — starts automatically once the model's clips are

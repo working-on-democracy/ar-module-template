@@ -11,12 +11,12 @@ declare const THREE: any;
 //     set" event) instead of just gltf-model's own model-loaded, so the
 //     fog exclusion also applies to a plain A-Frame primitive — the same
 //     gap found and fixed in every other material-touching component on
-//     this branch (see RENDER-ORDER-FEATURE-GUIDE.md §3 for the original
+//     this branch (see guides/RENDER-ORDER-FEATURE-GUIDE.md §3 for the original
 //     finding).
 //   - clones each material before setting `fog = false` on it, which the
 //     source did not. A glTF asset loaded via gltf-model shares one
 //     material object across every instance of that asset unless something
-//     clones it first (see RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2) —
+//     clones it first (see cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2) —
 //     without this fix, two ground-decal instances using the same decal
 //     asset at different distances would incorrectly share one fog
 //     setting: disabling fog on the near one would silently also disable

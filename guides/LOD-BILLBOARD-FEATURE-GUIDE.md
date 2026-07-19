@@ -139,7 +139,7 @@ that child, not on the `lod-object` entity):
 |---|---|
 | `data-lod-near` / `data-lod-far` | A tighter fade band for just this one part, layered on top of (multiplied with) the group fade above — e.g. a glow part that should only appear once the camera is genuinely close, even though the rest of the object is already "detailed" from farther out. Both must be set together. |
 | `data-opacity-override` | Replaces this part's own glTF-authored alpha outright (not a further dim) — for a part that's technically `alphaMode: BLEND` but barely translucent as modelled. |
-| `data-lod-dither` | Presence-only flag. Fades this part via a dithered discard instead of real alpha blending — use on a part that must reliably show through a translucent neighbour regardless of render-order. See `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §3`. |
+| `data-lod-dither` | Presence-only flag. Fades this part via a dithered discard instead of real alpha blending — use on a part that must reliably show through a translucent neighbour regardless of render-order. See [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §3](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#3-real-alpha-blending-vs-dithering-pick-correctly). |
 
 ### `billboard` — no attributes, always spins to face the camera.
 
@@ -215,7 +215,7 @@ for why presence alone isn't enough to check). `lod-manager` processes a
 rotating fraction of the registered set each frame (`chunksPerCycle`),
 computes each one's camera distance, and calls back into the blend math —
 plus re-ranks every instance by distance each frame to keep render-order
-bands correct (see `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2`).
+bands correct (see [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose)).
 
 ### `trueOpacity`, material cloning, dithering
 

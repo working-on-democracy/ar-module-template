@@ -13,7 +13,7 @@ const IDLE_SPEED = 1.0;
 // standalone on any one entity — put it directly on an entity with its own
 // full set of parameters — or apply it to a whole group of entities at once
 // with shared parameters via [proximity-wave-group] (see that component and
-// PROXIMITY-WAVE-FEATURE-GUIDE.md). Two motions, composed onto the transform
+// guides/PROXIMITY-WAVE-FEATURE-GUIDE.md). Two motions, composed onto the transform
 // every frame:
 //
 //   Wave  — a "someone nudged it" forward/back swing that fades in as the

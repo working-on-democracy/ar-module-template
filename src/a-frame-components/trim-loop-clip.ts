@@ -14,8 +14,8 @@ import type { ComponentDefinition } from "aframe";
 // LoopPingPong (back-and-forth) loop. Use it INSTEAD of `animation-mixer` on the
 // same entity as `gltf-model`:
 //
-//   <a-entity gltf-model="#MainCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
-//   <a-entity gltf-model="#Seeds" trim-loop-clip="loop: repeat"></a-entity>
+//   <a-entity gltf-model="#AnimatedCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
+//   <a-entity gltf-model="#AnimatedProp" trim-loop-clip="loop: repeat"></a-entity>
 //
 // When a model has multiple clips (e.g. a rig animation plus a separately
 // keyed submesh), each clip's own trimmed duration is rarely identical —

@@ -19,7 +19,7 @@ declare const THREE: any;
 // both operate on the same real PBR material via the same traverse/clone
 // step; keeping them as two separate components would double that
 // clone/traversal cost and double the registration-order surface documented
-// in RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2 for no real benefit — the
+// in cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2 for no real benefit — the
 // same reasoning unlit-material's own attribute set already grew from.
 //
 // KHR_materials_emissive_strength: these models' materials may use this
@@ -99,7 +99,7 @@ export default {
         // material (e.g. a glTF asset shared across several random-field
         // clones of the same referenced entity, still carrying the
         // pristine loader-parsed material — see
-        // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2) always gets its own
+        // cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2) always gets its own
         // independent clone, so tuning one instance never leaks onto
         // another instance sharing the same source asset.
         const alreadyOwned = mat.userData?.materialPropertiesOwner === self;

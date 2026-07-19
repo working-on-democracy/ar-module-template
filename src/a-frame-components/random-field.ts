@@ -16,13 +16,13 @@ import type { ComponentDefinition } from "aframe";
 // — a comma-separated list of ids works directly), so it can reference ANY
 // entity: a single mesh, or a whole hand-authored parent/child bundle (e.g.
 // an [lod-object] group with its own billboard — see
-// LOD-BILLBOARD-FEATURE-GUIDE.md). This component only clones and places —
+// guides/LOD-BILLBOARD-FEATURE-GUIDE.md). This component only clones and places —
 // it knows nothing about what's inside what it's cloning, and doesn't touch
 // LOD, render order, or motion at all; combine those separately by
 // authoring them directly on your referenced entity/entities (see
-// RANDOM-FIELD-FEATURE-GUIDE.md) or by adding [proximity-wave-group] on
+// guides/RANDOM-FIELD-FEATURE-GUIDE.md) or by adding [proximity-wave-group] on
 // this same entity once the field is built (see
-// PROXIMITY-WAVE-FEATURE-GUIDE.md).
+// guides/PROXIMITY-WAVE-FEATURE-GUIDE.md).
 //
 // Once cloned, each referenced entity is hidden (`visible: false`) so it
 // doesn't ALSO render at wherever you happened to author it — only the

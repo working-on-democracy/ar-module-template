@@ -8,12 +8,12 @@ import type { ComponentDefinition } from "aframe";
 //   <a-entity gltf-model="#MyModel" mesh-render-order="PartA: 1; PartB: 2; PartC: 3"></a-entity>
 //
 // Different granularity from [render-order] (see
-// RENDER-ORDER-FEATURE-GUIDE.md), which sets ONE uniform value across an
+// guides/RENDER-ORDER-FEATURE-GUIDE.md), which sets ONE uniform value across an
 // entire loaded model — that's the right tool when a whole object needs
 // ordering relative to OTHER objects; this is the right tool when a single
 // asset's own named sub-meshes need ordering relative to each other. Don't
 // use both on the same entity — see
-// MESH-RENDER-ORDER-FEATURE-GUIDE.md's incompatibilities section,
+// guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md's incompatibilities section,
 // including a real conflict with [lod-object]/[lod-manager] this port
 // found and documents rather than silently working around.
 export default {
@@ -25,7 +25,7 @@ export default {
     self.applyOrders = self.applyOrders.bind(self);
     // `object3dset` (A-Frame's generic "a mesh object3D was just set" event)
     // rather than gltf-model's own `model-loaded` — see
-    // RENDER-ORDER-FEATURE-GUIDE.md §3 for why this matters even though a
+    // guides/RENDER-ORDER-FEATURE-GUIDE.md §3 for why this matters even though a
     // multi-named-mesh asset is realistically always a glTF, not a plain
     // primitive (consistency with every other component in this family, and
     // it costs nothing).

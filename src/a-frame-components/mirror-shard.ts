@@ -14,7 +14,7 @@ declare const THREE: any;
 // Ported and reworked from Zhichang_module's `dms-mirror-shards` (an
 // artistic installation piece authored on another platform, then adapted
 // through two other AI assistants into this project) — see
-// MIRROR-SHARD-FEATURE-GUIDE.md for exactly what was kept, what was
+// guides/MIRROR-SHARD-FEATURE-GUIDE.md for exactly what was kept, what was
 // dropped, and why. In short: this keeps the tuned impact/idle motion
 // shader and the shard geometry, merges what the original left as 112
 // separate glass meshes/materials into one, and drops everything that

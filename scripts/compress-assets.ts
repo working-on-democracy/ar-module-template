@@ -158,7 +158,7 @@ async function compressGlb(filename: string, quality: QualityChoice, resize: Res
     // Rosa.glb has zero node names left at all) — plausibly the root cause
     // of mesh-render-order's original hardcoded "Mesh_1".."Mesh_8" map
     // never matching anything real, documented as an open question in
-    // MESH-RENDER-ORDER-FEATURE-GUIDE.md at the time. -km keeps named
+    // guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md at the time. -km keeps named
     // materials outright. -kn keeps names too, but NOT on the mesh node
     // itself — see reattachNamesToMeshNodes below for what it actually
     // does and why that still isn't enough on its own.

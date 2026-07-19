@@ -110,7 +110,7 @@ export const manifest: Manifest = {
     "proximity-wave-group": proximityWaveGroup,
     // LOD + billboard cross-fade system — see lod-object.ts / lod-manager.ts,
     // examples/lod-billboard-usage.html, and
-    // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for how this composes with
+    // cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for how this composes with
     // render-order below. unlit-material is the flat/shadeless material
     // technique the billboard side typically wants (generic, not
     // LOD-specific — see unlit-material.ts).
@@ -120,49 +120,49 @@ export const manifest: Manifest = {
     "unlit-material": unlitMaterial,
     // Per-mesh draw order for overlapping transparent surfaces — see
     // render-order.ts, examples/render-order-usage.html, and
-    // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md.
+    // cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md.
     "render-order": renderOrder,
     // Per-NAMED-mesh draw order within a single glTF asset — a finer
     // granularity than render-order above (whole-model vs. named-submesh).
     // See mesh-render-order.ts, examples/mesh-render-order-usage.html, and
-    // MESH-RENDER-ORDER-FEATURE-GUIDE.md (incompatible with lod-object —
+    // guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md (incompatible with lod-object —
     // see that guide's incompatibilities section).
     "mesh-render-order": meshRenderOrder,
     // Manual PBR material tuning (roughness/metalness/opacity/emissive) for
     // any loaded model — see material-properties.ts,
     // examples/material-properties-usage.html, and
-    // MATERIAL-PROPERTIES-FEATURE-GUIDE.md. Tunes the existing material in
+    // guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md. Tunes the existing material in
     // place (unlike unlit-material, which replaces it outright) — don't
     // combine the two on the same entity, see that guide's incompatibilities
     // section.
     "material-properties": materialProperties,
     // Manual (non-distance-driven) dithered transparency — see
     // dither-material.ts, examples/dither-material-usage.html, and
-    // DITHER-MATERIAL-FEATURE-GUIDE.md. A fourth material.onBeforeCompile
+    // guides/DITHER-MATERIAL-FEATURE-GUIDE.md. A fourth material.onBeforeCompile
     // writer alongside proximity-fade-dither/proximity-cutout/lod-object's
-    // internal dithering — see RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4
+    // internal dithering — see cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4
     // before combining any two of them on the same material.
     "dither-material": ditherMaterial,
     // Trims a glTF animation's dead lead-in (from a Blender export whose
     // preview range didn't start at frame 0) and loops it, keeping multiple
     // clips on one model in sync — see trim-loop-clip.ts,
     // examples/trim-loop-clip-usage.html, and
-    // TRIM-LOOP-CLIP-FEATURE-GUIDE.md. Use INSTEAD of animation-mixer on
+    // guides/TRIM-LOOP-CLIP-FEATURE-GUIDE.md. Use INSTEAD of animation-mixer on
     // the same entity.
     "trim-loop-clip": trimLoopClip,
     // Makes an entity follow another entity's world position (+ offset)
     // every frame, even if it isn't that entity's DOM child — see
     // attach-to.ts, examples/attach-to-usage.html, and
-    // ATTACH-TO-FEATURE-GUIDE.md (writes position every tick — don't
+    // guides/ATTACH-TO-FEATURE-GUIDE.md (writes position every tick — don't
     // combine with wander-in-band/proximity-wave on the same entity).
     "attach-to": attachTo,
     // Pins a decal plane flat on the ground under its parent's pivot and
     // excludes it from scene fog — see ground-decal.ts,
-    // examples/ground-decal-usage.html, and GROUND-DECAL-FEATURE-GUIDE.md.
+    // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
     "ground-decal": groundDecal
   }
 
-  // No image targets registered by default — see IMAGE-TRACKING-FEATURE-GUIDE.md
+  // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md
   // for how to add one (an `imageTargets: [yourTarget]` entry here, importing
   // your own src/image-targets/*.json).
 };

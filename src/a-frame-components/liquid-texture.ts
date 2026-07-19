@@ -88,7 +88,7 @@ export default {
     // Bracketed save/restore around the shared renderer's render-target and
     // WebXR state — this offscreen pass borrows the SAME renderer every
     // other module/component in the scene draws with (see
-    // LIQUID-TEXTURE-FEATURE-GUIDE.md's incompatibilities section for why
+    // guides/LIQUID-TEXTURE-FEATURE-GUIDE.md's incompatibilities section for why
     // this specific pattern, inherited from the source branch, is kept
     // rather than assumed safe to simplify away).
     const renderer = self.el.sceneEl?.renderer;

@@ -189,7 +189,7 @@ The convention adopted:
 - **Cross-feature reference docs live in `cross-feature-reference-docs/`**
   — anything that touches on features and functionality but brings a
   broader perspective the project needs and can't be pinned to one
-  specific feature (e.g. `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`, which
+  specific feature (e.g. `cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`, which
   spans Render Order, Mesh Render Order, LOD + Billboard, Material
   Properties, Dither Material, Proximity Fade, and Proximity Cutout — no
   single one of those guides is the right home for it). Put every future
@@ -224,10 +224,10 @@ belongs either. Split:
   part of the generic feature, or is it really just placeholder content?
 - **Artistic / project-specific content** — 3D models, recorded audio
   clips, anything that's *what this particular project's feature instance
-  happens to play or show*. The sound feature's Wand models and
+  happens to play or show*. The sound feature's exhibit models and
   German/English narration clips are this — they don't travel. They only
-  appear as illustrative placeholder ids in example markup (`#Wand1`,
-  `#English_wand_1`, ...), clearly explained as stand-ins a real project
+  appear as illustrative placeholder ids in example markup (`#Exhibit`,
+  `#EnglishNarration`, ...), clearly explained as stand-ins a real project
   replaces with its own content, not real shipped assets.
 
 When in doubt: would a *different* project using this feature plausibly want

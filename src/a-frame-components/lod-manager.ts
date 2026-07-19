@@ -17,7 +17,7 @@ declare const THREE: any;
 // so a manually-tagged, non-LOD transparent object elsewhere in the scene
 // can never numerically land inside an LOD-managed band and sort
 // inconsistently against it as the camera moves. See
-// RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full picture.
+// cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full picture.
 const RENDER_ORDER_BASE = 100000;
 
 export default {

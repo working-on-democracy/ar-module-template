@@ -15,7 +15,7 @@ declare const THREE: any;
 // Ported from Gyumin_module unchanged — already fully generic in the
 // source (no naming-convention or asset-specific logic). Writes
 // object3D.position directly, every tick — see
-// ATTACH-TO-FEATURE-GUIDE.md's incompatibilities section before combining
+// guides/ATTACH-TO-FEATURE-GUIDE.md's incompatibilities section before combining
 // with wander-in-band, proximity-wave, or anything else that also writes
 // this entity's position every tick.
 export default {

@@ -26,8 +26,8 @@
   any future tap-driven behavior (listen for "ar-button-tap"), or pair it
   with sound-button specifically for audio playback, as shown below.
 
-  A NOTE ON THE ASSET IDS BELOW: #Wand1, #English_wand_1, #Readittome, etc.
-  are illustrative only — stand-ins for a project's own 3D models/audio
+  A NOTE ON THE ASSET IDS BELOW: #Exhibit, #EnglishNarration, #EnglishIcon,
+  etc. are illustrative only — stand-ins for a project's own 3D models/audio
   clips, which aren't part of this template. The four #sound-* icon ids used
   in examples/sound-gui-panel.html ARE real assets already in src/assets/
   (sound-start.webp, sound-stop.webp, sound-play.webp, sound-pause.webp) —
@@ -46,20 +46,21 @@
 <a-entity ar-button-manager sound-controller>
 
   <!-- ============================================================
-       Example 1 — a pair of sound buttons on a 3D model, mirroring the
-       Wand/EN-DE button pairs this branch's ArModule.vue used.
+       Example 1 — a pair of sound buttons on a 3D model, one per
+       language of narration (e.g. an audio-guide exhibit with
+       English/German buttons).
        ============================================================ -->
-  <a-entity gltf-model="#Wand1" position="-3.2 -0.01 -2.5">
+  <a-entity gltf-model="#Exhibit" position="-3.2 -0.01 -2.5">
 
     <!-- Sound sources: A-Frame's built-in `sound` component, referencing an
-         asset id auto-derived from src/assets/ (English_wand_1.mp3 -> id
-         "English_wand_1"). autoplay: false — sound-button starts these. -->
-    <a-entity id="eng_sound" sound="src: #English_wand_1; autoplay: false"></a-entity>
-    <a-entity id="ger_sound" sound="src: #Deutsch_wand1; autoplay: false"></a-entity>
+         asset id auto-derived from src/assets/ (EnglishNarration.mp3 -> id
+         "EnglishNarration"). autoplay: false — sound-button starts these. -->
+    <a-entity id="eng_sound" sound="src: #EnglishNarration; autoplay: false"></a-entity>
+    <a-entity id="ger_sound" sound="src: #GermanNarration; autoplay: false"></a-entity>
 
     <a-plane
         id="eng_button"
-        src="#Readittome"
+        src="#EnglishIcon"
         material="shader: flat; transparent: true; alpha-test: 0.8"
         width="1" height="0.24"
         position="1.6 0.43 0.85" rotation="-10 -4 0"
@@ -72,7 +73,7 @@
          zoneOffset mirrored downward instead of upward. -->
     <a-plane
         id="ger_button"
-        src="#liesesmirvor"
+        src="#GermanIcon"
         material="shader: flat; transparent: true; alpha-test: 0.8"
         width="1" height="0.24"
         position="1.6 0.2 0.85" rotation="-10 -4 0"

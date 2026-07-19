@@ -11,7 +11,7 @@ import type { ComponentDefinition } from "aframe";
 // recomputes the actual runtime renderOrder every frame (offset by a
 // camera-distance-ranked band per group) — this component's own write above
 // still runs, but gets immediately superseded, harmlessly, the next time
-// lod-manager ticks. See RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full
+// lod-manager ticks. See cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full
 // mental model (why draw order matters at all, and how it composes with LOD).
 export default {
   schema: { type: "number", default: 0 },

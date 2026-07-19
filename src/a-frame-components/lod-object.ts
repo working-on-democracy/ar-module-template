@@ -38,7 +38,7 @@ export default {
     // Without the base, every instance would share the same small
     // render-order values and transparent meshes of different instances
     // would interleave (see lod-manager.updateRenderOrder, and
-    // RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full picture).
+    // cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md for the full picture).
     const orderEls = [...self.meshEls, self.billboardEl].filter(Boolean);
     let minOrder = Infinity;
     let maxOrder = -Infinity;
@@ -245,7 +245,7 @@ export default {
    * in front of it) can't rely on real alpha blending for that — blending
    * only reveals it correctly if the translucent part in front draws AFTER
    * it, i.e. depends on render-order/banding being exactly right every
-   * frame (see RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md). Discarding
+   * frame (see cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md). Discarding
    * fragments instead of blending them lets the material stay
    * `transparent = false` (forced here regardless of how the glTF
    * authored it) and `depthWrite = true`, so three.js puts it in the

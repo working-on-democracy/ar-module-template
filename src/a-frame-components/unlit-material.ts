@@ -19,7 +19,7 @@ declare const THREE: any;
 //     original mesh's shadow behavior (`keepShadowBehavior`), found and
 //     added while verifying this against a full-character unlit-shaded
 //     model with alphaMode: BLEND materials — see this component's section
-//     in LOD-BILLBOARD-FEATURE-GUIDE.md for why either might matter for a
+//     in guides/LOD-BILLBOARD-FEATURE-GUIDE.md for why either might matter for a
 //     given asset, and examples/unlit-material-usage.html for a standalone
 //     (non-LOD) worked example.
 export default {

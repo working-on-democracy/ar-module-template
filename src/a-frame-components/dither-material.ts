@@ -28,12 +28,12 @@ import type { ComponentDefinition } from "aframe";
 //     set" event) instead of just gltf-model's own model-loaded, so this
 //     also works on a plain A-Frame primitive — the same gap found and
 //     fixed in every other material-mutating component on this branch (see
-//     RENDER-ORDER-FEATURE-GUIDE.md §3 for the original finding).
+//     guides/RENDER-ORDER-FEATURE-GUIDE.md §3 for the original finding).
 //   - clones each material before mutating it, which the source did not: a
 //     glTF asset loaded via gltf-model shares one material object across
 //     every instance of that asset (e.g. several random-field clones of the
 //     same referenced entity) unless something clones it first — see
-//     RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2. Without this fix, a
+//     cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2. Without this fix, a
 //     second dither-material instance on a shared asset would silently
 //     no-op (guarded by the idempotency flag below, which the source set
 //     directly on the shared material), and remove() on ANY one instance
