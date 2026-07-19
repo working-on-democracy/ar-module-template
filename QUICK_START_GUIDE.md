@@ -15,6 +15,16 @@ shard-shatter effect, ...) that any project built from this template can
 pick and choose from. It isn't a finished artwork by itself — it's a
 starting point you copy pieces out of into your own scene.
 
+## Starting your own project, or just trying something out
+
+Don't build directly on the `feature_template` branch itself — it's the
+shared library every project starts from, and it needs to stay generic and
+uncluttered for the next person too. Create your **own branch (or fork)
+from `feature_template`**, and do all your project-specific work there:
+your own scene content, your own assets, any testing or experimenting.
+That's true whether you're starting a real project or just trying a
+feature out to see what it looks like.
+
 ## Working with an AI coding agent?
 
 If you're using an AI agent (Claude Code, Cursor, or similar) to help you
@@ -74,6 +84,34 @@ together is written down.
 
 You don't need to understand how these commands work internally — just run
 them and look at the result.
+
+## Contributing a feature back to `feature_template`
+
+If something you built on your own project turns out generic and useful
+enough that future projects should have it too, you can propose adding it
+to `feature_template` itself with a pull request. Before opening one,
+make sure it's ready:
+
+- **It's a finished feature, not a work-in-progress experiment.** Half-done
+  code that only covers your own project's use case isn't ready to share
+  yet.
+- **It doesn't duplicate something already there.** Check
+  [FEATURE-CATALOG.md](FEATURE-CATALOG.md) first — if something close
+  already exists, extend that instead of adding a near-identical second
+  version.
+- **It's universally usable, not specific to your project.** No hardcoded
+  values, ids, or assets that only make sense in your own scene — anything
+  like that needs to become a setting/attribute someone else can change.
+- **It follows [ADDING-FEATURES-WORKFLOW.md](ADDING-FEATURES-WORKFLOW.md)
+  in full** — this is the actual checklist a new feature is judged
+  against (design, file naming, the example file, the guide, the catalog
+  entry with its tags, checking it doesn't conflict with anything already
+  on the branch). Read it before you start, not after.
+- **It should only *add* — new components, a new guide, a new example —
+  not restructure or touch the template's basic structure** (`ArModule.vue`'s
+  baseline content, `manifest.ts`'s existing entries, the overall folder
+  layout). If you genuinely think the structure itself needs to change,
+  raise that separately rather than folding it into a feature PR.
 
 ## Where to find more
 
