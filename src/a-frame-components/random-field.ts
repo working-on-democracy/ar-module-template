@@ -300,6 +300,30 @@ export default {
   cloneItem(item: any, pos: Point, y: number, rot: { x: number; y: number; z: number }): Element {
     const clone = item.cloneNode(true) as any;
     clone.removeAttribute("id"); // clones must not duplicate the source's id
+
+    // A-Frame doesn't keep an already-initialized component's DOM attribute in
+    // sync with its live parsed data — cloneNode(true) only copies whatever's
+    // literally still in the DOM at clone time, which for a component like
+    // geometry/material (parsed once, not written back) can already be stale
+    // by the time an entity's been sitting on the page. Verified directly: a
+    // plain `geometry="primitive: cone; ..."` prop cloned by this component
+    // came out as a default white 1x1x1 box, not a coloured cone — the clone's
+    // OWN geometry/material components had silently fallen back to their
+    // schema defaults. Re-applying every live component's current `.data`
+    // (not the DOM attribute) onto the corresponding cloned element — for the
+    // whole subtree, not just the root, since a clone of an [lod-object]
+    // group carries its own nested geometry/material entities too — makes
+    // every clone self-contained regardless of what the DOM attribute still
+    // says. position/rotation/scale/visible are re-set again explicitly below
+    // with the field-computed values, so copying them here first is harmless.
+    const originalEls = [item, ...item.querySelectorAll("*")];
+    const cloneEls = [clone, ...clone.querySelectorAll("*")];
+    originalEls.forEach((originalEl: any, i: number) => {
+      const cloneEl = cloneEls[i];
+      const components = originalEl.components || {};
+      Object.keys(components).forEach((name) => cloneEl.setAttribute(name, components[name].data));
+    });
+
     clone.setAttribute("visible", "true"); // in case the source itself is hidden as a template
 
     const baseRot = item.getAttribute("rotation") || { x: 0, y: 0, z: 0 };

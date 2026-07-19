@@ -126,6 +126,31 @@ The Poisson-disk sampling algorithm itself, the `minCopyDistance`
 same-source-spacing logic, and the fixed-width/free-depth strip shape are
 all unchanged from the source.
 
+### Why cloning re-applies every component's live data, not just `cloneNode(true)`
+
+`cloneItem()` doesn't just call `item.cloneNode(true)` and move on — it also
+walks the cloned subtree in parallel with the source subtree and, for every
+element pair, re-applies each of the source element's currently-attached
+components' live `.data` onto the corresponding clone (via `setAttribute`),
+before the field-computed position/rotation/scale/`visible` are set on the
+root. This exists to fix a real, verified bug: `cloneNode(true)` only copies
+whatever's literally still in the DOM at clone time, but A-Frame doesn't
+necessarily keep an already-initialized component's raw HTML attribute in
+sync with its live parsed data. For a referenced entity built from A-Frame's
+own `geometry`/`material` components (e.g. a plain
+`<a-entity geometry="primitive: cone; ...">`, as used in
+`random-field-lod-billboard-proximity-wave-scene.html`), a bare
+`cloneNode(true)` clone silently fell back to those components' schema
+defaults instead of the authored shape/colour — verified directly by
+inspecting a clone's `components.geometry.data`, which came back
+`{"primitive":"box", ...}` and `components.material.data` with
+`{"color":"#FFF", ...}` instead of the authored cone/orange, with no console
+warning at all. `gltf-model`-sourced items (the more common case throughout
+this template's other examples) weren't observed to hit this, but the fix
+applies uniformly to every component on every element in the cloned
+subtree, not just `geometry`/`material` specifically, so there's nothing
+`items`-shape-specific left to work around.
+
 ### Placement algorithm
 
 Bridson's algorithm: seed one point at the front-centre (z = 0, right in
