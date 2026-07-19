@@ -1,4 +1,4 @@
-# Workflow: universalizing a feature into `feature_template`
+  # Workflow: universalizing a feature into `feature_template`
 
 The repeatable process for taking a feature built on one project-specific
 fork branch (e.g. `Jakob_module`) and porting it into `feature_template` as
@@ -6,6 +6,13 @@ a reusable, drop-in piece any future fork can adopt. `SOUND-FEATURE-GUIDE.md`
 is the worked example this workflow produced — read it alongside this file
 to see each step's concrete output. Follow this same sequence for the next
 feature, and name its guide `<FEATURE>-FEATURE-GUIDE.md` to match.
+`FEATURE-CATALOG.md` is the running index across every feature this
+workflow has produced so far — check it first to see what's already on
+this branch before starting a new port (step 12 covers checking the new
+feature against it for compatibility; step 10 covers keeping it updated).
+`QUICK_START_GUIDE.md` is a separate, short, non-technical guide for
+artists using this template's features — not part of researching or
+building a port, but step 11 covers when it needs a touch-up.
 
 ## 0. Keep `main` current — but don't touch feature branches with it
 
@@ -188,10 +195,59 @@ in this order, matching `SOUND-FEATURE-GUIDE.md`:
    generic vs feature-specific and why it was split that way), the key
    algorithms/state machines, and the non-obvious "why" behind any design
    decision inherited from the source branch or introduced during the port.
-4. **Incompatibilities, risks & troubleshooting** — see step 10; this
+4. **Incompatibilities, risks & troubleshooting** — see step 12; this
    section's content comes directly out of that check.
 
-## 10. Check for incompatibilities — against *everything* already there
+## 10. Update `FEATURE-CATALOG.md`
+
+`FEATURE-CATALOG.md` is the quick-lookup index across every feature on
+this branch — one line of "what it does" per feature, then a components
+table and an assets table, each with a one-line description and (for
+assets) where they're used. It exists so someone can find "which file
+implements X" or "what is this asset for" without opening every guide.
+Add the new feature's entry following the existing ones as a template:
+
+- One row in the top **Index** table (feature name, one-line description,
+  **source branch** — step 1's source branch, e.g. `Jakob_module` — and
+  link to its guide).
+- A "Guide: ... · Source: `<branch>`" line at the top of the feature's own
+  section, matching the Index row.
+- If the feature introduced a genuinely generic building block (like
+  `ar-button`), add it to the **Shared building blocks** table instead of
+  under the feature section, with an "Introduced by" note naming which
+  feature's port it was written during (and its source branch) — these
+  blocks are usually written fresh/generalized during a port, not copied
+  verbatim, so say that rather than implying they came from the source
+  branch as-is — and update that block's "Used by" column for any *other*
+  existing entry that also turns out to depend on it.
+- A features section: one-line description, a components table (name,
+  file, one-line description — mark non-component helper files, e.g. a
+  `-shared.ts` factory or a `-unlock-audio.ts` utility, with `—` in the
+  component-name column rather than omitting them), and an assets table
+  (asset, which example/component uses it, one-line function) or "none."
+- Cross-link related features that consume each other (as Mirror Shard and
+  Liquid Texture do) in both directions.
+
+Keep every description on this page to one line — it's an index, not a
+guide; the linked `<FEATURE>-FEATURE-GUIDE.md` is where the detail belongs.
+
+## 11. Check whether `QUICK_START_GUIDE.md` needs updating
+
+Unlike `FEATURE-CATALOG.md`, this is **not** an every-feature update —
+`QUICK_START_GUIDE.md` deliberately never names or lists individual
+features (it points to `FEATURE-CATALOG.md` for that), so adding a routine
+feature that fits the existing pattern (copy files, add lines to
+`manifest.ts`, paste example markup into `ArModule.vue`) usually needs no
+change there at all. Only revisit it if this feature (or the work around
+it) changed something the guide asserts about the *template itself* —
+e.g. a new top-level doc other artists should know about, a changed/added
+`npm run` command, a change to what goes in `src/manifest.ts` or how
+`ArModule.vue`/`examples/`/`src/assets/` are meant to be used, or a new
+rule of thumb worth adding. That guide is written for non-programmers, so
+if you do touch it: keep it short, avoid code detail, and don't let it
+grow into a second feature list.
+
+## 12. Check for incompatibilities — against *everything* already there
 
 This has to be redone, in full, every time a feature is added to
 `feature_template` — not just against the feature being added, but against
@@ -234,7 +290,7 @@ Fold whatever this check finds into the new feature's own guide (step 9,
 section 4) **and** go back and update any earlier feature's guide if the
 new feature reveals a risk that also applies to it.
 
-## 11. Commit
+## 13. Commit
 
 Only when explicitly asked. Stage exactly the feature's files — leave out
 unrelated local/untracked clutter that happens to be sitting in the working

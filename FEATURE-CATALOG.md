@@ -1,0 +1,162 @@
+now # Feature catalog
+
+A quick-lookup index of every feature universalized into this branch: what
+it does, which components implement it, and which assets it uses. Kept
+up to date as part of the workflow in `UNIVERSALIZING-FEATURES.md` (step
+10) — every new feature gets an entry here when its guide is written.
+
+For the full story on any one feature (setup steps, attribute reference,
+internals, known risks), follow the link in its **Guide** column to the
+matching `<FEATURE>-FEATURE-GUIDE.md`. This document is intentionally just
+the index — descriptions here are one line on purpose.
+
+## Index
+
+| Feature | What it does | Source branch | Guide |
+|---|---|---|---|
+| [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](SOUND-FEATURE-GUIDE.md) |
+| [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](PROXIMITY-FADE-FEATURE-GUIDE.md) |
+| [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
+| [Mirror Shard](#mirror-shard) | A field of 112 glass shards that ripple outward when tapped | `Zhichang_module` | [MIRROR-SHARD-FEATURE-GUIDE.md](MIRROR-SHARD-FEATURE-GUIDE.md) |
+| [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) |
+
+Not covered here: `main`'s own baseline demo content (`fish1.glb`,
+`jellyfish-video.mp4`, the `video-target` image target) — that's the
+template's own placeholder scene content, not a universalized feature.
+
+## Shared building blocks
+
+Components not owned by any one feature — generic/reusable by design, kept
+unprefixed per the naming convention in `src/manifest.ts`. Listed once
+here rather than repeated under every feature that uses them.
+
+| Component | File | What it does | Introduced by | Used by |
+|---|---|---|---|---|
+| `no-frustum-cull` | [`src/a-frame-components/no-frustum-cull.ts`](src/a-frame-components/no-frustum-cull.ts) | Keeps an animated glTF mesh from being frustum-culled once it moves outside its bind-pose bounding sphere | `main` template baseline | Template baseline (`main`); any feature with animated models |
+| `ar-button` | [`src/a-frame-components/ar-button.ts`](src/a-frame-components/ar-button.ts) | Declares an entity as a tappable/gazable button with a bounding-box trigger zone, gaze pulse, and optional distance fade | Written fresh while porting [Sound](#sound) from `Jakob_module` — generalized out of that source's tap/gaze code, not copied verbatim | [Sound](#sound) |
+| `ar-button-manager` | [`src/a-frame-components/ar-button-manager.ts`](src/a-frame-components/ar-button-manager.ts) | One per module; owns the gaze raycast and tap routing for every `ar-button` | Same as `ar-button` | [Sound](#sound) |
+
+## Sound
+
+Guide: [SOUND-FEATURE-GUIDE.md](SOUND-FEATURE-GUIDE.md) · Source: `Jakob_module`
+
+Tap a 3D button to play/pause/stop a sound (only one plays module-wide at
+a time), with an optional 2D screen-space GUI panel (restart/stop/
+play-pause) that mirrors the same state. Built on the generic `ar-button`
+system above rather than its own raycast/tap code.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `sound-controller` | [`sound-controller.ts`](src/a-frame-components/sound-controller.ts) | One per module; single-active-sound play/pause/stop state machine, drives the 2D GUI |
+| `sound-button` | [`sound-button.ts`](src/a-frame-components/sound-button.ts) | Plays/pauses/stops a `sound` entity on tap (place alongside `ar-button`) |
+| — *(not a component)* | [`sound-unlock-audio.ts`](src/a-frame-components/sound-unlock-audio.ts) | Shared iOS/Web Audio unlock helper, imported by `sound-controller.ts` |
+
+Also depends on the shared `ar-button` / `ar-button-manager` (see
+[Shared building blocks](#shared-building-blocks)).
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`sound-start.webp`](src/assets/sound-start.webp) | `examples/sound-gui-panel.html` | Restart icon on the 2D GUI panel |
+| [`sound-stop.webp`](src/assets/sound-stop.webp) | `examples/sound-gui-panel.html` | Stop icon |
+| [`sound-play.webp`](src/assets/sound-play.webp) | `examples/sound-gui-panel.html` | Play icon |
+| [`sound-pause.webp`](src/assets/sound-pause.webp) | `examples/sound-gui-panel.html` | Pause icon |
+
+Examples: [`ar-button-usage.html`](examples/ar-button-usage.html),
+[`sound-gui-panel.html`](examples/sound-gui-panel.html)
+
+## Proximity Fade
+
+Guide: [PROXIMITY-FADE-FEATURE-GUIDE.md](PROXIMITY-FADE-FEATURE-GUIDE.md) · Source: `Madleen_module`
+
+Fades a wrapped model's opacity in and/or out as the camera moves toward a
+configurable target point — two independent, order-independent distance
+ramps that combine into one appear-then-disappear window. Two
+interchangeable rendering techniques share one implementation.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| — *(not a component)* | [`proximity-fade-shared.ts`](src/a-frame-components/proximity-fade-shared.ts) | Shared schema/ramp/target logic both variants below are built from |
+| `proximity-fade` | [`proximity-fade.ts`](src/a-frame-components/proximity-fade.ts) | Real alpha-blended transparency variant |
+| `proximity-fade-dither` | [`proximity-fade-dither.ts`](src/a-frame-components/proximity-fade-dither.ts) | Dithered opaque-pass transparency variant (for objects overlapping other transparent materials) |
+
+**Assets:** none.
+
+Examples: [`proximity-fade-usage.html`](examples/proximity-fade-usage.html)
+
+## Proximity Cutout
+
+Guide: [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](PROXIMITY-CUTOUT-FEATURE-GUIDE.md) · Source: `Madleen_module`
+
+Dithers away fragments of a wrapped model within a radius of the camera,
+opening a hole that lets the camera "cut into" the model as it approaches.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `proximity-cutout` | [`proximity-cutout.ts`](src/a-frame-components/proximity-cutout.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`proximity-cutout-usage.html`](examples/proximity-cutout-usage.html)
+
+## Mirror Shard
+
+Guide: [MIRROR-SHARD-FEATURE-GUIDE.md](MIRROR-SHARD-FEATURE-GUIDE.md) · Source: `Zhichang_module`
+
+A field of 112 glass shards (three merged draw calls total) that ripple
+outward from tapped points with a gentle idle sway. Optionally shows an
+inner illustration layer powered by [Liquid Texture](#liquid-texture).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `mirror-shard` | [`mirror-shard.ts`](src/a-frame-components/mirror-shard.ts) | The shard field: geometry, impact/idle motion shader, tap-to-pulse |
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`mirror-shard-data/shards.json`](src/a-frame-components/mirror-shard-data/shards.json) | `mirror-shard.ts` (static import, not `src/assets/` — build-time geometry, not a runtime-loaded asset) | Bundled shard geometry: 112 triangles + per-shard seed/depth |
+
+Related feature: [Liquid Texture](#liquid-texture) (optional inner
+illustration layer, wired via the `liquidTarget` selector attribute).
+
+Examples: [`mirror-shard-usage.html`](examples/mirror-shard-usage.html),
+[`mirror-shard-liquid-texture-scene.html`](examples/mirror-shard-liquid-texture-scene.html)
+
+## Liquid Texture
+
+Guide: [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) · Source: `Zhichang_module`
+
+Generic, reusable procedural "liquid ink" texture generator — fbm marbling
+that optionally reveals a target image, with a swirl/cellular-bubble look.
+Renders to an offscreen texture any material can sample; not specific to
+Mirror Shard despite being salvaged from the same source branch (no
+feature prefix — see the naming-convention comment in `src/manifest.ts`).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `liquid-texture` | [`liquid-texture.ts`](src/a-frame-components/liquid-texture.ts) | The whole feature — generic, standalone |
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`liquid-texture-target-1.webp`](src/assets/liquid-texture-target-1.webp) | `examples/liquid-texture-usage.html`, `examples/mirror-shard-liquid-texture-scene.html` | Example `target` image (blue/civic-themed illustration) demonstrating the ink revealing a real photo |
+| [`liquid-texture-target-2.webp`](src/assets/liquid-texture-target-2.webp) | `examples/liquid-texture-usage.html`, `examples/mirror-shard-usage.html` | Second example `target` image (orange-themed illustration), paired with a different palette |
+
+Related feature: [Mirror Shard](#mirror-shard) (consumes this component's
+rendered texture for its inner illustration layer).
+
+Examples: [`liquid-texture-usage.html`](examples/liquid-texture-usage.html),
+[`mirror-shard-liquid-texture-scene.html`](examples/mirror-shard-liquid-texture-scene.html)
