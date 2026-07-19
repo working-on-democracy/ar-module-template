@@ -52,6 +52,16 @@ import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
 import type { Manifest } from "../lib/manifest.types";
+import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
+
+// Runs as soon as this module is imported — by the local previews AND by the
+// production host, since both must import `manifest` to do anything with this
+// module. Lets glb assets compressed with `scripts/compress-assets.ts`
+// (gltfpack -c under the hood) actually load; see gltf-meshopt-setup.ts and
+// cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md for why this is
+// necessary. Safe to call even if a project never compresses any assets —
+// idempotent, and a no-op cost otherwise.
+patchGLTFLoaderWithMeshoptDecoder();
 
 export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.

@@ -64,9 +64,16 @@ are doing what this repo calls **universalizing** — see §3.
    rules, LOD render-order banding. Applies across many features; not
    duplicated in each one. Any other doc that spans multiple features
    without belonging to one lives in this same folder — see §4 and §6.
-6. **`README.md`** — technical project layout/build details, only if you
+6. **`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`** — read
+   before compressing/resizing/reformatting anything in `src/assets/`, or
+   before debugging a `.glb` that stopped loading or lost some
+   name-dependent behavior. Covers `scripts/compress-assets.ts`, the
+   MeshOpt decoder patch, and two real, previously-found pitfalls (silent
+   geometry corruption from double-compressing, `gltfpack` relocating mesh
+   names off the mesh node).
+7. **`README.md`** — technical project layout/build details, only if you
    need build-system specifics not covered above.
-7. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
+8. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
    artist/end-user of the template, not another engineer. Deliberately
    shallow; don't treat it as a technical reference.
 
@@ -81,8 +88,10 @@ src/image-targets/             8th Wall image-target JSON + images, flat, non-re
 src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not a component)
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (e.g. render-order/transparency)
-lib/                            host/preview plumbing — not edited by a project fork
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression)
+lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts
+scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
+uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts
 *.md (repo root)                general, not-feature-specific docs (this file, workflow, catalog, README, quick-start)
 ```
 
@@ -152,6 +161,15 @@ lib/                            host/preview plumbing — not edited by a projec
   anything requiring a real XR8 session** — it's a stock-A-Frame preview
   with no camera engine at all. Use `npm run dev:ar` (or note the
   limitation explicitly) for anything camera/XR8-dependent.
+- **Never mesh/texture-compress an asset that's already compressed** —
+  always compress from the pristine original in `uncompressed-assets/`
+  (via `npm run compress-assets`, never by hand-invoking `gltfpack`
+  directly on a file already in `src/assets/`). Re-running `gltfpack -c`
+  on already-quantized geometry silently corrupts it further each time —
+  a real bug found on a past project. See
+  `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`. Also never
+  run any compression/resize tool against `src/image-targets/*.jpg` —
+  8th Wall reads those by exact filename/format for tracking.
 
 ## 6. Documentation maintenance obligations
 

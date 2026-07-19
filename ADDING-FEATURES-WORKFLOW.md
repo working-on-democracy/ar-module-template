@@ -233,6 +233,13 @@ belongs either. Split:
 When in doubt: would a *different* project using this feature plausibly want
 the exact same file? If yes, it's integral. If it's "content," it's not.
 
+Once an asset is confirmed integral, consider whether it's worth
+compressing before committing (`npm run compress-assets`) — see
+`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`. Not mandatory
+for every asset (a small icon doesn't need it), but a multi-megabyte
+`.glb` shipped uncompressed adds real load time to every project that
+copies the feature in.
+
 ## 6. Implement components, register in `manifest.ts` with a minimal diff
 
 Write the components in `src/a-frame-components/`. Register them in

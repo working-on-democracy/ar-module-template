@@ -51,6 +51,11 @@ scene's assets are still downloading — you don't need to touch this either
 (it works automatically for any assets you add), just don't delete it when
 editing the rest of the file.
 
+If your `.glb` files or images end up large enough to slow down loading,
+run `npm run compress-assets` — it walks you through compressing them
+(step by step, nothing to configure by hand) and always keeps your
+original files safe in a local `uncompressed-assets/` folder first.
+
 ## Adding a feature to your scene
 
 1. Open [FEATURE-CATALOG.md](FEATURE-CATALOG.md), find the feature you

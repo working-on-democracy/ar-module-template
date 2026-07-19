@@ -49,7 +49,10 @@ below — not a pick-and-choose feature, its own category instead.
 above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 (how draw order and material patching interact across Render Order,
 Mesh Render Order, LOD + Billboard, Material Properties, Dither Material,
-Proximity Fade, and Proximity Cutout — read before combining any of those).
+Proximity Fade, and Proximity Cutout — read before combining any of those)
+and [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md)
+(mesh/texture compression tooling and the MeshOpt decoder patch above —
+read before compressing anything in `src/assets/`).
 
 ## Shared building blocks
 
@@ -75,6 +78,7 @@ building blocks", which is specifically components registered via
 | Item | File(s) | What it does |
 |---|---|---|
 | Loading bar + spinner | [`src/asset-loading-overlay.ts`](src/asset-loading-overlay.ts) + the `<script>`/`<template>` blocks at the top/bottom of [`src/ArModule.vue`](src/ArModule.vue) | A thin top-of-screen progress bar and a centre-screen spinner, shown while this module's manifest assets are still loading; the 3D content stays hidden (`:visible="assetsLoaded"`) until everything's ready, then appears all at once instead of popping in piecemeal. Found identically re-implemented across every `_module` branch, so brought into the template baseline itself. Deliberately **not** an A-Frame component — 2D screen-space UI that has to exist and be visible *before* any 3D entity is ready, driven by Vue's `onMounted`/`onUnmounted` rather than any entity's lifecycle (see the comment at the top of `ArModule.vue`'s `<script>` block for the full reasoning). Works automatically for whatever assets your scene adds — nothing to copy in, nothing to register in `manifest.ts`. Also mentioned in [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md). |
+| MeshOpt decoder patch | [`lib/gltf-meshopt-setup.ts`](lib/gltf-meshopt-setup.ts) + vendored [`lib/vendor/meshopt_decoder.module.js`](lib/vendor/meshopt_decoder.module.js), called once from [`src/manifest.ts`](src/manifest.ts) | Patches every `THREE.GLTFLoader` instance so `gltfpack -c`-compressed `.glb` files (produced by [`scripts/compress-assets.ts`](scripts/compress-assets.ts), `npm run compress-assets`) actually load — A-Frame/8th Wall never wire this up themselves, so without it a meshopt-compressed asset fails to load at all. Idempotent, near-zero cost even if a project never compresses anything. Full picture, including the compression tool itself and real pitfalls found producing compressed assets on past projects, in [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md). |
 
 ## Sound
 

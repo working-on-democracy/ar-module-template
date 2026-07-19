@@ -17,14 +17,19 @@ ar-module-template/
 │   ├── assets/                 # drop .glb/.png/.mp3/… here — auto-derived into the manifest
 │   ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
 │   └── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
-└── lib/                   # internal plumbing — not meant to be edited by a fork
-    ├── main.ts                # entry: re-exports the SFC as default + the manifest
-    ├── manifest.types.ts      # Manifest/CameraProps/CameraSettings/ManifestAsset types
-    ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
-    ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
-    ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
-    ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
-    └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
+├── lib/                   # internal plumbing — not meant to be edited by a fork
+│   ├── main.ts                # entry: re-exports the SFC as default + the manifest
+│   ├── manifest.types.ts      # Manifest/CameraProps/CameraSettings/ManifestAsset types
+│   ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
+│   ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
+│   ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
+│   ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
+│   ├── gltf-meshopt-setup.ts  # patches THREE.GLTFLoader so meshopt-compressed .glb files load
+│   ├── vendor/                # vendored meshopt decoder (gltf-meshopt-setup.ts's only dependency)
+│   └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
+├── scripts/
+│   └── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
+└── uncompressed-assets/   # gitignored, local-only; pristine originals kept by compress-assets.ts
 ```
 
 ## Workflow
@@ -97,6 +102,20 @@ Drop any binary asset (`.glb`, `.gltf`, `.png`, `.mp3`, …) into `src/assets/`.
 - `npm run dev` serves the assets at `/assets/*` and injects them into the standalone preview scene, so models resolve exactly as they will in the host.
 
 When you publish, host the **whole `dist-platform/` folder together** so the relative `assets/…` paths in the manifest resolve next to the page that loads them.
+
+### Compressing assets before shipping
+
+`npm run compress-assets` — an interactive script (`scripts/compress-assets.ts`)
+that mesh-compresses `.glb` files (`gltfpack -c`) and re-encodes textures
+(embedded or standalone) as WebP, with a resize option. Every pristine
+original is preserved in `uncompressed-assets/` (gitignored, local-only)
+before anything is touched, so re-running with different settings is
+always safe. See
+[cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md)
+for the full picture, including two non-obvious pitfalls it exists to
+avoid (silent geometry corruption from re-compressing an already-compressed
+`.glb`, and `gltfpack` relocating mesh names to a different node than
+where existing code expects to find them).
 
 ## The manifest: components, camera & image targets
 
