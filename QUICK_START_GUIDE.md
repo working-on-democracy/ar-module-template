@@ -15,6 +15,15 @@ shard-shatter effect, ...) that any project built from this template can
 pick and choose from. It isn't a finished artwork by itself — it's a
 starting point you copy pieces out of into your own scene.
 
+## Working with an AI coding agent?
+
+If you're using an AI agent (Claude Code, Cursor, or similar) to help you
+build your scene, point it at [AGENTS.md](AGENTS.md) *first*, before
+asking it to do anything else. It's written for the agent, not for you —
+dense, technical, and not meant to be pleasant reading — but having it
+read that file first gets it oriented on this project's structure and
+rules before it touches anything, the same way this page gets you oriented.
+
 ## The files you'll actually work with
 
 | File / folder | What it's for |
@@ -25,7 +34,12 @@ starting point you copy pieces out of into your own scene.
 | `src/manifest.ts` | The "switchboard" that turns a feature on for your project — a short list of one import + one line per feature you've copied in. A feature's own guide tells you exactly what to add here; you don't need to understand the file beyond that. |
 
 Everything else in the project (the `lib/` folder especially) is shared
-internal plumbing — you shouldn't need to open or edit it.
+internal plumbing — you shouldn't need to open or edit it. One exception
+worth knowing about: the top of `ArModule.vue` and the very end of its
+`<template>` section contain the loading bar + spinner shown while your
+scene's assets are still downloading — you don't need to touch this either
+(it works automatically for any assets you add), just don't delete it when
+editing the rest of the file.
 
 ## Adding a feature to your scene
 
@@ -67,6 +81,7 @@ them and look at the result.
 |---|---|
 | [README.md](README.md) | The full technical documentation — build details, project structure, how the module talks to the host app. Read this if you need more depth than this page or hit something technical this page doesn't cover. |
 | [FEATURE-CATALOG.md](FEATURE-CATALOG.md) | The index of every available feature, with links to each one's guide. Start here when looking for a specific effect. |
-| `<FEATURE>-FEATURE-GUIDE.md` (one per feature) | How to use one specific feature: setup steps, every attribute you can set, and anything to watch out for. |
-| Cross-feature reference docs (e.g. `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`) | Not tied to one feature — covers a topic that spans several (like how draw order and see-through materials interact). Linked from the "Incompatibilities" section of any feature guide it applies to; only worth opening on its own if you're combining several features that touch the same thing (materials, draw order, ...). |
-| [UNIVERSALIZING-FEATURES.md](UNIVERSALIZING-FEATURES.md) | Only relevant if you're the one *building a new feature into* this template — not needed just to use what's already here. |
+| `guides/<FEATURE>-FEATURE-GUIDE.md` (one per feature) | How to use one specific feature: setup steps, every attribute you can set, and anything to watch out for. All per-feature guides live in the `guides/` folder — reach them via the link in `FEATURE-CATALOG.md` rather than guessing the filename. |
+| `cross-feature-reference-docs/*.md` (e.g. `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`) | Not tied to one feature — covers a topic that spans several (like how draw order and see-through materials interact). Linked from the "Incompatibilities" section of any feature guide it applies to; only worth opening on its own if you're combining several features that touch the same thing (materials, draw order, ...). |
+| [ADDING-FEATURES-WORKFLOW.md](ADDING-FEATURES-WORKFLOW.md) | Only relevant if you're the one *building a new feature into* this template — not needed just to use what's already here. |
+| [AGENTS.md](AGENTS.md) | Not written for you — written for an AI agent. Point an AI coding agent at this file before asking it to work in this project; see "Working with an AI coding agent?" above. |

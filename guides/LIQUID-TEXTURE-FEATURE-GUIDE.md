@@ -117,7 +117,7 @@ paired with the specific two-choice political metaphor the source
 installation was built around ("democratic blue" vs. "authoritarian
 orange"). Porting it verbatim into a universal template would be closer to
 keeping another fork's specific artwork than to porting a technique — the
-same category of thing `UNIVERSALIZING-FEATURES.md` already says not to do
+same category of thing `ADDING-FEATURES-WORKFLOW.md` already says not to do
 with project-specific assets, just expressed in shader math instead of an
 image file.
 
@@ -149,7 +149,7 @@ only has meaning with two inks. `pigmentBoost`/`hash`/`noise`/`fbm`/`swirl`/
 in specifically so `examples/liquid-texture-usage.html` can demonstrate the
 `target` attribute against an actual photo rather than a placeholder id
 that doesn't resolve to anything. This is a deliberate, narrow exception to
-`UNIVERSALIZING-FEATURES.md`'s "don't bring project-specific artistic
+`ADDING-FEATURES-WORKFLOW.md`'s "don't bring project-specific artistic
 content into the template" guidance from the earlier features' guides — the
 two illustrations themselves are generic enough (abstract silhouette
 scenes, no text or explicit political symbols) to serve as reusable *demo*

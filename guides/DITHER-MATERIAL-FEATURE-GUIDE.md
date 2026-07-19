@@ -23,7 +23,7 @@ src/a-frame-components/dither-material.ts
 examples/dither-material-usage.html   # scene wiring + full attribute reference
 ```
 
-No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 before using this** — the dithering mental model (why a screen-door discard
 instead of real alpha blending, `customProgramCacheKey` collisions) is
 covered there, not repeated here.
@@ -97,7 +97,7 @@ immediate check in case the mesh is already present, then traverses every
 mesh and (re)places its material with a dithered clone. The dither itself
 injects the selected pattern's threshold function into the fragment shader
 (`onBeforeCompile`, pinned to a distinct `customProgramCacheKey` — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching)
 for why that pin is required) and forces the material into the **opaque**
 render queue (`transparent: false`, `depthWrite: true`) so the discard —
 not draw order — is what makes it see-through. This template's other two
@@ -114,7 +114,7 @@ somewhere in this codebase, rather than fixing this component to just one.
 `owned.customProgramCacheKey` is `"dither-material-" + ditherType`, not a
 static string — three.js's default cache key doesn't fold in
 `onBeforeCompile` edits at all (see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching)),
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching)),
 so a static key here would let a `bayer`-dithered material and a
 `noise`-dithered material silently share one compiled program — whichever
 of the two compiled first would "win" and both would render with the same
@@ -139,7 +139,7 @@ loaded via `gltf-model` shares one material object across every instance of
 that asset (e.g. several [`random-field`](RANDOM-FIELD-FEATURE-GUIDE.md)
 clones of the same referenced entity) unless something clones it first —
 see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
 Concretely, on the source as written: a second `dither-transparency`
 instance sharing that same source material would see the idempotency flag
 the first instance already set directly on the shared object and silently
@@ -161,7 +161,7 @@ This template now has **four** independent components that patch
 `setupDitherMaterial()`, and now this one. All four follow the same
 "whichever patches a given material last wins, the other goes silently
 inert" rule already documented in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching) —
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching) —
 this port doesn't change that rule, it just adds a fourth participant to
 it. Don't target the same material with `dither-material` and any of the
 other three at once.
@@ -172,7 +172,7 @@ Both clone-then-mutate the same material rather than replacing it
 outright, so tuning roughness/metalness/opacity *then* dithering the
 result is a plausible, supported combination — but same-element
 registration order decides who operates on whose output, per
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters).
 Author `material-properties` before `dither-material` in markup if you
 want the tuned values to be what gets dithered.
 
@@ -183,7 +183,7 @@ want the tuned values to be what gets dithered.
 component's dithered clone if it runs afterward) — same category of
 conflict already documented for `proximity-fade`/`proximity-cutout` vs.
 `unlit-material`, see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.5](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.5](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions).
 
 ### No interaction found with any other feature on this branch
 

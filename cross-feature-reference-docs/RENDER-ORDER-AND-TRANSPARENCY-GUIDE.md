@@ -2,11 +2,11 @@
 
 A cross-feature reference for how three.js actually resolves overlapping
 transparent surfaces, and where the sharp edges are when combining
-[Render Order](RENDER-ORDER-FEATURE-GUIDE.md),
-[Mesh Render Order](MESH-RENDER-ORDER-FEATURE-GUIDE.md),
-[LOD + Billboard](LOD-BILLBOARD-FEATURE-GUIDE.md),
-[Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md),
-[Dither Material](DITHER-MATERIAL-FEATURE-GUIDE.md),
+[Render Order](../guides/RENDER-ORDER-FEATURE-GUIDE.md),
+[Mesh Render Order](../guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md),
+[LOD + Billboard](../guides/LOD-BILLBOARD-FEATURE-GUIDE.md),
+[Material Properties](../guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md),
+[Dither Material](../guides/DITHER-MATERIAL-FEATURE-GUIDE.md),
 or any other feature that patches materials (`proximity-fade`,
 `proximity-cutout`) in the same scene. Adapted and generalized from an
 internal engineering doc written on `Gyumin_production` (source branch:
@@ -59,8 +59,8 @@ is the *only* thing keeping it composited correctly.
 
 ## 2. How `render-order` + `lod-object`/`lod-manager` compose
 
-Within one [`lod-object`](LOD-BILLBOARD-FEATURE-GUIDE.md) group, each
-`.lod-mesh`/`.lod-billboard` child's [`render-order`](RENDER-ORDER-FEATURE-GUIDE.md)
+Within one [`lod-object`](../guides/LOD-BILLBOARD-FEATURE-GUIDE.md) group, each
+`.lod-mesh`/`.lod-billboard` child's [`render-order`](../guides/RENDER-ORDER-FEATURE-GUIDE.md)
 attribute gives it a small integer. `lod-object` normalizes these to a
 local 0-based range (`_lodRenderOrder - minOrder`). That's only correct
 *within* one group, though — if every LOD instance in a scene reused small
@@ -99,7 +99,7 @@ decide, every frame.
 
 ### `mesh-render-order` does *not* compose the same way — real conflict, not just a nuance
 
-[`mesh-render-order`](MESH-RENDER-ORDER-FEATURE-GUIDE.md) sets `renderOrder`
+[`mesh-render-order`](../guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md) sets `renderOrder`
 per **named sub-mesh** within one loaded model, a finer granularity than
 `render-order`'s one-value-per-whole-model. Unlike `render-order` above,
 this one does **not** survive being placed inside an `lod-object` group:
@@ -111,7 +111,7 @@ shared value on the very next tick. This is confirmed by tracing
 `lod-manager`'s render-order assignment directly, not a "might" — don't put
 `mesh-render-order` on a `.lod-mesh`/`.lod-billboard` child or anywhere
 under an active `lod-object`. Full writeup in
-[MESH-RENDER-ORDER-FEATURE-GUIDE.md §4](MESH-RENDER-ORDER-FEATURE-GUIDE.md#4-incompatibilities-risks--troubleshooting).
+[MESH-RENDER-ORDER-FEATURE-GUIDE.md §4](../guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md#4-incompatibilities-risks--troubleshooting).
 
 ## 3. Real alpha blending vs. dithering: pick correctly
 
@@ -134,7 +134,7 @@ render-order change shifts the relative order.
 **The fix, when you need a part to reliably show through a translucent
 neighbour regardless of render-order:** `lod-object.ts`'s
 `setupDitherMaterial()` (wired up via the `data-lod-dither` attribute — see
-[LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md)) converts
+[LOD-BILLBOARD-FEATURE-GUIDE.md](../guides/LOD-BILLBOARD-FEATURE-GUIDE.md)) converts
 that part's own near/far fade from real opacity into a **dithered
 discard** (screen-door transparency: a per-pixel `discard` driven by an
 interleaved-gradient-noise threshold). This lets the part stay
@@ -172,7 +172,7 @@ Any component that mutates a loaded model's material (opacity,
 (`material.clone()`). **Why it matters:** glTF assets loaded via
 `gltf-model` share one underlying material object across every instance of
 that asset — every clone of the same source entity (e.g. via
-[`random-field`](RANDOM-FIELD-FEATURE-GUIDE.md)) reuses the same loaded
+[`random-field`](../guides/RANDOM-FIELD-FEATURE-GUIDE.md)) reuses the same loaded
 resource unless something clones it. Mutating in place would leak one
 instance's fade/tint state onto every other copy. `lod-object.ts` already
 does this correctly; if you write a new material-mutating component, follow
@@ -201,7 +201,7 @@ program with — or have one shared onto it by — a materially different
 key.
 
 **This isn't just an LOD concern** — `proximity-fade`/`proximity-fade-dither`,
-`proximity-cutout`, and [`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md)
+`proximity-cutout`, and [`dither-material`](../guides/DITHER-MATERIAL-FEATURE-GUIDE.md)
 (see their own guides) all already use `onBeforeCompile` + a pinned
 `customProgramCacheKey` for the same reason — four independent writers in
 total, counting LOD's own `setupDitherMaterial()`. If a project combines
@@ -242,8 +242,8 @@ this project pins — don't combine `unlit-material` with `proximity-fade`/
 `proximity-cutout` on the same entity without testing directly.
 
 The same replace-vs-tune conflict applies to
-[`material-properties`](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) and
-[`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md) — both clone and
+[`material-properties`](../guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) and
+[`dither-material`](../guides/DITHER-MATERIAL-FEATURE-GUIDE.md) — both clone and
 *mutate* whatever material is already there rather than patching shader
 code, so the mechanism differs slightly from the proximity features above,
 but the outcome is the same: `MeshBasicMaterial` has no
@@ -314,14 +314,14 @@ in `el.components` means "ready."
 
 | If you touch… | Watch out for… |
 |---|---|
-| A standalone [`render-order`](RENDER-ORDER-FEATURE-GUIDE.md) value | Nothing, as long as it's outside any `lod-object` group — `RENDER_ORDER_BASE` guarantees LOD's own dynamic bands can't collide with it (§2). |
+| A standalone [`render-order`](../guides/RENDER-ORDER-FEATURE-GUIDE.md) value | Nothing, as long as it's outside any `lod-object` group — `RENDER_ORDER_BASE` guarantees LOD's own dynamic bands can't collide with it (§2). |
 | `render-order` inside an `lod-object` group | Only affects ordering *within* that one instance's own transparent-list members (§2) — not a substitute for `data-lod-dither` (§3) when something MUST reliably show through a translucent neighbour. |
-| [`mesh-render-order`](MESH-RENDER-ORDER-FEATURE-GUIDE.md) alongside LOD + Billboard | Real conflict, not just a nuance — never place on a `.lod-mesh`/`.lod-billboard` child or anywhere under an active `lod-object` (§2). `lod-manager` overwrites every mesh in that child with one shared `renderOrder` value every frame. |
+| [`mesh-render-order`](../guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md) alongside LOD + Billboard | Real conflict, not just a nuance — never place on a `.lod-mesh`/`.lod-billboard` child or anywhere under an active `lod-object` (§2). `lod-manager` overwrites every mesh in that child with one shared `renderOrder` value every frame. |
 | `lod-object.ts`'s material clone/mutate block | Registration order relative to any other material-mutating component on the same element (§5.2). Also: a new override flag (like `dither`) needs a matching branch in `lod-manager.ts`'s `applyBlend()`, or the fade will silently do nothing. |
 | `lod-manager.ts`'s `applyBlend`/`updateRenderOrder` | Runs for *every* registered instance every frame — a per-object branch here is a per-frame cost multiplied by field size; keep new logic cheap. |
 | `proximity-fade`/`proximity-fade-dither`/`proximity-cutout` alongside LOD | Don't target the exact same material with both an LOD dithered part and a proximity effect (§4.4) — last `onBeforeCompile` patch wins, the other goes silently inert. |
 | `unlit-material` alongside `proximity-fade`/`proximity-cutout` | Don't put both on the same entity (§4.5) — `unlit-material` replaces the material object outright, not just patches it, so whichever runs first silently discards the other's effect. Not fully verified against this project's pinned three.js shader chunks; test directly if combined. |
-| [`dither-material`](DITHER-MATERIAL-FEATURE-GUIDE.md) alongside LOD, `proximity-fade-dither`, or `proximity-cutout` | A fourth `onBeforeCompile` writer (§4.4) — don't target the same material with two of these four at once, last patch wins. |
-| [`material-properties`](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) or `dither-material` alongside `unlit-material` | Don't put either on the same entity as `unlit-material` (§4.5) — same replace-vs-tune conflict as the proximity features above. |
+| [`dither-material`](../guides/DITHER-MATERIAL-FEATURE-GUIDE.md) alongside LOD, `proximity-fade-dither`, or `proximity-cutout` | A fourth `onBeforeCompile` writer (§4.4) — don't target the same material with two of these four at once, last patch wins. |
+| [`material-properties`](../guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) or `dither-material` alongside `unlit-material` | Don't put either on the same entity as `unlit-material` (§4.5) — same replace-vs-tune conflict as the proximity features above. |
 | `material-properties` alongside `dither-material` | Both clone-then-mutate (not replace), so combining is supported — but same-element registration order decides who tunes whose output (§5.2). Author `material-properties` first if you want its values to be what gets dithered. |
 | Adding any new material-mutating component | Ask: does it run on the same element as another material-mutating component? If yes, registration order decides who sees whose output (§5.2) — make that explicit in a comment. |

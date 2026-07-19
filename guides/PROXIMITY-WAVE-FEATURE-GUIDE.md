@@ -152,7 +152,7 @@ awareness of anything else doing the same. Combining with
 [`ground-decal`](GROUND-DECAL-FEATURE-GUIDE.md) with `live: true`) on the
 *same* entity means whichever component's `tick()` runs last —
 same-element registration order, per
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters) —
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters) —
 simply overwrites whatever the other just set. `proximity-wave-group`
 itself is unaffected (it only sets an attribute on children, never a
 transform directly), but any individual `proximity-wave` child it drives

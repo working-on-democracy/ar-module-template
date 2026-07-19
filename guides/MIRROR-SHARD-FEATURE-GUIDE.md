@@ -16,7 +16,7 @@ duplicated functionality this template already gets from 8th Wall + A-Frame
 natively, which is exactly what wasn't wanted here).
 
 This is the worked example (alongside `LIQUID-TEXTURE-FEATURE-GUIDE.md`) for
-`UNIVERSALIZING-FEATURES.md`'s general process, extended with a new kind of
+`ADDING-FEATURES-WORKFLOW.md`'s general process, extended with a new kind of
 step: *salvaging* a feature from a branch whose overall approach (custom AR
 placement, in this case) isn't wanted at all, keeping only one specific
 visual effect out of a much larger, tangled prototype.
@@ -195,17 +195,17 @@ anything material- or mesh-instance-specific.
 ### Tap handling
 
 Listens for the plain `click` event A-Frame's cursor/raycaster system
-synthesizes for `.cantap`-classed elements (the same mechanism `main`'s
-`xrextras-play-video` uses, and the same one the source branch's own
-`dms-installation` entity already used via `class="cantap"` in its
-`ArModule.vue`) — **not** the `ar-button`/`ar-button-manager` system
-(`pointerdown`/`pointerup`). This was a deliberate choice to preserve, not
-a gap: the source already used the host's standard tap mechanism correctly,
-so there was nothing to fix here, and no interference risk from a *second*
-raycast/tap system being introduced. See
-[4](#4-incompatibilities-risks--troubleshooting) for a caveat on `click`
-specifically, inherited from the same finding already documented for
-`main`'s image-target feature.
+synthesizes for `.cantap`-classed elements (the same mechanism
+[Image Tracking](IMAGE-TRACKING-FEATURE-GUIDE.md)'s `xrextras-play-video`
+uses, and the same one the source branch's own `dms-installation` entity
+already used via `class="cantap"` in its `ArModule.vue`) — **not** the
+`ar-button`/`ar-button-manager` system (`pointerdown`/`pointerup`). This
+was a deliberate choice to preserve, not a gap: the source already used the
+host's standard tap mechanism correctly, so there was nothing to fix here,
+and no interference risk from a *second* raycast/tap system being
+introduced. See [4](#4-incompatibilities-risks--troubleshooting) for a
+caveat on `click` specifically, inherited from the same finding already
+documented for Image Tracking.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
@@ -221,14 +221,14 @@ it in markup. Forgetting it doesn't error — the field just never receives
 a `click` and never pulses on its own (you can still drive it via
 `pulse()` from other code).
 
-### The same `click`-suppression risk already documented for `main`'s image-target feature
+### The same `click`-suppression risk already documented for [Image Tracking](IMAGE-TRACKING-FEATURE-GUIDE.md)
 
 `SOUND-FEATURE-GUIDE.md` documents that iOS Safari has been observed to
 suppress the synthetic `click` A-Frame's cursor system produces, once
 anything upstream in that touch sequence (e.g. `xrextras-gesture-detector`,
 used for pinch/rotate) called `preventDefault()` — which is exactly why the
 sound feature's own tap system uses raw `pointerdown`/`pointerup` instead.
-`mirror-shard` (like `main`'s `xrextras-play-video`) uses `click`, so it's
+`mirror-shard` (like Image Tracking's `xrextras-play-video`) uses `click`, so it's
 subject to the same risk: if a project combines pinch/rotate gestures with
 a tappable mirror-shard field, tapping it may fail specifically on iPad/
 iPhone. Not verified directly here either — same recommendation as the

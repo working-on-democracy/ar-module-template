@@ -25,7 +25,7 @@ examples/mesh-render-order-unlit-material-rosa-scene.html # recreates
                                     # with unlit-material
 ```
 
-**Assets:** [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) —
+**Assets:** [`mesh-render-order-rosa.glb`](../src/assets/mesh-render-order-rosa.glb) —
 used only by the combined example above; not required to use this
 component on your own assets. The scene it recreates is `Rosa_module`'s own
 (matching the "Source" line above), but the `.glb` itself was pulled from a
@@ -33,7 +33,7 @@ different branch, plain `Rosa` — see [3](#3-under-the-hood) for why
 `Rosa_module`'s own copy of this asset couldn't be used for a working
 example.
 
-**Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+**Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 before using this on anything transparent** — same underlying render-queue
 mental model as [Render Order](RENDER-ORDER-FEATURE-GUIDE.md) applies here
 too, just at named-submesh granularity instead of whole-model granularity.
@@ -171,7 +171,7 @@ Same render-queue fundamentals as `render-order`: only sorts within the
 opaque or transparent render queue (never across them), sorts whole mesh
 nodes not individual triangles, and falls back to camera-distance sorting
 for two nodes with equal values. See
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.1](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#41-renderorder-cannot-fix-everything).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.1](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#41-renderorder-cannot-fix-everything).
 
 ### Real conflict with LOD + Billboard — checked, and it does conflict
 
@@ -194,7 +194,7 @@ loaded model is a plain, uniform `node.renderOrder` write — `lod-manager`
 has no awareness of it and will silently stomp it every single frame the
 instance is active, collapsing every named sub-mesh back to one shared
 value. This is a real, confirmed conflict (not a "not tested yet" caveat
-like [§4.5 below](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions)),
+like [§4.5 below](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions)),
 found by tracing exactly how `lod-manager` assigns render order rather than
 assumed.
 

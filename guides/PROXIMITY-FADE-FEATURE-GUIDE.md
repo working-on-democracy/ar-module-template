@@ -7,7 +7,7 @@ rendering techniques (real alpha transparency vs. dithered opaque-pass) share
 one implementation. Ported from `Madleen_module`; **not** the same feature as
 proximity-cutout (see `PROXIMITY-CUTOUT-FEATURE-GUIDE.md`) — they look
 related but do different things and have separate guides, per the project's
-`UNIVERSALIZING-FEATURES.md` workflow.
+`ADDING-FEATURES-WORKFLOW.md` workflow.
 
 Files:
 
@@ -294,13 +294,13 @@ whatever `proximity-fade` range governs the same object's visibility, or
 disable the button (`enabled: false`) by whatever other signal you're using
 to drive the fade.
 
-### Interaction with the image-target feature in `main`
+### Interaction with [Image Tracking](IMAGE-TRACKING-FEATURE-GUIDE.md)
 
 No interaction found. `proximity-fade`/`-dither` only patches materials
 reached via a bubbled `model-loaded` event from a `gltf-model` descendant;
-`main`'s `xrextras-play-video` content is a plane with a video texture
-material, not a `gltf-model`, so it never triggers `model-loaded` and is
-never touched by this feature regardless of scene nesting.
+that feature's `xrextras-play-video` content is a plane with a video
+texture material, not a `gltf-model`, so it never triggers `model-loaded`
+and is never touched by this feature regardless of scene nesting.
 
 ### Interaction with LOD + Billboard's dithered fade
 
@@ -311,7 +311,7 @@ porting that feature (see `LOD-BILLBOARD-FEATURE-GUIDE.md`): an
 LOD part around the exact same `gltf-model` and only one of the two
 effects renders — neither composes with the other, whichever attaches last
 wins. Full mental model in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
 
 ### General constraints
 

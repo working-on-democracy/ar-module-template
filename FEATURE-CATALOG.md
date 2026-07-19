@@ -2,7 +2,7 @@
 
 A quick-lookup index of every feature universalized into this branch: what
 it does, which components implement it, and which assets it uses. Kept
-up to date as part of the workflow in `UNIVERSALIZING-FEATURES.md` (step
+up to date as part of the workflow in `ADDING-FEATURES-WORKFLOW.md` (step
 10) — every new feature gets an entry here when its guide is written.
 
 For the full story on any one feature (setup steps, attribute reference,
@@ -12,32 +12,41 @@ the index — descriptions here are one line on purpose.
 
 ## Index
 
-| Feature | What it does | Source branch | Guide |
-|---|---|---|---|
-| [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](SOUND-FEATURE-GUIDE.md) |
-| [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](PROXIMITY-FADE-FEATURE-GUIDE.md) |
-| [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
-| [Mirror Shard](#mirror-shard) | A field of 112 glass shards that ripple outward when tapped | `Zhichang_module` | [MIRROR-SHARD-FEATURE-GUIDE.md](MIRROR-SHARD-FEATURE-GUIDE.md) |
-| [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) |
-| [Follow Node](#follow-node) | Tracks a named node inside another entity's animated glTF | `Fanyu_module` | [FOLLOW-NODE-FEATURE-GUIDE.md](FOLLOW-NODE-FEATURE-GUIDE.md) |
-| [Wander In Band](#wander-in-band) | Orbits an entity within a band around a center entity | `Fanyu_module` | [WANDER-IN-BAND-FEATURE-GUIDE.md](WANDER-IN-BAND-FEATURE-GUIDE.md) |
-| [Random Field](#random-field) | Scatters clones of referenced entities across an area, spacing/copies configurable | `Gyumin_module` | [RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) |
-| [Proximity Wave](#proximity-wave) | Proximity-triggered wave + idle motion, single entity or a whole group | `Gyumin_module` | [PROXIMITY-WAVE-FEATURE-GUIDE.md](PROXIMITY-WAVE-FEATURE-GUIDE.md) |
-| [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) |
-| [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) |
-| [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
-| [Material Properties](#material-properties) | Manually tunes roughness/metalness/opacity/emissive on a loaded model | `Gyumin_module` | [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) |
-| [Dither Material](#dither-material) | Manual (non-distance-driven) dithered transparency for a loaded model | `Fanyu_module` | [DITHER-MATERIAL-FEATURE-GUIDE.md](DITHER-MATERIAL-FEATURE-GUIDE.md) |
-| [Trim Loop Clip](#trim-loop-clip) | Trims a glTF animation's dead lead-in and loops it, syncing multiple clips | `Fanyu_module` | [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](TRIM-LOOP-CLIP-FEATURE-GUIDE.md) |
-| [Attach To](#attach-to) | Makes an entity follow another entity's world position every frame | `Gyumin_module` | [ATTACH-TO-FEATURE-GUIDE.md](ATTACH-TO-FEATURE-GUIDE.md) |
-| [Ground Decal](#ground-decal) | Pins a decal flat on the ground under a (possibly tilted) parent, excluded from fog | `Gyumin_module` | [GROUND-DECAL-FEATURE-GUIDE.md](GROUND-DECAL-FEATURE-GUIDE.md) |
+Each feature carries one or more **tags** (see the full
+[Tags](#tags) list at the end of this document, which each one links to) —
+the table's row order is also driven by those tags, clustering related
+features together; see `ADDING-FEATURES-WORKFLOW.md` (step 10) for that
+convention.
 
-Not covered here: `main`'s own baseline demo content (`fish1.glb`,
-`jellyfish-video.mp4`, the `video-target` image target) — that's the
-template's own placeholder scene content, not a universalized feature.
+| Feature | What it does | Tags | Source branch | Guide |
+|---|---|---|---|---|
+| [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel | [`sound`](#tag-sound), [`interaction`](#tag-interaction) | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) |
+| [Image Tracking](#image-tracking) | Anchors content to a detected real-world image, via 8th Wall's own image-target engine | [`image-tracking`](#tag-image-tracking), [`interaction`](#tag-interaction) | `main` | [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) |
+| [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | [`proximity`](#tag-proximity), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](guides/PROXIMITY-FADE-FEATURE-GUIDE.md) |
+| [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | [`proximity`](#tag-proximity), [`dither`](#tag-dither), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](guides/PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
+| [Proximity Wave](#proximity-wave) | Proximity-triggered wave + idle motion, single entity or a whole group | [`proximity`](#tag-proximity), [`motion`](#tag-motion) | `Gyumin_module` | [PROXIMITY-WAVE-FEATURE-GUIDE.md](guides/PROXIMITY-WAVE-FEATURE-GUIDE.md) |
+| [Wander In Band](#wander-in-band) | Orbits an entity within a band around a center entity | [`motion`](#tag-motion), [`random`](#tag-random) | `Fanyu_module` | [WANDER-IN-BAND-FEATURE-GUIDE.md](guides/WANDER-IN-BAND-FEATURE-GUIDE.md) |
+| [Follow Node](#follow-node) | Tracks a named node inside another entity's animated glTF | [`motion`](#tag-motion), [`utility`](#tag-utility) | `Fanyu_module` | [FOLLOW-NODE-FEATURE-GUIDE.md](guides/FOLLOW-NODE-FEATURE-GUIDE.md) |
+| [Trim Loop Clip](#trim-loop-clip) | Trims a glTF animation's dead lead-in and loops it, syncing multiple clips | [`animation`](#tag-animation), [`utility`](#tag-utility) | `Fanyu_module` | [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](guides/TRIM-LOOP-CLIP-FEATURE-GUIDE.md) |
+| [Attach To](#attach-to) | Makes an entity follow another entity's world position every frame | [`motion`](#tag-motion), [`utility`](#tag-utility) | `Gyumin_module` | [ATTACH-TO-FEATURE-GUIDE.md](guides/ATTACH-TO-FEATURE-GUIDE.md) |
+| [Ground Decal](#ground-decal) | Pins a decal flat on the ground under a (possibly tilted) parent, excluded from fog | [`utility`](#tag-utility), [`visual-effect`](#tag-visual-effect) | `Gyumin_module` | [GROUND-DECAL-FEATURE-GUIDE.md](guides/GROUND-DECAL-FEATURE-GUIDE.md) |
+| [Random Field](#random-field) | Scatters clones of referenced entities across an area, spacing/copies configurable | [`random`](#tag-random), [`distribution`](#tag-distribution) | `Gyumin_module` | [RANDOM-FIELD-FEATURE-GUIDE.md](guides/RANDOM-FIELD-FEATURE-GUIDE.md) |
+| [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | [`LOD`](#tag-lod), [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](guides/LOD-BILLBOARD-FEATURE-GUIDE.md) |
+| [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](guides/RENDER-ORDER-FEATURE-GUIDE.md) |
+| [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
+| [Material Properties](#material-properties) | Manually tunes roughness/metalness/opacity/emissive on a loaded model | [`material-properties`](#tag-material-properties) | `Gyumin_module` | [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) |
+| [Dither Material](#dither-material) | Manual (non-distance-driven) dithered transparency for a loaded model | [`dither`](#tag-dither), [`transparency`](#tag-transparency), [`material-properties`](#tag-material-properties) | `Fanyu_module` | [DITHER-MATERIAL-FEATURE-GUIDE.md](guides/DITHER-MATERIAL-FEATURE-GUIDE.md) |
+| [Mirror Shard](#mirror-shard) | A field of 112 glass shards that ripple outward when tapped | [`visual-effect`](#tag-visual-effect), [`interaction`](#tag-interaction), [`procedural`](#tag-procedural) | `Zhichang_module` | [MIRROR-SHARD-FEATURE-GUIDE.md](guides/MIRROR-SHARD-FEATURE-GUIDE.md) |
+| [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | [`procedural`](#tag-procedural), [`visual-effect`](#tag-visual-effect) | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](guides/LIQUID-TEXTURE-FEATURE-GUIDE.md) |
+
+Not covered here: `main`'s own baseline demo content (`jellyfish-video.mp4`)
+— that's the template's own placeholder scene asset, not a universalized
+feature (the *image tracking* it used to be paired with, above, now is).
+Also not covered: [Template infrastructure](#template-infrastructure)
+below — not a pick-and-choose feature, its own category instead.
 
 **Cross-feature reference docs** — not tied to one feature, so not listed
-above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+above: [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 (how draw order and material patching interact across Render Order,
 Mesh Render Order, LOD + Billboard, Material Properties, Dither Material,
 Proximity Fade, and Proximity Cutout — read before combining any of those).
@@ -55,9 +64,21 @@ here rather than repeated under every feature that uses them.
 | `ar-button-manager` | [`src/a-frame-components/ar-button-manager.ts`](src/a-frame-components/ar-button-manager.ts) | One per module; owns the gaze raycast and tap routing for every `ar-button` | Same as `ar-button` | [Sound](#sound) |
 | `unlit-material` | [`src/a-frame-components/unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Replaces a loaded model's PBR materials with flat, fully-lit MeshBasicMaterials — typically the LOD billboard's flat/shadeless look, but also usable standalone on a full model (`examples/unlit-material-usage.html`) | Written while porting [LOD + Billboard](#lod--billboard) from `Gyumin_module`; extended (`alphaTest`, `keepShadowBehavior` attributes) while comparing against `Rosa_module`'s own, separate `unlit-materials` component — confirmed this shared one already covers that use case once extended, so no duplicate was created | [LOD + Billboard](#lod--billboard); usable standalone by any feature |
 
+## Template infrastructure
+
+Not pick-and-choose features and not A-Frame components — baseline
+plumbing built directly into `ArModule.vue`/`src/`, present whether or not
+your scene uses any feature above. Listed here (rather than under "Shared
+building blocks", which is specifically components registered via
+`manifest.ts`) so they're not missed by anyone scanning this catalog.
+
+| Item | File(s) | What it does |
+|---|---|---|
+| Loading bar + spinner | [`src/asset-loading-overlay.ts`](src/asset-loading-overlay.ts) + the `<script>`/`<template>` blocks at the top/bottom of [`src/ArModule.vue`](src/ArModule.vue) | A thin top-of-screen progress bar and a centre-screen spinner, shown while this module's manifest assets are still loading; the 3D content stays hidden (`:visible="assetsLoaded"`) until everything's ready, then appears all at once instead of popping in piecemeal. Found identically re-implemented across every `_module` branch, so brought into the template baseline itself. Deliberately **not** an A-Frame component — 2D screen-space UI that has to exist and be visible *before* any 3D entity is ready, driven by Vue's `onMounted`/`onUnmounted` rather than any entity's lifecycle (see the comment at the top of `ArModule.vue`'s `<script>` block for the full reasoning). Works automatically for whatever assets your scene adds — nothing to copy in, nothing to register in `manifest.ts`. Also mentioned in [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md). |
+
 ## Sound
 
-Guide: [SOUND-FEATURE-GUIDE.md](SOUND-FEATURE-GUIDE.md) · Source: `Jakob_module`
+Guide: [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) · Source: `Jakob_module`
 
 Tap a 3D button to play/pause/stop a sound (only one plays module-wide at
 a time), with an optional 2D screen-space GUI panel (restart/stop/
@@ -87,9 +108,39 @@ Also depends on the shared `ar-button` / `ar-button-manager` (see
 Examples: [`ar-button-usage.html`](examples/ar-button-usage.html),
 [`sound-gui-panel.html`](examples/sound-gui-panel.html)
 
+## Image Tracking
+
+Guide: [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) · Source: `main` (template baseline)
+
+Anchors content to a detected real-world printed/displayed image, via 8th
+Wall's own image-target engine. Unlike every other feature here, there's
+**no `src/a-frame-components/*.ts` file** — the two components involved are
+provided by the 8th Wall `xrextras` library itself, not this project.
+Previously wired directly into `ArModule.vue`; moved out into an example +
+guide, matching how every other feature works, and no longer registered in
+`manifest.ts` by default. Only works in the real AR preview (`npm run
+dev:ar`) or the real host — the plain VR/desktop preview never configures
+XR8 at all, so this can never be seen working there.
+
+**Components** (external — not ours, nothing to copy into `src/a-frame-components/`)
+
+| Component | Source | What it does |
+|---|---|---|
+| `xrextras-named-image-target` | 8th Wall `xrextras` library | Shows/hides/positions its children to track one named detected target |
+| `xrextras-play-video` | 8th Wall `xrextras` library | Tap-to-play/stop a video texture, with a poster-frame `thumb` |
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`video-target.json`](src/image-targets/video-target.json) + 4 images | `examples/image-tracking-usage.html` | 8th Wall image-target compiler tool output for the example target — cross-checked against 8th Wall's own official reference project's export format, schema matches |
+| [`jellyfish-video.mp4`](src/assets/jellyfish-video.mp4) | `examples/image-tracking-usage.html` | The example's video content, played once the target is detected |
+
+Examples: [`image-tracking-usage.html`](examples/image-tracking-usage.html)
+
 ## Proximity Fade
 
-Guide: [PROXIMITY-FADE-FEATURE-GUIDE.md](PROXIMITY-FADE-FEATURE-GUIDE.md) · Source: `Madleen_module`
+Guide: [PROXIMITY-FADE-FEATURE-GUIDE.md](guides/PROXIMITY-FADE-FEATURE-GUIDE.md) · Source: `Madleen_module`
 
 Fades a wrapped model's opacity in and/or out as the camera moves toward a
 configurable target point — two independent, order-independent distance
@@ -110,7 +161,7 @@ Examples: [`proximity-fade-usage.html`](examples/proximity-fade-usage.html)
 
 ## Proximity Cutout
 
-Guide: [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](PROXIMITY-CUTOUT-FEATURE-GUIDE.md) · Source: `Madleen_module`
+Guide: [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](guides/PROXIMITY-CUTOUT-FEATURE-GUIDE.md) · Source: `Madleen_module`
 
 Dithers away fragments of a wrapped model within a radius of the camera,
 opening a hole that lets the camera "cut into" the model as it approaches.
@@ -125,9 +176,295 @@ opening a hole that lets the camera "cut into" the model as it approaches.
 
 Examples: [`proximity-cutout-usage.html`](examples/proximity-cutout-usage.html)
 
+## Proximity Wave
+
+Guide: [PROXIMITY-WAVE-FEATURE-GUIDE.md](guides/PROXIMITY-WAVE-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Proximity-gated wave (fades in as the camera approaches) plus a subtle
+always-on idle float. `proximity-wave` works standalone on one entity;
+`proximity-wave-group` broadcasts one shared parameter set to every direct
+child of a group (a plain hand-authored group, or a
+[Random Field](#random-field) entity — same component either way).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `proximity-wave` | [`proximity-wave.ts`](src/a-frame-components/proximity-wave.ts) | Per-entity motion — works standalone |
+| `proximity-wave-group` | [`proximity-wave-group.ts`](src/a-frame-components/proximity-wave-group.ts) | Applies one shared config to every direct child |
+
+**Assets:** none.
+
+Examples: [`proximity-wave-usage.html`](examples/proximity-wave-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Wander In Band
+
+Guide: [WANDER-IN-BAND-FEATURE-GUIDE.md](guides/WANDER-IN-BAND-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Makes an entity continuously orbit within an annulus ("band") around a
+center entity — steady baseline orbit, a chaos-driven angular deviation,
+subtle floating, soft edge spiral-back, and gentle mutual avoidance of
+sibling `wander-in-band` entities sharing the same DOM parent. Ported
+essentially unchanged (only a cosmetic THREE-access normalization) —
+already fully generic in the source. Independent of Follow Node despite
+both being ported from the same source branch in the same batch.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `wander-in-band` | [`wander-in-band.ts`](src/a-frame-components/wander-in-band.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`wander-in-band-usage.html`](examples/wander-in-band-usage.html)
+
+## Follow Node
+
+Guide: [FOLLOW-NODE-FEATURE-GUIDE.md](guides/FOLLOW-NODE-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Makes an entity's position continuously track a named node (mesh, empty, or
+bone) inside another entity's loaded glTF — e.g. attaching a positional
+`sound` to a specific animated part of a model rather than its overall
+static transform. Ported essentially unchanged (only a cosmetic THREE-access
+normalization) — already fully generic in the source.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `follow-node` | [`follow-node.ts`](src/a-frame-components/follow-node.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`follow-node-usage.html`](examples/follow-node-usage.html)
+
+## Trim Loop Clip
+
+Guide: [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](guides/TRIM-LOOP-CLIP-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Trims a glTF animation's dead lead-in (from a Blender export whose preview
+range didn't start at frame 0) and loops it; when a model has multiple
+clips, keeps them all driven off one shared clock so they don't gradually
+drift out of phase with each other. Use instead of A-Frame's stock
+`animation-mixer` on the same entity. Ported essentially unchanged — only
+an added immediate-check for a model that finished loading before this
+component's own `init()` ran.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `trim-loop-clip` | [`trim-loop-clip.ts`](src/a-frame-components/trim-loop-clip.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`trim-loop-clip-usage.html`](examples/trim-loop-clip-usage.html)
+
+## Attach To
+
+Guide: [ATTACH-TO-FEATURE-GUIDE.md](guides/ATTACH-TO-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Makes an entity follow another entity's world position (plus a fixed
+world-space offset) every frame, even if it isn't that entity's DOM child —
+e.g. a light tracking the host-provided camera. Position only. Ported
+unchanged — already fully generic in the source. Writes `position` every
+tick with no composition — don't combine with `wander-in-band`/
+`proximity-wave` on the same entity, see the guide's incompatibilities
+section.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `attach-to` | [`attach-to.ts`](src/a-frame-components/attach-to.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`attach-to-usage.html`](examples/attach-to-usage.html)
+
+## Ground Decal
+
+Guide: [GROUND-DECAL-FEATURE-GUIDE.md](guides/GROUND-DECAL-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Keeps a decal plane flat on the ground directly under its parent entity's
+pivot, regardless of how the parent is rotated/tilted, and excludes it from
+scene fog. Requires a parent entity. Two fixes made during the port:
+primitive support (`object3dset` instead of `model-loaded`) for the fog
+exclusion, and a previously-latent shared-material bug (the source set
+`fog = false` on each material in place rather than cloning first) — see
+the guide's §3.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `ground-decal` | [`ground-decal.ts`](src/a-frame-components/ground-decal.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`ground-decal-usage.html`](examples/ground-decal-usage.html)
+
+## Random Field
+
+Guide: [RANDOM-FIELD-FEATURE-GUIDE.md](guides/RANDOM-FIELD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Scatters clones of one or more referenced entities (by id) across a
+fixed-width strip, using Poisson-disk sampling so a min/max spacing and a
+per-entity copy count are honoured exactly. Reworked from the source's
+`glowstick-field`, which bundled this together with auto-discovering assets
+by naming convention and building LOD structure from scratch — this version
+only places; what it clones is entirely up to what you author and
+reference by id (see [LOD + Billboard](#lod--billboard)).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `random-field` | [`random-field.ts`](src/a-frame-components/random-field.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`random-field-usage.html`](examples/random-field-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## LOD + Billboard
+
+Guide: [LOD-BILLBOARD-FEATURE-GUIDE.md](guides/LOD-BILLBOARD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Cross-fades a detailed 3D model (optionally split into several parts) into
+a flat, always-camera-facing billboard image by distance. The
+`.lod-mesh`/`.lod-mesh-group`/`.lod-billboard` structure `lod-object` reads
+was already fully generic in the source (driven by CSS class, not any
+naming convention) — the only change is that the source's field-population
+component used to build this structure programmatically; here it's
+authored directly in the scene (see
+[RANDOM-FIELD-FEATURE-GUIDE.md](guides/RANDOM-FIELD-FEATURE-GUIDE.md) for how the
+two combine). Composes closely with
+[Render Order](#render-order) — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `lod-object` | [`lod-object.ts`](src/a-frame-components/lod-object.ts) | One per LOD instance — gathers materials, registers with the manager |
+| `lod-manager` | [`lod-manager.ts`](src/a-frame-components/lod-manager.ts) | One per module; ticks every `lod-object`, drives the crossfade + render-order banding |
+| `billboard` | [`billboard.ts`](src/a-frame-components/billboard.ts) | Spins an entity about Y to face the camera |
+| `unlit-material` | [`unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Flat/shadeless material technique, typically used on the billboard — a [shared building block](#shared-building-blocks), not owned by this feature |
+
+**Assets:** none.
+
+Examples: [`lod-billboard-usage.html`](examples/lod-billboard-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Render Order
+
+Guide: [RENDER-ORDER-FEATURE-GUIDE.md](guides/RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Sets three.js `renderOrder` on every mesh of a loaded model, for
+controlling draw order among overlapping transparent surfaces. Applicable
+to any entity. Ported unchanged — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+for how this composes with [LOD + Billboard](#lod--billboard) (inside an
+`lod-object` group, this value means local order within that one group,
+not the final runtime value) and with Proximity Fade/Cutout's own material
+patching.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `render-order` | [`render-order.ts`](src/a-frame-components/render-order.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`render-order-usage.html`](examples/render-order-usage.html),
+[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Mesh Render Order
+
+Guide: [MESH-RENDER-ORDER-FEATURE-GUIDE.md](guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Rosa_module`
+
+Sets three.js `renderOrder` on individual **named** meshes inside a single
+loaded model, for controlling draw order among one asset's own
+overlapping/layered internal parts, relative to each other — finer
+granularity than [Render Order](#render-order), which sets one value
+across a whole model. The source hardcoded both the mesh names and their
+order in TypeScript for one specific asset; this version takes the
+name→order mapping as a runtime attribute. **Real, confirmed conflict**
+with [LOD + Billboard](#lod--billboard) — see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+and the guide's own incompatibilities section.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `mesh-render-order` | [`mesh-render-order.ts`](src/a-frame-components/mesh-render-order.ts) | The whole feature — one file |
+
+**Assets**
+
+| Asset | Used by | Function |
+|---|---|---|
+| [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
+
+Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
+[`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
+
+## Material Properties
+
+Guide: [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Manually tunes a loaded model's PBR material properties — roughness,
+metalness, opacity, and emissive intensity/tint — directly on whatever
+material is already there, without discarding it the way
+[LOD + Billboard](#lod--billboard)'s `unlit-material` does. Combines two
+needs into one component: manual roughness/metalness/opacity control (no
+equivalent existed in any source branch) and `Gyumin_module`'s
+`emissive-material` (emissive glow tuning). See the guide for why these
+were merged rather than kept separate, and why `disableShadow` defaults to
+off unlike the source it was ported from.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `material-properties` | [`material-properties.ts`](src/a-frame-components/material-properties.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`material-properties-usage.html`](examples/material-properties-usage.html)
+
+## Dither Material
+
+Guide: [DITHER-MATERIAL-FEATURE-GUIDE.md](guides/DITHER-MATERIAL-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Ordered-dithering ("screen-door") transparency for a loaded model — a
+**manual, fixed-opacity** dither, unlike the two distance-driven dither
+variants already in this template ([Proximity Cutout](#proximity-cutout),
+[Proximity Fade](#proximity-fade)'s dither variant). Ported from
+`Fanyu_module`'s `dither-transparency.ts` (found registered but unused in
+that branch's own scene) and renamed to fit this project's `[x]-material`
+naming. Two real fixes made during the port: primitive support
+(`object3dset` instead of `model-loaded`) and a previously-latent
+shared-material bug (the source mutated materials in place rather than
+cloning them first) — see the guide's §3.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `dither-material` | [`dither-material.ts`](src/a-frame-components/dither-material.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
+
 ## Mirror Shard
 
-Guide: [MIRROR-SHARD-FEATURE-GUIDE.md](MIRROR-SHARD-FEATURE-GUIDE.md) · Source: `Zhichang_module`
+Guide: [MIRROR-SHARD-FEATURE-GUIDE.md](guides/MIRROR-SHARD-FEATURE-GUIDE.md) · Source: `Zhichang_module`
 
 A field of 112 glass shards (three merged draw calls total) that ripple
 outward from tapped points with a gentle idle sway. Optionally shows an
@@ -153,7 +490,7 @@ Examples: [`mirror-shard-usage.html`](examples/mirror-shard-usage.html),
 
 ## Liquid Texture
 
-Guide: [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) · Source: `Zhichang_module`
+Guide: [LIQUID-TEXTURE-FEATURE-GUIDE.md](guides/LIQUID-TEXTURE-FEATURE-GUIDE.md) · Source: `Zhichang_module`
 
 Generic, reusable procedural "liquid ink" texture generator — fbm marbling
 that optionally reveals a target image, with a swirl/cellular-bubble look.
@@ -180,288 +517,94 @@ rendered texture for its inner illustration layer).
 Examples: [`liquid-texture-usage.html`](examples/liquid-texture-usage.html),
 [`mirror-shard-liquid-texture-scene.html`](examples/mirror-shard-liquid-texture-scene.html)
 
-## Follow Node
+## Tags
 
-Guide: [FOLLOW-NODE-FEATURE-GUIDE.md](FOLLOW-NODE-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+Every tag used in the [Index](#index) above, alphabetical, with every
+feature that carries it.
 
-Makes an entity's position continuously track a named node (mesh, empty, or
-bone) inside another entity's loaded glTF — e.g. attaching a positional
-`sound` to a specific animated part of a model rather than its overall
-static transform. Ported essentially unchanged (only a cosmetic THREE-access
-normalization) — already fully generic in the source.
+### Tag: `animation`
 
-**Components**
+- [Trim Loop Clip](#trim-loop-clip)
 
-| Component | File | What it does |
-|---|---|---|
-| `follow-node` | [`follow-node.ts`](src/a-frame-components/follow-node.ts) | The whole feature — one file |
+### Tag: `distribution`
 
-**Assets:** none.
+- [Random Field](#random-field)
 
-Examples: [`follow-node-usage.html`](examples/follow-node-usage.html)
+### Tag: `dither`
 
-## Wander In Band
+- [Proximity Cutout](#proximity-cutout)
+- [Dither Material](#dither-material)
 
-Guide: [WANDER-IN-BAND-FEATURE-GUIDE.md](WANDER-IN-BAND-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+### Tag: `image-tracking`
 
-Makes an entity continuously orbit within an annulus ("band") around a
-center entity — steady baseline orbit, a chaos-driven angular deviation,
-subtle floating, soft edge spiral-back, and gentle mutual avoidance of
-sibling `wander-in-band` entities sharing the same DOM parent. Ported
-essentially unchanged (only a cosmetic THREE-access normalization) —
-already fully generic in the source. Independent of Follow Node despite
-both being ported from the same source branch in the same batch.
+- [Image Tracking](#image-tracking)
 
-**Components**
+### Tag: `interaction`
 
-| Component | File | What it does |
-|---|---|---|
-| `wander-in-band` | [`wander-in-band.ts`](src/a-frame-components/wander-in-band.ts) | The whole feature — one file |
+- [Sound](#sound)
+- [Image Tracking](#image-tracking)
+- [Mirror Shard](#mirror-shard)
 
-**Assets:** none.
+### Tag: `LOD`
 
-Examples: [`wander-in-band-usage.html`](examples/wander-in-band-usage.html)
+- [LOD + Billboard](#lod--billboard)
 
-## Random Field
+### Tag: `material-properties`
 
-Guide: [RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+- [Material Properties](#material-properties)
+- [Dither Material](#dither-material)
 
-Scatters clones of one or more referenced entities (by id) across a
-fixed-width strip, using Poisson-disk sampling so a min/max spacing and a
-per-entity copy count are honoured exactly. Reworked from the source's
-`glowstick-field`, which bundled this together with auto-discovering assets
-by naming convention and building LOD structure from scratch — this version
-only places; what it clones is entirely up to what you author and
-reference by id (see [LOD + Billboard](#lod--billboard)).
+### Tag: `motion`
 
-**Components**
+- [Proximity Wave](#proximity-wave)
+- [Wander In Band](#wander-in-band)
+- [Follow Node](#follow-node)
+- [Attach To](#attach-to)
 
-| Component | File | What it does |
-|---|---|---|
-| `random-field` | [`random-field.ts`](src/a-frame-components/random-field.ts) | The whole feature — one file |
+### Tag: `procedural`
 
-**Assets:** none.
+- [Mirror Shard](#mirror-shard)
+- [Liquid Texture](#liquid-texture)
 
-Examples: [`random-field-usage.html`](examples/random-field-usage.html),
-[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+### Tag: `proximity`
 
-## Proximity Wave
+- [Proximity Fade](#proximity-fade)
+- [Proximity Cutout](#proximity-cutout)
+- [Proximity Wave](#proximity-wave)
 
-Guide: [PROXIMITY-WAVE-FEATURE-GUIDE.md](PROXIMITY-WAVE-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+### Tag: `random`
 
-Proximity-gated wave (fades in as the camera approaches) plus a subtle
-always-on idle float. `proximity-wave` works standalone on one entity;
-`proximity-wave-group` broadcasts one shared parameter set to every direct
-child of a group (a plain hand-authored group, or a
-[Random Field](#random-field) entity — same component either way).
+- [Wander In Band](#wander-in-band)
+- [Random Field](#random-field)
 
-**Components**
+### Tag: `render-order`
 
-| Component | File | What it does |
-|---|---|---|
-| `proximity-wave` | [`proximity-wave.ts`](src/a-frame-components/proximity-wave.ts) | Per-entity motion — works standalone |
-| `proximity-wave-group` | [`proximity-wave-group.ts`](src/a-frame-components/proximity-wave-group.ts) | Applies one shared config to every direct child |
+- [LOD + Billboard](#lod--billboard)
+- [Render Order](#render-order)
+- [Mesh Render Order](#mesh-render-order)
 
-**Assets:** none.
+### Tag: `sound`
 
-Examples: [`proximity-wave-usage.html`](examples/proximity-wave-usage.html),
-[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+- [Sound](#sound)
 
-## LOD + Billboard
+### Tag: `transparency`
 
-Guide: [LOD-BILLBOARD-FEATURE-GUIDE.md](LOD-BILLBOARD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+- [Proximity Fade](#proximity-fade)
+- [Proximity Cutout](#proximity-cutout)
+- [LOD + Billboard](#lod--billboard)
+- [Render Order](#render-order)
+- [Mesh Render Order](#mesh-render-order)
+- [Dither Material](#dither-material)
 
-Cross-fades a detailed 3D model (optionally split into several parts) into
-a flat, always-camera-facing billboard image by distance. The
-`.lod-mesh`/`.lod-mesh-group`/`.lod-billboard` structure `lod-object` reads
-was already fully generic in the source (driven by CSS class, not any
-naming convention) — the only change is that the source's field-population
-component used to build this structure programmatically; here it's
-authored directly in the scene (see
-[RANDOM-FIELD-FEATURE-GUIDE.md](RANDOM-FIELD-FEATURE-GUIDE.md) for how the
-two combine). Composes closely with
-[Render Order](#render-order) — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md).
+### Tag: `utility`
 
-**Components**
+- [Follow Node](#follow-node)
+- [Trim Loop Clip](#trim-loop-clip)
+- [Attach To](#attach-to)
+- [Ground Decal](#ground-decal)
 
-| Component | File | What it does |
-|---|---|---|
-| `lod-object` | [`lod-object.ts`](src/a-frame-components/lod-object.ts) | One per LOD instance — gathers materials, registers with the manager |
-| `lod-manager` | [`lod-manager.ts`](src/a-frame-components/lod-manager.ts) | One per module; ticks every `lod-object`, drives the crossfade + render-order banding |
-| `billboard` | [`billboard.ts`](src/a-frame-components/billboard.ts) | Spins an entity about Y to face the camera |
-| `unlit-material` | [`unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Flat/shadeless material technique, typically used on the billboard — a [shared building block](#shared-building-blocks), not owned by this feature |
+### Tag: `visual-effect`
 
-**Assets:** none.
-
-Examples: [`lod-billboard-usage.html`](examples/lod-billboard-usage.html),
-[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
-
-## Render Order
-
-Guide: [RENDER-ORDER-FEATURE-GUIDE.md](RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Gyumin_module`
-
-Sets three.js `renderOrder` on every mesh of a loaded model, for
-controlling draw order among overlapping transparent surfaces. Applicable
-to any entity. Ported unchanged — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
-for how this composes with [LOD + Billboard](#lod--billboard) (inside an
-`lod-object` group, this value means local order within that one group,
-not the final runtime value) and with Proximity Fade/Cutout's own material
-patching.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `render-order` | [`render-order.ts`](src/a-frame-components/render-order.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`render-order-usage.html`](examples/render-order-usage.html),
-[`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
-
-## Mesh Render Order
-
-Guide: [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) · Source: `Rosa_module`
-
-Sets three.js `renderOrder` on individual **named** meshes inside a single
-loaded model, for controlling draw order among one asset's own
-overlapping/layered internal parts, relative to each other — finer
-granularity than [Render Order](#render-order), which sets one value
-across a whole model. The source hardcoded both the mesh names and their
-order in TypeScript for one specific asset; this version takes the
-name→order mapping as a runtime attribute. **Real, confirmed conflict**
-with [LOD + Billboard](#lod--billboard) — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
-and the guide's own incompatibilities section.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `mesh-render-order` | [`mesh-render-order.ts`](src/a-frame-components/mesh-render-order.ts) | The whole feature — one file |
-
-**Assets**
-
-| Asset | Used by | Function |
-|---|---|---|
-| [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
-
-Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
-[`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
-
-## Material Properties
-
-Guide: [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) · Source: `Gyumin_module`
-
-Manually tunes a loaded model's PBR material properties — roughness,
-metalness, opacity, and emissive intensity/tint — directly on whatever
-material is already there, without discarding it the way
-[LOD + Billboard](#lod--billboard)'s `unlit-material` does. Combines two
-needs into one component: manual roughness/metalness/opacity control (no
-equivalent existed in any source branch) and `Gyumin_module`'s
-`emissive-material` (emissive glow tuning). See the guide for why these
-were merged rather than kept separate, and why `disableShadow` defaults to
-off unlike the source it was ported from.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `material-properties` | [`material-properties.ts`](src/a-frame-components/material-properties.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`material-properties-usage.html`](examples/material-properties-usage.html)
-
-## Dither Material
-
-Guide: [DITHER-MATERIAL-FEATURE-GUIDE.md](DITHER-MATERIAL-FEATURE-GUIDE.md) · Source: `Fanyu_module`
-
-Ordered-dithering ("screen-door") transparency for a loaded model — a
-**manual, fixed-opacity** dither, unlike the two distance-driven dither
-variants already in this template ([Proximity Cutout](#proximity-cutout),
-[Proximity Fade](#proximity-fade)'s dither variant). Ported from
-`Fanyu_module`'s `dither-transparency.ts` (found registered but unused in
-that branch's own scene) and renamed to fit this project's `[x]-material`
-naming. Two real fixes made during the port: primitive support
-(`object3dset` instead of `model-loaded`) and a previously-latent
-shared-material bug (the source mutated materials in place rather than
-cloning them first) — see the guide's §3.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `dither-material` | [`dither-material.ts`](src/a-frame-components/dither-material.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
-
-## Trim Loop Clip
-
-Guide: [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](TRIM-LOOP-CLIP-FEATURE-GUIDE.md) · Source: `Fanyu_module`
-
-Trims a glTF animation's dead lead-in (from a Blender export whose preview
-range didn't start at frame 0) and loops it; when a model has multiple
-clips, keeps them all driven off one shared clock so they don't gradually
-drift out of phase with each other. Use instead of A-Frame's stock
-`animation-mixer` on the same entity. Ported essentially unchanged — only
-an added immediate-check for a model that finished loading before this
-component's own `init()` ran.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `trim-loop-clip` | [`trim-loop-clip.ts`](src/a-frame-components/trim-loop-clip.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`trim-loop-clip-usage.html`](examples/trim-loop-clip-usage.html)
-
-## Attach To
-
-Guide: [ATTACH-TO-FEATURE-GUIDE.md](ATTACH-TO-FEATURE-GUIDE.md) · Source: `Gyumin_module`
-
-Makes an entity follow another entity's world position (plus a fixed
-world-space offset) every frame, even if it isn't that entity's DOM child —
-e.g. a light tracking the host-provided camera. Position only. Ported
-unchanged — already fully generic in the source. Writes `position` every
-tick with no composition — don't combine with `wander-in-band`/
-`proximity-wave` on the same entity, see the guide's incompatibilities
-section.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `attach-to` | [`attach-to.ts`](src/a-frame-components/attach-to.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`attach-to-usage.html`](examples/attach-to-usage.html)
-
-## Ground Decal
-
-Guide: [GROUND-DECAL-FEATURE-GUIDE.md](GROUND-DECAL-FEATURE-GUIDE.md) · Source: `Gyumin_module`
-
-Keeps a decal plane flat on the ground directly under its parent entity's
-pivot, regardless of how the parent is rotated/tilted, and excludes it from
-scene fog. Requires a parent entity. Two fixes made during the port:
-primitive support (`object3dset` instead of `model-loaded`) for the fog
-exclusion, and a previously-latent shared-material bug (the source set
-`fog = false` on each material in place rather than cloning first) — see
-the guide's §3.
-
-**Components**
-
-| Component | File | What it does |
-|---|---|---|
-| `ground-decal` | [`ground-decal.ts`](src/a-frame-components/ground-decal.ts) | The whole feature — one file |
-
-**Assets:** none.
-
-Examples: [`ground-decal-usage.html`](examples/ground-decal-usage.html)
+- [Ground Decal](#ground-decal)
+- [Mirror Shard](#mirror-shard)
+- [Liquid Texture](#liquid-texture)

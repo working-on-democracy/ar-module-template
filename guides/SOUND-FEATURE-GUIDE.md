@@ -6,7 +6,7 @@ sound-playback feature built on top of it (`sound-button` + `sound-controller`
 any future feature, not just sound — see [3. Under the hood](#3-under-the-hood)
 for the split.
 
-This is the worked example for `UNIVERSALIZING-FEATURES.md`'s general
+This is the worked example for `ADDING-FEATURES-WORKFLOW.md`'s general
 process — see that file for the repeatable workflow this guide came out of.
 
 Files:
@@ -438,9 +438,9 @@ controller can see or stop the other.
   undocumented/older-Safari behavior — verify on an actual iPhone before
   shipping, not just the simulator or a desktop preview.
 
-### Interaction with the image-target feature already in `main`
+### Interaction with [Image Tracking](IMAGE-TRACKING-FEATURE-GUIDE.md)
 
-`main`'s example scene uses `xrextras-play-video` (the tap-to-play/stop
+That feature's example uses `xrextras-play-video` (the tap-to-play/stop
 video on an image target). Reading its bundled source
 (`node_modules/@8thwall/xrextras/dist/xrextras.js`): it tags itself with
 `class="cantap"` and listens for a plain `click` event on its own element —
@@ -478,7 +478,7 @@ with this sound feature:
 ### Interaction with the proximity-fade / proximity-cutout features
 
 Found while porting those two features and updating this guide per
-`UNIVERSALIZING-FEATURES.md`'s step 10 (re-check earlier guides when a new
+`ADDING-FEATURES-WORKFLOW.md`'s step 10 (re-check earlier guides when a new
 feature reveals a shared risk). No property collision — `proximity-fade`/
 `-dither`/`-cutout` all drive `material.opacity`/shader patches, while
 `ar-button` drives `object3D.scale`; different properties, no direct

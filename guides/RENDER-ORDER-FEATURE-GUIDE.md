@@ -17,7 +17,7 @@ examples/random-field-lod-billboard-proximity-wave-scene.html # combined with
                                     # the other three Gyumin_module features
 ```
 
-No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 before using this on anything transparent** — it's short, and covers real
 edge cases (why render order alone can't fix everything, how this composes
 with [LOD + Billboard](LOD-BILLBOARD-FEATURE-GUIDE.md), material-cloning
@@ -108,7 +108,7 @@ features, not this component's own code:
 
 Full mental model (why any of this matters, opaque-vs-transparent render
 queues, dithering vs. real alpha, material cloning) is in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md) —
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md) —
 not duplicated here.
 
 ## 4. Incompatibilities, risks & troubleshooting
@@ -118,7 +118,7 @@ not duplicated here.
 `renderOrder` only sorts within the opaque or transparent render queue (never
 across them), sorts whole mesh objects not individual triangles, and falls
 back to camera-distance sorting for two objects with equal values. See
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.1](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#41-renderorder-cannot-fix-everything)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.1](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#41-renderorder-cannot-fix-everything)
 for what to reach for instead (dithering) when this genuinely can't do the
 job.
 
@@ -126,7 +126,7 @@ job.
 
 Confirmed this component's own write is never actually lost or corrupted
 when used inside an `lod-object` group — see [3](#3-under-the-hood) and
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose)
 for the full explanation, including why a standalone value elsewhere in the
 scene can't numerically collide with LOD's own dynamically-computed values
 either (`lod-manager`'s `RENDER_ORDER_BASE`).
@@ -140,4 +140,4 @@ Free to combine with `random-field`, `proximity-wave`, `follow-node`,
 `liquid-texture` with no interaction at all. The only features this
 composes *meaningfully* with are LOD (above) and, if you also patch the
 same material's shader, `proximity-fade`/`proximity-cutout` — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).

@@ -29,7 +29,7 @@ src/a-frame-components/material-properties.ts
 examples/material-properties-usage.html   # scene wiring + full attribute reference
 ```
 
-No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 before combining this with `unlit-material`, `dither-material`, or either
 proximity feature** — several real ordering conflicts are documented there,
 not here (see [4](#4-incompatibilities-risks--troubleshooting)).
@@ -110,7 +110,7 @@ idempotency check — see the clone-ownership paragraph below. Two separate
 components doing that independently would double the clone/traversal cost
 per apply and double the same-element registration-order surface
 documented in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
 for no real benefit — the same reasoning `unlit-material`'s own attribute
 set (`keepEmissive`/`brightness`/`tint`/`alphaTest`/`keepShadowBehavior`)
 already grew from across two separate ports.
@@ -128,7 +128,7 @@ re-cloning. This matters for two separate reasons:
   one material object across every instance of that asset (e.g. several
   [`random-field`](RANDOM-FIELD-FEATURE-GUIDE.md) clones of the same
   referenced entity) unless something clones it first — see
-  [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
+  [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
   Without per-instance clone ownership, tuning one instance's roughness
   would leak onto every other clone sharing that source material.
 - **Correct `update()` semantics.** The emissive intensity/tint math is
@@ -180,7 +180,7 @@ first on a shared entity wins the outcome, and the loser silently no-ops
 rather than throwing — but the *effect* is still lost). Same category of
 conflict as the one already documented between `unlit-material` and
 `proximity-fade`/`proximity-cutout` — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.5](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.5](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#45-unlit-material-replaces-materials--a-different-risk-than-onbeforecompile-collisions).
 Don't put both on the same entity.
 
 ### Combining with `dither-material` — order matters, but it's usable
@@ -189,7 +189,7 @@ Both components clone-then-mutate the same material rather than replacing
 it outright, so combining them (e.g. tune roughness/opacity here, then
 dither the result) is a plausible, supported use — but same-element
 registration order decides who operates on whose output, per
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters).
 Author `material-properties` before `dither-material` in markup if you want
 the tuned values to be what gets dithered.
 

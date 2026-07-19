@@ -25,7 +25,7 @@ examples/random-field-lod-billboard-proximity-wave-scene.html # combined with
                                     # the other three Gyumin_module features
 ```
 
-No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
+No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 before combining this with anything else that touches materials or render
 order** — it covers real edge cases (opaque vs. transparent render queues,
 dithering vs. real alpha blending, material-cloning, `onBeforeCompile`
@@ -115,7 +115,7 @@ that carries `lod-object`:
   parent's own `lod-object` attribute takes effect) — A-Frame loads
   children before parents, so plain authored markup already gets this
   right automatically; see
-  [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.1](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#51-a-frame-loads-children-before-parents)
+  [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.1](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#51-a-frame-loads-children-before-parents)
   if you ever build it with a script instead.
 
 ### `lod-manager` (once per module)
@@ -210,7 +210,7 @@ together:
 Every registered `lod-object` resolves its nearest `[lod-manager]`
 ancestor and registers with it (gated on the manager's own `initialized`
 flag — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.3](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#53-ancestor-component-registration-should-gate-on-initialized-not-presence)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.3](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#53-ancestor-component-registration-should-gate-on-initialized-not-presence)
 for why presence alone isn't enough to check). `lod-manager` processes a
 rotating fraction of the registered set each frame (`chunksPerCycle`),
 computes each one's camera distance, and calls back into the blend math —
@@ -220,7 +220,7 @@ bands correct (see `RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2`).
 ### `trueOpacity`, material cloning, dithering
 
 All covered in depth in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §3–4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#3-real-alpha-blending-vs-dithering-pick-correctly) —
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §3–4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#3-real-alpha-blending-vs-dithering-pick-correctly) —
 not duplicated here.
 
 ## 4. Incompatibilities, risks & troubleshooting
@@ -230,7 +230,7 @@ not duplicated here.
 This was the specific concern raised before this feature was ported: does
 tagging an entity with `render-order` conflict with LOD's own render-order
 management? Checked directly — no. Full explanation in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose).
 Short version: inside an `lod-object` group, `render-order`'s value is read
 as *local* order and the real runtime value is always `lod-manager`'s to
 compute; outside one, it's untouched by LOD at all, and `lod-manager`
@@ -247,7 +247,7 @@ draw order within one asset) does not survive being placed on a
 that child every frame, silently erasing any per-name distinction. Unlike
 the `render-order` case above, this is a confirmed conflict, not a checked
 non-issue — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#mesh-render-order-does-not-compose-the-same-way--real-conflict-not-just-a-nuance)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#mesh-render-order-does-not-compose-the-same-way--real-conflict-not-just-a-nuance)
 and [MESH-RENDER-ORDER-FEATURE-GUIDE.md §4](MESH-RENDER-ORDER-FEATURE-GUIDE.md#4-incompatibilities-risks--troubleshooting).
 
 ### Interaction with `proximity-fade`/`proximity-cutout` — same-material patch collision
@@ -257,7 +257,7 @@ If a project nests an LOD instance's dithered part (`data-lod-dither`)
 `gltf-model`, only one of the two effects actually renders — both patch
 `material.onBeforeCompile` and neither composes with the other, whichever
 attaches last wins. See
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
 Not a new risk introduced by this port — the same category of collision
 already exists between `proximity-fade` and `proximity-cutout` themselves
 (see their own guides) — just now with a third component that can also be

@@ -91,8 +91,8 @@ Use it to drive your scene content (e.g. show the author's name, position by loc
 
 Drop any binary asset (`.glb`, `.gltf`, `.png`, `.mp3`, …) into `src/assets/`. The build pipeline picks them up automatically — no manual wiring:
 
-- Each file becomes a manifest entry. The **file name without its extension is the asset id**, and it is hosted at `assets/<filename>`. So `src/assets/fish1.glb` → `{ id: "fish1", src: "assets/fish1.glb" }`.
-- Reference it from `ArModule.vue` by id: `<a-entity gltf-model="#fish1">`. Do **not** declare your own `<a-assets>` — the host (and the dev preview) inject the manifest's assets into the scene's `<a-assets>` before your module mounts.
+- Each file becomes a manifest entry. The **file name without its extension is the asset id**, and it is hosted at `assets/<filename>`. So `src/assets/model.glb` → `{ id: "model", src: "assets/model.glb" }`.
+- Reference it from `ArModule.vue` by id: `<a-entity gltf-model="#model">`. Do **not** declare your own `<a-assets>` — the host (and the dev preview) inject the manifest's assets into the scene's `<a-assets>` before your module mounts.
 - `npm run build` copies every asset into `dist-platform/assets/` and writes `dist-platform/manifest.json`. The emitted `dist-platform/ar-module.js` also re-exports the same manifest, which is what the host reads via `mod.manifest`.
 - `npm run dev` serves the assets at `/assets/*` and injects them into the standalone preview scene, so models resolve exactly as they will in the host.
 

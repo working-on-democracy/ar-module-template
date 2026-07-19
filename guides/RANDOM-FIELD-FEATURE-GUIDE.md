@@ -103,7 +103,7 @@ the artist — author whatever structure you want (a single mesh, an LOD
 group, anything) directly on a plain entity, give it an id, and reference
 that id in `items`. This is a direct implementation of what was asked for
 ("choose the entities that go into the field by id"), not a judgment call —
-see `UNIVERSALIZING-FEATURES.md`.
+see `ADDING-FEATURES-WORKFLOW.md`.
 
 Two smaller, necessary consequences of switching from "build from scratch"
 to "clone an existing, artist-authored entity":

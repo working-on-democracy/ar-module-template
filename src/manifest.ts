@@ -51,7 +51,6 @@ import ditherMaterial from "./a-frame-components/dither-material";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
-import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
 export const manifest: Manifest = {
@@ -151,9 +150,11 @@ export const manifest: Manifest = {
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and GROUND-DECAL-FEATURE-GUIDE.md.
     "ground-decal": groundDecal
-  },
+  }
 
-  imageTargets: [videoTarget]
+  // No image targets registered by default — see IMAGE-TRACKING-FEATURE-GUIDE.md
+  // for how to add one (an `imageTargets: [yourTarget]` entry here, importing
+  // your own src/image-targets/*.json).
 };
 
 export default manifest;

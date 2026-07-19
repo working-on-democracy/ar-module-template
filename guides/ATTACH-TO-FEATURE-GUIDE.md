@@ -97,7 +97,7 @@ the same entity as [`wander-in-band`](WANDER-IN-BAND-FEATURE-GUIDE.md) or
 write `position` unconditionally every tick) means whichever component's
 `tick()` runs last on that entity — same-element registration order, the
 same rule documented in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
 for materials — simply overwrites whatever the other one just set, with no
 composition between the two. Don't combine `attach-to` with either on the
 same entity; if you need "wander around a point that itself moves", put

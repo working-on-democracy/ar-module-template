@@ -6,7 +6,7 @@ through it or being blocked by it. Ported from `Madleen_module`. A separate
 feature from proximity-fade (see `PROXIMITY-FADE-FEATURE-GUIDE.md`) — they
 look related (both are camera-distance-driven material effects) but do
 different things, take different attributes, and have separate guides, per
-this project's `UNIVERSALIZING-FEATURES.md` workflow. Read
+this project's `ADDING-FEATURES-WORKFLOW.md` workflow. Read
 [4](#4-incompatibilities-risks--troubleshooting) below if a scene ever
 combines the two on the same model.
 
@@ -156,11 +156,11 @@ this guide. Test directly if a new scene applies `proximity-cutout` to one
 entity and something else (another `proximity-cutout` config, or a
 `proximity-fade`) to a different entity referencing the same model id.
 
-### Interaction with the sound and image-target features
+### Interaction with the sound and [Image Tracking](IMAGE-TRACKING-FEATURE-GUIDE.md) features
 
 No interaction found with either. Like proximity-fade, this only patches
 materials reached via a bubbled `model-loaded` event from a `gltf-model`
-descendant — `main`'s image-target video plane and the sound feature's
+descendant — Image Tracking's video plane and the sound feature's
 `a-plane`-based buttons never fire that event and are never touched
 regardless of scene nesting. The one exception is the same one noted in the
 fade guide: a `sound-button`/`ar-button` whose visible geometry is itself a
@@ -179,7 +179,7 @@ porting the LOD feature (see `LOD-BILLBOARD-FEATURE-GUIDE.md`): an
 around the exact same `gltf-model` and only one of the two effects renders
 — neither composes with the other, whichever attaches last wins. Full
 mental model in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
 
 ### General constraints
 

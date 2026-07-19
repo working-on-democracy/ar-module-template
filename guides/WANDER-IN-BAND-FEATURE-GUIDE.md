@@ -149,7 +149,7 @@ with no awareness of anything else doing the same. Combining with
 [`ground-decal`](GROUND-DECAL-FEATURE-GUIDE.md) with `live: true`) on the
 *same* entity means whichever component's `tick()` runs last —
 same-element registration order, the rule documented in
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
 for materials, applies identically to transform writes — simply overwrites
 whatever the other one just set, with no composition. If you need
 "wander around a point that itself moves", put `attach-to` on a parent

@@ -93,7 +93,7 @@ check.
 cloning it first. A glTF asset loaded via `gltf-model` shares one material
 object across every instance of that asset unless something clones it
 first — see
-[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#42-materials-must-be-cloned-before-mutating).
 Concretely: two `ground-decal` instances placed at different distances but
 sharing the same decal asset would, on the source as written, share one
 material — disabling fog on the nearer instance would silently also
