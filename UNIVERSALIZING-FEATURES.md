@@ -85,6 +85,34 @@ original implementation:
   anything another component might want to react to. Once decided, treat it
   as the contract other features (and other forks) will build against.
 
+**If a needed change requires creative or non-obvious judgment, stop and
+ask before implementing it.** Not everything above needs sign-off — a lot
+of it is mechanical and fine to just do: adopting this branch's established
+code style (e.g. `follow-node`/`wander-in-band`'s `AFRAME.THREE` →
+`declare const THREE: any` normalization), picking which folder a file
+goes in, dropping something already provably dead in the source (an
+unread schema field, code gated behind a flag the source's own real usage
+never enabled). Genuinely check first, though, rather than assuming there's
+nothing to ask about — `follow-node` and `wander-in-band` needed zero
+design changes, but only because that was actually verified (both take
+every meaningful value as a schema attribute already, nothing hardcoded to
+one scene), not assumed. What *does* need to be raised, with the specific
+issue and 1-2 concrete options plus a recommendation, before writing any
+code — the same way the mirror-shard/liquid-texture split and the
+proximity-fade ordering fix were presented as options first:
+
+- Measurably changing a feature's visual or behavioral character (not just
+  its performance or code structure).
+- Dropping part of what the source did that *isn't* already dead code —
+  i.e. something a real scene on the source branch actually exercises.
+- A genuine ambiguity about what "universal" should mean for this specific
+  piece, where more than one reasonable answer exists and the choice
+  changes what the shipped component actually does.
+
+Silently making a call like that and only explaining the reasoning
+afterward denies the person who asked for the port an actual decision they
+should get to make.
+
 ## 4. File naming & organization convention
 
 `src/a-frame-components/` and `src/assets/` are flat, shared folders — every

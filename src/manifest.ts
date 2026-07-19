@@ -35,6 +35,8 @@ import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
+import followNode from "./a-frame-components/follow-node";
+import wanderInBand from "./a-frame-components/wander-in-band";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -67,7 +69,14 @@ export const manifest: Manifest = {
     // mirror-shard-specific — no feature prefix, see the naming-convention
     // comment above) usable standalone on any entity.
     "mirror-shard": mirrorShard,
-    "liquid-texture": liquidTexture
+    "liquid-texture": liquidTexture,
+    // Generic transform-driving utilities — see follow-node.ts /
+    // wander-in-band.ts, examples/follow-node-usage.html and
+    // examples/wander-in-band-usage.html. Neither touches any shared state
+    // (no document listeners, no camera, no materials), so they're free to
+    // combine with any other feature or with each other.
+    "follow-node": followNode,
+    "wander-in-band": wanderInBand
   },
 
   imageTargets: [videoTarget]

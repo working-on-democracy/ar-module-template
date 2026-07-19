@@ -1,4 +1,4 @@
-now # Feature catalog
+# Feature catalog
 
 A quick-lookup index of every feature universalized into this branch: what
 it does, which components implement it, and which assets it uses. Kept
@@ -19,6 +19,8 @@ the index — descriptions here are one line on purpose.
 | [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
 | [Mirror Shard](#mirror-shard) | A field of 112 glass shards that ripple outward when tapped | `Zhichang_module` | [MIRROR-SHARD-FEATURE-GUIDE.md](MIRROR-SHARD-FEATURE-GUIDE.md) |
 | [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](LIQUID-TEXTURE-FEATURE-GUIDE.md) |
+| [Follow Node](#follow-node) | Tracks a named node inside another entity's animated glTF | `Fanyu_module` | [FOLLOW-NODE-FEATURE-GUIDE.md](FOLLOW-NODE-FEATURE-GUIDE.md) |
+| [Wander In Band](#wander-in-band) | Orbits an entity within a band around a center entity | `Fanyu_module` | [WANDER-IN-BAND-FEATURE-GUIDE.md](WANDER-IN-BAND-FEATURE-GUIDE.md) |
 
 Not covered here: `main`'s own baseline demo content (`fish1.glb`,
 `jellyfish-video.mp4`, the `video-target` image target) — that's the
@@ -160,3 +162,45 @@ rendered texture for its inner illustration layer).
 
 Examples: [`liquid-texture-usage.html`](examples/liquid-texture-usage.html),
 [`mirror-shard-liquid-texture-scene.html`](examples/mirror-shard-liquid-texture-scene.html)
+
+## Follow Node
+
+Guide: [FOLLOW-NODE-FEATURE-GUIDE.md](FOLLOW-NODE-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Makes an entity's position continuously track a named node (mesh, empty, or
+bone) inside another entity's loaded glTF — e.g. attaching a positional
+`sound` to a specific animated part of a model rather than its overall
+static transform. Ported essentially unchanged (only a cosmetic THREE-access
+normalization) — already fully generic in the source.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `follow-node` | [`follow-node.ts`](src/a-frame-components/follow-node.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`follow-node-usage.html`](examples/follow-node-usage.html)
+
+## Wander In Band
+
+Guide: [WANDER-IN-BAND-FEATURE-GUIDE.md](WANDER-IN-BAND-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Makes an entity continuously orbit within an annulus ("band") around a
+center entity — steady baseline orbit, a chaos-driven angular deviation,
+subtle floating, soft edge spiral-back, and gentle mutual avoidance of
+sibling `wander-in-band` entities sharing the same DOM parent. Ported
+essentially unchanged (only a cosmetic THREE-access normalization) —
+already fully generic in the source. Independent of Follow Node despite
+both being ported from the same source branch in the same batch.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `wander-in-band` | [`wander-in-band.ts`](src/a-frame-components/wander-in-band.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`wander-in-band-usage.html`](examples/wander-in-band-usage.html)
