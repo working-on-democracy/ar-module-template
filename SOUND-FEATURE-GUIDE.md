@@ -470,7 +470,10 @@ with this sound feature:
    vendored code this project doesn't own), so if a project uses both a
    tappable image-target video **and** pinch/rotate gestures, test tapping
    the video specifically on iPad/iPhone before shipping — it may exhibit
-   the same failure mode.
+   the same failure mode. `mirror-shard` (see `MIRROR-SHARD-FEATURE-GUIDE.md`)
+   is another feature on this branch that uses `click` for the same reason
+   `xrextras-play-video` does (it relies on the host's shared cursor/
+   raycaster, same as any `.cantap` element) — same caveat applies to it.
 
 ### Interaction with the proximity-fade / proximity-cutout features
 

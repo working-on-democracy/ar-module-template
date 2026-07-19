@@ -33,6 +33,8 @@ import soundButton from "./a-frame-components/sound-button";
 import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
+import mirrorShard from "./a-frame-components/mirror-shard";
+import liquidTexture from "./a-frame-components/liquid-texture";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -58,7 +60,14 @@ export const manifest: Manifest = {
     "proximity-fade-dither": proximityFadeDither,
     // Camera-proximity cutout sphere — see proximity-cutout.ts and
     // examples/proximity-cutout-usage.html.
-    "proximity-cutout": proximityCutout
+    "proximity-cutout": proximityCutout,
+    // Glass "mirror shard" field — see mirror-shard.ts and
+    // examples/mirror-shard-usage.html. Its optional inner illustration
+    // layer samples liquid-texture, a separate generic effect (not
+    // mirror-shard-specific — no feature prefix, see the naming-convention
+    // comment above) usable standalone on any entity.
+    "mirror-shard": mirrorShard,
+    "liquid-texture": liquidTexture
   },
 
   imageTargets: [videoTarget]
