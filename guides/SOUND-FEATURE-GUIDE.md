@@ -4,7 +4,10 @@ A tappable/gazable 3D button system (`ar-button` + `ar-button-manager`) and a
 sound-playback feature built on top of it (`sound-button` + `sound-controller`
 + a 2D play/pause/stop GUI panel). The button system is generic — reusable by
 any future feature, not just sound — see [3. Under the hood](#3-under-the-hood)
-for the split.
+for the split. Also includes an optional, decoupled "tap to enable sound"
+overlay for projects with AMBIENT/AUTOPLAYING audio instead of (or alongside)
+the tap-driven single-active-sound model above — see
+[the overlay's own subsection](#the-tap-to-enable-sound-overlay) in §2.
 
 This is the worked example for `ADDING-FEATURES-WORKFLOW.md`'s general
 process — see that file for the repeatable workflow this guide came out of.
@@ -24,6 +27,7 @@ src/manifest.ts             # registers all 5 components above
 examples/
   ar-button-usage.html       # 3D scene wiring + full attribute reference
   sound-gui-panel.html        # copy/paste block for the 2D GUI panel
+  sound-unlock-overlay-usage.html # copy/paste block for the ambient-audio unlock overlay
 ```
 
 ## 1. Step-by-step: adding this to a new project
@@ -89,7 +93,17 @@ i.e. it already has `src/manifest.ts`, `src/a-frame-components/`,
    add `ref="rootEntity"` to that root `<a-entity>` so the panel can find
    `sound-controller` on it.
 
-7. **Build and test** — `npm run build` (typechecks + bundles),
+7. **Optional: add the tap-to-enable-sound overlay** — only if your project
+   has ambient/autoplaying sound (an `<a-entity sound="...; autoplay: true">`
+   with no button the visitor would tap first). Open
+   `examples/sound-unlock-overlay-usage.html`; its own header comment has the
+   exact copy/paste instructions. It reuses `sound-unlock-audio.ts` directly
+   (already copied in step 1) — no new component files, no manifest changes,
+   no requirements on your root `<a-entity>`. Skip this step entirely for a
+   project that only uses tap-driven `sound-button`s — steps 1–6 already
+   unlock audio on every tap via the same helper.
+
+8. **Build and test** — `npm run build` (typechecks + bundles),
    `npm run dev` for a quick VR/desktop preview, `npm run dev:ar` on a phone
    for the real thing (audio-unlock and iOS quirks only show up on a real
    device — see [4](#4-incompatibilities-risks--troubleshooting)).
@@ -165,6 +179,27 @@ Not an A-Frame entity — a Vue-rendered screen overlay (see
 `togglePlayPause()` / `stopActive()` on the `sound-controller` component
 instance directly. No attributes to set beyond wiring `ref="rootEntity"` per
 step 6 above.
+
+### The tap-to-enable-sound overlay
+
+Not an A-Frame entity, and not wired to `sound-button`/`sound-controller` at
+all — a standalone Vue-rendered screen overlay (see
+`examples/sound-unlock-overlay-usage.html`) for a project with ambient/
+autoplaying sound instead of (or alongside) the tap-driven model above. No
+attributes or `ref` to wire — it only touches the page-wide `document` and
+the shared `THREE.AudioContext`, independent of any one entity. One constant
+worth knowing about (edit directly in the copied script, not a formal prop):
+`UNLOCK_OVERLAY_DELAY_MS` (default `1500`), how long to wait after mount
+before showing the prompt at all, giving an earlier incidental gesture (e.g.
+the tap that starts the AR session) a chance to unlock audio first.
+
+```html
+<a-entity sound="src: #ambientClip; autoplay: true; loop: true; volume: 0.6"></a-entity>
+```
+
+The overlay itself doesn't know this entity exists — pair them by simply
+having both present in the same scene; see
+[3](#3-under-the-hood) for why they're deliberately decoupled.
 
 ### A full example
 
@@ -314,6 +349,50 @@ Audio independently of the autoplay-gesture policy — see the file's header
 comment for the two-layered fix (Safari 17+'s `navigator.audioSession`, and
 a silent `HTMLAudioElement` play as a fallback for older Safari).
 
+### The tap-to-enable-sound overlay
+
+Ported from `Fanyu_module`'s ArModule.vue, which had this entangled with
+that project's own specific ambient soundscape — four looping clips, each
+offset into its own timeline by a fixed amount (`0s`/`10s`/`20s`/`30s`) so
+they don't all hit their quiet stretches in sync. That staggering is a
+choreography of *that project's specific audio content* (it assumes 4
+same-length clips exist), not a portable mechanism — per
+`ADDING-FEATURES-WORKFLOW.md`'s step 5 ("artistic / project-specific
+content... doesn't travel"), it was deliberately left behind. What's ported
+is only the generic mechanism: try to unlock eagerly on mount (in case an
+earlier gesture already did), listen for the next real gesture anywhere on
+the page if not, and show a friendly prompt if neither has happened within
+`UNLOCK_OVERLAY_DELAY_MS`.
+
+**Deliberately decoupled from any specific sound entity.** The source's
+overlay code directly held template refs to its project's own 4 sound
+entities (to look up `.sceneEl.audioListener.context` and to schedule their
+playback). This port doesn't reference any sound entity at all — it calls
+`THREE.AudioContext.getContext()` directly (the same shared, page-wide
+context `sound-unlock-audio.ts` itself resumes) rather than reading it off
+of one. That makes the overlay reusable regardless of how many ambient
+sound entities a project has, or how their playback is scheduled — entirely
+the project's own concern, same as any other `sound` component usage.
+
+**Why the listener is capture-phase, not bubble-phase.** `pointerdown`/
+`keydown` are added with `{capture: true}`, called synchronously inside the
+listener itself (`attemptUnlock`) with no `preventDefault`/`stopPropagation`
+of its own — it exists purely to observe the gesture as early as possible,
+before anything else in the tree (e.g. a 2D overlay element's own
+`@click.stop`, including this overlay's own root `<div>`) has a chance to
+stop the event from reaching a bubble-phase listener instead. In practice
+this rarely changes the outcome here — the one case it would matter for
+(tapping `sound-gui-panel.html`'s own buttons, which call `.stop`) already
+independently unlocks audio via `sound-controller`'s own direct
+`unlockAudio()` call — but it costs nothing and matches the verified-working
+source behavior exactly.
+
+**Only marks `audioUnlocked` once actually confirmed** (`ctx.state ===
+"running"`), never merely attempted — see the code comment in
+`sound-unlock-overlay-usage.html` for why (a resume attempt outside a real
+gesture can silently fail, and marking unlocked/tearing down the listeners
+regardless would strand the page permanently silent with no further retry).
+
 ## 4. Incompatibilities, risks & troubleshooting
 
 ### Component name collisions across co-mounted modules
@@ -422,6 +501,37 @@ not just the one that triggered it. The flip side:
 **within its own module** — if two different co-mounted modules both use
 this sound feature, their audio can play concurrently and overlap; neither
 controller can see or stop the other.
+
+### The unlock overlay's own document-level listeners
+
+Checked against every other `document`-level listener already on this
+branch (`ADDING-FEATURES-WORKFLOW.md` step 12):
+
+- **`ar-button-manager`'s `pointerdown`/`pointerup`** (bubble phase) — no
+  conflict. The overlay's own listeners (capture phase) only call
+  `unlockAudio()`/read `AudioContext.state`; they never call
+  `preventDefault()`/`stopPropagation()`, so `ar-button-manager`'s own
+  bubble-phase handlers still see every event exactly as before.
+- **A tap that lands on the overlay itself** doesn't register as a 3D scene
+  tap either way — `ar-button-manager.onPointerUp` already only counts a
+  press that lands on the AR `<canvas>` element specifically (see
+  [3](#3-under-the-hood)), and the overlay's own `@pointerdown.stop` is
+  defensive on top of that, matching `sound-gui-panel.html`'s convention.
+- **If a project adds a future feature with its own capture-phase listener
+  that calls `stopPropagation()`** before this overlay's, that future
+  feature's gesture wouldn't reach `attemptUnlock()` — re-check this
+  section (and re-verify audio still unlocks) if that ever happens, per
+  step 12's instruction to re-check earlier guides against new features.
+
+### Visual overlap with the 2D GUI panel
+
+If a project uses both `sound-gui-panel.html` (bottom-center, `bottom: 10%`)
+and this overlay, they're positioned at different screen edges by design
+(overlay: `top: 16px`) specifically so they can't occupy the same space —
+see the overlay's own header comment. If either is repositioned, re-check
+for overlap; both are otherwise fully independent (different state,
+different DOM elements, no shared listeners beyond both ultimately calling
+the same `unlockAudio()`).
 
 ### iOS / Safari specifics (test on a real device)
 

@@ -20,7 +20,7 @@ convention.
 
 | Feature | What it does | Tags | Source branch | Guide |
 |---|---|---|---|---|
-| [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel | [`sound`](#tag-sound), [`interaction`](#tag-interaction) | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) |
+| [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel and ambient-audio unlock overlay | [`sound`](#tag-sound), [`interaction`](#tag-interaction) | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) |
 | [Image Tracking](#image-tracking) | Anchors content to a detected real-world image, via 8th Wall's own image-target engine | [`image-tracking`](#tag-image-tracking), [`interaction`](#tag-interaction) | `main` | [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) |
 | [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | [`proximity`](#tag-proximity), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](guides/PROXIMITY-FADE-FEATURE-GUIDE.md) |
 | [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | [`proximity`](#tag-proximity), [`dither`](#tag-dither), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](guides/PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
@@ -87,7 +87,9 @@ Guide: [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) · Source: `Jakob
 Tap a 3D button to play/pause/stop a sound (only one plays module-wide at
 a time), with an optional 2D screen-space GUI panel (restart/stop/
 play-pause) that mirrors the same state. Built on the generic `ar-button`
-system above rather than its own raycast/tap code.
+system above rather than its own raycast/tap code. Also includes an
+optional, decoupled "tap to enable sound" overlay for ambient/autoplaying
+audio instead of (or alongside) the tap-driven model.
 
 **Components**
 
@@ -95,7 +97,7 @@ system above rather than its own raycast/tap code.
 |---|---|---|
 | `sound-controller` | [`sound-controller.ts`](src/a-frame-components/sound-controller.ts) | One per module; single-active-sound play/pause/stop state machine, drives the 2D GUI |
 | `sound-button` | [`sound-button.ts`](src/a-frame-components/sound-button.ts) | Plays/pauses/stops a `sound` entity on tap (place alongside `ar-button`) |
-| — *(not a component)* | [`sound-unlock-audio.ts`](src/a-frame-components/sound-unlock-audio.ts) | Shared iOS/Web Audio unlock helper, imported by `sound-controller.ts` |
+| — *(not a component)* | [`sound-unlock-audio.ts`](src/a-frame-components/sound-unlock-audio.ts) | Shared iOS/Web Audio unlock helper, imported by `sound-controller.ts` and the tap-to-enable-sound overlay |
 
 Also depends on the shared `ar-button` / `ar-button-manager` (see
 [Shared building blocks](#shared-building-blocks)).
@@ -110,7 +112,8 @@ Also depends on the shared `ar-button` / `ar-button-manager` (see
 | [`sound-pause.webp`](src/assets/sound-pause.webp) | `examples/sound-gui-panel.html` | Pause icon |
 
 Examples: [`ar-button-usage.html`](examples/ar-button-usage.html),
-[`sound-gui-panel.html`](examples/sound-gui-panel.html)
+[`sound-gui-panel.html`](examples/sound-gui-panel.html),
+[`sound-unlock-overlay-usage.html`](examples/sound-unlock-overlay-usage.html)
 
 ## Image Tracking
 
