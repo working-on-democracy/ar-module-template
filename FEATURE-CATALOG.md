@@ -28,6 +28,9 @@ the index — descriptions here are one line on purpose.
 | [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
 | [Material Properties](#material-properties) | Manually tunes roughness/metalness/opacity/emissive on a loaded model | `Gyumin_module` | [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) |
 | [Dither Material](#dither-material) | Manual (non-distance-driven) dithered transparency for a loaded model | `Fanyu_module` | [DITHER-MATERIAL-FEATURE-GUIDE.md](DITHER-MATERIAL-FEATURE-GUIDE.md) |
+| [Trim Loop Clip](#trim-loop-clip) | Trims a glTF animation's dead lead-in and loops it, syncing multiple clips | `Fanyu_module` | [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](TRIM-LOOP-CLIP-FEATURE-GUIDE.md) |
+| [Attach To](#attach-to) | Makes an entity follow another entity's world position every frame | `Gyumin_module` | [ATTACH-TO-FEATURE-GUIDE.md](ATTACH-TO-FEATURE-GUIDE.md) |
+| [Ground Decal](#ground-decal) | Pins a decal flat on the ground under a (possibly tilted) parent, excluded from fog | `Gyumin_module` | [GROUND-DECAL-FEATURE-GUIDE.md](GROUND-DECAL-FEATURE-GUIDE.md) |
 
 Not covered here: `main`'s own baseline demo content (`fish1.glb`,
 `jellyfish-video.mp4`, the `video-target` image target) — that's the
@@ -345,6 +348,9 @@ and the guide's own incompatibilities section.
 |---|---|---|
 | [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
 
+Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
+[`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
+
 ## Material Properties
 
 Guide: [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) · Source: `Gyumin_module`
@@ -394,5 +400,68 @@ cloning them first) — see the guide's §3.
 
 Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
 
-Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
-[`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
+## Trim Loop Clip
+
+Guide: [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](TRIM-LOOP-CLIP-FEATURE-GUIDE.md) · Source: `Fanyu_module`
+
+Trims a glTF animation's dead lead-in (from a Blender export whose preview
+range didn't start at frame 0) and loops it; when a model has multiple
+clips, keeps them all driven off one shared clock so they don't gradually
+drift out of phase with each other. Use instead of A-Frame's stock
+`animation-mixer` on the same entity. Ported essentially unchanged — only
+an added immediate-check for a model that finished loading before this
+component's own `init()` ran.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `trim-loop-clip` | [`trim-loop-clip.ts`](src/a-frame-components/trim-loop-clip.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`trim-loop-clip-usage.html`](examples/trim-loop-clip-usage.html)
+
+## Attach To
+
+Guide: [ATTACH-TO-FEATURE-GUIDE.md](ATTACH-TO-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Makes an entity follow another entity's world position (plus a fixed
+world-space offset) every frame, even if it isn't that entity's DOM child —
+e.g. a light tracking the host-provided camera. Position only. Ported
+unchanged — already fully generic in the source. Writes `position` every
+tick with no composition — don't combine with `wander-in-band`/
+`proximity-wave` on the same entity, see the guide's incompatibilities
+section.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `attach-to` | [`attach-to.ts`](src/a-frame-components/attach-to.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`attach-to-usage.html`](examples/attach-to-usage.html)
+
+## Ground Decal
+
+Guide: [GROUND-DECAL-FEATURE-GUIDE.md](GROUND-DECAL-FEATURE-GUIDE.md) · Source: `Gyumin_module`
+
+Keeps a decal plane flat on the ground directly under its parent entity's
+pivot, regardless of how the parent is rotated/tilted, and excludes it from
+scene fog. Requires a parent entity. Two fixes made during the port:
+primitive support (`object3dset` instead of `model-loaded`) for the fog
+exclusion, and a previously-latent shared-material bug (the source set
+`fog = false` on each material in place rather than cloning first) — see
+the guide's §3.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `ground-decal` | [`ground-decal.ts`](src/a-frame-components/ground-decal.ts) | The whole feature — one file |
+
+**Assets:** none.
+
+Examples: [`ground-decal-usage.html`](examples/ground-decal-usage.html)

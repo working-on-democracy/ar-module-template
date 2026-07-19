@@ -141,12 +141,26 @@ sibling list — if you add wanderers dynamically at runtime rather than all
 at once in markup, expect one-directional avoidance until everyone's had a
 chance to (re-)query.
 
-### No interaction found with any other feature on this branch
+### Real conflict with `attach-to` (and `ground-decal` with `live: true`) — do not combine on the same entity
 
-Only ever writes this entity's own `position`/`rotation.y`. No
-`document`-level listeners, no shared/global state, no material patches,
-no camera reads — free to combine with `ar-button`, `sound-button`,
-`follow-node`, or anything else. If you want a wandering entity to also be
+Only ever writes this entity's own `position`/`rotation.y`, every tick,
+with no awareness of anything else doing the same. Combining with
+[`attach-to`](ATTACH-TO-FEATURE-GUIDE.md) (or
+[`ground-decal`](GROUND-DECAL-FEATURE-GUIDE.md) with `live: true`) on the
+*same* entity means whichever component's `tick()` runs last —
+same-element registration order, the rule documented in
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters)
+for materials, applies identically to transform writes — simply overwrites
+whatever the other one just set, with no composition. If you need
+"wander around a point that itself moves", put `attach-to` on a parent
+entity and `wander-in-band` on a child of it instead.
+
+### No other interaction found with any other feature on this branch
+
+No `document`-level listeners, no shared/global state, no material
+patches, no camera reads — free to combine with `ar-button`,
+`sound-button`, `follow-node`, `trim-loop-clip`, or anything else not
+mentioned above. If you want a wandering entity to also be
 tappable (e.g. with `ar-button`'s bounding-box trigger zone), that's a
 plain co-location — `wander-in-band` moving the entity every frame doesn't
 interfere with `ar-button`'s own per-frame raycast, since that raycast

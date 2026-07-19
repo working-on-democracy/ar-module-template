@@ -144,16 +144,30 @@ place.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
-### No interaction found with any other feature on this branch
+### Real conflict with `attach-to` (and `ground-decal` with `live: true`) — do not combine on the same entity
 
-Only ever writes its own entity's `position`/`rotation` (or, for
+Writes its own entity's `position`/`rotation` every tick, with no
+awareness of anything else doing the same. Combining with
+[`attach-to`](ATTACH-TO-FEATURE-GUIDE.md) (or
+[`ground-decal`](GROUND-DECAL-FEATURE-GUIDE.md) with `live: true`) on the
+*same* entity means whichever component's `tick()` runs last —
+same-element registration order, per
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §5.2](RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#52-multiple-components-mutating-nodematerial-on-the-same-element--order-matters) —
+simply overwrites whatever the other just set. `proximity-wave-group`
+itself is unaffected (it only sets an attribute on children, never a
+transform directly), but any individual `proximity-wave` child it drives
+is subject to the same rule as standalone `proximity-wave`.
+
+### No other interaction found with any other feature on this branch
+
+Otherwise only ever writes its own entity's `position`/`rotation` (or, for
 `proximity-wave-group`, sets a `proximity-wave` attribute on direct
 children) — no `document` listeners, no shared/global state, no material
 patches, no camera *writes* (only reads the camera's position to compute
 distance, same as `follow-node`/`wander-in-band`). Free to combine with
 `random-field`, `lod-object`/`lod-manager`, `render-order`,
-`ar-button`/`sound-button`, and `mirror-shard`/`liquid-texture` — none of
-them touch the same state.
+`ar-button`/`sound-button`, `trim-loop-clip`, and
+`mirror-shard`/`liquid-texture` — none of them touch the same state.
 
 ### `proximity-wave-group`'s one-time scan means late-added children are missed
 
