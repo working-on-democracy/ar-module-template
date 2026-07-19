@@ -30,6 +30,9 @@ import arButtonManager from "./a-frame-components/ar-button-manager";
 import arButton from "./a-frame-components/ar-button";
 import soundController from "./a-frame-components/sound-controller";
 import soundButton from "./a-frame-components/sound-button";
+import proximityFade from "./a-frame-components/proximity-fade";
+import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
+import proximityCutout from "./a-frame-components/proximity-cutout";
 import videoTarget from "./image-targets/video-target.json";
 import type { Manifest } from "../lib/manifest.types";
 
@@ -46,7 +49,16 @@ export const manifest: Manifest = {
     // Sound playback built on top of ar-button — see sound-controller.ts /
     // sound-button.ts and examples/sound-gui-panel.html.
     "sound-controller": soundController,
-    "sound-button": soundButton
+    "sound-button": soundButton,
+    // Camera-proximity opacity fade — see proximity-fade-shared.ts and
+    // examples/proximity-fade-usage.html. (proximity-fade-shared.ts itself
+    // isn't a component, so it's not registered here — it's the factory
+    // proximity-fade.ts/proximity-fade-dither.ts are built from.)
+    "proximity-fade": proximityFade,
+    "proximity-fade-dither": proximityFadeDither,
+    // Camera-proximity cutout sphere — see proximity-cutout.ts and
+    // examples/proximity-cutout-usage.html.
+    "proximity-cutout": proximityCutout
   },
 
   imageTargets: [videoTarget]
