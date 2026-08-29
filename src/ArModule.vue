@@ -97,22 +97,115 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
-// AN ALLE! Zwischen-Basis demo wiring (archive-of-practice
-// projects/an-alle/concepts/zwischen-basis.md) — a placeholder single-slider
-// control so GuiPanel.vue renders something testable before any Themenfeld
-// branch has real scene content. Each branch replaces `guiControls` with its
-// own attribute wiring; GuiPanel.vue itself is not meant to be forked.
-const demoValue = ref(50);
+// AN ALLE! Material-/Shader-Showcase (archive-of-practice
+// projects/an-alle/concepts/material-shader-showcase.md) — sechs
+// überlappende Objekte, drei Transparenz-Techniken. Keine Emoji-PNGs vom
+// Autor vorhanden (Entscheidung: "sechs Emoji-PNGs, vom Autor
+// bereitgestellt") — wie schon in examples/random-field-lod-billboard-
+// proximity-wave-scene.html bei fehlenden Assets, stehen sechs farbige
+// Kreis-Primitives stellvertretend dafür; Transparenz/Dither/Unlit wirken
+// identisch unabhängig von einer Textur.
+//
+// Item A (vorderstes) = unlit-material + material-properties auf DERSELBEN
+// Entity: unlit-material ersetzt das Material zuerst durch ein flaches
+// MeshBasicMaterial (ignoriert roughness/metalness/emissive, die es nicht
+// besitzt), material-properties wendet danach NUR opacity darauf an (opacity
+// existiert auf jedem Material) — genau das in der Entscheidung beschriebene
+// Verhalten ("nur Opacity, Roughness/Metalness/Emissive haben keine
+// Wirkung"), ohne Sonderfall-Code, allein durch Komponenten-Reihenfolge.
+// Items B/C/D = dither-material (je ein ditherType). dither-material besitzt
+// selbst kein roughness/metalness/emissiveIntensity-Attribut — die globalen
+// Regler dafür wirken deshalb ausschließlich auf E/F (material-properties),
+// nicht weil hier etwas unterdrückt würde, sondern weil dither-material
+// diese Eigenschaften schlicht nicht kennt. Items E/F = material-properties
+// (normale Alpha-Transparenz).
+//
+// render-order.ts und die vier Material-Komponenten oben lesen ihre Daten
+// größtenteils nur einmal in init() (render-order/unlit-material haben kein
+// update(); material-properties/dither-material haben zwar update(), aber
+// die zusammengesetzte unlit+material-properties-Reihenfolge auf Item A
+// bräuchte ohnehin einen sauberen Neuaufbau bei Reihenfolgeänderungen) — statt
+// die Update()-Fähigkeit jeder Komponente einzeln nachzuvollziehen, erzwingt
+// ein `:key` auf der ganzen Gruppe (wie schon in zufallsverteilung-lod) bei
+// jeder Regler-/Reihenfolgeänderung einen vollständigen Neuaufbau. Bei nur
+// sechs einfachen Primitives ist das trivial günstig.
+const ITEM_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
+type ItemId = typeof ITEM_IDS[number];
+const ITEM_LABELS: Record<ItemId, string> = {
+  a: 'Weiß (Unlit)', b: 'Rot (Dither Bayer)', c: 'Blau (Dither Noise)',
+  d: 'Grün (Dither Gradient)', e: 'Gelb (Alpha)', f: 'Magenta (Alpha)'
+};
+
+const order = ref<ItemId[]>([...ITEM_IDS]);
+const roughness = ref(50); // %
+const metalness = ref(50); // %
+const opacity = ref(70); // %
+const emissive = ref(33); // %, gemappt auf material-properties' 0–3-Multiplikator
+
+const renderOrderOf = (id: ItemId) => order.value.indexOf(id);
+
+function moveUp(id: ItemId) {
+  const i = order.value.indexOf(id);
+  if (i <= 0) return;
+  const next = [...order.value];
+  [next[i - 1], next[i]] = [next[i], next[i - 1]];
+  order.value = next;
+}
+
+function moveDown(id: ItemId) {
+  const i = order.value.indexOf(id);
+  if (i === -1 || i >= order.value.length - 1) return;
+  const next = [...order.value];
+  [next[i], next[i + 1]] = [next[i + 1], next[i]];
+  order.value = next;
+}
+
+const opacityFrac = computed(() => opacity.value / 100);
+const roughnessFrac = computed(() => roughness.value / 100);
+const metalnessFrac = computed(() => metalness.value / 100);
+const emissiveMultiplier = computed(() => (emissive.value / 100) * 3);
+
+const unlitOpacityAttr = computed(() => `opacity: ${opacityFrac.value.toFixed(2)}`);
+const materialPropsAttr = computed(
+  () => `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
+        `opacity: ${opacityFrac.value.toFixed(2)}; emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`
+);
+function ditherAttr(ditherType: string): string {
+  return `opacity: ${opacityFrac.value.toFixed(2)}; ditherType: ${ditherType}`;
+}
+
+const fieldKey = computed(
+  () => `${order.value.join(',')}-${roughness.value}-${metalness.value}-${opacity.value}-${emissive.value}`
+);
+
 const guiControls = computed<GuiControl[]>(() => [
+  ...ITEM_IDS.map((id): GuiControl => ({
+    type: 'updown',
+    id: `order-${id}`,
+    label: ITEM_LABELS[id],
+    value: renderOrderOf(id),
+    onDecrement: () => moveUp(id),
+    onIncrement: () => moveDown(id)
+  })),
   {
-    type: 'slider',
-    id: 'demo',
-    label: 'Platzhalter-Regler',
-    min: 0,
-    max: 100,
-    value: demoValue.value,
-    unit: '%',
-    onInput: (value) => { demoValue.value = value; }
+    type: 'slider', id: 'roughness', label: 'Roughness (global)',
+    min: 0, max: 100, step: 5, value: roughness.value, unit: '%',
+    onInput: (v) => { roughness.value = v; }
+  },
+  {
+    type: 'slider', id: 'metalness', label: 'Metalness (global)',
+    min: 0, max: 100, step: 5, value: metalness.value, unit: '%',
+    onInput: (v) => { metalness.value = v; }
+  },
+  {
+    type: 'slider', id: 'opacity', label: 'Opacity (global)',
+    min: 0, max: 100, step: 5, value: opacity.value, unit: '%',
+    onInput: (v) => { opacity.value = v; }
+  },
+  {
+    type: 'slider', id: 'emissive', label: 'Emissive (global)',
+    min: 0, max: 100, step: 5, value: emissive.value, unit: '%',
+    onInput: (v) => { emissive.value = v; }
   }
 ]);
 </script>
@@ -162,6 +255,86 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
+      <!-- Material-/Shader-Showcase (archive-of-practice
+           projects/an-alle/concepts/material-shader-showcase.md) — sechs
+           farbige Kreis-Scheiben, hintereinander gestapelt und nach hinten
+           zunehmend größer, garantiert Überschneidung aus Kamerasicht. Ein
+           Text-Label über jeder Scheibe zeigt ihren aktuellen
+           render-order-Wert. `:key="fieldKey"` erzwingt einen sauberen
+           Neuaufbau bei jeder Regler-/Reihenfolgeänderung (s. Skript). -->
+      <a-entity id="showcase" position="0 1 -2" :key="fieldKey">
+
+        <!-- A — vorderstes, unlit. unlit-material zuerst (ersetzt das
+             Material durch MeshBasicMaterial), material-properties danach
+             wendet nur noch opacity darauf an — roughness/metalness/emissive
+             existieren auf MeshBasicMaterial nicht und werden von
+             material-properties stillschweigend übersprungen. -->
+        <a-entity position="0 0 0">
+          <a-entity
+              geometry="primitive: circle; radius: 0.3"
+              material="color: #f2f2f2; side: double; transparent: true"
+              unlit-material
+              :material-properties="unlitOpacityAttr"
+              :render-order="renderOrderOf('a')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.5 0.01"></a-entity>
+        </a-entity>
+
+        <!-- B/C/D — dither-transparent, je ein anderer ditherType. -->
+        <a-entity position="0 0 -0.5">
+          <a-entity
+              geometry="primitive: circle; radius: 0.37"
+              material="color: #ff4d4d; side: double; transparent: true"
+              :dither-material="ditherAttr('bayer')"
+              :render-order="renderOrderOf('b')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.6 0.01"></a-entity>
+        </a-entity>
+
+        <a-entity position="0 0 -1">
+          <a-entity
+              geometry="primitive: circle; radius: 0.45"
+              material="color: #4d79ff; side: double; transparent: true"
+              :dither-material="ditherAttr('noise')"
+              :render-order="renderOrderOf('c')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.7 0.01"></a-entity>
+        </a-entity>
+
+        <a-entity position="0 0 -1.5">
+          <a-entity
+              geometry="primitive: circle; radius: 0.52"
+              material="color: #4dff88; side: double; transparent: true"
+              :dither-material="ditherAttr('interleaved-gradient')"
+              :render-order="renderOrderOf('d')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.8 0.01"></a-entity>
+        </a-entity>
+
+        <!-- E/F — normale Alpha-Transparenz, mit eigener Emissiv-Grundfarbe
+             (sonst hätte der globale Emissive-Regler nichts zum Boosten). -->
+        <a-entity position="0 0 -2">
+          <a-entity
+              geometry="primitive: circle; radius: 0.6"
+              material="color: #ffe14d; side: double; transparent: true; emissive: #ffcc00; emissiveIntensity: 1"
+              :material-properties="materialPropsAttr"
+              :render-order="renderOrderOf('e')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.9 0.01"></a-entity>
+        </a-entity>
+
+        <a-entity position="0 0 -2.5">
+          <a-entity
+              geometry="primitive: circle; radius: 0.67"
+              material="color: #ff4dd2; side: double; transparent: true; emissive: #ff00aa; emissiveIntensity: 1"
+              :material-properties="materialPropsAttr"
+              :render-order="renderOrderOf('f')">
+          </a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" position="0 1 0.01"></a-entity>
+        </a-entity>
+
+      </a-entity>
+
       <!-- Ground plane. Renders ONLY the
            shadows cast onto it (material="shader: shadow"), not a visible
            surface of its own, so it stays invisible until something above
@@ -208,5 +381,5 @@ const guiControls = computed<GuiControl[]>(() => [
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Platzhaltertext: Hier steht die Kurzerklärung, was diese Szene zeigt." />
+  <InfoOverlay text="Sechs überlappende Scheiben, drei Transparenz-Techniken: unlit, gedithert und normal durchsichtig. Die Auf/Ab-Knöpfe ändern die Zeichenreihenfolge (Zahl über jeder Scheibe), die vier Regler wirken auf Opacity/Roughness/Metalness/Emissive." />
 </template>
