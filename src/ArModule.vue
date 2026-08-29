@@ -97,24 +97,54 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
-// AN ALLE! Zwischen-Basis demo wiring (archive-of-practice
-// projects/an-alle/concepts/zwischen-basis.md) — a placeholder single-slider
-// control so GuiPanel.vue renders something testable before any Themenfeld
-// branch has real scene content. Each branch replaces `guiControls` with its
-// own attribute wiring; GuiPanel.vue itself is not meant to be forked.
-const demoValue = ref(50);
+// AN ALLE! Sound-Player (archive-of-practice
+// projects/an-alle/concepts/sound-player.md) — the 2D GUI panel drives the
+// same play/pause/stop/restart state machine as the 3D tap buttons below,
+// via [sound-controller] on the module root. The panel can't read that
+// component's state directly (it lives outside the A-Frame/three.js scene
+// graph entirely), so it listens for the "sound-state-changed" event the
+// controller emits on the root entity instead — same bridge pattern as the
+// superseded examples/sound-gui-panel.html, just re-expressed as one
+// GuiControl (type: "transport") instead of a bespoke icon panel, per
+// decision 2 in sound-player.md ("Umstellung auf den neuen, einheitlichen
+// GUI-Baustein statt Übernahme des bestehenden sound-gui-panel.html").
+type SoundStatus = 'idle' | 'playing' | 'paused';
+
+const rootEntity = ref<HTMLElement | null>(null);
+const soundStatus = ref<SoundStatus>('idle');
+
+function onSoundStateChanged(e: Event) {
+  soundStatus.value = (e as CustomEvent).detail.status;
+}
+
+function getController(): any {
+  return (rootEntity.value as any)?.components?.['sound-controller'];
+}
+
 const guiControls = computed<GuiControl[]>(() => [
   {
-    type: 'slider',
-    id: 'demo',
-    label: 'Platzhalter-Regler',
-    min: 0,
-    max: 100,
-    value: demoValue.value,
-    unit: '%',
-    onInput: (value) => { demoValue.value = value; }
+    type: 'transport',
+    id: 'sound-transport',
+    buttons: [
+      { id: 'restart', label: 'Neustart', onClick: () => getController()?.restartActive() },
+      { id: 'stop', label: 'Stop', onClick: () => getController()?.stopActive() },
+      {
+        id: 'play-pause',
+        label: soundStatus.value === 'playing' ? 'Pause' : 'Play',
+        active: soundStatus.value === 'playing',
+        onClick: () => getController()?.togglePlayPause()
+      }
+    ]
   }
 ]);
+
+onMounted(() => {
+  rootEntity.value?.addEventListener('sound-state-changed', onSoundStateChanged);
+});
+
+onUnmounted(() => {
+  rootEntity.value?.removeEventListener('sound-state-changed', onSoundStateChanged);
+});
 </script>
 
 <template>
@@ -132,10 +162,67 @@ const guiControls = computed<GuiControl[]>(() => [
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
   <xrextras-named-image-target name="video-target">
     <a-entity
+        ref="rootEntity"
         position="0 -2 0"
         no-frustum-cull
         :visible="assetsLoaded"
+        ar-button-manager
+        sound-controller
     >
+      <!-- Sound-Player Themenfeld (archive-of-practice
+           projects/an-alle/concepts/sound-player.md, Entscheidung 3): two
+           sources, both tappable via [ar-button]+[sound-button] (see
+           examples/ar-button-usage.html) so the 2D transport panel above and
+           the 3D tap targets below drive the exact same
+           [sound-controller] state machine — the pedagogical point of this
+           Themenfeld ("Erklärung zu Buttons und Triggern"). Placeholder
+           spheres stand in for the author's own visual assets (not yet
+           provided); swap the geometry, keep the ar-button/sound-button
+           wiring. Placeholder clips (src/assets/sound-*-clip.wav, short
+           looping sine tones) stand in for the author's own soundfiles per
+           the same decision — swap only the asset id below once real files
+           land in src/assets/. -->
+
+      <!-- Static source: fixed position, NON-positional audio (no
+           panning/rolloff) — the "statisch" half of decision 3. -->
+      <a-entity id="static_sound" sound="src: #sound-static-clip; autoplay: false; loop: true"></a-entity>
+      <a-sphere
+          id="static_button"
+          position="-1.2 0.8 -2.5"
+          radius="0.18"
+          color="#3b6ea5"
+          ar-button="near: 2; far: 4.5; pulse: 0.2; zoneSize: 1.6 1.6 1.6"
+          sound-button="sound: #static_sound">
+      </a-sphere>
+
+      <!-- Wandering source: a plain built-in [animation] on the PIVOT's
+           rotation (not on the sphere's own position) turns the sphere's
+           fixed offset into a circular path — the "kein Rig, kein
+           wander-in-band, kein follow-node, nur A-Frames eingebaute
+           animation-Component" constraint from decision 3, expressed with
+           the built-in component alone (it only interpolates linearly
+           between two values, so a direct position animation can't orbit —
+           rotating the parent instead can). POSITIONAL audio here
+           (distanceModel/refDistance/rolloffFactor/maxDistance, pattern
+           from examples/wander-in-band-usage.html) is the "räumlich
+           (spatial)" half of decision 3 — panning/volume shift as it
+           circles is the effect being demonstrated. -->
+      <a-entity
+          position="0.6 1.1 -3"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear">
+        <a-entity id="wander_sound" position="1.3 0 0"
+            sound="src: #sound-wander-clip; autoplay: false; loop: true; positional: true; distanceModel: linear; refDistance: 1.5; rolloffFactor: 1; maxDistance: 6">
+        </a-entity>
+        <a-sphere
+            id="wander_button"
+            position="1.3 0 0"
+            radius="0.18"
+            color="#a5523b"
+            ar-button="near: 2; far: 4.5; pulse: 0.2; zoneSize: 1.6 1.6 1.6"
+            sound-button="sound: #wander_sound">
+        </a-sphere>
+      </a-entity>
+
       <!-- What the directional light below aims at — move this entity to
            redirect the light (and the shadows it casts) instead of having to
            re-aim the light itself. -->
@@ -208,5 +295,5 @@ const guiControls = computed<GuiControl[]>(() => [
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Platzhaltertext: Hier steht die Kurzerklärung, was diese Szene zeigt." />
+  <InfoOverlay text="Zwei Klangquellen: eine feste (blau) und eine kreisende (rot, mit Positional Audio). Tippe eine Kugel an oder nutze die Regler unten, um Play/Pause/Stop/Neustart zu steuern." />
 </template>
