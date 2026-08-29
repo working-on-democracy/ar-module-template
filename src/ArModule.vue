@@ -97,22 +97,89 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
-// AN ALLE! Zwischen-Basis demo wiring (archive-of-practice
-// projects/an-alle/concepts/zwischen-basis.md) — a placeholder single-slider
-// control so GuiPanel.vue renders something testable before any Themenfeld
-// branch has real scene content. Each branch replaces `guiControls` with its
-// own attribute wiring; GuiPanel.vue itself is not meant to be forked.
-const demoValue = ref(50);
+// AN ALLE! Zufallsverteilung & LOD (archive-of-practice
+// projects/an-alle/concepts/zufallsverteilung-lod.md) — random-field's own
+// attributes exposed directly, no derived math (Entscheidung 3/4: "kein
+// Algorithmus-Umbau", "kein Code-Umbau nötig"). minDistance/maxDistance and
+// LOD nearDistance/farDistance are each a "band" pair, so each gets one
+// range-slider rather than two separate sliders — still a direct 1:1
+// pass-through per thumb, not a computed/proportional value like
+// proximity-effekte's distanceScale. proximity-rise's own parameters
+// (riseStart/riseEnd/riseHeight) stay fixed — the concept doc's decisions
+// only call out random-field's and lod-object's attributes as GUI targets.
+const areaWidth = ref(8);
+const minDistance = ref(1.5);
+const maxDistance = ref(3);
+const copies = ref(4);
+const lodNear = ref(4);
+const lodFar = ref(7);
+
+const randomFieldAttr = computed(
+  () => `items: #prop; areaWidth: ${areaWidth.value}; minDistance: ${minDistance.value}; ` +
+        `maxDistance: ${maxDistance.value}; copies: ${copies.value}`
+);
+const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value}; farDistance: ${lodFar.value}`);
+
+// random-field places its clones once in init() (a one-shot procedural
+// generation, not a per-frame effect) and lod-object likewise only reads
+// nearDistance/farDistance in its own init() — neither component defines an
+// update() handler, so changing their DOM attribute reactively (the pattern
+// proximity-effekte/animationssystem-wanderer use for their own, genuinely
+// per-tick components) would update the GUI's displayed number without
+// touching the actual scene. A Vue `:key` tied to every GUI-affecting value
+// forces a full unmount/remount of the field on any change instead — the
+// standard Vue technique for "re-run a one-shot child from scratch" — so
+// adjusting a slider genuinely re-scatters the field with the new
+// parameters (arguably the point of this Themenfeld's demo, too).
+const fieldKey = computed(
+  () => `${areaWidth.value}-${minDistance.value}-${maxDistance.value}-${copies.value}-${lodNear.value}-${lodFar.value}`
+);
+
 const guiControls = computed<GuiControl[]>(() => [
   {
     type: 'slider',
-    id: 'demo',
-    label: 'Platzhalter-Regler',
-    min: 0,
-    max: 100,
-    value: demoValue.value,
-    unit: '%',
-    onInput: (value) => { demoValue.value = value; }
+    id: 'area-width',
+    label: 'Feldbreite',
+    min: 4,
+    max: 16,
+    step: 1,
+    value: areaWidth.value,
+    unit: 'm',
+    onInput: (value) => { areaWidth.value = value; }
+  },
+  {
+    type: 'range-slider',
+    id: 'object-spacing',
+    label: 'Objektabstand',
+    min: 0.5,
+    max: 6,
+    step: 0.5,
+    valueLow: minDistance.value,
+    valueHigh: maxDistance.value,
+    unit: 'm',
+    onInput: (low, high) => { minDistance.value = low; maxDistance.value = high; }
+  },
+  {
+    type: 'slider',
+    id: 'copies',
+    label: 'Anzahl',
+    min: 1,
+    max: 10,
+    step: 1,
+    value: copies.value,
+    onInput: (value) => { copies.value = value; }
+  },
+  {
+    type: 'range-slider',
+    id: 'lod-distance',
+    label: 'LOD-Umschaltdistanz',
+    min: 1,
+    max: 12,
+    step: 0.5,
+    valueLow: lodNear.value,
+    valueHigh: lodFar.value,
+    unit: 'm',
+    onInput: (low, high) => { lodNear.value = low; lodFar.value = high; }
   }
 ]);
 </script>
@@ -162,6 +229,59 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
+      <!-- Zufallsverteilung & LOD (archive-of-practice
+           projects/an-alle/concepts/zufallsverteilung-lod.md) — structure
+           and attribute conventions ported from
+           examples/random-field-lod-billboard-proximity-wave-scene.html
+           (lod-manager wrapper, .lod-mesh-group/.lod-mesh/.lod-billboard
+           classes, per-part render-order). No custom detail-model/billboard
+           texture from the author yet (Entscheidung 2), so — same reasoning
+           as that reference example — this uses plain primitives as a
+           stand-in: a "sprout" (stem + bud) for the detail mesh, a
+           matching-coloured plane for the billboard. Swap for a real
+           gltf-model once the author's assets exist; nothing else about
+           the structure changes. `:key="fieldKey"` forces a full field
+           regeneration when a GUI slider changes (s. Skript-Kommentar). -->
+      <a-entity lod-manager="chunksPerCycle: 6" :key="fieldKey">
+
+        <!-- Prop template — hidden by random-field once cloned. Rises on
+             approach via [proximity-rise] (own Entscheidung 1, fixed
+             parameters, not a GUI target); LOD-swaps to the billboard via
+             [lod-object] (nearDistance/farDistance GUI-bound). Both
+             components live on this same entity and get cloned onto every
+             placed copy along with it (s. proximity-rise.ts). -->
+        <a-entity id="prop" :lod-object="lodObjectAttr" proximity-rise="riseStart: 5; riseEnd: 1.5; riseHeight: 0.4">
+          <a-entity class="lod-mesh-group">
+            <a-entity
+                class="lod-mesh"
+                geometry="primitive: box; width: 0.08; height: 0.5; depth: 0.08"
+                material="color: #6b4a2f"
+                position="0 0.25 0"
+                render-order="1">
+            </a-entity>
+            <a-entity
+                class="lod-mesh"
+                geometry="primitive: sphere; radius: 0.14"
+                material="color: #e8c34a"
+                position="0 0.55 0"
+                render-order="2">
+            </a-entity>
+          </a-entity>
+          <a-entity
+              class="lod-billboard"
+              geometry="primitive: plane; width: 0.28; height: 0.7"
+              material="color: #b89a3a; side: double"
+              position="0 0.3 0"
+              render-order="3"
+              billboard
+              unlit-material="brightness: 0.4">
+          </a-entity>
+        </a-entity>
+
+        <a-entity :random-field="randomFieldAttr"></a-entity>
+
+      </a-entity>
+
       <!-- Ground plane. Renders ONLY the
            shadows cast onto it (material="shader: shadow"), not a visible
            surface of its own, so it stays invisible until something above
@@ -208,5 +328,5 @@ const guiControls = computed<GuiControl[]>(() => [
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Platzhaltertext: Hier steht die Kurzerklärung, was diese Szene zeigt." />
+  <InfoOverlay text="Ein Feld zufällig verteilter Pflänzchen: aus der Ferne nur flache Bildchen (Billboards), aus der Nähe echte 3D-Modelle — und sie wachsen sichtbar, je näher du kommst. Die Regler unten steuern Feldbreite, Abstand, Anzahl und die Umschaltdistanz." />
 </template>

@@ -33,6 +33,7 @@ import soundButton from "./a-frame-components/sound-button";
 import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
+import proximityRise from "./a-frame-components/proximity-rise";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
@@ -91,6 +92,13 @@ export const manifest: Manifest = {
     // Camera-proximity cutout sphere — see proximity-cutout.ts and
     // examples/proximity-cutout-usage.html.
     "proximity-cutout": proximityCutout,
+    // AN ALLE!-specific (archive-of-practice
+    // projects/an-alle/concepts/zufallsverteilung-lod.md) — same ramp math
+    // as proximity-fade (see proximity-fade-shared.ts's rampFactor, reused
+    // directly), one ramp instead of two, applied to position.y instead of
+    // material.opacity: objects rise monotonically as the camera
+    // approaches. Not a feature_template backport candidate at this time.
+    "proximity-rise": proximityRise,
     // Glass "mirror shard" field — see mirror-shard.ts and
     // examples/mirror-shard-usage.html. Its optional inner illustration
     // layer samples liquid-texture, a separate generic effect (not
