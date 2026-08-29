@@ -53,6 +53,11 @@ import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
+// AN ALLE! Zwischen-Basis: placeholder target until the real printed image
+// (background structure + emoji + title, per archive-of-practice
+// projects/an-alle/concepts/zwischen-basis.md) is designed and compiled.
+// Every downstream Themenfeld branch swaps this import for its own target.
+import videoTarget from "./image-targets/video-target.json";
 
 // Runs as soon as this module is imported — by the local previews AND by the
 // production host, since both must import `manifest` to do anything with this
@@ -160,11 +165,11 @@ export const manifest: Manifest = {
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
     "ground-decal": groundDecal
-  }
+  },
 
-  // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md
-  // for how to add one (an `imageTargets: [yourTarget]` entry here, importing
-  // your own src/image-targets/*.json).
+  // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one
+  // pending asset design.
+  imageTargets: [videoTarget]
 };
 
 export default manifest;

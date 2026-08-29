@@ -2,6 +2,9 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import GuiPanel from './GuiPanel.vue';
+import InfoOverlay from './InfoOverlay.vue';
+import type { GuiControl } from './gui-controls';
 
 interface ArModuleData {
   id: string;
@@ -93,6 +96,25 @@ onMounted(() => {
 onUnmounted(() => {
   stopAssetTracking?.();
 });
+
+// AN ALLE! Zwischen-Basis demo wiring (archive-of-practice
+// projects/an-alle/concepts/zwischen-basis.md) — a placeholder single-slider
+// control so GuiPanel.vue renders something testable before any Themenfeld
+// branch has real scene content. Each branch replaces `guiControls` with its
+// own attribute wiring; GuiPanel.vue itself is not meant to be forked.
+const demoValue = ref(50);
+const guiControls = computed<GuiControl[]>(() => [
+  {
+    type: 'slider',
+    id: 'demo',
+    label: 'Platzhalter-Regler',
+    min: 0,
+    max: 100,
+    value: demoValue.value,
+    unit: '%',
+    onInput: (value) => { demoValue.value = value; }
+  }
+]);
 </script>
 
 <template>
@@ -101,53 +123,62 @@ onUnmounted(() => {
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
-  <a-entity
-      position="0 -2 0"
-      no-frustum-cull
-      :visible="assetsLoaded"
-  >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+  <!-- AN ALLE! Zwischen-Basis: all five Themenfeld modules anchor to a printed
+       image target (archive-of-practice
+       projects/an-alle/concepts/zwischen-basis.md, Entscheidung 1) — "video-target"
+       is still the template's placeholder descriptor (s. manifest.ts) until the
+       real AN ALLE! target image is designed and compiled. Only works in the real
+       AR preview (npm run dev:ar) or the host, per
+       guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
+  <xrextras-named-image-target name="video-target">
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        position="0 -2 0"
+        no-frustum-cull
+        :visible="assetsLoaded"
+    >
+      <!-- What the directional light below aims at — move this entity to
+           redirect the light (and the shadows it casts) instead of having to
+           re-aim the light itself. -->
+      <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+
+      <!-- Directional light that casts shadows onto the ground plane below.
+           Positioned above the scene, aimed at #lightTarget above. -->
+      <a-entity
+          position="1 20 10"
+          light="
+                      type: directional;
+                      intensity: 1;
+                      target: #lightTarget;
+                      castShadow: true;
+                      shadowMapHeight:2048;
+                      shadowMapWidth:2048;
+                      shadowCameraTop: 80;
+                      shadowCameraBottom: -80;
+                      shadowCameraRight: 80;
+                      shadowCameraLeft: -80;
+                      shadowRadius: 12"
+          shadow>
+      </a-entity>
+
+      <a-light type="ambient" intensity="0.7"></a-light>
+
+      <!-- Ground plane. Renders ONLY the
+           shadows cast onto it (material="shader: shadow"), not a visible
+           surface of its own, so it stays invisible until something above
+           actually casts a shadow onto it. A good baseline to build a scene
+           on top of. -->
+      <a-plane
+          id="ground"
+          rotation="-90 0 0"
+          position="-50 0 -50"
+          width="500"
+          height="500"
+          material="shader: shadow"
+          shadow
+      ></a-plane>
+
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
-  </a-entity>
+  </xrextras-named-image-target>
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
@@ -166,4 +197,16 @@ onUnmounted(() => {
       </circle>
     </svg>
   </div>
+
+  <!-- AN ALLE! Zwischen-Basis: shared GUI baustein (archive-of-practice
+       projects/an-alle/concepts/zwischen-basis.md) — each Themenfeld branch
+       replaces `guiControls` above with its own attribute wiring, GuiPanel.vue
+       itself is not meant to be forked. -->
+  <GuiPanel :controls="guiControls" />
+
+  <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
+       raycast-driven context-text idea for every Themenfeld except
+       Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
+       branch passes its own scene-specific explanation text. -->
+  <InfoOverlay text="Platzhaltertext: Hier steht die Kurzerklärung, was diese Szene zeigt." />
 </template>
