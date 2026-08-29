@@ -97,22 +97,88 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
-// AN ALLE! Zwischen-Basis demo wiring (archive-of-practice
-// projects/an-alle/concepts/zwischen-basis.md) — a placeholder single-slider
-// control so GuiPanel.vue renders something testable before any Themenfeld
-// branch has real scene content. Each branch replaces `guiControls` with its
-// own attribute wiring; GuiPanel.vue itself is not meant to be forked.
-const demoValue = ref(50);
+// AN ALLE! Animationssystem Wanderer (archive-of-practice
+// projects/an-alle/concepts/animationssystem-wanderer.md) — one central,
+// unmoving rigged object (trim-loop-clip only) and five wanderers with NO
+// rig (wander-in-band only, Entscheidung 1: "Kein Objekt kombiniert beide
+// Techniken zugleich"). Asset choice (MainCharacter3 + Seed1/2/3) and the
+// wander-in-band parameters below are ported from Fanyu_module's own
+// already-working scene — a proven combination of these two components on
+// this exact model set, not newly authored values. Fanyu_module also gave
+// each seed a trim-loop-clip + positional sound, both dropped here: the
+// concept doc's decision 1 is explicit that wanderers stay rig-free, and
+// this Themenfeld doesn't cover sound at all (that's Sound-Player's own
+// concern). Only 3 distinct seed models exist, so two of the five wanderer
+// slots below reuse Seed1/Seed2 a second time at different positions —
+// swap in the author's own additional models later if/when they exist.
+const wanderSpeed = ref(0.35); // shared across all 5 wanderers, own slider
+const bandInner = ref(6); // shared band, two-thumb range-slider
+const bandOuter = ref(12);
+const clipTimeScale = ref(0.4); // central object's trim-loop-clip only
+const clipLoop = ref<'once' | 'repeat' | 'pingpong'>('pingpong');
+
+const trimAttr = computed(() => `timeScale: ${clipTimeScale.value.toFixed(2)}; loop: ${clipLoop.value}`);
+
+// Each wanderer keeps its own authored chaos/floatIntensity/yawOffset
+// (variety, per Fanyu_module's original values) while innerRadius/
+// outerRadius/speed stay shared via the GUI, matching how
+// proximity-wave-group applies one shared config across its children.
+function wanderAttr(chaos: number, floatIntensity: number, yawOffset = 0): string {
+  return `center: #mainEntity; innerRadius: ${bandInner.value}; outerRadius: ${bandOuter.value}; ` +
+         `floatIntensity: ${floatIntensity}; speed: ${wanderSpeed.value.toFixed(2)}; chaos: ${chaos}` +
+         (yawOffset ? `; yawOffset: ${yawOffset}` : '');
+}
+
+const wander1Attr = computed(() => wanderAttr(0.15, 0.05));
+const wander2Attr = computed(() => wanderAttr(0.1, 0.05));
+const wander3Attr = computed(() => wanderAttr(0.21, 0.05));
+const wander4Attr = computed(() => wanderAttr(0.12, 0.04, 90));
+const wander5Attr = computed(() => wanderAttr(0.18, 0.06, 180));
+
 const guiControls = computed<GuiControl[]>(() => [
   {
     type: 'slider',
-    id: 'demo',
-    label: 'Platzhalter-Regler',
-    min: 0,
-    max: 100,
-    value: demoValue.value,
-    unit: '%',
-    onInput: (value) => { demoValue.value = value; }
+    id: 'wander-speed',
+    label: 'Wanderer-Tempo',
+    min: 0.1,
+    max: 1,
+    step: 0.05,
+    value: wanderSpeed.value,
+    onInput: (value) => { wanderSpeed.value = value; }
+  },
+  {
+    type: 'range-slider',
+    id: 'wander-band',
+    label: 'Wander-Band',
+    min: 2,
+    max: 16,
+    step: 0.5,
+    valueLow: bandInner.value,
+    valueHigh: bandOuter.value,
+    unit: 'm',
+    onInput: (low, high) => { bandInner.value = low; bandOuter.value = high; }
+  },
+  {
+    type: 'slider',
+    id: 'clip-time-scale',
+    label: 'Animationstempo (Mitte)',
+    min: 0.1,
+    max: 1,
+    step: 0.05,
+    value: clipTimeScale.value,
+    onInput: (value) => { clipTimeScale.value = value; }
+  },
+  {
+    type: 'switch',
+    id: 'clip-loop',
+    label: 'Loop-Modus (Mitte)',
+    value: clipLoop.value,
+    options: [
+      { value: 'once', label: 'Einmal' },
+      { value: 'repeat', label: 'Wiederholen' },
+      { value: 'pingpong', label: 'Ping-Pong' }
+    ],
+    onSelect: (value) => { clipLoop.value = value as typeof clipLoop.value; }
   }
 ]);
 </script>
@@ -162,6 +228,34 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
+      <!-- Zentrales, unbewegliches Objekt (archive-of-practice
+           projects/an-alle/concepts/animationssystem-wanderer.md,
+           Entscheidung 1): Rig-Animation per trim-loop-clip, GUI-steuerbar
+           (timeScale/loop). Kein wander-in-band hier — bleibt an Ort und
+           Stelle, damit die fünf Wanderer einen festen Bezugspunkt haben. -->
+      <a-entity
+          id="mainEntity"
+          gltf-model="#MainCharacter3"
+          scale="2 2 2"
+          position="0 0 -10"
+          :trim-loop-clip="trimAttr"
+          shadow>
+      </a-entity>
+
+      <!-- Fünf Wanderer, kein Rig — nur wander-in-band/Orbit-Pfad um
+           #mainEntity (Entscheidung 1). Gemeinsamer Elternknoten, damit die
+           eingebaute gegenseitige Ausweich-Logik von wander-in-band greift
+           (sie schaut nur auf Geschwister unter demselben Parent). Nur 3
+           unterschiedliche Seed-Modelle vorhanden — Slot 4/5 nutzen Seed1/
+           Seed2 ein zweites Mal (s. Skript-Kommentar oben). -->
+      <a-entity id="wandererGroup">
+        <a-entity gltf-model="#Seed1" scale="2 2 2" position="-5 0.5 -6" :wander-in-band="wander1Attr" shadow></a-entity>
+        <a-entity gltf-model="#Seed2" scale="2 2 2" position="-5 0.5 -2" :wander-in-band="wander2Attr" shadow></a-entity>
+        <a-entity gltf-model="#Seed3" scale="2 2 2" position="10 0.5 -4" :wander-in-band="wander3Attr" shadow></a-entity>
+        <a-entity gltf-model="#Seed1" scale="1.6 1.6 1.6" position="4 0.5 -14" :wander-in-band="wander4Attr" shadow></a-entity>
+        <a-entity gltf-model="#Seed2" scale="1.6 1.6 1.6" position="-8 0.5 -12" :wander-in-band="wander5Attr" shadow></a-entity>
+      </a-entity>
+
       <!-- Ground plane. Renders ONLY the
            shadows cast onto it (material="shader: shadow"), not a visible
            surface of its own, so it stays invisible until something above
@@ -208,5 +302,5 @@ const guiControls = computed<GuiControl[]>(() => [
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Platzhaltertext: Hier steht die Kurzerklärung, was diese Szene zeigt." />
+  <InfoOverlay text="In der Mitte eine Figur mit Rig-Animation, drumherum fünf Wanderer ohne Rig, die in einem Band um sie herumziehen. Die Regler unten steuern Tempo, Wander-Band und den Loop-Modus der mittleren Animation." />
 </template>
