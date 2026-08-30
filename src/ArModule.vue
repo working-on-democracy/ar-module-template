@@ -207,8 +207,8 @@ const ITEM_LABELS: Record<ItemId, string> = {
 const order = ref<ItemId[]>([...ITEM_IDS]);
 const roughness = ref(50); // %
 const metalness = ref(50); // %
-const opacity = ref(70); // %
-const emissive = ref(33); // %, gemappt auf material-properties' 0–3-Multiplikator
+const opacity = ref(100); // %
+const emissive = ref(0); // %, gemappt auf material-properties' 0–3-Multiplikator
 
 const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
@@ -303,7 +303,6 @@ const guiControls = computed<GuiControl[]>(() => [
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <a-light type="ambient" intensity="0.1"></a-light>
 
       <!-- Two point lights orbiting the scene at different speed/direction,
            one pink, one turquoise (device testing, 30.08.2026, s. Skript-
