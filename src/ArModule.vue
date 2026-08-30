@@ -129,6 +129,45 @@ onUnmounted(() => {
 // ein `:key` auf der ganzen Gruppe (wie schon in zufallsverteilung-lod) bei
 // jeder Regler-/Reihenfolgeänderung einen vollständigen Neuaufbau. Bei nur
 // sechs einfachen Primitives ist das trivial günstig.
+//
+// Footprint convention (s. sound-player's own ArModule.vue and
+// guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
+// scene's ground plane. Unlike the other three retrofitted branches, none
+// of material-properties/dither-material/unlit-material/render-order touch
+// position/rotation/axes at all (pure material-property setters) — no
+// generic component here assumes the older X/Z-ground convention. The
+// `rotation: 90 0 0` on #showcase below is purely a VISUAL choice, not a
+// compensating-axis one: a-circle's default orientation lies flat in its
+// own local X/Y plane (matching the image's own plane once nested directly
+// under the image target, per sound-player's ground-plane comment) — the
+// rotation stands the discs up to face the viewer instead of lying flat on
+// the image. Once rotated, authoring their positions with the OLD
+// intuitive X-right/Y-up/Z-toward-viewer meaning inside the wrapper maps
+// correctly onto the real footprint's Y-bounded-depth/Z-free-height outside
+// it — exactly the same diagonal values as the pre-footprint version
+// (Frage 11, archive-of-practice projects/an-alle/fragen.md), just
+// rescaled from room-scale metres to the target's own small physical size.
+const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: number; height: number } } | undefined)?.properties;
+const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
+const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
+
+const RADIUS_SCALE = FOOTPRINT_DEPTH * 0.15; // same ratios as the old room-scale radii (0.3…0.67), shrunk to fit
+const DISC_RADII: Record<'a' | 'b' | 'c' | 'd' | 'e' | 'f', number> = {
+  a: 0.3 * RADIUS_SCALE, b: 0.37 * RADIUS_SCALE, c: 0.45 * RADIUS_SCALE,
+  d: 0.52 * RADIUS_SCALE, e: 0.6 * RADIUS_SCALE, f: 0.67 * RADIUS_SCALE
+};
+const DIAG_STEP = FOOTPRINT_DEPTH * 0.05; // per-step diagonal offset, wrapper-local Y (→ real Y, bounded) and Z (→ real height, free)
+const LABEL_LIFT = FOOTPRINT_DEPTH * 0.03; // extra wrapper-local Y so each label floats just above its own disc
+const LABEL_NUDGE = FOOTPRINT_DEPTH * 0.002; // tiny wrapper-local Z nudge toward the viewer, avoids z-fighting with the disc
+const BASE_HEIGHT = FOOTPRINT_DEPTH * 0.35; // true footprint Z — how high above the image the whole showcase floats
+
+function itemPosition(step: number): string {
+  return `0 ${(step * DIAG_STEP).toFixed(4)} ${(-step * DIAG_STEP).toFixed(4)}`;
+}
+function labelPosition(step: number): string {
+  return `0 ${(step * DIAG_STEP + LABEL_LIFT).toFixed(4)} ${LABEL_NUDGE.toFixed(4)}`;
+}
+
 const ITEM_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
 type ItemId = typeof ITEM_IDS[number];
 const ITEM_LABELS: Record<ItemId, string> = {
@@ -141,6 +180,10 @@ const roughness = ref(50); // %
 const metalness = ref(50); // %
 const opacity = ref(70); // %
 const emissive = ref(33); // %, gemappt auf material-properties' 0–3-Multiplikator
+
+const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
+const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
+const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
 const renderOrderOf = (id: ItemId) => order.value.indexOf(id);
 
@@ -225,33 +268,19 @@ const guiControls = computed<GuiControl[]>(() => [
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
   <xrextras-named-image-target name="video-target">
     <a-entity
-        position="0 -2 0"
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <!-- What the directional light below aims at — move this entity to
-           redirect the light (and the shadows it casts) instead of having to
-           re-aim the light itself. -->
-      <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+      <!-- What the directional light below aims at — the footprint's own
+           centre/ground (s. sound-player's ArModule.vue). -->
+      <a-entity id="lightTarget" position="0 0 0"></a-entity>
 
       <!-- Directional light that casts shadows onto the ground plane below.
-           Positioned above the scene, aimed at #lightTarget above. -->
-      <a-entity
-          position="1 20 10"
-          light="
-                      type: directional;
-                      intensity: 1;
-                      target: #lightTarget;
-                      castShadow: true;
-                      shadowMapHeight:2048;
-                      shadowMapWidth:2048;
-                      shadowCameraTop: 80;
-                      shadowCameraBottom: -80;
-                      shadowCameraRight: 80;
-                      shadowCameraLeft: -80;
-                      shadowRadius: 12"
-          shadow>
-      </a-entity>
+           Positioned above the scene (elevated in Z — the footprint
+           convention's height axis), aimed at #lightTarget. Shadow camera
+           bounds sized to the image's own footprint, not a room-scale
+           guess. -->
+      <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
@@ -260,103 +289,96 @@ const guiControls = computed<GuiControl[]>(() => [
            farbige Kreis-Scheiben, gestaffelt und nach hinten zunehmend
            größer, garantiert Überschneidung aus Kamerasicht. Staffelung auf
            einer 45°-Winkelung zwischen Y und Z statt auf einer reinen Achse
-           (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md,
-           Frage 11) — jeder Schritt geht gleichermaßen nach oben (Y, heute
-           die normale A-Frame-Hochachse) wie nach hinten (Z, heute die
-           Kamera-Tiefenachse). Nutzt bewusst die HEUTIGEN, noch nicht per
-           Footprint-Konvention umgewidmeten Achsen (dieser Branch hat
-           zwischen-basis noch nicht gemerged) — nach dem Merge tauschen Y
-           und Z unter `xrextras-named-image-target` ihre Rollen (Y wird
-           bildbegrenzte Tiefe, Z wird freie Höhe), diese Werte müssten dann
-           neu zugeordnet, nicht neu erfunden werden. Ein Text-Label über
-           jeder Scheibe zeigt ihren aktuellen render-order-Wert.
-           `:key="fieldKey"` erzwingt einen sauberen Neuaufbau bei jeder
+           (Frage 11, s. Skript-Kommentar oben für die Footprint-Umrechnung
+           und wofür `rotation="90 0 0"` hier steht — rein optisch, keine
+           Komponenten-Achsen-Kompensation). Ein Text-Label über jeder
+           Scheibe zeigt ihren aktuellen render-order-Wert. `:key="fieldKey"`
+           erzwingt einen sauberen Neuaufbau bei jeder
            Regler-/Reihenfolgeänderung (s. Skript). -->
-      <a-entity id="showcase" position="0 1 -2" :key="fieldKey">
+      <a-entity id="showcase" :position="`0 0 ${BASE_HEIGHT}`" rotation="90 0 0" :key="fieldKey">
 
         <!-- A — vorderstes, unlit. unlit-material zuerst (ersetzt das
              Material durch MeshBasicMaterial), material-properties danach
              wendet nur noch opacity darauf an — roughness/metalness/emissive
              existieren auf MeshBasicMaterial nicht und werden von
              material-properties stillschweigend übersprungen. -->
-        <a-entity position="0 0 0">
+        <a-entity :position="itemPosition(0)">
           <a-entity
-              geometry="primitive: circle; radius: 0.3"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.a}`"
               material="color: #f2f2f2; side: double; transparent: true"
               unlit-material
               :material-properties="unlitOpacityAttr"
               :render-order="renderOrderOf('a')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.5 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(0)"></a-entity>
         </a-entity>
 
         <!-- B/C/D — dither-transparent, je ein anderer ditherType. -->
-        <a-entity position="0 0.35 -0.35">
+        <a-entity :position="itemPosition(1)">
           <a-entity
-              geometry="primitive: circle; radius: 0.37"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.b}`"
               material="color: #ff4d4d; side: double; transparent: true"
               :dither-material="ditherAttr('bayer')"
               :render-order="renderOrderOf('b')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.6 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(1)"></a-entity>
         </a-entity>
 
-        <a-entity position="0 0.7 -0.7">
+        <a-entity :position="itemPosition(2)">
           <a-entity
-              geometry="primitive: circle; radius: 0.45"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.c}`"
               material="color: #4d79ff; side: double; transparent: true"
               :dither-material="ditherAttr('noise')"
               :render-order="renderOrderOf('c')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.7 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(2)"></a-entity>
         </a-entity>
 
-        <a-entity position="0 1.05 -1.05">
+        <a-entity :position="itemPosition(3)">
           <a-entity
-              geometry="primitive: circle; radius: 0.52"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.d}`"
               material="color: #4dff88; side: double; transparent: true"
               :dither-material="ditherAttr('interleaved-gradient')"
               :render-order="renderOrderOf('d')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.8 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(3)"></a-entity>
         </a-entity>
 
         <!-- E/F — normale Alpha-Transparenz, mit eigener Emissiv-Grundfarbe
              (sonst hätte der globale Emissive-Regler nichts zum Boosten). -->
-        <a-entity position="0 1.4 -1.4">
+        <a-entity :position="itemPosition(4)">
           <a-entity
-              geometry="primitive: circle; radius: 0.6"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.e}`"
               material="color: #ffe14d; side: double; transparent: true; emissive: #ffcc00; emissiveIntensity: 1"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('e')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.9 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(4)"></a-entity>
         </a-entity>
 
-        <a-entity position="0 1.75 -1.75">
+        <a-entity :position="itemPosition(5)">
           <a-entity
-              geometry="primitive: circle; radius: 0.67"
+              :geometry="`primitive: circle; radius: ${DISC_RADII.f}`"
               material="color: #ff4dd2; side: double; transparent: true; emissive: #ff00aa; emissiveIntensity: 1"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('f')">
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" position="0 1 0.01"></a-entity>
+          <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(5)"></a-entity>
         </a-entity>
 
       </a-entity>
 
-      <!-- Ground plane. Renders ONLY the
-           shadows cast onto it (material="shader: shadow"), not a visible
-           surface of its own, so it stays invisible until something above
-           actually casts a shadow onto it. A good baseline to build a scene
-           on top of. -->
+      <!-- Ground plane = the tracked image itself (footprint convention, see
+           script block above): same local X/Y bounds as the printed image,
+           no rotation (a-plane's default orientation already matches the
+           image's own plane), sitting at Z=0. Semi-transparent visible fill
+           so the footprint is visible for orientation/debugging while still
+           catching shadows. -->
       <a-plane
           id="ground"
-          rotation="-90 0 0"
-          position="-50 0 -50"
-          width="500"
-          height="500"
-          material="shader: shadow"
+          :width="FOOTPRINT_WIDTH"
+          :height="FOOTPRINT_DEPTH"
+          :material="groundMaterial"
           shadow
       ></a-plane>
 
