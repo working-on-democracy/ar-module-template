@@ -151,22 +151,51 @@ const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: numbe
 const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
 const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
 
-const RADIUS_SCALE = FOOTPRINT_DEPTH * 0.15; // same ratios as the old room-scale radii (0.3…0.67), shrunk to fit
+const RADIUS_SCALE = FOOTPRINT_DEPTH * 0.28; // bigger discs (device testing, 30.08.2026: old 0.15 read as too small)
 const DISC_RADII: Record<'a' | 'b' | 'c' | 'd' | 'e' | 'f', number> = {
   a: 0.3 * RADIUS_SCALE, b: 0.37 * RADIUS_SCALE, c: 0.45 * RADIUS_SCALE,
   d: 0.52 * RADIUS_SCALE, e: 0.6 * RADIUS_SCALE, f: 0.67 * RADIUS_SCALE
 };
-const DIAG_STEP = FOOTPRINT_DEPTH * 0.05; // per-step diagonal offset, wrapper-local Y (→ real Y, bounded) and Z (→ real height, free)
+// Staggering, retuned after device testing (30.08.2026):
+//  - wrapper-local Z (→ real Y, the footprint's own bounded ground axis)
+//    now spans most of the footprint's length, centred on 0 rather than
+//    starting there and only extending one way — "use the full length of
+//    the ground plane".
+//  - wrapper-local Y (→ real Z, the free height axis) is now INVERTED
+//    relative to size: the smallest disc (a) floats highest, the largest
+//    (f) sits closest to the ground, staggered in between — the opposite
+//    of the original "bigger = higher" direction.
+const STEP_COUNT = 5; // 6 items (a..f), 5 steps between them
+const GROUND_STEP = FOOTPRINT_DEPTH * 0.15; // wrapper-local Z per step
+const HEIGHT_STEP = FOOTPRINT_DEPTH * 0.08; // wrapper-local Y per step
+const TILT_DEG = -45; // each disc's own extra tilt, away from the ground plane (device testing, 30.08.2026)
 const LABEL_LIFT = FOOTPRINT_DEPTH * 0.03; // extra wrapper-local Y so each label floats just above its own disc
 const LABEL_NUDGE = FOOTPRINT_DEPTH * 0.002; // tiny wrapper-local Z nudge toward the viewer, avoids z-fighting with the disc
 const BASE_HEIGHT = FOOTPRINT_DEPTH * 0.35; // true footprint Z — how high above the image the whole showcase floats
 
+function heightOffset(step: number): number {
+  return (STEP_COUNT - step) * HEIGHT_STEP; // inverted: smaller step (smaller disc) => more height
+}
 function itemPosition(step: number): string {
-  return `0 ${(step * DIAG_STEP).toFixed(4)} ${(-step * DIAG_STEP).toFixed(4)}`;
+  const groundOffset = (step - STEP_COUNT / 2) * GROUND_STEP; // centred, spans the ground's length
+  return `0 ${heightOffset(step).toFixed(4)} ${(-groundOffset).toFixed(4)}`;
 }
 function labelPosition(step: number): string {
-  return `0 ${(step * DIAG_STEP + LABEL_LIFT).toFixed(4)} ${LABEL_NUDGE.toFixed(4)}`;
+  return `0 ${(heightOffset(step) + LABEL_LIFT).toFixed(4)} ${LABEL_NUDGE.toFixed(4)}`;
 }
+const tiltAttr = `${TILT_DEG} 0 0`; // each disc's own extra rotation, applied on top of #showcase's own 90 0 0
+
+// Two point lights orbiting the whole scene at different speed/direction/
+// color, plus a white spotlight "headlamp" that follows the camera (device
+// testing, 30.08.2026). Orbit lights sit OUTSIDE #showcase's rotation
+// wrapper, authored directly in real footprint X/Y-ground, Z-height terms
+// (like the directional/ambient lights above) — no axis compensation
+// needed since nothing here is a ported room-scale component. A rotating
+// pivot entity (`animation` on `rotation`, real Z = the height axis, so
+// rotation.z sweeps the ground's X/Y plane) carries a light offset along
+// its own local X by ORBIT_RADIUS, tracing a circle at constant height.
+const ORBIT_RADIUS = Math.max(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH) * 0.55;
+const ORBIT_HEIGHT = BASE_HEIGHT + HEIGHT_STEP * 2.5; // roughly mid-height of the showcase stagger
 
 const ITEM_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
 type ItemId = typeof ITEM_IDS[number];
@@ -284,6 +313,27 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
+      <!-- Two point lights orbiting the scene at different speed/direction,
+           one pink, one turquoise (device testing, 30.08.2026, s. Skript-
+           Kommentar oben für die Orbit-Mechanik). -->
+      <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 9000; easing: linear">
+        <a-entity light="type: point; color: #ff2d95; intensity: 1.3" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
+      </a-entity>
+      <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" animation="property: rotation; from: 0 0 180; to: 0 0 -180; loop: true; dur: 14000; easing: linear">
+        <a-entity light="type: point; color: #1fd6c1; intensity: 1.3" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
+      </a-entity>
+
+      <!-- White spotlight "headlamp" — follows the camera's position AND
+           rotation (attach-to's own copyRotation, added for this), so it
+           always shines in the current view direction (device testing,
+           30.08.2026). No explicit `target`: A-Frame's light component then
+           points a spot/directional light along the entity's own local -Z,
+           following its rotation every frame like a real headlamp. -->
+      <a-entity
+          light="type: spot; color: #ffffff; intensity: 1.5; angle: 30; penumbra: 0.4; distance: 5"
+          attach-to="target: #camera; copyRotation: true">
+      </a-entity>
+
       <!-- Material-/Shader-Showcase (archive-of-practice
            projects/an-alle/concepts/material-shader-showcase.md) — sechs
            farbige Kreis-Scheiben, gestaffelt und nach hinten zunehmend
@@ -305,6 +355,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(0)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.a}`"
+              :rotation="tiltAttr"
               material="color: #f2f2f2; side: double; transparent: true"
               unlit-material
               :material-properties="unlitOpacityAttr"
@@ -317,6 +368,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(1)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.b}`"
+              :rotation="tiltAttr"
               material="color: #ff4d4d; side: double; transparent: true"
               :dither-material="ditherAttr('bayer')"
               :render-order="renderOrderOf('b')">
@@ -327,6 +379,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(2)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.c}`"
+              :rotation="tiltAttr"
               material="color: #4d79ff; side: double; transparent: true"
               :dither-material="ditherAttr('noise')"
               :render-order="renderOrderOf('c')">
@@ -337,6 +390,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(3)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.d}`"
+              :rotation="tiltAttr"
               material="color: #4dff88; side: double; transparent: true"
               :dither-material="ditherAttr('interleaved-gradient')"
               :render-order="renderOrderOf('d')">
@@ -349,6 +403,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(4)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.e}`"
+              :rotation="tiltAttr"
               material="color: #ffe14d; side: double; transparent: true; emissive: #ffcc00; emissiveIntensity: 1"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('e')">
@@ -359,6 +414,7 @@ const guiControls = computed<GuiControl[]>(() => [
         <a-entity :position="itemPosition(5)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.f}`"
+              :rotation="tiltAttr"
               material="color: #ff4dd2; side: double; transparent: true; emissive: #ff00aa; emissiveIntensity: 1"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('f')">
