@@ -101,35 +101,61 @@ onUnmounted(() => {
 // projects/an-alle/concepts/zufallsverteilung-lod.md) — Version 2
 // (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md, Frage 10):
 // a bounded square field (random-field's new `areaDepth`, s.
-// random-field.ts/RANDOM-FIELD-FEATURE-GUIDE.md) sized as a % of a
-// placeholder reference area, filled to a % density instead of exposing
+// random-field.ts/RANDOM-FIELD-FEATURE-GUIDE.md) sized as a % of the
+// target image's own footprint, filled to a % density instead of exposing
 // areaWidth/copies/minDistance/maxDistance directly (replaces this
 // project's own earlier Version 1 "kein Algorithmus-Umbau" simplification).
-// REFERENCE_AREA_SIDE stands in for the real image target's own footprint
-// width/depth (s. zwischen-basis.md's Footprint-Konvention) until this
-// branch merges zwischen-basis — swap it for the target's real
-// properties.width/height then, nothing else about the math below changes.
-// PROP_FOOTPRINT_AREA is a rough estimate of one placed prop's own
-// ground-plane footprint (from its bud radius below), used only to convert
-// a density percentage into a concrete `copies` count for random-field.
-// minDistance/maxDistance stay fixed (not GUI targets) — just enough to
-// keep clones from visibly overlapping; on a small, dense field they're
-// far more likely to actually trigger the new bounded-area shortfall
-// (s. random-field.ts) than the old unbounded strip ever was, which is
-// expected, not a bug — Anzahl-Ziel here is a soft target, not a
-// guarantee (s. concept doc "Verteilungsmodell — Version 2").
-const REFERENCE_AREA_SIDE = 6; // metres, placeholder square side
-const PROP_FOOTPRINT_AREA = 0.08; // m², ~ the bud's own 0.14 m radius footprint
-const FIXED_MIN_DISTANCE = 0.4;
-const FIXED_MAX_DISTANCE = 1.0;
+//
+// Footprint convention (s. sound-player's own ArModule.vue and
+// guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
+// scene's ground plane. `random-field`/`proximity-rise` (like
+// `wander-in-band`) assume the older three.js/A-Frame default (X/Z ground,
+// Y height) rather than the convention's X/Y ground, Z height, so the
+// field/prop group below sits inside ONE compensating `rotation: 90 0 0`
+// wrapper (same technique as proximity-effekte/animationssystem-wanderer):
+// authored X/Z-ground/Y-height inside maps onto the real footprint's
+// X/Y-ground/Z-height outside. FOOTPRINT_MIN_SIDE (not the raw
+// FOOTPRINT_WIDTH/FOOTPRINT_DEPTH) bounds the field so a 100%-size square
+// field fits inside the image on BOTH axes, whichever is narrower.
+const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: number; height: number } } | undefined)?.properties;
+const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
+const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
+const FOOTPRINT_MIN_SIDE = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH);
+
+// Every prop dimension below is the old room-scale value (tuned for a 6m
+// reference field) times PROP_SCALE — a direct proportional shrink to the
+// image target's own much smaller physical size, preserving every ratio
+// (stem width:height, bud radius, billboard size) exactly.
+const PROP_SCALE = FOOTPRINT_MIN_SIDE / 6;
+const PROP_STEM_WIDTH = 0.08 * PROP_SCALE;
+const PROP_STEM_HEIGHT = 0.5 * PROP_SCALE;
+const PROP_BUD_RADIUS = 0.14 * PROP_SCALE;
+const PROP_BILLBOARD_WIDTH = 0.28 * PROP_SCALE;
+const PROP_BILLBOARD_HEIGHT = 0.7 * PROP_SCALE;
+const PROP_FOOTPRINT_AREA = 0.08 * PROP_SCALE * PROP_SCALE; // area scales with the square of the linear factor
+const FIXED_MIN_DISTANCE = 0.4 * PROP_SCALE;
+const FIXED_MAX_DISTANCE = 1.0 * PROP_SCALE;
 const MAX_COPIES = 60; // hard cap regardless of density, s. random-field.ts's K=30-attempts-per-point cost
 
-const fieldSizePercent = ref(70); // 20–100, % of REFERENCE_AREA_SIDE
-const density = ref(40); // 10–90, % of the field area filled with objects
-const lodNear = ref(4);
-const lodFar = ref(7);
+// riseStart/riseEnd are real camera-to-target distances (like
+// proximity-fade/-cutout elsewhere in this template) — rescaled to the
+// target's own small physical size, not the prop's linear scale.
+// riseHeight is a spatial rise amount, scaled with the props themselves.
+const RISE_START = FOOTPRINT_DEPTH * 3;
+const RISE_END = FOOTPRINT_DEPTH * 1.2;
+const RISE_HEIGHT = PROP_STEM_HEIGHT * 0.8;
+const riseAttr = `riseStart: ${RISE_START.toFixed(3)}; riseEnd: ${RISE_END.toFixed(3)}; riseHeight: ${RISE_HEIGHT.toFixed(4)}`;
 
-const areaSide = computed(() => REFERENCE_AREA_SIDE * (fieldSizePercent.value / 100));
+const fieldSizePercent = ref(70); // 20–100, % of FOOTPRINT_MIN_SIDE
+const density = ref(40); // 10–90, % of the field area filled with objects
+// LOD near/far are also real camera-to-target distances — rescaled the
+// same way as riseStart/riseEnd above (was 4/7m, tuned for a 6m room-scale
+// field; the required camera-to-target closeness for stable image tracking
+// makes these much smaller values likely, s. zufallsverteilung-lod.md).
+const lodNear = ref(FOOTPRINT_DEPTH * 1.5);
+const lodFar = ref(FOOTPRINT_DEPTH * 3);
+
+const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 const targetCopies = computed(() => {
   const area = areaSide.value * areaSide.value;
   const raw = Math.round((density.value / 100) * area / PROP_FOOTPRINT_AREA);
@@ -137,10 +163,14 @@ const targetCopies = computed(() => {
 });
 
 const randomFieldAttr = computed(
-  () => `items: #prop; areaWidth: ${areaSide.value.toFixed(2)}; areaDepth: ${areaSide.value.toFixed(2)}; ` +
-        `minDistance: ${FIXED_MIN_DISTANCE}; maxDistance: ${FIXED_MAX_DISTANCE}; copies: ${targetCopies.value}`
+  () => `items: #prop; areaWidth: ${areaSide.value.toFixed(3)}; areaDepth: ${areaSide.value.toFixed(3)}; ` +
+        `minDistance: ${FIXED_MIN_DISTANCE.toFixed(4)}; maxDistance: ${FIXED_MAX_DISTANCE.toFixed(4)}; copies: ${targetCopies.value}`
 );
-const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value}; farDistance: ${lodFar.value}`);
+const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value.toFixed(3)}; farDistance: ${lodFar.value.toFixed(3)}`);
+
+const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
+const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
+const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
 // random-field places its clones once in init() (a one-shot procedural
 // generation, not a per-frame effect) and lod-object likewise only reads
@@ -184,9 +214,9 @@ const guiControls = computed<GuiControl[]>(() => [
     type: 'range-slider',
     id: 'lod-distance',
     label: 'LOD-Umschaltdistanz',
-    min: 1,
-    max: 12,
-    step: 0.5,
+    min: Math.round(FOOTPRINT_DEPTH * 0.5 * 1000) / 1000,
+    max: Math.round(FOOTPRINT_DEPTH * 4 * 1000) / 1000,
+    step: Math.round(FOOTPRINT_DEPTH * 0.1 * 1000) / 1000,
     valueLow: lodNear.value,
     valueHigh: lodFar.value,
     unit: 'm',
@@ -210,33 +240,19 @@ const guiControls = computed<GuiControl[]>(() => [
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
   <xrextras-named-image-target name="video-target">
     <a-entity
-        position="0 -2 0"
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <!-- What the directional light below aims at — move this entity to
-           redirect the light (and the shadows it casts) instead of having to
-           re-aim the light itself. -->
-      <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+      <!-- What the directional light below aims at — the footprint's own
+           centre/ground (s. sound-player's ArModule.vue). -->
+      <a-entity id="lightTarget" position="0 0 0"></a-entity>
 
       <!-- Directional light that casts shadows onto the ground plane below.
-           Positioned above the scene, aimed at #lightTarget above. -->
-      <a-entity
-          position="1 20 10"
-          light="
-                      type: directional;
-                      intensity: 1;
-                      target: #lightTarget;
-                      castShadow: true;
-                      shadowMapHeight:2048;
-                      shadowMapWidth:2048;
-                      shadowCameraTop: 80;
-                      shadowCameraBottom: -80;
-                      shadowCameraRight: 80;
-                      shadowCameraLeft: -80;
-                      shadowRadius: 12"
-          shadow>
-      </a-entity>
+           Positioned above the scene (elevated in Z — the footprint
+           convention's height axis), aimed at #lightTarget. Shadow camera
+           bounds sized to the image's own footprint, not a room-scale
+           guess. -->
+      <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
@@ -252,37 +268,42 @@ const guiControls = computed<GuiControl[]>(() => [
            matching-coloured plane for the billboard. Swap for a real
            gltf-model once the author's assets exist; nothing else about
            the structure changes. `:key="fieldKey"` forces a full field
-           regeneration when a GUI slider changes (s. Skript-Kommentar). -->
-      <a-entity lod-manager="chunksPerCycle: 6" :key="fieldKey">
+           regeneration when a GUI slider changes (s. Skript-Kommentar).
+           `rotation="90 0 0"` is the compensating rotation from the script
+           block above — random-field/proximity-rise's native X/Z-ground,
+           Y-height authoring maps onto the real footprint's X/Y-ground,
+           Z-height outside this wrapper. -->
+      <a-entity lod-manager="chunksPerCycle: 6" rotation="90 0 0" :key="fieldKey">
 
         <!-- Prop template — hidden by random-field once cloned. Rises on
              approach via [proximity-rise] (own Entscheidung 1, fixed
-             parameters, not a GUI target); LOD-swaps to the billboard via
-             [lod-object] (nearDistance/farDistance GUI-bound). Both
-             components live on this same entity and get cloned onto every
-             placed copy along with it (s. proximity-rise.ts). -->
-        <a-entity id="prop" :lod-object="lodObjectAttr" proximity-rise="riseStart: 5; riseEnd: 1.5; riseHeight: 0.4">
+             parameters, not a GUI target, rescaled to the footprint's own
+             size — s. Skript); LOD-swaps to the billboard via [lod-object]
+             (nearDistance/farDistance GUI-bound). Both components live on
+             this same entity and get cloned onto every placed copy along
+             with it (s. proximity-rise.ts). -->
+        <a-entity id="prop" :lod-object="lodObjectAttr" :proximity-rise="riseAttr">
           <a-entity class="lod-mesh-group">
             <a-entity
                 class="lod-mesh"
-                geometry="primitive: box; width: 0.08; height: 0.5; depth: 0.08"
+                :geometry="`primitive: box; width: ${PROP_STEM_WIDTH}; height: ${PROP_STEM_HEIGHT}; depth: ${PROP_STEM_WIDTH}`"
                 material="color: #6b4a2f"
-                position="0 0.25 0"
+                :position="`0 ${PROP_STEM_HEIGHT / 2} 0`"
                 render-order="1">
             </a-entity>
             <a-entity
                 class="lod-mesh"
-                geometry="primitive: sphere; radius: 0.14"
+                :geometry="`primitive: sphere; radius: ${PROP_BUD_RADIUS}`"
                 material="color: #e8c34a"
-                position="0 0.55 0"
+                :position="`0 ${PROP_STEM_HEIGHT + PROP_BUD_RADIUS * 0.4} 0`"
                 render-order="2">
             </a-entity>
           </a-entity>
           <a-entity
               class="lod-billboard"
-              geometry="primitive: plane; width: 0.28; height: 0.7"
+              :geometry="`primitive: plane; width: ${PROP_BILLBOARD_WIDTH}; height: ${PROP_BILLBOARD_HEIGHT}`"
               material="color: #b89a3a; side: double"
-              position="0 0.3 0"
+              :position="`0 ${PROP_BILLBOARD_HEIGHT / 2} 0`"
               render-order="3"
               billboard
               unlit-material="brightness: 0.4">
@@ -293,18 +314,17 @@ const guiControls = computed<GuiControl[]>(() => [
 
       </a-entity>
 
-      <!-- Ground plane. Renders ONLY the
-           shadows cast onto it (material="shader: shadow"), not a visible
-           surface of its own, so it stays invisible until something above
-           actually casts a shadow onto it. A good baseline to build a scene
-           on top of. -->
+      <!-- Ground plane = the tracked image itself (footprint convention, see
+           script block above): same local X/Y bounds as the printed image,
+           no rotation (a-plane's default orientation already matches the
+           image's own plane), sitting at Z=0. Semi-transparent visible fill
+           so the footprint is visible for orientation/debugging while still
+           catching shadows. -->
       <a-plane
           id="ground"
-          rotation="-90 0 0"
-          position="-50 0 -50"
-          width="500"
-          height="500"
-          material="shader: shadow"
+          :width="FOOTPRINT_WIDTH"
+          :height="FOOTPRINT_DEPTH"
+          :material="groundMaterial"
           shadow
       ></a-plane>
 
