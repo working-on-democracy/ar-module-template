@@ -311,7 +311,7 @@ const guiControls = computed<GuiControl[]>(() => [
            guess. -->
       <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
 
-      <a-light type="ambient" intensity="0.7"></a-light>
+      <a-light type="ambient" intensity="0.1"></a-light>
 
       <!-- Two point lights orbiting the scene at different speed/direction,
            one pink, one turquoise (device testing, 30.08.2026, s. Skript-
