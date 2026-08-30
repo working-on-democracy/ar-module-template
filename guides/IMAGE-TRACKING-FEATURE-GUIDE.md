@@ -77,6 +77,75 @@ adding it back to `manifest.ts` is an explicit step — see [1](#1-step-by-step-
    `_original`/`_cropped` file, displayed on another screen) to test
    detection.
 
+   **Display the target large and against a plain background.** A
+   repeating/patterned background near the target (e.g. patterned
+   wallpaper) is a real, observed false-positive risk — the tracker can
+   lock onto a stretch of the pattern instead of the actual target,
+   showing content in the wrong place with no error. Fill a large
+   fraction of the camera frame with the target image itself.
+
+6. **Lay out your content using the footprint convention** — see
+   [1a](#1a-the-footprint-convention-the-image-is-the-floor) before
+   placing anything. Getting this wrong (an arbitrary fixed offset like
+   `position="0 -2 0"`) is the most common way for content to track
+   correctly (confirmed by events firing, wrapper visible) while still
+   being invisible — placed meters away from where the camera happens to
+   be looking.
+
+### 1a. The footprint convention: the image is the floor
+
+Every scene anchored to an image target should treat the tracked image
+as the scene's ground plane, not as a poster something else stands in
+front of: `xrextras-named-image-target`'s local X/Y axes match the
+printed image's own width/depth exactly (its origin is the image's
+*centre*, not a corner — confirmed via `xrextrasimagegeometry`'s
+`scaledWidth`/`scaledHeight`, which describe the full span centred on
+0,0); local Z is height above the image, pointing out of it toward the
+camera. Two hard rules follow:
+
+- **Horizontal (X/Y) position must stay within the image's own printed
+  bounds.** Only Z (height) is free to extend beyond them.
+- **Sizes and offsets should be proportional to the footprint**, not
+  fixed units — so a scene keeps its proportions when a placeholder
+  target is swapped for the real, differently-sized one.
+
+In code (from `sound-player`'s `ArModule.vue`, the first scene built and
+verified against this convention):
+
+```ts
+// FOOTPRINT_DEPTH is always 1 — the engine normalizes the target's local Y
+// extent to 1. FOOTPRINT_WIDTH follows the target's own aspect ratio.
+const targetProps = (manifest.imageTargets?.[0] as any)?.properties;
+const FOOTPRINT_DEPTH = 1;
+const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75;
+
+const SPHERE_RADIUS = FOOTPRINT_DEPTH * 0.08;
+const CONTENT_HEIGHT = FOOTPRINT_DEPTH * 0.2; // how high above the image content floats
+```
+
+```html
+<xrextras-named-image-target name="video-target">
+  <a-entity> <!-- no position — sits exactly at the target's own anchor -->
+    <!-- content positioned as fractions of FOOTPRINT_WIDTH/FOOTPRINT_DEPTH,
+         height (Z) proportional to FOOTPRINT_DEPTH, never Y/X beyond ±half
+         the footprint -->
+
+    <!-- Ground plane = the image itself: no rotation (a-plane's default
+         orientation already matches the image's own plane), sized to the
+         image's own bounds, sitting at Z=0. Semi-transparent so the
+         footprint is visible for orientation while building/debugging. -->
+    <a-plane :width="FOOTPRINT_WIDTH" :height="FOOTPRINT_DEPTH"
+        material="color: #3b82f6; opacity: 0.35; side: double" shadow></a-plane>
+  </a-entity>
+</xrextras-named-image-target>
+```
+
+Rotating content in a circle *above* the image (a "wandering" object, a
+spinner, etc.) should rotate around **Z**, not Y — Z is this convention's
+up-axis, so `animation="property: rotation; to: 0 0 360; ..."` orbits
+horizontally above the image; `to: 0 360 0` (the Y-up default one would
+normally reach for) tips the orbit into the image instead.
+
 ## 2. Entities & attributes
 
 Best-effort — from this project's own usage plus reading the vendored
@@ -169,19 +238,66 @@ targets are a session capability that must be present in the *first*
 handles this itself; it isn't part of what this guide's step-by-step asks
 you to set up.
 
-### Not verified end-to-end on a real device in this session
+### Required runtime setup — get this wrong and it fails silently or crashes
 
-Everything above the camera-detection boundary was verified directly: the
-target JSON's schema, the manifest wiring, `configureImageTargets`'s
-no-op-without-XR8 behaviour, and both vendored components' existence and
-`.cantap`/`click` tap mechanism in the actual `xrextras.js` source (see
-[4](#4-incompatibilities-risks--troubleshooting)). Actual on-device
-detection — does pointing a phone camera at the target image genuinely
-trigger the video — was **not** re-tested in this session (no device
-available); this was already a pre-existing, working baseline feature
-before this guide was written, not new code, so this is a lower-risk gap
-than it would be for freshly-written detection logic. Verify on a real
-device before relying on this if it's been a while since anyone tested it.
+Three things outside `manifest.ts`/the scene markup have to be correct
+for any of the above to actually run, all found the hard way (2026-08-30,
+`sound-player` branch — first real on-device end-to-end verification of
+this feature, see below):
+
+1. **The 8Frame build must be the one that pairs with
+   `@8thwall/engine-binary`, not the one on `cdn.8thwall.com`.** They can
+   share a filename (`8frame-1.5.0.min.js`) while being completely
+   different, incompatible binaries (375KB CDN vs. 1.4MB vendored —
+   confirmed by diffing them byte-for-byte). The mismatched pair throws
+   `Error: No valid session manager to handle this session` as soon as
+   the AR session tries to start, with camera permission never even
+   requested. There's no npm package for the correct build — it ships
+   only in the `external/scripts/` folder of 8th Wall's own example
+   projects (e.g. `github.com/8thwall/aframe-world-effects-example`,
+   `aframe-image-targets-example`, distributed via git LFS). This
+   template vendors it at `lib/vendor/8frame-1.5.0.min.js` and copies it
+   into `external/scripts/` at build time (see `vite.config.ts`,
+   `ar.html`) instead of pinning it via `package.json`.
+
+2. **`xrweb` needs `allowedDevices: any` and must not set
+   `disableWorldTracking: true`** (omitting it entirely, as this
+   template's `lib/preview-ar.ts` now does, is the correct default —
+   `disableWorldTracking: true` is what 8th Wall's own
+   `aframe-image-targets-example` uses, but it disables the very SLAM
+   pipeline module image tracking depends on when combined with this
+   engine binary; confirmed by testing both). Get this wrong and the
+   symptom is silent, not an error: `XR8.XrController.configure()`
+   accepts the image target data without complaint, the camera feed
+   shows up fine (a plain `getusermedia` fallback session starts
+   successfully), but the "reality" pipeline module that would actually
+   load the target image and fire `xrimagescanning`/`xrimagefound` never
+   starts — nothing ever loads, nothing ever tracks, and there is no
+   error anywhere to point at why.
+
+3. **Don't wrap image-target-anchored content in a manual placement
+   offset.** `lib/preview-ar.ts`'s `module-root` wrapper exists to
+   preview a module "where it would appear in the app" for ordinary,
+   non-tracked content — for image-target content, whose position is
+   entirely driven by the tracked image's live pose, that additional
+   offset just shifts the rendered content away from the actual image
+   instead of leaving it anchored to it (this template's preview now
+   skips the offset whenever `manifest.imageTargets?.length`). 8th
+   Wall's own reference examples never nest `xrextras-named-image-target`
+   under anything but `<a-scene>` directly — see
+   [1a](#1a-the-footprint-convention-the-image-is-the-floor) for how
+   content should be positioned instead.
+
+### Verified end-to-end on a real device (2026-08-30, `sound-player` branch)
+
+Point-camera-at-target → content tracks and is tappable, confirmed on
+iPad. This was **not** working before the three fixes above — the
+original "pre-existing, working baseline feature" assumption in this
+guide's prior revision was wrong; it had never actually been tested
+end-to-end on-device against the current `@8thwall/engine-binary`
+dependency, and the runtime-setup issues above meant it silently
+couldn't have worked. Re-verify after any 8Frame/engine-binary/xrweb
+config change.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
@@ -238,3 +354,57 @@ listener this project's own code owns), no `renderOrder`, no
 `lod-manager`, `render-order`, `wander-in-band`/`proximity-wave`, and
 `mirror-shard`/`liquid-texture` with no interaction beyond the shared-tap
 risks already noted above.
+
+### Debugging playbook, in the order that actually narrows things down
+
+Built up bisecting the "camera works but nothing tracks" failure this
+guide's runtime-setup section above now covers. Each step rules out one
+layer; don't skip ahead — a green light at step *N* doesn't mean steps
+below it are fine.
+
+1. **`XR8.XrController.configure.bind(...)` doesn't throw** → the engine
+   (and its "slam" chunk specifically) loaded. If this throws, it's the
+   8Frame/engine-binary pairing (point 1 above).
+2. **A camera feed shows up, no console exception** → *some* session
+   started, but tells you nothing about which one — a plain
+   `getusermedia` fallback with zero tracking capability looks identical
+   from the camera view alone.
+3. **Wrap `XR8.addCameraPipelineModule`** and confirm a module named
+   `"reality"` gets added, then wrap *its* `onStart` — if `onStart` never
+   fires, the SLAM pipeline never actually started (point 2 above,
+   `allowedDevices`/`disableWorldTracking`) even though nothing threw.
+4. **Don't listen for `xrimagefound`/`xrimagescanning`/etc. on `window`.**
+   The A-Frame integration dispatches these as events on the **`<a-scene>`
+   element** (`sceneEl.emit(...)`), not on `window` — despite most 8th
+   Wall vanilla-JS docs/examples showing `window.addEventListener(...)`.
+   `window.addEventListener` listeners here will silently never fire even
+   when tracking is working perfectly. Patch
+   `EventTarget.prototype.dispatchEvent` directly (catches every target)
+   if unsure where an event lands.
+5. **`xrimagescanning` firing (with your target's name in `imageTargets`)
+   confirms detection is actively running.** `xrimageupdated` firing
+   continuously afterward confirms the target is currently found and
+   tracked — position/rotation/scale updating each frame. If you get this
+   far, tracking itself is not the problem; anything still wrong is
+   rendering/positioning (steps 6–7).
+6. **A test box with zero position offset, direct child of
+   `xrextras-named-image-target`** (`<a-box color="red" scale="0.3 0.3 0.3"
+   position="0 0 0.1"></a-box>`) renders exactly on the target → rendering
+   and anchoring both work; any other content not appearing is a
+   positioning bug in *that* content, not the tracking pipeline. This is
+   the fastest way to separate "tracking is broken" from "tracking works,
+   my layout is wrong" — don't debug the pipeline further once this
+   renders correctly.
+7. **Still nothing where you expect it, but the test box in step 6 works?**
+   Check the [footprint convention](#1a-the-footprint-convention-the-image-is-the-floor)
+   and the `module-root` offset (point 3 above) — by far the most common
+   cause once the pipeline itself is confirmed working.
+
+Two dead ends, noted so nobody re-walks them: the eruda mobile-console
+Network tab reliably misses files loaded via dynamic `import()` (the
+engine's own chunk-loading mechanism) — its absence there is not evidence
+a chunk failed to load, only that this particular panel can't see how it
+loaded. And a single-point-in-time visibility check
+(`entity.object3D.visible`) can catch the target mid-lost/re-found cycle
+and read `false` even though tracking is working fine seconds later —
+poll over a few seconds, don't trust one snapshot.
