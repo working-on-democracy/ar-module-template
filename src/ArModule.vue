@@ -101,16 +101,17 @@ onUnmounted(() => {
 // projects/an-alle/concepts/animationssystem-wanderer.md) — one central,
 // unmoving rigged object (trim-loop-clip only) and five wanderers with NO
 // rig (wander-in-band only, Entscheidung 1: "Kein Objekt kombiniert beide
-// Techniken zugleich"). Asset choice (MainCharacter3 + Seed1/2/3) and the
+// Techniken zugleich"). Central object's asset (MainCharacter3) and the
 // wander-in-band parameters below are ported from Fanyu_module's own
-// already-working scene — a proven combination of these two components on
-// this exact model set, not newly authored values. Fanyu_module also gave
-// each seed a trim-loop-clip + positional sound, both dropped here: the
-// concept doc's decision 1 is explicit that wanderers stay rig-free, and
-// this Themenfeld doesn't cover sound at all (that's Sound-Player's own
-// concern). Only 3 distinct seed models exist, so two of the five wanderer
-// slots below reuse Seed1/Seed2 a second time at different positions —
-// swap in the author's own additional models later if/when they exist.
+// already-working scene — a proven combination of these two components,
+// not newly authored values. The five wanderers themselves are plain
+// A-Frame primitives (30.08.2026, s. assets-checkliste.md) rather than
+// Fanyu_module's Seed1/2/3 models — only the central figure keeps the
+// Fanyu asset; real wanderer models pending the author. Fanyu_module also
+// gave each seed a trim-loop-clip + positional sound, both dropped here:
+// the concept doc's decision 1 is explicit that wanderers stay rig-free,
+// and this Themenfeld doesn't cover sound at all (that's Sound-Player's
+// own concern).
 const wanderSpeed = ref(0.35); // shared across all 5 wanderers, own slider
 const bandInner = ref(6); // shared band, two-thumb range-slider
 const bandOuter = ref(12);
@@ -245,15 +246,20 @@ const guiControls = computed<GuiControl[]>(() => [
       <!-- Fünf Wanderer, kein Rig — nur wander-in-band/Orbit-Pfad um
            #mainEntity (Entscheidung 1). Gemeinsamer Elternknoten, damit die
            eingebaute gegenseitige Ausweich-Logik von wander-in-band greift
-           (sie schaut nur auf Geschwister unter demselben Parent). Nur 3
-           unterschiedliche Seed-Modelle vorhanden — Slot 4/5 nutzen Seed1/
-           Seed2 ein zweites Mal (s. Skript-Kommentar oben). -->
+           (sie schaut nur auf Geschwister unter demselben Parent).
+           Primitive-Platzhalter statt der Fanyu_module-Seed-Modelle
+           (30.08.2026, s. archive-of-practice
+           projects/an-alle/assets-checkliste.md) — nur die zentrale Figur
+           oben behält das Fanyu-Asset. wander-in-band schreibt nur
+           position/rotation.y der eigenen Entität, ist also unabhängig von
+           gltf-model vs. Primitive (kein model-loaded nötig, anders als bei
+           proximity-fade/-cutout). -->
       <a-entity id="wandererGroup">
-        <a-entity gltf-model="#Seed1" scale="2 2 2" position="-5 0.5 -6" :wander-in-band="wander1Attr" shadow></a-entity>
-        <a-entity gltf-model="#Seed2" scale="2 2 2" position="-5 0.5 -2" :wander-in-band="wander2Attr" shadow></a-entity>
-        <a-entity gltf-model="#Seed3" scale="2 2 2" position="10 0.5 -4" :wander-in-band="wander3Attr" shadow></a-entity>
-        <a-entity gltf-model="#Seed1" scale="1.6 1.6 1.6" position="4 0.5 -14" :wander-in-band="wander4Attr" shadow></a-entity>
-        <a-entity gltf-model="#Seed2" scale="1.6 1.6 1.6" position="-8 0.5 -12" :wander-in-band="wander5Attr" shadow></a-entity>
+        <a-sphere radius="0.6" color="#d9954a" position="-5 0.5 -6" :wander-in-band="wander1Attr" shadow></a-sphere>
+        <a-box width="1" height="1" depth="1" color="#4a90d9" position="-5 0.5 -2" :wander-in-band="wander2Attr" shadow></a-box>
+        <a-cone radius-bottom="0.6" radius-top="0" height="1.1" color="#6ea86e" position="10 0.5 -4" :wander-in-band="wander3Attr" shadow></a-cone>
+        <a-octahedron radius="0.55" color="#c2588a" position="4 0.5 -14" :wander-in-band="wander4Attr" shadow></a-octahedron>
+        <a-dodecahedron radius="0.5" color="#8a7ac2" position="-8 0.5 -12" :wander-in-band="wander5Attr" shadow></a-dodecahedron>
       </a-entity>
 
       <!-- Ground plane. Renders ONLY the
