@@ -98,25 +98,47 @@ onUnmounted(() => {
 });
 
 // AN ALLE! Zufallsverteilung & LOD (archive-of-practice
-// projects/an-alle/concepts/zufallsverteilung-lod.md) — random-field's own
-// attributes exposed directly, no derived math (Entscheidung 3/4: "kein
-// Algorithmus-Umbau", "kein Code-Umbau nötig"). minDistance/maxDistance and
-// LOD nearDistance/farDistance are each a "band" pair, so each gets one
-// range-slider rather than two separate sliders — still a direct 1:1
-// pass-through per thumb, not a computed/proportional value like
-// proximity-effekte's distanceScale. proximity-rise's own parameters
-// (riseStart/riseEnd/riseHeight) stay fixed — the concept doc's decisions
-// only call out random-field's and lod-object's attributes as GUI targets.
-const areaWidth = ref(8);
-const minDistance = ref(1.5);
-const maxDistance = ref(3);
-const copies = ref(4);
+// projects/an-alle/concepts/zufallsverteilung-lod.md) — Version 2
+// (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md, Frage 10):
+// a bounded square field (random-field's new `areaDepth`, s.
+// random-field.ts/RANDOM-FIELD-FEATURE-GUIDE.md) sized as a % of a
+// placeholder reference area, filled to a % density instead of exposing
+// areaWidth/copies/minDistance/maxDistance directly (replaces this
+// project's own earlier Version 1 "kein Algorithmus-Umbau" simplification).
+// REFERENCE_AREA_SIDE stands in for the real image target's own footprint
+// width/depth (s. zwischen-basis.md's Footprint-Konvention) until this
+// branch merges zwischen-basis — swap it for the target's real
+// properties.width/height then, nothing else about the math below changes.
+// PROP_FOOTPRINT_AREA is a rough estimate of one placed prop's own
+// ground-plane footprint (from its bud radius below), used only to convert
+// a density percentage into a concrete `copies` count for random-field.
+// minDistance/maxDistance stay fixed (not GUI targets) — just enough to
+// keep clones from visibly overlapping; on a small, dense field they're
+// far more likely to actually trigger the new bounded-area shortfall
+// (s. random-field.ts) than the old unbounded strip ever was, which is
+// expected, not a bug — Anzahl-Ziel here is a soft target, not a
+// guarantee (s. concept doc "Verteilungsmodell — Version 2").
+const REFERENCE_AREA_SIDE = 6; // metres, placeholder square side
+const PROP_FOOTPRINT_AREA = 0.08; // m², ~ the bud's own 0.14 m radius footprint
+const FIXED_MIN_DISTANCE = 0.4;
+const FIXED_MAX_DISTANCE = 1.0;
+const MAX_COPIES = 60; // hard cap regardless of density, s. random-field.ts's K=30-attempts-per-point cost
+
+const fieldSizePercent = ref(70); // 20–100, % of REFERENCE_AREA_SIDE
+const density = ref(40); // 10–90, % of the field area filled with objects
 const lodNear = ref(4);
 const lodFar = ref(7);
 
+const areaSide = computed(() => REFERENCE_AREA_SIDE * (fieldSizePercent.value / 100));
+const targetCopies = computed(() => {
+  const area = areaSide.value * areaSide.value;
+  const raw = Math.round((density.value / 100) * area / PROP_FOOTPRINT_AREA);
+  return Math.min(MAX_COPIES, Math.max(1, raw));
+});
+
 const randomFieldAttr = computed(
-  () => `items: #prop; areaWidth: ${areaWidth.value}; minDistance: ${minDistance.value}; ` +
-        `maxDistance: ${maxDistance.value}; copies: ${copies.value}`
+  () => `items: #prop; areaWidth: ${areaSide.value.toFixed(2)}; areaDepth: ${areaSide.value.toFixed(2)}; ` +
+        `minDistance: ${FIXED_MIN_DISTANCE}; maxDistance: ${FIXED_MAX_DISTANCE}; copies: ${targetCopies.value}`
 );
 const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value}; farDistance: ${lodFar.value}`);
 
@@ -132,42 +154,31 @@ const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value}; farDistanc
 // adjusting a slider genuinely re-scatters the field with the new
 // parameters (arguably the point of this Themenfeld's demo, too).
 const fieldKey = computed(
-  () => `${areaWidth.value}-${minDistance.value}-${maxDistance.value}-${copies.value}-${lodNear.value}-${lodFar.value}`
+  () => `${fieldSizePercent.value}-${density.value}-${lodNear.value}-${lodFar.value}`
 );
 
 const guiControls = computed<GuiControl[]>(() => [
   {
     type: 'slider',
-    id: 'area-width',
-    label: 'Feldbreite',
-    min: 4,
-    max: 16,
-    step: 1,
-    value: areaWidth.value,
-    unit: 'm',
-    onInput: (value) => { areaWidth.value = value; }
-  },
-  {
-    type: 'range-slider',
-    id: 'object-spacing',
-    label: 'Objektabstand',
-    min: 0.5,
-    max: 6,
-    step: 0.5,
-    valueLow: minDistance.value,
-    valueHigh: maxDistance.value,
-    unit: 'm',
-    onInput: (low, high) => { minDistance.value = low; maxDistance.value = high; }
+    id: 'field-size',
+    label: 'Feldgröße',
+    min: 20,
+    max: 100,
+    step: 5,
+    value: fieldSizePercent.value,
+    unit: '%',
+    onInput: (value) => { fieldSizePercent.value = value; }
   },
   {
     type: 'slider',
-    id: 'copies',
-    label: 'Anzahl',
-    min: 1,
-    max: 10,
-    step: 1,
-    value: copies.value,
-    onInput: (value) => { copies.value = value; }
+    id: 'density',
+    label: 'Dichte',
+    min: 10,
+    max: 90,
+    step: 5,
+    value: density.value,
+    unit: '%',
+    onInput: (value) => { density.value = value; }
   },
   {
     type: 'range-slider',

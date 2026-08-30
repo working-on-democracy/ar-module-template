@@ -28,11 +28,22 @@ import type { ComponentDefinition } from "aframe";
 // doesn't ALSO render at wherever you happened to author it — only the
 // placed clones are shown.
 //
-// Placement is a FIXED-WIDTH strip on the ground (XZ plane): `areaWidth` is
-// centred on this entity's own origin so it extends equally left/right.
-// There's deliberately no depth setting — depth grows automatically away
-// from the viewer (into -Z) to fit however many clones there are, so
-// min/maxDistance always hold exactly regardless of `copies`.
+// Placement is a FIXED-WIDTH strip on the ground (XZ plane) by default:
+// `areaWidth` is centred on this entity's own origin so it extends equally
+// left/right. With no `areaDepth` set (0, the default), depth grows
+// automatically away from the viewer (into -Z) to fit however many clones
+// there are, so min/maxDistance always hold exactly regardless of `copies`.
+//
+// Setting `areaDepth` > 0 switches to a BOUNDED `areaWidth`×`areaDepth`
+// rectangle instead, centred on this entity's own origin in both X and Z
+// (s. AN ALLE! projects/an-alle/concepts/zufallsverteilung-lod.md,
+// "Verteilungsmodell — Version 2" — needed there so the field's footprint
+// stays within a printed image target's own bounds instead of growing
+// indefinitely). Unlike the unbounded strip, a bounded area can genuinely
+// be too small to fit `copies` at the given min/maxDistance — this
+// degrades gracefully (places as many as fit, `console.warn`s the
+// shortfall) rather than the unbounded strip's "always fits, just grows
+// deeper" guarantee.
 interface Point {
   x: number;
   z: number;
@@ -45,6 +56,10 @@ export default {
     items: { type: "selectorAll" },
 
     areaWidth: { type: "number", default: 20 }, // fixed width along X, centred on origin
+    // 0 (default) = unbounded strip, depth grows in -Z as needed (legacy
+    // behaviour). > 0 = bounded areaWidth × areaDepth rectangle, centred on
+    // origin in both X and Z — see the header comment above.
+    areaDepth: { type: "number", default: 0 },
 
     elevation: { type: "number", default: 0 }, // base Y height of every clone
     elevationVariation: { type: "number", default: 0 }, // ± random offset from `elevation`
@@ -209,19 +224,24 @@ export default {
   },
 
   /**
-   * Poisson-disk (Bridson) sample `n` points in a FIXED-WIDTH strip. Width is
-   * bounded and centred on the origin (x ∈ [-width/2, width/2]); depth is
-   * unbounded and grows away from the viewer (z ≤ 0), starting at z = 0
-   * right in front of them. Each new point is dropped into an annulus
+   * Poisson-disk (Bridson) sample up to `n` points in either a FIXED-WIDTH
+   * unbounded strip (legacy, `areaDepth` 0 — width bounded and centred on
+   * the origin, x ∈ [-width/2, width/2]; depth unbounded, grows away from
+   * the viewer into -Z from z = 0) or a BOUNDED `width`×`areaDepth`
+   * rectangle centred on the origin in both axes (`areaDepth` > 0 — s. the
+   * file header comment). Each new point is dropped into an annulus
    * [minDistance, maxDistance] around an existing one and rejected if it
    * lands closer than minDistance to any neighbour, so both spacing bounds
-   * hold exactly. Because depth is free there is always room ahead, so all
-   * `n` points get placed however many there are — the field just grows
-   * deeper.
+   * hold exactly. Unbounded, depth is always free so all `n` points get
+   * placed. Bounded, `n` may not fit — this returns as many as it could
+   * place rather than looping forever or violating the bounds.
    */
   samplePositions(n: number, width: number): Point[] {
     const self = this as any;
     const halfW = width / 2;
+    const depth = Math.max(0, self.data.areaDepth);
+    const bounded = depth > 0;
+    const halfD = depth / 2;
     const minDist = Math.max(0, self.data.minDistance);
     const maxDist = Math.max(minDist, self.data.maxDistance);
     const minDistSq = minDist * minDist;
@@ -249,7 +269,12 @@ export default {
         const angle = Math.random() * Math.PI * 2;
         const rad = minDist + Math.random() * (maxDist - minDist);
         const c: Point = { x: p.x + Math.cos(angle) * rad, z: p.z + Math.sin(angle) * rad };
-        if (c.x < -halfW || c.x > halfW || c.z > 0) continue; // stay in the strip, in front of the viewer
+        if (c.x < -halfW || c.x > halfW) continue; // stay within the width, either mode
+        if (bounded) {
+          if (c.z < -halfD || c.z > halfD) continue; // stay within the bounded rectangle
+        } else if (c.z > 0) {
+          continue; // legacy: stay in front of the viewer, depth unbounded
+        }
         if (minDist > 0 && nearestDistSq(c, samples) < minDistSq) continue;
         placed = c;
         break;
@@ -262,25 +287,46 @@ export default {
       }
     }
 
-    // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
-    // keep placing straight back from the deepest point at maxDistance spacing.
     if (samples.length < n) {
-      let z = 0;
-      for (const p of samples) if (p.z < z) z = p.z;
-      const step = Math.max(maxDist, minDist, 0.0001);
-      while (samples.length < n) {
-        z -= step;
-        samples.push({ x: 0, z });
+      if (bounded) {
+        // Degrades gracefully instead of the unbounded strip's "always
+        // fits" guarantee: the requested `copies`/spacing simply doesn't
+        // fit this area — place what fits, warn about the rest (s. the
+        // file header comment and AN ALLE! zufallsverteilung-lod.md).
+        console.warn(
+          `[random-field] bounded area (${width.toFixed(2)}×${depth.toFixed(2)}) only fit ` +
+          `${samples.length}/${n} copies at minDistance ${minDist} — increase the area, ` +
+          `reduce copies/density, or lower minDistance.`
+        );
+      } else {
+        // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
+        // keep placing straight back from the deepest point at maxDistance spacing.
+        let z = 0;
+        for (const p of samples) if (p.z < z) z = p.z;
+        const step = Math.max(maxDist, minDist, 0.0001);
+        while (samples.length < n) {
+          z -= step;
+          samples.push({ x: 0, z });
+        }
       }
     }
 
-    // Centre the strip on X so it extends equally to the viewer's left and right
-    // (the near edge is already at z = 0 by construction).
+    // Centre on X so the field extends equally left/right (both modes). In
+    // bounded mode also centre on Z (there's no fixed viewer-facing edge to
+    // anchor to like the unbounded strip's z = 0 near edge).
     let minX = Infinity;
     let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
     for (const p of samples) {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+    if (bounded) {
+      const zMid = (minZ + maxZ) / 2;
+      for (const p of samples) p.z -= zMid;
     }
     const xMid = (minX + maxX) / 2;
     for (const p of samples) p.x -= xMid;

@@ -62,7 +62,8 @@ three combined into one scene.
 | Attribute | Type | Default | Meaning |
 |---|---|---|---|
 | `items` | selectorAll | — | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
-| `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. No depth setting — depth grows automatically away from the viewer to fit however many copies there are. |
+| `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. |
+| `areaDepth` | number | `0` | `0` (default) = unbounded — depth grows automatically away from the viewer to fit however many copies there are, `minDistance`/`maxDistance` always honoured exactly. `> 0` = bounded `areaWidth`×`areaDepth` rectangle, centred on this entity's own origin in both X and Z — `copies` may not all fit at the given spacing; excess copies are dropped with a `console.warn` rather than violating the bounds or growing depth anyway. |
 | `elevation` | number | `0` | Base Y height of every clone. |
 | `elevationVariation` | number | `0` | ± random offset from `elevation`. |
 | `yawMax` | number | `180` | Degrees. Each clone's Y rotation gets a random value in `[-yawMax, +yawMax]` **added** to its source entity's own authored Y rotation. `180` = fully random heading; `0` = no extra spin. |
