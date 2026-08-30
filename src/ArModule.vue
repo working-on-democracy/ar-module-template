@@ -112,38 +112,92 @@ onUnmounted(() => {
 // the concept doc's decision 1 is explicit that wanderers stay rig-free,
 // and this Themenfeld doesn't cover sound at all (that's Sound-Player's
 // own concern).
-const wanderSpeed = ref(0.35); // shared across all 5 wanderers, own slider
-const bandInner = ref(6); // shared band, two-thumb range-slider
-const bandOuter = ref(12);
+//
+// Footprint convention (s. sound-player's own ArModule.vue and
+// guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
+// scene's ground plane. `wander-in-band` (like `random-field`/
+// `proximity-rise`) assumes the older three.js/A-Frame default (X/Z
+// ground, Y height) rather than the convention's X/Y ground, Z height —
+// per Frage 9 (s. archive-of-practice projects/an-alle/fragen.md) the
+// wanderers walk ON the footprint's own surface, not orbiting above it, so
+// this matters. Both the central figure and the wanderer group sit inside
+// ONE compensating `rotation: 90 0 0` wrapper below (same technique as
+// proximity-effekte): authored X/Z-ground/Y-height inside maps onto the
+// real footprint's X/Y-ground/Z-height outside. `outerRadius` is bounded
+// by the shorter footprint half-extent (Frage 9: "vom Bildrand begrenzt").
+const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: number; height: number } } | undefined)?.properties;
+const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
+const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
+
+const MAIN_SCALE = FOOTPRINT_DEPTH * 0.5; // rough estimate (mesh's own real-world height unknown) — retune once tested against the real target
+const WANDER_OUTER_MAX = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH) * 0.45; // stays inside the image edge, Frage 9
+const WANDER_INNER_MAX = WANDER_OUTER_MAX * 0.5;
+const WANDER_GROUND_OFFSET = FOOTPRINT_DEPTH * 0.03; // "ganz leichter Abstand vom Boden", Frage 9
+const WANDER_OBJECT_SIZE = FOOTPRINT_DEPTH * 0.1;
+
+const mainScale = `${MAIN_SCALE.toFixed(3)} ${MAIN_SCALE.toFixed(3)} ${MAIN_SCALE.toFixed(3)}`;
+
+// Static seed positions only — wander-in-band takes over every entity's
+// position/rotation every tick based on the LIVE innerRadius/outerRadius
+// below, so these just need to start somewhere reasonable on the band, one
+// wanderer per fifth of the circle.
+function seedPosition(angleDeg: number): string {
+  const seedRadius = (WANDER_INNER_MAX * 0.6 + WANDER_OUTER_MAX * 0.9) / 2;
+  const rad = (angleDeg * Math.PI) / 180;
+  return `${(seedRadius * Math.cos(rad)).toFixed(3)} ${WANDER_GROUND_OFFSET.toFixed(3)} ${(seedRadius * Math.sin(rad)).toFixed(3)}`;
+}
+const wander1Position = seedPosition(0);
+const wander2Position = seedPosition(72);
+const wander3Position = seedPosition(144);
+const wander4Position = seedPosition(216);
+const wander5Position = seedPosition(288);
+
+const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
+const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
+const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
+
+// wander-in-band's `speed` is in units/second, not a ratio — the old 0.35
+// default was tuned for a 6–12m room-scale band; on this band's own tiny
+// physical scale that speed would cross the whole annulus in well under a
+// second, blowing past outerRadius before the component's gentle
+// spiral-back correction can catch up (confirmed directly: uncorrected, a
+// wanderer drifted to radius ~0.8 against an intended ~0.3 outerRadius
+// within a few seconds). Rescaled by the same ratio as the radius itself.
+const SPEED_SCALE = WANDER_OUTER_MAX / 12; // 12 = the old room-scale default bandOuter
+const wanderSpeed = ref(0.35 * SPEED_SCALE); // shared across all 5 wanderers, own slider
+const bandInner = ref(WANDER_INNER_MAX * 0.6); // shared band, two-thumb range-slider
+const bandOuter = ref(WANDER_OUTER_MAX * 0.9);
 const clipTimeScale = ref(0.4); // central object's trim-loop-clip only
 const clipLoop = ref<'once' | 'repeat' | 'pingpong'>('pingpong');
 
 const trimAttr = computed(() => `timeScale: ${clipTimeScale.value.toFixed(2)}; loop: ${clipLoop.value}`);
 
 // Each wanderer keeps its own authored chaos/floatIntensity/yawOffset
-// (variety, per Fanyu_module's original values) while innerRadius/
-// outerRadius/speed stay shared via the GUI, matching how
-// proximity-wave-group applies one shared config across its children.
+// (variety, per Fanyu_module's original relative proportions, floatIntensity
+// itself rescaled from room-scale metres to the footprint's own small
+// physical size) while innerRadius/outerRadius/speed stay shared via the
+// GUI, matching how proximity-wave-group applies one shared config across
+// its children. chaos is a unitless ratio, unaffected by scale.
 function wanderAttr(chaos: number, floatIntensity: number, yawOffset = 0): string {
-  return `center: #mainEntity; innerRadius: ${bandInner.value}; outerRadius: ${bandOuter.value}; ` +
-         `floatIntensity: ${floatIntensity}; speed: ${wanderSpeed.value.toFixed(2)}; chaos: ${chaos}` +
+  return `center: #mainEntity; innerRadius: ${bandInner.value.toFixed(3)}; outerRadius: ${bandOuter.value.toFixed(3)}; ` +
+         `floatIntensity: ${floatIntensity.toFixed(4)}; speed: ${wanderSpeed.value.toFixed(4)}; chaos: ${chaos}` +
          (yawOffset ? `; yawOffset: ${yawOffset}` : '');
 }
 
-const wander1Attr = computed(() => wanderAttr(0.15, 0.05));
-const wander2Attr = computed(() => wanderAttr(0.1, 0.05));
-const wander3Attr = computed(() => wanderAttr(0.21, 0.05));
-const wander4Attr = computed(() => wanderAttr(0.12, 0.04, 90));
-const wander5Attr = computed(() => wanderAttr(0.18, 0.06, 180));
+const wander1Attr = computed(() => wanderAttr(0.15, FOOTPRINT_DEPTH * 0.025));
+const wander2Attr = computed(() => wanderAttr(0.1, FOOTPRINT_DEPTH * 0.025));
+const wander3Attr = computed(() => wanderAttr(0.21, FOOTPRINT_DEPTH * 0.025));
+const wander4Attr = computed(() => wanderAttr(0.12, FOOTPRINT_DEPTH * 0.02, 90));
+const wander5Attr = computed(() => wanderAttr(0.18, FOOTPRINT_DEPTH * 0.03, 180));
 
 const guiControls = computed<GuiControl[]>(() => [
   {
     type: 'slider',
     id: 'wander-speed',
     label: 'Wanderer-Tempo',
-    min: 0.1,
-    max: 1,
-    step: 0.05,
+    min: Math.round(0.1 * SPEED_SCALE * 10000) / 10000,
+    max: Math.round(1 * SPEED_SCALE * 10000) / 10000,
+    step: Math.round(0.05 * SPEED_SCALE * 10000) / 10000,
     value: wanderSpeed.value,
     onInput: (value) => { wanderSpeed.value = value; }
   },
@@ -151,9 +205,9 @@ const guiControls = computed<GuiControl[]>(() => [
     type: 'range-slider',
     id: 'wander-band',
     label: 'Wander-Band',
-    min: 2,
-    max: 16,
-    step: 0.5,
+    min: Math.round(WANDER_OUTER_MAX * 0.15 * 1000) / 1000,
+    max: Math.round(WANDER_OUTER_MAX * 1000) / 1000,
+    step: 0.01,
     valueLow: bandInner.value,
     valueHigh: bandOuter.value,
     unit: 'm',
@@ -199,81 +253,78 @@ const guiControls = computed<GuiControl[]>(() => [
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
   <xrextras-named-image-target name="video-target">
     <a-entity
-        position="0 -2 0"
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <!-- What the directional light below aims at — move this entity to
-           redirect the light (and the shadows it casts) instead of having to
-           re-aim the light itself. -->
-      <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+      <!-- What the directional light below aims at — the footprint's own
+           centre/ground (s. sound-player's ArModule.vue). -->
+      <a-entity id="lightTarget" position="0 0 0"></a-entity>
 
       <!-- Directional light that casts shadows onto the ground plane below.
-           Positioned above the scene, aimed at #lightTarget above. -->
-      <a-entity
-          position="1 20 10"
-          light="
-                      type: directional;
-                      intensity: 1;
-                      target: #lightTarget;
-                      castShadow: true;
-                      shadowMapHeight:2048;
-                      shadowMapWidth:2048;
-                      shadowCameraTop: 80;
-                      shadowCameraBottom: -80;
-                      shadowCameraRight: 80;
-                      shadowCameraLeft: -80;
-                      shadowRadius: 12"
-          shadow>
-      </a-entity>
+           Positioned above the scene (elevated in Z — the footprint
+           convention's height axis), aimed at #lightTarget. Shadow camera
+           bounds sized to the image's own footprint, not a room-scale
+           guess. -->
+      <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
-      <!-- Zentrales, unbewegliches Objekt (archive-of-practice
-           projects/an-alle/concepts/animationssystem-wanderer.md,
-           Entscheidung 1): Rig-Animation per trim-loop-clip, GUI-steuerbar
-           (timeScale/loop). Kein wander-in-band hier — bleibt an Ort und
-           Stelle, damit die fünf Wanderer einen festen Bezugspunkt haben. -->
-      <a-entity
-          id="mainEntity"
-          gltf-model="#MainCharacter3"
-          scale="2 2 2"
-          position="0 0 -10"
-          :trim-loop-clip="trimAttr"
-          shadow>
+      <!-- `rotation="90 0 0"` is the compensating rotation from the script
+           block above — everything inside keeps the familiar X/Z-ground,
+           Y-height authoring, remapped onto the real footprint's X/Y-ground,
+           Z-height outside this wrapper. No position — sits at the
+           footprint's own centre. -->
+      <a-entity id="scene-root" rotation="90 0 0">
+
+        <!-- Zentrales, unbewegliches Objekt (archive-of-practice
+             projects/an-alle/concepts/animationssystem-wanderer.md,
+             Entscheidung 1): Rig-Animation per trim-loop-clip, GUI-steuerbar
+             (timeScale/loop). Kein wander-in-band hier — bleibt an Ort und
+             Stelle, damit die fünf Wanderer einen festen Bezugspunkt haben.
+             Skalierung grob geschätzt (echte Meshgröße unbekannt) — nach
+             Test mit dem echten Zielbild/Modell nachjustieren. -->
+        <a-entity
+            id="mainEntity"
+            gltf-model="#MainCharacter3"
+            :scale="mainScale"
+            position="0 0 0"
+            :trim-loop-clip="trimAttr"
+            shadow>
+        </a-entity>
+
+        <!-- Fünf Wanderer, kein Rig — nur wander-in-band/Orbit-Pfad um
+             #mainEntity (Entscheidung 1), auf der Grundfläche laufend statt
+             über dem Bild schwebend (Frage 9). Gemeinsamer Elternknoten,
+             damit die eingebaute gegenseitige Ausweich-Logik von
+             wander-in-band greift (sie schaut nur auf Geschwister unter
+             demselben Parent). Primitive-Platzhalter statt der
+             Fanyu_module-Seed-Modelle (30.08.2026, s. archive-of-practice
+             projects/an-alle/assets-checkliste.md) — nur die zentrale Figur
+             oben behält das Fanyu-Asset. wander-in-band schreibt nur
+             position/rotation.y der eigenen Entität, ist also unabhängig von
+             gltf-model vs. Primitive (kein model-loaded nötig, anders als bei
+             proximity-fade/-cutout). -->
+        <a-entity id="wandererGroup">
+          <a-sphere :radius="WANDER_OBJECT_SIZE" color="#d9954a" :position="wander1Position" :wander-in-band="wander1Attr" shadow></a-sphere>
+          <a-box :width="WANDER_OBJECT_SIZE" :height="WANDER_OBJECT_SIZE" :depth="WANDER_OBJECT_SIZE" color="#4a90d9" :position="wander2Position" :wander-in-band="wander2Attr" shadow></a-box>
+          <a-cone :radius-bottom="WANDER_OBJECT_SIZE" radius-top="0" :height="WANDER_OBJECT_SIZE * 1.8" color="#6ea86e" :position="wander3Position" :wander-in-band="wander3Attr" shadow></a-cone>
+          <a-octahedron :radius="WANDER_OBJECT_SIZE" color="#c2588a" :position="wander4Position" :wander-in-band="wander4Attr" shadow></a-octahedron>
+          <a-dodecahedron :radius="WANDER_OBJECT_SIZE * 0.9" color="#8a7ac2" :position="wander5Position" :wander-in-band="wander5Attr" shadow></a-dodecahedron>
+        </a-entity>
+
       </a-entity>
 
-      <!-- Fünf Wanderer, kein Rig — nur wander-in-band/Orbit-Pfad um
-           #mainEntity (Entscheidung 1). Gemeinsamer Elternknoten, damit die
-           eingebaute gegenseitige Ausweich-Logik von wander-in-band greift
-           (sie schaut nur auf Geschwister unter demselben Parent).
-           Primitive-Platzhalter statt der Fanyu_module-Seed-Modelle
-           (30.08.2026, s. archive-of-practice
-           projects/an-alle/assets-checkliste.md) — nur die zentrale Figur
-           oben behält das Fanyu-Asset. wander-in-band schreibt nur
-           position/rotation.y der eigenen Entität, ist also unabhängig von
-           gltf-model vs. Primitive (kein model-loaded nötig, anders als bei
-           proximity-fade/-cutout). -->
-      <a-entity id="wandererGroup">
-        <a-sphere radius="0.6" color="#d9954a" position="-5 0.5 -6" :wander-in-band="wander1Attr" shadow></a-sphere>
-        <a-box width="1" height="1" depth="1" color="#4a90d9" position="-5 0.5 -2" :wander-in-band="wander2Attr" shadow></a-box>
-        <a-cone radius-bottom="0.6" radius-top="0" height="1.1" color="#6ea86e" position="10 0.5 -4" :wander-in-band="wander3Attr" shadow></a-cone>
-        <a-octahedron radius="0.55" color="#c2588a" position="4 0.5 -14" :wander-in-band="wander4Attr" shadow></a-octahedron>
-        <a-dodecahedron radius="0.5" color="#8a7ac2" position="-8 0.5 -12" :wander-in-band="wander5Attr" shadow></a-dodecahedron>
-      </a-entity>
-
-      <!-- Ground plane. Renders ONLY the
-           shadows cast onto it (material="shader: shadow"), not a visible
-           surface of its own, so it stays invisible until something above
-           actually casts a shadow onto it. A good baseline to build a scene
-           on top of. -->
+      <!-- Ground plane = the tracked image itself (footprint convention, see
+           script block above): same local X/Y bounds as the printed image,
+           no rotation (a-plane's default orientation already matches the
+           image's own plane), sitting at Z=0. Semi-transparent visible fill
+           so the footprint is visible for orientation/debugging while still
+           catching shadows. -->
       <a-plane
           id="ground"
-          rotation="-90 0 0"
-          position="-50 0 -50"
-          width="500"
-          height="500"
-          material="shader: shadow"
+          :width="FOOTPRINT_WIDTH"
+          :height="FOOTPRINT_DEPTH"
+          :material="groundMaterial"
           shadow
       ></a-plane>
 
