@@ -38,8 +38,8 @@ export default {
     // material it touched permanently running the cutout shader.
     self.store = new Map<any, { onBeforeCompile: any; customProgramCacheKey: any; side: any }>();
 
-    self.onModelLoaded = (e: any) => {
-      const mesh = e.target.getObject3D("mesh");
+    self.processMesh = (targetEl: any) => {
+      const mesh = targetEl.getObject3D("mesh");
       if (!mesh) return;
       mesh.traverse((node: any) => {
         if (!node.isMesh) return;
@@ -52,7 +52,17 @@ export default {
         });
       });
     };
+    self.onModelLoaded = (e: any) => self.processMesh(e.target);
     self.el.addEventListener("model-loaded", self.onModelLoaded);
+
+    // Catch-up pass: see the identical comment in proximity-fade-shared.ts —
+    // a primitive child can fire+bubble "model-loaded" before this listener
+    // exists (init() timing isn't guaranteed parent-before-child), leaving
+    // self.materials permanently empty. processMesh's self.store guard makes
+    // re-processing an element the listener also catches harmless.
+    self.el.querySelectorAll("*").forEach((child: any) => {
+      if (child.getObject3D?.("mesh")) self.processMesh(child);
+    });
   },
 
   patchMaterial(material: any) {

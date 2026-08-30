@@ -114,8 +114,8 @@ export function createProximityFadeComponent<S>(patcher: MaterialPatcher<S>): Co
       self.cameraPos = new AFRAME.THREE.Vector3();
       self.targetPos = new AFRAME.THREE.Vector3();
 
-      self.onModelLoaded = (e: any) => {
-        const mesh = e.target.getObject3D("mesh");
+      self.processMesh = (targetEl: any) => {
+        const mesh = targetEl.getObject3D("mesh");
         if (!mesh) return;
         mesh.traverse((node: any) => {
           if (!node.isMesh || !node.material) return;
@@ -126,7 +126,23 @@ export function createProximityFadeComponent<S>(patcher: MaterialPatcher<S>): Co
           });
         });
       };
+      self.onModelLoaded = (e: any) => self.processMesh(e.target);
       self.el.addEventListener("model-loaded", self.onModelLoaded);
+
+      // Catch-up pass: a primitive child (a-box, a-sphere, ...) sets its mesh
+      // and re-emits "model-loaded" (see the ArModule using this component)
+      // as soon as its own geometry/material components resolve, which is not
+      // guaranteed to happen after THIS component's init() — A-Frame schedules
+      // component initialization independently per element, so a fast child
+      // can fire and bubble its event before this listener above even exists,
+      // silently leaving self.materials empty forever (see fade/cutout device
+      // testing, 30.08.2026). Scanning already-set meshes here covers that
+      // case; the listener above still covers children whose mesh appears
+      // later. processMesh's own self.store guard makes running both on the
+      // same element harmless.
+      self.el.querySelectorAll("*").forEach((child: any) => {
+        if (child.getObject3D?.("mesh")) self.processMesh(child);
+      });
     },
 
     tick() {
