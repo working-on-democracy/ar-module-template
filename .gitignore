@@ -12,3 +12,8 @@ dist-ar/
 # local-only, never shipped, never scanned by the Vite build (see
 # cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
 uncompressed-assets/
+
+# Local-only tool config and a local copy of students' built modules —
+# never tracked, not part of this starter template.
+.ai/
+ar-modules/
