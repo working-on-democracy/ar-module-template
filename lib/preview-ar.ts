@@ -80,9 +80,14 @@ const ArPreviewApp = {
 
     if (assetsReady.value) {
       // Placed like the host (AR_MODULE_POSITION) so the module previews where it
-      // would actually appear in the app.
+      // would actually appear in the app — EXCEPT for image-target-anchored
+      // modules: their content's position is entirely driven by the tracked
+      // image's live pose (composed as a child of this entity), so adding a
+      // fixed placement offset on top just shifts the tracked content away
+      // from the actual image instead of leaving it anchored to it.
+      const moduleRootPosition = manifest.imageTargets?.length ? "0 0 0" : "0 1.6 -3";
       children.push(
-        h("a-entity", { id: "module-root", position: "0 1.6 -3" }, [
+        h("a-entity", { id: "module-root", position: moduleRootPosition }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );
@@ -94,7 +99,14 @@ const ArPreviewApp = {
         "xrextras-loading": "",
         "xrextras-runtime-error": "",
         "xrextras-gesture-detector": "",
-        xrweb: "disableWorldTracking: false",
+        // TEMP DEBUG — `allowedDevices: any` is missing here; a sibling
+        // project (ar-hfg-template) hit the exact same "camera runs, image
+        // target never loads" symptom and its own confirmed-working fix
+        // (changelog260623-image-tracking-fix.md) needed both this AND no
+        // `disableWorldTracking` at all — that doc explicitly warns
+        // `disableWorldTracking: true` disables the SLAM pipeline image
+        // tracking depends on, which matches our own failed test with `true`.
+        xrweb: "allowedDevices: any",
         "xr-mode-ui": "enabled: false",
         renderer: "colorManagement: true"
       },
