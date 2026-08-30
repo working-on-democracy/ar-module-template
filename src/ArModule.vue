@@ -330,7 +330,7 @@ const guiControls = computed<GuiControl[]>(() => [
            points a spot/directional light along the entity's own local -Z,
            following its rotation every frame like a real headlamp. -->
       <a-entity
-          light="type: spot; color: #ffffff; intensity: 1.5; angle: 30; penumbra: 0.4; distance: 5"
+          light="type: spot; color: #ffffff; intensity: 1; angle: 15; penumbra: 0.4; distance: 2.5"
           attach-to="target: #camera; copyRotation: true">
       </a-entity>
 
