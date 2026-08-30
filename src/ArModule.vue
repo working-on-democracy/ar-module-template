@@ -303,7 +303,7 @@ const guiControls = computed<GuiControl[]>(() => [
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <a-light type="ambient" intensity="0.2"></a-light>
+      <a-light type="ambient" intensity="0.1"></a-light>
 
       <!-- Two point lights orbiting the scene at different speed/direction,
            one pink, one turquoise (device testing, 30.08.2026, s. Skript-
@@ -322,7 +322,7 @@ const guiControls = computed<GuiControl[]>(() => [
            points a spot/directional light along the entity's own local -Z,
            following its rotation every frame like a real headlamp. -->
       <a-entity
-          light="type: spot; color: #ffffff; intensity: 1; angle: 15; penumbra: 0.4; distance: 2.5"
+          light="type: spot; color: #ffffff; intensity: 1.5; angle: 15; penumbra: 0.4; distance: 2.5"
           attach-to="target: #camera; copyRotation: true">
       </a-entity>
 
