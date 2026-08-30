@@ -210,8 +210,6 @@ const metalness = ref(50); // %
 const opacity = ref(70); // %
 const emissive = ref(33); // %, gemappt auf material-properties' 0–3-Multiplikator
 
-const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
-const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
 const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
 const renderOrderOf = (id: ItemId) => order.value.indexOf(id);
@@ -305,16 +303,7 @@ const guiControls = computed<GuiControl[]>(() => [
         no-frustum-cull
         :visible="assetsLoaded"
     >
-      <!-- What the directional light below aims at — the footprint's own
-           centre/ground (s. sound-player's ArModule.vue). -->
-      <a-entity id="lightTarget" position="0 0 0"></a-entity>
-
-      <!-- Directional light that casts shadows onto the ground plane below.
-           Positioned above the scene (elevated in Z — the footprint
-           convention's height axis), aimed at #lightTarget. Shadow camera
-           bounds sized to the image's own footprint, not a room-scale
-           guess. -->
-      <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
+      <a-light type="ambient" intensity="0.2"></a-light>
 
       <!-- Two point lights orbiting the scene at different speed/direction,
            one pink, one turquoise (device testing, 30.08.2026, s. Skript-
