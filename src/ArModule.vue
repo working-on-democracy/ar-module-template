@@ -251,14 +251,19 @@ const fieldKey = computed(
 );
 
 const guiControls = computed<GuiControl[]>(() => [
-  ...ITEM_IDS.map((id): GuiControl => ({
-    type: 'updown',
-    id: `order-${id}`,
-    label: ITEM_LABELS[id],
-    value: renderOrderOf(id),
-    onDecrement: () => moveUp(id),
-    onIncrement: () => moveDown(id)
-  })),
+  // Render-order Auf/Ab-Regler vorübergehend ausgeblendet (device testing,
+  // 30.08.2026): versperren den Blick auf die Szene und ihr Effekt ist auf
+  // dem Gerät kaum wahrnehmbar. renderOrderOf/moveUp/moveDown und die
+  // :render-order-Bindung auf jeder Scheibe bleiben bestehen, nur diese
+  // GUI-Exponierung ist raus.
+  // ...ITEM_IDS.map((id): GuiControl => ({
+  //   type: 'updown',
+  //   id: `order-${id}`,
+  //   label: ITEM_LABELS[id],
+  //   value: renderOrderOf(id),
+  //   onDecrement: () => moveUp(id),
+  //   onIncrement: () => moveDown(id)
+  // })),
   {
     type: 'slider', id: 'roughness', label: 'Roughness (global)',
     min: 0, max: 100, step: 5, value: roughness.value, unit: '%',
