@@ -129,11 +129,11 @@ const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: numbe
 const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
 const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
 
-const MAIN_SCALE = FOOTPRINT_DEPTH * 0.5; // rough estimate (mesh's own real-world height unknown) — retune once tested against the real target
+const MAIN_SCALE = FOOTPRINT_DEPTH * 0.1; // retuned against the real target (device test, 30.08.2026: 0.5 was ~5x too large)
 const WANDER_OUTER_MAX = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH) * 0.45; // stays inside the image edge, Frage 9
 const WANDER_INNER_MAX = WANDER_OUTER_MAX * 0.5;
 const WANDER_GROUND_OFFSET = FOOTPRINT_DEPTH * 0.03; // "ganz leichter Abstand vom Boden", Frage 9
-const WANDER_OBJECT_SIZE = FOOTPRINT_DEPTH * 0.1;
+const WANDER_OBJECT_SIZE = FOOTPRINT_DEPTH * 0.05; // retuned against the real target (device test, 30.08.2026: half the previous size)
 
 const mainScale = `${MAIN_SCALE.toFixed(3)} ${MAIN_SCALE.toFixed(3)} ${MAIN_SCALE.toFixed(3)}`;
 
@@ -164,7 +164,7 @@ const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 // wanderer drifted to radius ~0.8 against an intended ~0.3 outerRadius
 // within a few seconds). Rescaled by the same ratio as the radius itself.
 const SPEED_SCALE = WANDER_OUTER_MAX / 12; // 12 = the old room-scale default bandOuter
-const wanderSpeed = ref(0.35 * SPEED_SCALE); // shared across all 5 wanderers, own slider
+const wanderSpeed = ref(1.5 * SPEED_SCALE); // shared across all 5 wanderers, own slider
 const bandInner = ref(WANDER_INNER_MAX * 0.6); // shared band, two-thumb range-slider
 const bandOuter = ref(WANDER_OUTER_MAX * 0.9);
 const clipTimeScale = ref(0.4); // central object's trim-loop-clip only
@@ -195,9 +195,12 @@ const guiControls = computed<GuiControl[]>(() => [
     type: 'slider',
     id: 'wander-speed',
     label: 'Wanderer-Tempo',
-    min: Math.round(0.1 * SPEED_SCALE * 10000) / 10000,
-    max: Math.round(1 * SPEED_SCALE * 10000) / 10000,
-    step: Math.round(0.05 * SPEED_SCALE * 10000) / 10000,
+    // Range shifted up (device testing, 30.08.2026): the old 0.1–1 factor
+    // range topped out at what now feels like a crawl. New min sits roughly
+    // where the old max was, new max is ~4x that.
+    min: Math.round(1 * SPEED_SCALE * 10000) / 10000,
+    max: Math.round(4 * SPEED_SCALE * 10000) / 10000,
+    step: Math.round(0.15 * SPEED_SCALE * 10000) / 10000,
     value: wanderSpeed.value,
     onInput: (value) => { wanderSpeed.value = value; }
   },

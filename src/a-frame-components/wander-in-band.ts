@@ -45,10 +45,22 @@ const HEADING_SMOOTH_RATE = 1; // rad/s-ish exponential approach to target headi
 const SPEED_VARIATION_WILD = 0.3; // +/- fraction of base speed at chaos = 1
 const SPEED_SMOOTH_RATE = 0.15;
 // How far past inner/outerRadius the entity may drift before a firm
-// correction kicks in, as a fraction of the band's width (min 0.5m).
+// correction kicks in, as a fraction of the band's width. The absolute floor
+// below and SEPARATION_RADIUS are tuned in meters against this schema's own
+// default outerRadius (7, see the class comment's example) — a fork using a
+// much smaller/larger outerRadius (e.g. a tabletop-scale footprint under a
+// tenth of a meter across) scales both proportionally via boundaryScale in
+// tick(), instead of applying these as fixed absolutes regardless of scale.
+// Confirmed as the cause of wanderers drifting outside a small band no
+// matter how tight the GUI slider was set (device testing, 30.08.2026): at
+// that scale the 0.5m floor alone dwarfed the entire band, so the soft
+// correction never engaged and the hard clamp only caught drift far beyond
+// the visible scene.
 const TOLERANCE_FRACTION = 0.4;
+const TOLERANCE_FLOOR_REFERENCE = 0.5; // meters, at REFERENCE_OUTER_RADIUS
+const SEPARATION_RADIUS_REFERENCE = 2; // meters, at REFERENCE_OUTER_RADIUS
+const REFERENCE_OUTER_RADIUS = 7; // this schema's own default outerRadius
 const BOUNDARY_TURN_RATE = 1.5; // gentle — spirals back in rather than snapping
-const SEPARATION_RADIUS = 2; // meters; siblings closer than this repel gently
 const SEPARATION_TURN_RATE = 3;
 const FLOAT_FREQ = 0.6; // Hz-ish, fixed — floatIntensity controls amplitude only
 
@@ -158,7 +170,11 @@ export default {
     // bias the tangent itself inward/outward proportionally (a gradual
     // spiral back into the band) rather than overriding the heading outright
     // — nothing sudden happens exactly at the nominal radius.
-    const tolerance = Math.max((data.outerRadius - data.innerRadius) * TOLERANCE_FRACTION, 0.5);
+    const boundaryScale = data.outerRadius / REFERENCE_OUTER_RADIUS;
+    const tolerance = Math.max(
+      (data.outerRadius - data.innerRadius) * TOLERANCE_FRACTION,
+      TOLERANCE_FLOOR_REFERENCE * boundaryScale
+    );
     if (dist > data.outerRadius) {
       const bias = THREE.MathUtils.clamp((dist - data.outerRadius) / tolerance, 0, 1);
       tangentAngle = lerpAngle(tangentAngle, outwardAngle + Math.PI, bias * 0.8);
@@ -183,8 +199,9 @@ export default {
       if (!op) continue;
       const dx = pos.x - op.x, dz = pos.z - op.z;
       const d = Math.hypot(dx, dz);
-      if (d > 0 && d < SEPARATION_RADIUS) {
-        const w = (SEPARATION_RADIUS - d) / SEPARATION_RADIUS;
+      const separationRadius = SEPARATION_RADIUS_REFERENCE * boundaryScale;
+      if (d > 0 && d < separationRadius) {
+        const w = (separationRadius - d) / separationRadius;
         repelX += (dx / d) * w;
         repelZ += (dz / d) * w;
       }
