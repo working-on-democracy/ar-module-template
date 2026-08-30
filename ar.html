@@ -4,14 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=no" />
   <title>AR Module Preview (8th Wall)</title>
-  <!-- Mobile debug console (eruda) — on-page devtools panel (console/network/
-       elements) so errors are visible on-device. iPad Chrome (and iOS browsers
-       generally) have no remote-inspector equivalent to desktop Chrome/Safari's
-       devtools, so this is the practical way to see console output while
-       testing image tracking etc. on the actual device. Loaded first so it
-       also catches errors from everything below. AR-preview only (this file),
-       not the VR/desktop preview or the library build shipped to the host —
-       remove once no longer needed for debugging. -->
+  <!-- Testphase-Instrumentierung: mobile Konsole, da Geräte-Browser (iPad/Chrome)
+       keine DevTools erlauben. Vor Produktions-/Auslieferungs-Build wieder entfernen. -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
   <!-- Full host runtime, loaded in strict order — each appended dynamically with
