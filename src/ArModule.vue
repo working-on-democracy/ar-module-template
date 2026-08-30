@@ -257,11 +257,21 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <!-- Material-/Shader-Showcase (archive-of-practice
            projects/an-alle/concepts/material-shader-showcase.md) — sechs
-           farbige Kreis-Scheiben, hintereinander gestapelt und nach hinten
-           zunehmend größer, garantiert Überschneidung aus Kamerasicht. Ein
-           Text-Label über jeder Scheibe zeigt ihren aktuellen
-           render-order-Wert. `:key="fieldKey"` erzwingt einen sauberen
-           Neuaufbau bei jeder Regler-/Reihenfolgeänderung (s. Skript). -->
+           farbige Kreis-Scheiben, gestaffelt und nach hinten zunehmend
+           größer, garantiert Überschneidung aus Kamerasicht. Staffelung auf
+           einer 45°-Winkelung zwischen Y und Z statt auf einer reinen Achse
+           (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md,
+           Frage 11) — jeder Schritt geht gleichermaßen nach oben (Y, heute
+           die normale A-Frame-Hochachse) wie nach hinten (Z, heute die
+           Kamera-Tiefenachse). Nutzt bewusst die HEUTIGEN, noch nicht per
+           Footprint-Konvention umgewidmeten Achsen (dieser Branch hat
+           zwischen-basis noch nicht gemerged) — nach dem Merge tauschen Y
+           und Z unter `xrextras-named-image-target` ihre Rollen (Y wird
+           bildbegrenzte Tiefe, Z wird freie Höhe), diese Werte müssten dann
+           neu zugeordnet, nicht neu erfunden werden. Ein Text-Label über
+           jeder Scheibe zeigt ihren aktuellen render-order-Wert.
+           `:key="fieldKey"` erzwingt einen sauberen Neuaufbau bei jeder
+           Regler-/Reihenfolgeänderung (s. Skript). -->
       <a-entity id="showcase" position="0 1 -2" :key="fieldKey">
 
         <!-- A — vorderstes, unlit. unlit-material zuerst (ersetzt das
@@ -281,7 +291,7 @@ const guiControls = computed<GuiControl[]>(() => [
         </a-entity>
 
         <!-- B/C/D — dither-transparent, je ein anderer ditherType. -->
-        <a-entity position="0 0 -0.5">
+        <a-entity position="0 0.35 -0.35">
           <a-entity
               geometry="primitive: circle; radius: 0.37"
               material="color: #ff4d4d; side: double; transparent: true"
@@ -291,7 +301,7 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.6 0.01"></a-entity>
         </a-entity>
 
-        <a-entity position="0 0 -1">
+        <a-entity position="0 0.7 -0.7">
           <a-entity
               geometry="primitive: circle; radius: 0.45"
               material="color: #4d79ff; side: double; transparent: true"
@@ -301,7 +311,7 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.7 0.01"></a-entity>
         </a-entity>
 
-        <a-entity position="0 0 -1.5">
+        <a-entity position="0 1.05 -1.05">
           <a-entity
               geometry="primitive: circle; radius: 0.52"
               material="color: #4dff88; side: double; transparent: true"
@@ -313,7 +323,7 @@ const guiControls = computed<GuiControl[]>(() => [
 
         <!-- E/F — normale Alpha-Transparenz, mit eigener Emissiv-Grundfarbe
              (sonst hätte der globale Emissive-Regler nichts zum Boosten). -->
-        <a-entity position="0 0 -2">
+        <a-entity position="0 1.4 -1.4">
           <a-entity
               geometry="primitive: circle; radius: 0.6"
               material="color: #ffe14d; side: double; transparent: true; emissive: #ffcc00; emissiveIntensity: 1"
@@ -323,7 +333,7 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" position="0 0.9 0.01"></a-entity>
         </a-entity>
 
-        <a-entity position="0 0 -2.5">
+        <a-entity position="0 1.75 -1.75">
           <a-entity
               geometry="primitive: circle; radius: 0.67"
               material="color: #ff4dd2; side: double; transparent: true; emissive: #ff00aa; emissiveIntensity: 1"
