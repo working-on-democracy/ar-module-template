@@ -230,12 +230,21 @@ export default defineConfig(async ({ command, mode }) => {
   //    pin @8thwall/xrextras and host it locally. The library build doesn't need
   //    it — the host provides xrextras at runtime.
   //  - the 8th Wall engine (xr.js): AR only, exactly like the host app.
+  //  - 8Frame (patched A-Frame): AR only. NOT the build at cdn.8thwall.com/web/
+  //    aframe/ — that's a different, much smaller file for 8th Wall's classic
+  //    commercial backend and throws "No valid session manager to handle this
+  //    session" against @8thwall/engine-binary's session-manager protocol. The
+  //    build that actually pairs with engine-binary isn't on npm; it ships only
+  //    in the `external/scripts/` folder of 8th Wall's example projects (e.g.
+  //    github.com/8thwall/aframe-world-effects-example), so it's vendored here
+  //    instead of pinned via package.json.
   const copyTargets: { src: string; dest: string }[] = [];
   if (!isLibBuild) {
     copyTargets.push({ src: "node_modules/@8thwall/xrextras/dist/*", dest: "external/xrextras" });
   }
   if (isAr) {
     copyTargets.push({ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" });
+    copyTargets.push({ src: "lib/vendor/8frame-1.5.0.min.js", dest: "external/scripts" });
   }
   if (copyTargets.length) {
     plugins.push(viteStaticCopy({ targets: copyTargets }));

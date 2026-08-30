@@ -113,6 +113,30 @@ type SoundStatus = 'idle' | 'playing' | 'paused';
 const rootEntity = ref<HTMLElement | null>(null);
 const soundStatus = ref<SoundStatus>('idle');
 
+// Footprint convention — applies to every test scene built on this template,
+// not just Sound-Player: the tracked image itself IS the scene's ground
+// plane. xrextras-named-image-target's local X/Y match the printed image's
+// own width/depth; local Z is height above it. Every object's horizontal
+// (X/Y) position must stay within the image's own printed bounds — only Z
+// (height) is free to extend beyond. Sizes/offsets below are proportional to
+// the footprint rather than fixed units, so a scene keeps its proportions
+// once the real AN ALLE! target (see guides/IMAGE-TRACKING-FEATURE-GUIDE.md)
+// replaces this placeholder with different physical dimensions.
+const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: number; height: number } } | undefined)?.properties;
+const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
+const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
+
+const SPHERE_RADIUS = FOOTPRINT_DEPTH * 0.08;
+const CONTENT_HEIGHT = FOOTPRINT_DEPTH * 0.2; // how high above the image plane the spheres float
+const ORBIT_RADIUS = FOOTPRINT_DEPTH * 0.12;
+
+const staticButtonPosition = `${(-FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.2).toFixed(3)} ${CONTENT_HEIGHT.toFixed(3)}`;
+const wanderPivotPosition = `${(FOOTPRINT_WIDTH * 0.25).toFixed(3)} ${(-FOOTPRINT_DEPTH * 0.15).toFixed(3)} ${CONTENT_HEIGHT.toFixed(3)}`;
+const orbitOffset = `${ORBIT_RADIUS.toFixed(3)} 0 0`;
+const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
+const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
+const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
+
 function onSoundStateChanged(e: Event) {
   soundStatus.value = (e as CustomEvent).detail.status;
 }
@@ -163,7 +187,6 @@ onUnmounted(() => {
   <xrextras-named-image-target name="video-target">
     <a-entity
         ref="rootEntity"
-        position="0 -2 0"
         no-frustum-cull
         :visible="assetsLoaded"
         ar-button-manager
@@ -188,8 +211,8 @@ onUnmounted(() => {
       <a-entity id="static_sound" sound="src: #sound-static-clip; autoplay: false; loop: true"></a-entity>
       <a-sphere
           id="static_button"
-          position="-1.2 0.8 -2.5"
-          radius="0.18"
+          :position="staticButtonPosition"
+          :radius="SPHERE_RADIUS"
           color="#3b6ea5"
           ar-button="near: 2; far: 4.5; pulse: 0.2; zoneSize: 1.6 1.6 1.6"
           sound-button="sound: #static_sound">
@@ -202,21 +225,24 @@ onUnmounted(() => {
            animation-Component" constraint from decision 3, expressed with
            the built-in component alone (it only interpolates linearly
            between two values, so a direct position animation can't orbit —
-           rotating the parent instead can). POSITIONAL audio here
+           rotating the parent instead can). Rotates around Z (the footprint
+           convention's height/up axis — see the script block above), not Y,
+           so the sphere orbits in a horizontal circle above the image
+           instead of a vertical one. POSITIONAL audio here
            (distanceModel/refDistance/rolloffFactor/maxDistance, pattern
            from examples/wander-in-band-usage.html) is the "räumlich
            (spatial)" half of decision 3 — panning/volume shift as it
            circles is the effect being demonstrated. -->
       <a-entity
-          position="0.6 1.1 -3"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear">
-        <a-entity id="wander_sound" position="1.3 0 0"
+          :position="wanderPivotPosition"
+          animation="property: rotation; to: 0 0 360; loop: true; dur: 9000; easing: linear">
+        <a-entity id="wander_sound" :position="orbitOffset"
             sound="src: #sound-wander-clip; autoplay: false; loop: true; positional: true; distanceModel: linear; refDistance: 1.5; rolloffFactor: 1; maxDistance: 6">
         </a-entity>
         <a-sphere
             id="wander_button"
-            position="1.3 0 0"
-            radius="0.18"
+            :position="orbitOffset"
+            :radius="SPHERE_RADIUS"
             color="#a5523b"
             ar-button="near: 2; far: 4.5; pulse: 0.2; zoneSize: 1.6 1.6 1.6"
             sound-button="sound: #wander_sound">
@@ -226,41 +252,28 @@ onUnmounted(() => {
       <!-- What the directional light below aims at — move this entity to
            redirect the light (and the shadows it casts) instead of having to
            re-aim the light itself. -->
-      <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+      <a-entity id="lightTarget" position="0 0 0"></a-entity>
 
       <!-- Directional light that casts shadows onto the ground plane below.
-           Positioned above the scene, aimed at #lightTarget above. -->
-      <a-entity
-          position="1 20 10"
-          light="
-                      type: directional;
-                      intensity: 1;
-                      target: #lightTarget;
-                      castShadow: true;
-                      shadowMapHeight:2048;
-                      shadowMapWidth:2048;
-                      shadowCameraTop: 80;
-                      shadowCameraBottom: -80;
-                      shadowCameraRight: 80;
-                      shadowCameraLeft: -80;
-                      shadowRadius: 12"
-          shadow>
-      </a-entity>
+           Positioned above the scene (elevated in Z — the footprint
+           convention's height axis), aimed at #lightTarget. Shadow camera
+           bounds sized to the image's own footprint, not a room-scale
+           guess, so the 2048px shadow map isn't spread paper-thin. -->
+      <a-entity :position="lightPosition" :light="lightConfig" shadow></a-entity>
 
       <a-light type="ambient" intensity="0.7"></a-light>
 
-      <!-- Ground plane. Renders ONLY the
-           shadows cast onto it (material="shader: shadow"), not a visible
-           surface of its own, so it stays invisible until something above
-           actually casts a shadow onto it. A good baseline to build a scene
-           on top of. -->
+      <!-- Ground plane = the tracked image itself (footprint convention, see
+           script block above): same local X/Y bounds as the printed image,
+           no rotation (a-plane's default orientation already matches the
+           image's own plane), sitting at Z=0. Semi-transparent visible fill
+           (not the earlier shadow-only material) so the footprint is
+           visible for orientation/debugging while still catching shadows. -->
       <a-plane
           id="ground"
-          rotation="-90 0 0"
-          position="-50 0 -50"
-          width="500"
-          height="500"
-          material="shader: shadow"
+          :width="FOOTPRINT_WIDTH"
+          :height="FOOTPRINT_DEPTH"
+          :material="groundMaterial"
           shadow
       ></a-plane>
 
