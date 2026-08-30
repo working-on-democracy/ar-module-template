@@ -165,6 +165,20 @@ const guiControls = computed<GuiControl[]>(() => [
     onInput: (value) => { waveSpeed.value = value; }
   }
 ]);
+
+// Primitive-only house placeholder (30.08.2026, s. archive-of-practice
+// projects/an-alle/concepts/proximity-effekte.md): replaces the
+// Madleen_module glTF walkthrough with authored a-box/a-cone shapes while
+// the real asset is pending (s. assets-checkliste.md). proximity-fade/
+// -cutout only discover materials via a bubbled `model-loaded` event from
+// a descendant `gltf-model` (s. PROXIMITY-FADE-FEATURE-GUIDE.md/
+// PROXIMITY-CUTOUT-FEATURE-GUIDE.md) — plain primitives never fire it, so
+// each wall/compartment primitive below re-emits it manually once its own
+// mesh exists (same `object3dset`-type-"mesh" check material-properties.ts
+// already uses to support primitives).
+function emitModelLoadedOnMesh(e: any) {
+  if (e.detail?.type === 'mesh') e.target.emit('model-loaded');
+}
 </script>
 
 <template>
@@ -222,40 +236,49 @@ const guiControls = computed<GuiControl[]>(() => [
            preview assigns the shared camera (s. examples/attach-to-usage.html). -->
       <a-entity light="type: point; intensity: 0.6" attach-to="target: #camera; offset: 0 1 0"></a-entity>
 
-      <!-- Haus (Madleen_module-Assets, read-only Referenz — s. Konzeptdokument).
-           Ein "scene-content"-Wrapper wie im Original, hier ohne dessen
-           kameraspezifische Positionskorrektur (dieser Branch setzt noch
-           kein eigenes manifest.camera). -->
+      <!-- Haus aus A-Frame-Primitives (30.08.2026, s. Konzeptdokument) —
+           bewusst kein Madleen_module-Asset mehr, auch nicht als Platzhalter
+           (s. archive-of-practice projects/an-alle/assets-checkliste.md).
+           Relativ hoch statt breit proportioniert (Frage 8 im Konzeptdokument:
+           die Grundfläche bleibt später unter der Footprint-Konvention
+           bildbegrenzt, nur die Höhe ist frei). Ein "scene-content"-Wrapper
+           wie im Original, hier ohne dessen kameraspezifische
+           Positionskorrektur (dieser Branch setzt noch kein eigenes
+           manifest.camera). -->
       <a-entity id="scene-content" position="0 0.5 -8" rotation="0 135 0" scale="1.4 1.4 1.4">
 
         <!-- 1. Außenwände — Proximity Fade: verschwindet vollständig, sobald
              die Kamera sich `target` nähert (nur fadeOut, kein fadeIn — "ganzes
              Verschwinden ab bestimmtem Abstand", nicht ein Erscheinen-und-
-             Verschwinden-Fenster). model-loaded bubbelt von jedem Kind-Modell
-             hoch, eine Component-Instanz patcht alle 5. -->
+             Verschwinden-Fenster). model-loaded bubbelt von jedem Kind hoch
+             (bei Primitives manuell nachgebildet, s. emitModelLoadedOnMesh
+             oben), eine Component-Instanz patcht alle 5 (4 Wände + Dach). -->
         <a-entity id="aussenwaende" position="0 0 0" :proximity-fade="fadeAttr">
-          <a-entity gltf-model="#Aussen1" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Aussen2" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Aussen3" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Aussen4" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Aussen5" position="0 0 0" shadow></a-entity>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="0 1.1 1" width="2" height="2.2" depth="0.1" color="#8a7a63" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="0 1.1 -1" width="2" height="2.2" depth="0.1" color="#8a7a63" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="1 1.1 0" rotation="0 90 0" width="2" height="2.2" depth="0.1" color="#8a7a63" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="-1 1.1 0" rotation="0 90 0" width="2" height="2.2" depth="0.1" color="#8a7a63" shadow></a-box>
+          <a-cone @object3dset="emitModelLoadedOnMesh" position="0 2.9 0" rotation="0 45 0" radius-bottom="1.5" radius-top="0" height="1.4" segments-radial="4" color="#7a4a35" shadow></a-cone>
         </a-entity>
 
         <!-- 2. Erster Stock (Gitter) — Proximity Cutout: Loch folgt der Kamera
-             beim Hineingehen, statt auf einen Schlag zu verschwinden. -->
+             beim Hineingehen, statt auf einen Schlag zu verschwinden. Kleiner
+             innerer Raum aus 4 Wandstücken statt des Gitter-Modells. -->
         <a-entity id="erster-stock" position="0 0 0" :proximity-cutout="cutoutAttr">
-          <a-entity gltf-model="#Gitter2" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Gitter3" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Gitter4" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Gitter5" position="0 0 0" shadow></a-entity>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="0 1.25 0.5" width="1" height="0.7" depth="0.05" color="#cbb994" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="0 1.25 -0.5" width="1" height="0.7" depth="0.05" color="#cbb994" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="0.5 1.25 0" rotation="0 90 0" width="1" height="0.7" depth="0.05" color="#cbb994" shadow></a-box>
+          <a-box @object3dset="emitModelLoadedOnMesh" position="-0.5 1.25 0" rotation="0 90 0" width="1" height="0.7" depth="0.05" color="#cbb994" shadow></a-box>
         </a-entity>
 
         <!-- 3. Verteilte Objekte im Haus — Proximity Wave Group: gemeinsame
              Werte, individuelle Phase pro Instanz (proximity-wave-group lässt
-             jedes Kind unabhängig voneinander schwingen/floaten). -->
+             jedes Kind unabhängig voneinander schwingen/floaten; braucht kein
+             model-loaded, da es nur object3D-Transform schreibt, keine
+             Materialien patcht — funktioniert mit Primitives ohne Weiteres). -->
         <a-entity id="verteilte-objekte" position="0 0 0" :proximity-wave-group="waveGroupAttr">
-          <a-entity gltf-model="#Innen_ganz" position="0 0 0" shadow></a-entity>
-          <a-entity gltf-model="#Kueche_packed" position="0.05 0 -0.02" rotation="0 -2 0" shadow></a-entity>
+          <a-sphere position="0.3 0.3 0.2" radius="0.2" color="#4a90d9" shadow></a-sphere>
+          <a-box position="-0.3 0.3 -0.2" rotation="0 20 0" width="0.3" height="0.3" depth="0.3" color="#d9954a" shadow></a-box>
         </a-entity>
 
       </a-entity>
