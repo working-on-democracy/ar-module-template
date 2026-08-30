@@ -113,12 +113,14 @@ onUnmounted(() => {
 // existiert auf jedem Material) — genau das in der Entscheidung beschriebene
 // Verhalten ("nur Opacity, Roughness/Metalness/Emissive haben keine
 // Wirkung"), ohne Sonderfall-Code, allein durch Komponenten-Reihenfolge.
-// Items B/C/D = dither-material (je ein ditherType). dither-material besitzt
-// selbst kein roughness/metalness/emissiveIntensity-Attribut — die globalen
-// Regler dafür wirken deshalb ausschließlich auf E/F (material-properties),
-// nicht weil hier etwas unterdrückt würde, sondern weil dither-material
-// diese Eigenschaften schlicht nicht kennt. Items E/F = material-properties
-// (normale Alpha-Transparenz).
+// Items B/C/D = dither-material (je ein ditherType). dither-material trägt
+// seit 30.08.2026 (device testing) auch roughness/metalness/emissiveIntensity
+// (gleiche Semantik/Sentinel wie material-properties, s. dessen
+// applyPbrOverrides) — die globalen Regler wirken deshalb jetzt auf alle
+// sechs Items, nicht nur E/F. Own base emissive colour on B/C/D's own
+// `material=`-Attribut (analog zu E/F), sonst hätte der Emissive-Regler
+// nichts zum Boosten. Items E/F = material-properties (normale
+// Alpha-Transparenz).
 //
 // render-order.ts und die vier Material-Komponenten oben lesen ihre Daten
 // größtenteils nur einmal in init() (render-order/unlit-material haben kein
@@ -241,7 +243,12 @@ const materialPropsAttr = computed(
         `opacity: ${opacityFrac.value.toFixed(2)}; emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`
 );
 function ditherAttr(ditherType: string): string {
-  return `opacity: ${opacityFrac.value.toFixed(2)}; ditherType: ${ditherType}`;
+  // roughness/metalness/emissiveIntensity now supported by dither-material
+  // itself (device testing, 30.08.2026: previously had nothing to bind to
+  // here, so B/C/D silently ignored those three global sliders).
+  return `opacity: ${opacityFrac.value.toFixed(2)}; ditherType: ${ditherType}; ` +
+         `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
+         `emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`;
 }
 
 const fieldKey = computed(
@@ -355,12 +362,16 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(0)"></a-entity>
         </a-entity>
 
-        <!-- B/C/D — dither-transparent, je ein anderer ditherType. -->
+        <!-- B/C/D — dither-transparent, je ein anderer ditherType. Own base
+             emissive colour/intensity (like E/F) so the global emissive
+             slider has something to boost — dither-material's own
+             emissiveIntensity is a multiplier on top of it, same as
+             material-properties (device testing, 30.08.2026). -->
         <a-entity :position="itemPosition(1)">
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.b}`"
               :rotation="tiltAttr"
-              material="color: #ff4d4d; side: double; transparent: true"
+              material="color: #ff4d4d; side: double; transparent: true; emissive: #ff4d4d; emissiveIntensity: 1"
               :dither-material="ditherAttr('bayer')"
               :render-order="renderOrderOf('b')">
           </a-entity>
@@ -371,7 +382,7 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.c}`"
               :rotation="tiltAttr"
-              material="color: #4d79ff; side: double; transparent: true"
+              material="color: #4d79ff; side: double; transparent: true; emissive: #4d79ff; emissiveIntensity: 1"
               :dither-material="ditherAttr('noise')"
               :render-order="renderOrderOf('c')">
           </a-entity>
@@ -382,7 +393,7 @@ const guiControls = computed<GuiControl[]>(() => [
           <a-entity
               :geometry="`primitive: circle; radius: ${DISC_RADII.d}`"
               :rotation="tiltAttr"
-              material="color: #4dff88; side: double; transparent: true"
+              material="color: #4dff88; side: double; transparent: true; emissive: #4dff88; emissiveIntensity: 1"
               :dither-material="ditherAttr('interleaved-gradient')"
               :render-order="renderOrderOf('d')">
           </a-entity>

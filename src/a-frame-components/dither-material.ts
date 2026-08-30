@@ -1,5 +1,7 @@
 import type { ComponentDefinition } from "aframe";
 
+declare const THREE: any;
+
 // Ordered-dithering ("screen-door") transparency for a loaded model's
 // materials — a manual, FIXED-opacity dither, not driven by camera distance
 // (contrast with proximity-cutout and proximity-fade-dither, both of which
@@ -19,6 +21,13 @@ import type { ComponentDefinition } from "aframe";
 //   <a-entity gltf-model="#glass" dither-material></a-entity>
 //   <a-entity gltf-model="#glass" dither-material="opacity: 0.4"></a-entity>
 //   <a-entity gltf-model="#glass" dither-material="ditherType: noise"></a-entity>
+//   <a-entity gltf-model="#glass" dither-material="metalness: 1; roughness: 0.1"></a-entity>
+//
+// roughness/metalness/emissiveIntensity/emissiveTint — same attributes,
+// sentinel convention, and KHR_materials_emissive_strength handling as
+// material-properties.ts (applyPbrOverrides below is a near-verbatim copy of
+// its emissive logic). Dithering only touches alpha/discard in the opaque
+// pass, so applying both to the same material is not a conflict.
 //
 // Ported from Fanyu_module's dither-transparency.ts, renamed to fit this
 // project's [x]-material naming (see unlit-material, material-properties)
@@ -115,13 +124,41 @@ interface MaterialSnapshot {
   customProgramCacheKey: any;
 }
 
+// roughness/metalness/emissiveIntensity/emissiveTint overrides, same
+// sentinel/snapshot conventions as material-properties.ts (see there for why:
+// -1 = "don't override", base emissive intensity/colour resolved once and
+// snapshotted on first ownership so repeated updates multiply from a fixed
+// base instead of compounding). Added after device testing (30.08.2026,
+// archive-of-practice projects/an-alle/concepts/material-shader-showcase.md)
+// found the global roughness/metalness/emissive GUI sliders had nothing to
+// bind to on the three dither-transparent items — a gap from the original
+// port, not an intentional exclusion: dithering only touches alpha/discard
+// in the opaque pass and is orthogonal to PBR shading, so there's no
+// conflict applying both to the same material.
+function applyPbrOverrides(owned: any, data: any): void {
+  if (data.roughness >= 0 && "roughness" in owned) owned.roughness = data.roughness;
+  if (data.metalness >= 0 && "metalness" in owned) owned.metalness = data.metalness;
+
+  if ("emissive" in owned) {
+    if (owned.userData.baseEmissiveIntensity === undefined) {
+      const strength = owned.userData.gltfExtensions?.KHR_materials_emissive_strength?.emissiveStrength;
+      owned.userData.baseEmissiveIntensity =
+        typeof strength === "number" && owned.emissiveIntensity === 1 ? strength : owned.emissiveIntensity;
+      owned.userData.baseEmissiveColor = owned.emissive.clone();
+    }
+    owned.emissiveIntensity = owned.userData.baseEmissiveIntensity * data.emissiveIntensity;
+    owned.emissive.copy(owned.userData.baseEmissiveColor);
+    if (data.emissiveTint) owned.emissive.multiply(new THREE.Color(data.emissiveTint));
+  }
+}
+
 // Returns the material this node should use: either `material` itself
 // (already our own owned clone from a previous apply on this same node,
 // mutated in place with the current attribute values) or a freshly cloned
 // and dithered copy of it.
 function applyDither(
   material: any,
-  opacityOverride: number,
+  data: any,
   ditherType: string,
   store: Map<any, MaterialSnapshot>
 ): any {
@@ -143,9 +180,10 @@ function applyDither(
     });
   }
 
-  if (opacityOverride >= 0) owned.opacity = opacityOverride;
+  if (data.opacity >= 0) owned.opacity = data.opacity;
   owned.transparent = false; // dither handles see-through; keep it in the opaque pass
   owned.depthWrite = true;
+  applyPbrOverrides(owned, data);
 
   owned.onBeforeCompile = (shader: any) => {
     shader.fragmentShader = shader.fragmentShader
@@ -170,7 +208,13 @@ export default {
     // "bayer" | "noise" | "interleaved-gradient" — see the file header for
     // what each looks like. An unrecognised value falls back to "bayer"
     // with a console warning rather than silently doing nothing.
-    ditherType: { type: "string", default: DEFAULT_DITHER_TYPE }
+    ditherType: { type: "string", default: DEFAULT_DITHER_TYPE },
+    // roughness/metalness/emissive* — same "-1 = don't override" convention
+    // and semantics as material-properties.ts (see applyPbrOverrides above).
+    roughness: { type: "number", default: -1 },
+    metalness: { type: "number", default: -1 },
+    emissiveIntensity: { type: "number", default: 1 },
+    emissiveTint: { type: "string", default: "" }
   },
 
   init() {
@@ -201,7 +245,7 @@ export default {
     mesh.traverse((node: any) => {
       if (!node.isMesh || !node.material) return;
       const mats = Array.isArray(node.material) ? node.material : [node.material];
-      const newMats = mats.map((m: any) => applyDither(m, self.data.opacity, ditherType, self.store));
+      const newMats = mats.map((m: any) => applyDither(m, self.data, ditherType, self.store));
       node.material = Array.isArray(node.material) ? newMats : newMats[0];
     });
   },
