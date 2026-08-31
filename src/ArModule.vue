@@ -366,26 +366,26 @@ async function runTutorial() {
   tutorialInputLocked.value = false;
 }
 
-// Bottom-anchored (30% up from the bottom edge, author's spec), white text
-// on an OPAQUE black box, sharp corners (deliberately not the InfoOverlay
-// panel's rounded/translucent look, this is a fleeting instruction, not a
-// persistent UI surface). Width fixed at 66% of the viewport (author's
-// spec) with a large, screen-relative font size so the text actually fills
-// that width instead of sitting tiny inside a wide box — height stays
-// auto/tight around however many lines that wraps to.
+// Bottom-anchored (25% up from the bottom edge, author's spec), white text
+// on a 50%-opacity black box, sharp corners (deliberately not the
+// InfoOverlay panel's rounded look, this is a fleeting instruction, not a
+// persistent UI surface). Single line, no fixed box width (author's spec,
+// 31.08.2026 — a fixed 66vw box risked wrapping to two lines depending on
+// the label's own length) — `whiteSpace: nowrap` forces one line and the
+// box auto-sizes tightly to it, with a screen-relative font size tuned so
+// that single line lands at roughly 66% of the viewport width for either
+// of this scene's two labels (both a similar length).
 const tutorialTextStyle = computed(() => ({
   position: 'fixed' as const,
-  bottom: '30%',
+  bottom: '25%',
   left: '50%',
-  width: '66vw',
-  boxSizing: 'border-box' as const,
+  whiteSpace: 'nowrap' as const,
   transform: `translate(-50%, ${tutorialTextSlideOffset.value}px)`,
-  padding: '3vw 4vw',
-  background: '#000000',
+  padding: '2vw 3vw',
+  background: 'rgba(0, 0, 0, 0.5)',
   color: '#ffffff',
   fontFamily: 'sans-serif',
-  fontSize: '6vw',
-  lineHeight: '1.3',
+  fontSize: '4vw',
   textAlign: 'center' as const,
   zIndex: '1000',
   pointerEvents: 'none' as const
