@@ -522,5 +522,5 @@ onUnmounted(() => {
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Ein Feld zufällig verteilter Kugeln: Wische horizontal, um die Dichte zu ändern, vertikal für die Feldgröße. Kommst du mit der Kamera nah heran (ab ca. 60 cm), beginnen die Kugeln um ihre Position zu schwingen und leicht zu hüpfen." />
+  <InfoOverlay text="Ein Feld zufällig verteilter Kugeln: Wische horizontal, um die Dichte zu ändern, vertikal für die Feldgröße. Kommst du mit der Kamera näher heran, beginnen die Kugeln um ihre Position zu schwingen und leicht zu hüpfen." />
 </template>
