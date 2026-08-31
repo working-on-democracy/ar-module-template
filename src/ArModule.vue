@@ -140,10 +140,12 @@ const PROP_FOOTPRINT_RADIUS = 0.14 * PROP_SCALE;
 // silently loosening the spacing at 49 as it used to).
 const MAX_GRID_NODES_PER_SIDE = 14;
 
-const fieldSizePercent = ref(70); // 20–100, % of FOOTPRINT_MIN_SIDE
+const FIELD_SIZE_MIN = 20;
+const FIELD_SIZE_MAX = 100;
+const fieldSizePercent = ref((FIELD_SIZE_MIN + FIELD_SIZE_MAX) / 2); // % of FOOTPRINT_MIN_SIDE, starts centred (31.08.2026)
 const DENSITY_MIN = 10;
 const DENSITY_MAX = 90;
-const density = ref(40); // 10–90 — s. gridSpacing below for what the extremes now guarantee
+const density = ref((DENSITY_MIN + DENSITY_MAX) / 2); // s. gridSpacing below for what the extremes now guarantee; starts centred (31.08.2026)
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
@@ -195,13 +197,20 @@ const randomFieldAttr = computed(
 // here and driven live instead of baked into a placed position.
 // colorMaxDist is the field's own half-diagonal, so the radial colour
 // gradient always spans exactly from this field's centre to its actual
-// edge regardless of current field size. swingNear/Far, zBobHeight/Near/
-// Far, idleRadius and the two colours stay on the component's own schema
-// defaults — no GUI/scene-specific override needed for those.
+// edge regardless of current field size. targetHalfWidth feeds
+// proximity-swing's own screen-coverage measurement (s.
+// proximity-swing.ts's targetCoverage()) — half of the SAME footprint
+// width the ground plane below is actually sized to, so the measurement
+// matches the real printed target exactly. swingCoverageNear/Far,
+// zBobHeight/CoverageNear/Far, idleRadius and the two colours stay on the
+// component's own schema defaults — no GUI/scene-specific override needed
+// for those (targetSelector's own default, #ground, already matches the
+// ground plane's id below).
 const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOTPRINT_RADIUS));
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
 const proximitySwingAttr = computed(
-  () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}`
+  () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
+        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}`
 );
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
@@ -227,13 +236,15 @@ const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}`);
 // 31.08.2026) — replaces the GUI sliders above with a relative/incremental
 // screen drag (see swipe-drag.ts for why relative, not absolute-position,
 // mapping): horizontal = density, vertical = field size, up/right = more.
-// SWIPE_PX_FOR_FULL_RANGE is deliberately much shorter than a full screen
-// drag — short enough for several comfortable partial drags to cover the
-// whole range, so nothing is ever pinned to a screen edge the way the old
-// sliders were pinned to their track ends.
-const SWIPE_PX_FOR_FULL_RANGE = 250;
+// SWIPE_PX_FOR_FULL_RANGE needs at least two comfortable drags to cover the
+// whole range (author's call, 31.08.2026 — one drag covering the full
+// range gave too little control), while still being shorter than a full
+// screen drag — several partial drags cover the whole range, so nothing is
+// ever pinned to a screen edge the way the old sliders were pinned to
+// their track ends.
+const SWIPE_PX_FOR_FULL_RANGE = 600;
 const DENSITY_PER_PX = (DENSITY_MAX - DENSITY_MIN) / SWIPE_PX_FOR_FULL_RANGE;
-const FIELD_SIZE_PER_PX = (100 - 20) / SWIPE_PX_FOR_FULL_RANGE;
+const FIELD_SIZE_PER_PX = (FIELD_SIZE_MAX - FIELD_SIZE_MIN) / SWIPE_PX_FOR_FULL_RANGE;
 let detachSwipeDrag: (() => void) | null = null;
 
 onMounted(() => {
@@ -243,7 +254,7 @@ onMounted(() => {
     },
     (dy) => {
       // Screen Y grows downward, so swiping UP (negative dy) should grow the field.
-      fieldSizePercent.value = Math.min(100, Math.max(20, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
+      fieldSizePercent.value = Math.min(FIELD_SIZE_MAX, Math.max(FIELD_SIZE_MIN, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
     }
   );
 });
