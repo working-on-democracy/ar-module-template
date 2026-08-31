@@ -152,6 +152,19 @@ const DENSITY_MAX = 90;
 // Same reasoning as fieldSizePercent above — s. gridSpacing below for what the extremes guarantee.
 const density = ref(65);
 
+// True from mount until the tutorial animation (s. runTutorial() below)
+// finishes — declared this early because proximitySwingAttr/fieldKey below
+// both need to read it. Double duty: gates swipe input AND freezes every
+// placed sphere's own swing/bob/idle motion (proximity-swing's `frozen`
+// attribute) so the field reads as a perfectly still, ordered grid while
+// the tutorial demonstrates field size/density, instead of visibly
+// wobbling on its own at the same time.
+const tutorialInputLocked = ref(true);
+// False until the tutorial's ground-plane lead-in finishes (s.
+// runTutorial()) — the field stays hidden for those ~3s rather than
+// popping in before the intro fade has even started.
+const fieldVisible = ref(false);
+
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
 // Density now drives the GRID SPACING directly rather than an area/prop-
@@ -226,7 +239,8 @@ const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
 const zBobHeight = computed(() => PROP_FOOTPRINT_RADIUS * 4);
 const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
-        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; zBobHeight: ${zBobHeight.value.toFixed(4)}`
+        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; zBobHeight: ${zBobHeight.value.toFixed(4)}; ` +
+        `frozen: ${tutorialInputLocked.value}`
 );
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
@@ -250,7 +264,11 @@ const groundMaterial = computed(() => `color: #3b82f6; opacity: ${groundOpacity.
 // needs no remount even though it also reacts to swingRadius/colorMaxDist —
 // those only change together with density/fieldSizePercent anyway, so the
 // remount this key already triggers re-initializes it with fresh values.
-const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}`);
+// tutorialInputLocked is also included so the frozen <-> live motion
+// transition always gets a remount exactly when it toggles, even on the
+// rare tick where fieldSizePercent/density don't ALSO happen to change at
+// that same instant.
+const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}-${tutorialInputLocked.value}`);
 
 // Swipe-driven density/field-size (archive-of-practice projects/an-alle/
 // concepts/zufallsverteilung-lod.md, "Swipe statt Regler" decision,
@@ -278,19 +296,35 @@ let detachSwipeDrag: (() => void) | null = null;
 // opacity (0 -> 100% -> its standard value, ~3s — s. groundOpacity above),
 // which doubles as the delay before the tutorial itself starts (no
 // separate timer needed, the lead-in animation's own duration IS the
-// delay). Then two back-to-back phases, each a bottom-anchored text label
-// naming the gesture while its own attribute sweeps through its range and
-// back: field size (MIN -> MAX -> its own start value, density held
-// constant), then density (its own start value -> MAX -> 20 -> back to
-// start, field size held at its now-real start value — asymmetric
-// waypoints, author's explicit choice, 31.08.2026, not a MIN/MAX mirror of
-// the field-size phase). `tutorialInputLocked` blocks swipe input for the
-// whole sequence (lead-in included) so a real drag can't fight it.
-const tutorialInputLocked = ref(true);
+// delay) — the sphere field itself stays hidden for that whole lead-in
+// (`fieldVisible`, s. above), only appearing once phase 1 actually begins.
+// Then two back-to-back phases, each a bottom-anchored text label naming
+// the gesture while its own attribute sweeps through waypoints and back:
+// field size (MIN -> MAX -> its own start value, density held constant),
+// then density (its own start value -> MAX -> 30 -> back to start, field
+// size held at its now-real start value — asymmetric waypoints, author's
+// explicit choice, 31.08.2026, not a MIN/MAX mirror of the field-size
+// phase). Every placed sphere is held frozen (motionless grid, s.
+// proximity-swing.ts's `frozen` attribute) for the ENTIRE sequence,
+// including the lead-in, so its own swing/bob/idle motion can't visually
+// compete with the field-size/density demo. `tutorialInputLocked` blocks
+// swipe input for the same whole sequence so a real drag can't fight it.
 const tutorialText = ref('');
 const imageTargetEl = ref<HTMLElement | null>(null);
-const TUTORIAL_SEGMENT_MS = 2500; // long enough to read either label, s. concept doc
 const GROUND_INTRO_SEGMENT_MS = 1500; // x2 = 3s lead-in/delay, author's spec
+
+// Segment durations are PROPORTIONAL to how much of the value's own full
+// range that segment actually covers (author's spec, 31.08.2026 — makes
+// every segment move at the same underlying speed, so a short hop, e.g.
+// field size MAX -> its own start value, plays proportionally faster than
+// a full-range sweep instead of taking the same fixed time regardless of
+// distance). FULL_RANGE_MS is how long a segment spanning a value's ENTIRE
+// declared range takes; any shorter segment is scaled down by exactly the
+// fraction of that range it covers.
+const FULL_RANGE_MS = 2500;
+function segmentDuration(from: number, to: number, fullRange: number): number {
+  return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
+}
 
 // Slides each label down into its resting position (s. tutorialTextStyle
 // below) rather than just appearing there — plain inline-style transform
@@ -311,38 +345,47 @@ function showTutorialText(text: string) {
 async function runTutorial() {
   await animateValue(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS);
   await animateValue(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS);
+  fieldVisible.value = true;
 
+  const fieldRange = FIELD_SIZE_MAX - FIELD_SIZE_MIN;
   const fieldSizeStart = fieldSizePercent.value;
   fieldSizePercent.value = FIELD_SIZE_MIN;
   showTutorialText('Vertikaler Swipe ↕️ = Feldgröße');
-  await animateValue(fieldSizePercent, FIELD_SIZE_MIN, FIELD_SIZE_MAX, TUTORIAL_SEGMENT_MS);
-  await animateValue(fieldSizePercent, FIELD_SIZE_MAX, fieldSizeStart, TUTORIAL_SEGMENT_MS);
+  await animateValue(fieldSizePercent, FIELD_SIZE_MIN, FIELD_SIZE_MAX, segmentDuration(FIELD_SIZE_MIN, FIELD_SIZE_MAX, fieldRange));
+  await animateValue(fieldSizePercent, FIELD_SIZE_MAX, fieldSizeStart, segmentDuration(FIELD_SIZE_MAX, fieldSizeStart, fieldRange));
 
+  const densityRange = DENSITY_MAX - DENSITY_MIN;
   const densityStart = density.value;
+  const DENSITY_TUTORIAL_WAYPOINT = 30;
   showTutorialText('Horizontaler Swipe ↔️ = Dichte');
-  await animateValue(density, densityStart, DENSITY_MAX, TUTORIAL_SEGMENT_MS);
-  await animateValue(density, DENSITY_MAX, 20, TUTORIAL_SEGMENT_MS);
-  await animateValue(density, 20, densityStart, TUTORIAL_SEGMENT_MS);
+  await animateValue(density, densityStart, DENSITY_MAX, segmentDuration(densityStart, DENSITY_MAX, densityRange));
+  await animateValue(density, DENSITY_MAX, DENSITY_TUTORIAL_WAYPOINT, segmentDuration(DENSITY_MAX, DENSITY_TUTORIAL_WAYPOINT, densityRange));
+  await animateValue(density, DENSITY_TUTORIAL_WAYPOINT, densityStart, segmentDuration(DENSITY_TUTORIAL_WAYPOINT, densityStart, densityRange));
 
   tutorialText.value = '';
   tutorialInputLocked.value = false;
 }
 
-// Bottom-anchored (20% up from the bottom edge, author's spec), white text
-// on an OPAQUE black box sized tightly around the text (minimal padding,
-// sharp corners — deliberately not the InfoOverlay panel's rounded/
-// translucent look, this is a fleeting instruction, not a persistent UI
-// surface).
+// Bottom-anchored (30% up from the bottom edge, author's spec), white text
+// on an OPAQUE black box, sharp corners (deliberately not the InfoOverlay
+// panel's rounded/translucent look, this is a fleeting instruction, not a
+// persistent UI surface). Width fixed at 66% of the viewport (author's
+// spec) with a large, screen-relative font size so the text actually fills
+// that width instead of sitting tiny inside a wide box — height stays
+// auto/tight around however many lines that wraps to.
 const tutorialTextStyle = computed(() => ({
   position: 'fixed' as const,
-  bottom: '20%',
+  bottom: '30%',
   left: '50%',
+  width: '66vw',
+  boxSizing: 'border-box' as const,
   transform: `translate(-50%, ${tutorialTextSlideOffset.value}px)`,
-  padding: '6px 10px',
+  padding: '3vw 4vw',
   background: '#000000',
   color: '#ffffff',
   fontFamily: 'sans-serif',
-  fontSize: '18px',
+  fontSize: '6vw',
+  lineHeight: '1.3',
   textAlign: 'center' as const,
   zIndex: '1000',
   pointerEvents: 'none' as const
@@ -411,8 +454,9 @@ onUnmounted(() => {
            compensating rotation from the script block above — random-
            field/proximity-swing's native X/Z-ground, Y-height authoring
            maps onto the real footprint's X/Y-ground, Z-height outside this
-           wrapper. -->
-      <a-entity rotation="90 0 0" :key="fieldKey">
+           wrapper. `:visible="fieldVisible"` keeps the field hidden during
+           the tutorial's ~3s ground-plane lead-in (s. runTutorial()). -->
+      <a-entity rotation="90 0 0" :key="fieldKey" :visible="fieldVisible">
 
         <!-- Prop template — hidden by random-field once cloned. All motion
              (radial swing/vertical bob/idle float) and its own colour come

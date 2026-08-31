@@ -181,7 +181,17 @@ export default {
     // centre, colorOuter at colorMaxDist or beyond.
     colorInner: { type: "string", default: "#FFF44F" }, // lemon yellow
     colorOuter: { type: "string", default: "#FF69B4" }, // hot pink
-    colorMaxDist: { type: "number", default: 1 }
+    colorMaxDist: { type: "number", default: 1 },
+
+    // AN ALLE! tutorial-animation decision (31.08.2026, s. concept doc) —
+    // while true, skips ALL motion below (swing/bob/idle) and holds this
+    // object exactly at its grid position, so the field reads as a
+    // perfectly still, ordered grid during the field-size/density demo
+    // instead of visibly swinging/drifting on its own — that motion would
+    // otherwise fight the very thing the tutorial is trying to show
+    // clearly. ArModule.vue ties this to the same flag that locks swipe
+    // input for the tutorial's duration.
+    frozen: { type: "boolean", default: false }
   },
 
   init() {
@@ -242,6 +252,10 @@ export default {
   tick(time: number, timeDelta: number) {
     const self = this as any;
     const data = self.data;
+    if (data.frozen) {
+      self.el.object3D.position.set(self.baseX, self.baseY, self.baseZ);
+      return;
+    }
     const camera = self.el.sceneEl.camera;
     if (!self.targetObject3D) {
       const targetEl = self.el.sceneEl.querySelector(data.targetSelector);
