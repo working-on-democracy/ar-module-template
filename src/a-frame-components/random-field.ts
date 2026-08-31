@@ -39,11 +39,12 @@ import type { ComponentDefinition } from "aframe";
 // (s. AN ALLE! projects/an-alle/concepts/zufallsverteilung-lod.md,
 // "Verteilungsmodell — Version 2" — needed there so the field's footprint
 // stays within a printed image target's own bounds instead of growing
-// indefinitely). Unlike the unbounded strip, a bounded area can genuinely
-// be too small to fit `copies` at the given min/maxDistance — this
-// degrades gracefully (places as many as fit, `console.warn`s the
-// shortfall) rather than the unbounded strip's "always fits, just grows
-// deeper" guarantee.
+// indefinitely). The bounded rectangle uses a DIFFERENT placement
+// algorithm than the unbounded strip: a jittered grid instead of
+// Poisson-disk (s. the same file, "Platzierungsalgorithmus — Version 3",
+// 31.08.2026 — Poisson-disk left visible gaps/uneven coverage across a
+// fixed footprint), controlled by `randomness`/`boundingBoxRadius` below
+// instead of `minDistance`/`maxDistance` (those two stay unbounded-only).
 interface Point {
   x: number;
   z: number;
@@ -76,9 +77,25 @@ export default {
     tiltMin: { type: "number", default: 0 },
     tiltMax: { type: "number", default: 0 },
 
-    // Spacing between any two clones (both honoured exactly).
+    // Spacing between any two clones (both honoured exactly). UNBOUNDED
+    // strip only (areaDepth 0) — ignored in bounded mode, see
+    // `randomness`/`boundingBoxRadius` below for that case instead.
     minDistance: { type: "number", default: 2.5 },
     maxDistance: { type: "number", default: 6 },
+
+    // BOUNDED rectangle only (areaDepth > 0). 0 (default) = exact regular
+    // grid, no jitter. 1 = every point at its full random offset. Values in
+    // between linearly interpolate each point between its grid position and
+    // that same random offset, so moving this alone (e.g. a live GUI
+    // slider) eases toward/away from one fixed randomised layout rather
+    // than re-rolling it.
+    randomness: { type: "number", default: 0 },
+
+    // BOUNDED rectangle only (areaDepth > 0). Shrinks each point's random-
+    // offset radius by half this amount, so neighbouring bounding boxes
+    // can't overlap even at randomness: 1. 0 (default) = offset radius is
+    // the full half grid-spacing.
+    boundingBoxRadius: { type: "number", default: 0 },
 
     // How many copies of EACH referenced entity (uniform across all of them).
     copies: { type: "int", default: 1 },
@@ -224,24 +241,19 @@ export default {
   },
 
   /**
-   * Poisson-disk (Bridson) sample up to `n` points in either a FIXED-WIDTH
-   * unbounded strip (legacy, `areaDepth` 0 — width bounded and centred on
-   * the origin, x ∈ [-width/2, width/2]; depth unbounded, grows away from
-   * the viewer into -Z from z = 0) or a BOUNDED `width`×`areaDepth`
-   * rectangle centred on the origin in both axes (`areaDepth` > 0 — s. the
-   * file header comment). Each new point is dropped into an annulus
-   * [minDistance, maxDistance] around an existing one and rejected if it
-   * lands closer than minDistance to any neighbour, so both spacing bounds
-   * hold exactly. Unbounded, depth is always free so all `n` points get
-   * placed. Bounded, `n` may not fit — this returns as many as it could
-   * place rather than looping forever or violating the bounds.
+   * Dispatches to whichever placement algorithm matches the current mode
+   * (s. the file header comment): the BOUNDED `width`×`areaDepth`
+   * rectangle (`areaDepth` > 0) uses a jittered grid (`gridPositions`); the
+   * legacy UNBOUNDED strip (`areaDepth` 0, width bounded and centred on the
+   * origin, depth unbounded and growing away from the viewer into -Z) uses
+   * Poisson-disk (Bridson) sampling.
    */
   samplePositions(n: number, width: number): Point[] {
     const self = this as any;
-    const halfW = width / 2;
     const depth = Math.max(0, self.data.areaDepth);
-    const bounded = depth > 0;
-    const halfD = depth / 2;
+    if (depth > 0) return self.gridPositions(n, width, depth);
+
+    const halfW = width / 2;
     const minDist = Math.max(0, self.data.minDistance);
     const maxDist = Math.max(minDist, self.data.maxDistance);
     const minDistSq = minDist * minDist;
@@ -269,12 +281,8 @@ export default {
         const angle = Math.random() * Math.PI * 2;
         const rad = minDist + Math.random() * (maxDist - minDist);
         const c: Point = { x: p.x + Math.cos(angle) * rad, z: p.z + Math.sin(angle) * rad };
-        if (c.x < -halfW || c.x > halfW) continue; // stay within the width, either mode
-        if (bounded) {
-          if (c.z < -halfD || c.z > halfD) continue; // stay within the bounded rectangle
-        } else if (c.z > 0) {
-          continue; // legacy: stay in front of the viewer, depth unbounded
-        }
+        if (c.x < -halfW || c.x > halfW) continue; // stay within the width
+        if (c.z > 0) continue; // stay in front of the viewer, depth unbounded
         if (minDist > 0 && nearestDistSq(c, samples) < minDistSq) continue;
         placed = c;
         break;
@@ -288,50 +296,75 @@ export default {
     }
 
     if (samples.length < n) {
-      if (bounded) {
-        // Degrades gracefully instead of the unbounded strip's "always
-        // fits" guarantee: the requested `copies`/spacing simply doesn't
-        // fit this area — place what fits, warn about the rest (s. the
-        // file header comment and AN ALLE! zufallsverteilung-lod.md).
-        console.warn(
-          `[random-field] bounded area (${width.toFixed(2)}×${depth.toFixed(2)}) only fit ` +
-          `${samples.length}/${n} copies at minDistance ${minDist} — increase the area, ` +
-          `reduce copies/density, or lower minDistance.`
-        );
-      } else {
-        // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
-        // keep placing straight back from the deepest point at maxDistance spacing.
-        let z = 0;
-        for (const p of samples) if (p.z < z) z = p.z;
-        const step = Math.max(maxDist, minDist, 0.0001);
-        while (samples.length < n) {
-          z -= step;
-          samples.push({ x: 0, z });
-        }
+      // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
+      // keep placing straight back from the deepest point at maxDistance spacing.
+      let z = 0;
+      for (const p of samples) if (p.z < z) z = p.z;
+      const step = Math.max(maxDist, minDist, 0.0001);
+      while (samples.length < n) {
+        z -= step;
+        samples.push({ x: 0, z });
       }
     }
 
-    // Centre on X so the field extends equally left/right (both modes). In
-    // bounded mode also centre on Z (there's no fixed viewer-facing edge to
-    // anchor to like the unbounded strip's z = 0 near edge).
+    // Centre on X so the field extends equally left/right.
     let minX = Infinity;
     let maxX = -Infinity;
-    let minZ = Infinity;
-    let maxZ = -Infinity;
     for (const p of samples) {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
-      if (p.z < minZ) minZ = p.z;
-      if (p.z > maxZ) maxZ = p.z;
-    }
-    if (bounded) {
-      const zMid = (minZ + maxZ) / 2;
-      for (const p of samples) p.z -= zMid;
     }
     const xMid = (minX + maxX) / 2;
     for (const p of samples) p.x -= xMid;
 
     return samples;
+  },
+
+  /**
+   * Jittered-grid sample of `n` points inside a BOUNDED `width`×`depth`
+   * rectangle centred on the origin (s. the file header comment and AN
+   * ALLE! zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3").
+   * First lays out a REGULAR grid with a single spacing `d` shared by both
+   * axes, sized so `cols × rows` covers at least `n` cells (excess trailing
+   * cells, if any, are simply not used). Each grid point then gets ONE
+   * fixed random offset, sampled uniformly over a disk of radius
+   * `d/2 − boundingBoxRadius/2` (so neighbouring bounding boxes can't
+   * overlap even at `randomness: 1`), and `randomness` (0–1) linearly
+   * interpolates that point between its exact grid position (0) and that
+   * same fixed offset (1) — moving `randomness` alone (e.g. a live GUI
+   * slider) never re-rolls the offset, it only eases toward/away from one
+   * fixed randomised layout. Edge cells get the same offset radius as
+   * interior ones, so they CAN spill slightly outside `width`×`depth` at
+   * high `randomness` — accepted, not clamped (s. the Version 3 decision).
+   */
+  gridPositions(n: number, width: number, depth: number): Point[] {
+    const self = this as any;
+    if (n <= 0 || width <= 0 || depth <= 0) return [];
+
+    const cols = Math.max(1, Math.ceil(Math.sqrt((n * width) / depth)));
+    const rows = Math.max(1, Math.ceil(n / cols));
+    const d = Math.min(width / cols, depth / rows);
+
+    const boundingBoxRadius = Math.max(0, self.data.boundingBoxRadius);
+    const jitterRadius = Math.max(0, d / 2 - boundingBoxRadius / 2);
+    const randomness = Math.min(1, Math.max(0, self.data.randomness));
+
+    const points: Point[] = [];
+    for (let r = 0; r < rows && points.length < n; r++) {
+      for (let c = 0; c < cols && points.length < n; c++) {
+        let x = -width / 2 + d * (c + 0.5);
+        let z = -depth / 2 + d * (r + 0.5);
+        if (jitterRadius > 0 && randomness > 0) {
+          const angle = Math.random() * Math.PI * 2;
+          const rad = jitterRadius * Math.sqrt(Math.random()); // uniform over the disk's AREA
+          x += randomness * Math.cos(angle) * rad;
+          z += randomness * Math.sin(angle) * rad;
+        }
+        points.push({ x, z });
+      }
+    }
+
+    return points;
   },
 
   /**

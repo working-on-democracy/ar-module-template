@@ -63,13 +63,15 @@ three combined into one scene.
 |---|---|---|---|
 | `items` | selectorAll | — | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
 | `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. |
-| `areaDepth` | number | `0` | `0` (default) = unbounded — depth grows automatically away from the viewer to fit however many copies there are, `minDistance`/`maxDistance` always honoured exactly. `> 0` = bounded `areaWidth`×`areaDepth` rectangle, centred on this entity's own origin in both X and Z — `copies` may not all fit at the given spacing; excess copies are dropped with a `console.warn` rather than violating the bounds or growing depth anyway. |
+| `areaDepth` | number | `0` | `0` (default) = unbounded — depth grows automatically away from the viewer to fit however many copies there are, `minDistance`/`maxDistance` always honoured exactly (Poisson-disk). `> 0` = bounded `areaWidth`×`areaDepth` rectangle, centred on this entity's own origin in both X and Z — uses a jittered grid instead (`randomness`/`boundingBoxRadius` below, `minDistance`/`maxDistance` ignored in this mode). |
 | `elevation` | number | `0` | Base Y height of every clone. |
 | `elevationVariation` | number | `0` | ± random offset from `elevation`. |
 | `yawMax` | number | `180` | Degrees. Each clone's Y rotation gets a random value in `[-yawMax, +yawMax]` **added** to its source entity's own authored Y rotation. `180` = fully random heading; `0` = no extra spin. |
 | `tiltMin` / `tiltMax` | number | `0` / `0` | Degrees. X and Z each get an independent random tilt magnitude in this range (± direction), added to the source's own authored X/Z rotation. |
-| `minDistance` | number | `2.5` | Hard minimum gap (metres) between any two clones. |
-| `maxDistance` | number | `6` | Max gap to the nearest neighbour — both bounds honoured exactly. |
+| `minDistance` | number | `2.5` | UNBOUNDED mode only (`areaDepth: 0`). Hard minimum gap (metres) between any two clones. |
+| `maxDistance` | number | `6` | UNBOUNDED mode only. Max gap to the nearest neighbour — both bounds honoured exactly. |
+| `randomness` | number | `0` | BOUNDED mode only (`areaDepth` > 0). `0` = exact regular grid, `1` = every point at its full random offset; values between linearly interpolate each point toward that same fixed offset, so moving this alone (e.g. a live GUI slider) eases toward/away from one randomised layout rather than re-rolling it. |
+| `boundingBoxRadius` | number | `0` | BOUNDED mode only. Shrinks each point's random-offset radius by half this amount so neighbouring bounding boxes can't overlap even at `randomness: 1`. `0` = offset radius is the full half grid-spacing. |
 | `copies` | int | `1` | How many copies of **each** referenced entity (uniform across all of them). |
 | `minCopyDistance` | number | `0` (disabled) | Minimum ground-plane gap between two copies of the *same* referenced entity. Only meaningful when `copies` > 1; degrades gracefully rather than failing if the area's too tight. |
 | `scale` | number | `1` | Uniform multiplier on each clone's *own* authored scale (not a replacement). |
@@ -154,19 +156,39 @@ subtree, not just `geometry`/`material` specifically, so there's nothing
 
 ### Placement algorithm
 
-Bridson's algorithm: seed one point at the front-centre (z = 0, right in
-front of the viewer), then repeatedly pick a random *active* point and try
-up to 30 random candidate points in the annulus `[minDistance, maxDistance]`
-around it, accepting the first one that both stays inside the width strip
-and clears `minDistance` from every existing point. A point that can't
-spawn any more valid neighbours after 30 tries is dropped from the active
-set. Because depth is unbounded (the strip only has a fixed **width**), the
-sampler never runs out of room — however many points are requested
-(`copies × items.length`), the field just grows deeper to fit them at the
-requested spacing. If the whole frontier stalls before reaching the
-requested count (only possible in a degenerate case like `areaWidth`
-narrower than `minDistance`), a safety net keeps placing straight back at
-`maxDistance` spacing rather than silently placing fewer points than asked.
+Two entirely different algorithms depending on `areaDepth`:
+
+**Unbounded strip (`areaDepth: 0`) — Poisson-disk (Bridson).** Seed one
+point at the front-centre (z = 0, right in front of the viewer), then
+repeatedly pick a random *active* point and try up to 30 random candidate
+points in the annulus `[minDistance, maxDistance]` around it, accepting the
+first one that both stays inside the width strip and clears `minDistance`
+from every existing point. A point that can't spawn any more valid
+neighbours after 30 tries is dropped from the active set. Because depth is
+unbounded (the strip only has a fixed **width**), the sampler never runs
+out of room — however many points are requested (`copies × items.length`),
+the field just grows deeper to fit them at the requested spacing. If the
+whole frontier stalls before reaching the requested count (only possible in
+a degenerate case like `areaWidth` narrower than `minDistance`), a safety
+net keeps placing straight back at `maxDistance` spacing rather than
+silently placing fewer points than asked.
+
+**Bounded rectangle (`areaDepth` > 0) — jittered grid.** Poisson-disk left
+visible gaps and uneven coverage once the area stopped growing to fit
+(AN ALLE! `projects/an-alle/concepts/zufallsverteilung-lod.md`,
+"Platzierungsalgorithmus — Version 3", 31.08.2026), so a bounded field uses
+a different algorithm entirely: lay out a regular grid with one spacing `d`
+shared by both axes, sized so its cell count covers the requested number of
+points; give each grid point ONE fixed random offset sampled uniformly over
+a disk of radius `d/2 − boundingBoxRadius/2` (shrunk so neighbouring
+bounding boxes can't touch even at maximum jitter); then `randomness`
+(0–1) linearly interpolates every point between its exact grid position and
+that same fixed offset. Because the offset is rolled once and only scaled
+by `randomness` afterwards, sweeping a live GUI slider eases the whole
+field toward/away from one randomised layout instead of reshuffling it
+every frame. Edge cells get the same offset radius as interior ones, so at
+high `randomness` they can spill slightly outside `areaWidth`×`areaDepth`
+— accepted by design, not clamped.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
