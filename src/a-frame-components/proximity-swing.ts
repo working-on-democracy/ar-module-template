@@ -24,13 +24,14 @@ declare const AFRAME: any;
 //      — author's correction, 31.08.2026): 0 at zBobFar (20cm), full at
 //      zBobNear (6cm).
 //   3. Idle float (all three local axes) — gated by the SAME
-//      `proximityFactor` as the swing (0 at proximityCoverageFar, full at
-//      proximityCoverageNear), intensifying mostly through SPEED rather
-//      than amplitude as it ramps up — kept deliberately tiny on the
-//      ground-plane axes (idleGroundRadius) so neighbouring objects'
-//      independent idle drift can't make them overlap; the vertical axis
-//      (idleHeightRadius) can be a little more generous since vertical
-//      drift alone never causes horizontal overlap.
+//      `proximityFactor` as the swing, same linear ramp: fully STILL at
+//      proximityCoverageFar (0 at/below it, no motion at all, not just
+//      slow), full amplitude/speed at proximityCoverageNear. Kept
+//      deliberately tiny in absolute terms on the ground-plane axes
+//      (idleGroundRadius) so neighbouring objects' independent idle drift
+//      can't make them overlap; the vertical axis (idleHeightRadius) can
+//      be a little more generous since vertical drift alone never causes
+//      horizontal overlap.
 //
 // Also sets this entity's own material colour ONCE at init, from its
 // ground-plane distance to the field's centre (0,0 in this entity's local
@@ -253,7 +254,7 @@ export default {
     self.zBobAngle += ZBOB_SPEED * zBobFactor * dt;
     const zbob = data.zBobHeight * zBobFactor * Math.sin(self.zBobAngle + self.zBobPhase);
 
-    // --- Idle float: gated by proximityFactor, intensifies mostly via speed, kept tiny on X/Z ---
+    // --- Idle float: same linear proximityFactor ramp as the swing (0 = fully still), tiny on X/Z ---
     self.idleAngleX += IDLE_SPEED * 0.7 * proximityFactor * dt;
     self.idleAngleY += IDLE_SPEED * 0.9 * proximityFactor * dt;
     self.idleAngleZ += IDLE_SPEED * 1.1 * proximityFactor * dt;
