@@ -157,7 +157,7 @@ export default {
     // full swing amplitude/speed (centred on the grid position) and full
     // idle float. At/below proximityCoverageFar -> zero swing amplitude
     // (resting on the fixed random target point) and no idle float at all.
-    proximityCoverageNear: { type: "number", default: 0.9 },
+    proximityCoverageNear: { type: "number", default: 1.0 }, // raised from 0.9, author's recalibration 31.08.2026
     proximityCoverageFar: { type: "number", default: 0.5 }, // raised from 0.3, author's recalibration 31.08.2026
 
     // Maximum vertical (local Y) bob amplitude, local units.
