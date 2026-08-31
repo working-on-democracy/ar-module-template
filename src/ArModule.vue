@@ -173,15 +173,23 @@ const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 1
 // footprint-area ratio (archive-of-practice projects/an-alle/concepts/
 // zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3",
 // 31.08.2026 — the old ratio saturated the copy-count cap well before the
-// slider's high end, so most of its range did nothing visible). Highest density
-// (DENSITY_MAX) → spacing = one prop diameter (props almost touching);
-// lowest density (DENSITY_MIN) → spacing = the full field side, i.e. a 2×2
+// slider's high end, so most of its range did nothing visible). Highest
+// density (DENSITY_MAX) → spacing = one prop diameter PLUS a small margin
+// (props close but not exactly touching — exact touching would zero out
+// random-field's jitter radius, making the `randomness` slider invisible
+// right when density is highest; author's call, 31.08.2026); lowest
+// density (DENSITY_MIN) → spacing = the full field side, i.e. a 2×2
 // lattice with exactly one prop in each of the field's four corners.
 // Linear interpolation between those two spacings by where `density` sits
 // in [DENSITY_MIN, DENSITY_MAX].
+// random-field's jitter radius = spacing/2 - PROP_FOOTPRINT_RADIUS (s.
+// random-field.ts's gridPositions) — so spacing = 2R keeps NO jitter room
+// at all. This fraction of R is added on top so DENSITY_MAX still leaves
+// that much jitter radius (e.g. 0.3 → 0.3 × R of visible wiggle room).
+const MAX_DENSITY_JITTER_FRACTION = 0.3;
 const gridSpacing = computed(() => {
   const t = (density.value - DENSITY_MIN) / (DENSITY_MAX - DENSITY_MIN);
-  const spacingAtMaxDensity = PROP_FOOTPRINT_RADIUS * 2;
+  const spacingAtMaxDensity = PROP_FOOTPRINT_RADIUS * 2 * (1 + MAX_DENSITY_JITTER_FRACTION);
   const spacingAtMinDensity = areaSide.value;
   return spacingAtMinDensity + t * (spacingAtMaxDensity - spacingAtMinDensity);
 });
