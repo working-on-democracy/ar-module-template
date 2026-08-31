@@ -231,7 +231,12 @@ const proximitySwingAttr = computed(
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
 const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
-const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
+// Animated 0 -> 1 -> STANDARD_GROUND_OPACITY as the tutorial's own lead-in
+// (s. runTutorial() below) — starts at 0 (invisible) until that animation
+// runs, rather than showing the ground at its standard opacity immediately.
+const STANDARD_GROUND_OPACITY = 0.35;
+const groundOpacity = ref(0);
+const groundMaterial = computed(() => `color: #3b82f6; opacity: ${groundOpacity.value}; side: double`);
 
 // random-field places its clones once in init() (a one-shot procedural
 // generation, not a per-frame effect) — it defines no update() handler, so
@@ -269,50 +274,79 @@ let detachSwipeDrag: (() => void) | null = null;
 // fired by `xrextras-named-image-target` itself — s. the vendored
 // `@8thwall/xrextras` source; already pre-filtered to THIS named target,
 // no need to check event.detail), since swiping no longer has any visible
-// GUI to hint at what it does. Two back-to-back phases, each a screen-
-// centred text label naming the gesture while its own attribute sweeps
-// through its full range and back: field size (MIN -> MAX -> its own
-// start value, density held constant), then density (its own start value
-// -> MIN -> MAX -> back to start, field size held at its now-real start
-// value). `tutorialInputLocked` blocks swipe input for the whole
-// sequence so a real drag can't fight the animation.
+// GUI to hint at what it does. Leads in with the ground plane's own
+// opacity (0 -> 100% -> its standard value, ~3s — s. groundOpacity above),
+// which doubles as the delay before the tutorial itself starts (no
+// separate timer needed, the lead-in animation's own duration IS the
+// delay). Then two back-to-back phases, each a bottom-anchored text label
+// naming the gesture while its own attribute sweeps through its range and
+// back: field size (MIN -> MAX -> its own start value, density held
+// constant), then density (its own start value -> MAX -> 20 -> back to
+// start, field size held at its now-real start value — asymmetric
+// waypoints, author's explicit choice, 31.08.2026, not a MIN/MAX mirror of
+// the field-size phase). `tutorialInputLocked` blocks swipe input for the
+// whole sequence (lead-in included) so a real drag can't fight it.
 const tutorialInputLocked = ref(true);
 const tutorialText = ref('');
 const imageTargetEl = ref<HTMLElement | null>(null);
 const TUTORIAL_SEGMENT_MS = 2500; // long enough to read either label, s. concept doc
+const GROUND_INTRO_SEGMENT_MS = 1500; // x2 = 3s lead-in/delay, author's spec
+
+// Slides each label down into its resting position (s. tutorialTextStyle
+// below) rather than just appearing there — plain inline-style transform
+// animation via tween.ts's animateValue, not a CSS transition/@keyframes
+// (a <style> block never ships to the host, see asset-loading-overlay.ts's
+// own comment on the same constraint). Not awaited when triggered — purely
+// cosmetic, shouldn't hold up the actual value-sweep timing.
+const TEXT_SLIDE_DISTANCE_PX = 40;
+const TEXT_SLIDE_MS = 400;
+const tutorialTextSlideOffset = ref(-TEXT_SLIDE_DISTANCE_PX);
+
+function showTutorialText(text: string) {
+  tutorialText.value = text;
+  tutorialTextSlideOffset.value = -TEXT_SLIDE_DISTANCE_PX;
+  animateValue(tutorialTextSlideOffset, -TEXT_SLIDE_DISTANCE_PX, 0, TEXT_SLIDE_MS);
+}
 
 async function runTutorial() {
+  await animateValue(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS);
+  await animateValue(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS);
+
   const fieldSizeStart = fieldSizePercent.value;
   fieldSizePercent.value = FIELD_SIZE_MIN;
-  tutorialText.value = 'Vertikaler Swipe ↕️ = Feldgröße';
+  showTutorialText('Vertikaler Swipe ↕️ = Feldgröße');
   await animateValue(fieldSizePercent, FIELD_SIZE_MIN, FIELD_SIZE_MAX, TUTORIAL_SEGMENT_MS);
   await animateValue(fieldSizePercent, FIELD_SIZE_MAX, fieldSizeStart, TUTORIAL_SEGMENT_MS);
 
   const densityStart = density.value;
-  tutorialText.value = 'Horizontaler Swipe ↔️ = Dichte';
-  await animateValue(density, densityStart, DENSITY_MIN, TUTORIAL_SEGMENT_MS);
-  await animateValue(density, DENSITY_MIN, DENSITY_MAX, TUTORIAL_SEGMENT_MS);
-  await animateValue(density, DENSITY_MAX, densityStart, TUTORIAL_SEGMENT_MS);
+  showTutorialText('Horizontaler Swipe ↔️ = Dichte');
+  await animateValue(density, densityStart, DENSITY_MAX, TUTORIAL_SEGMENT_MS);
+  await animateValue(density, DENSITY_MAX, 20, TUTORIAL_SEGMENT_MS);
+  await animateValue(density, 20, densityStart, TUTORIAL_SEGMENT_MS);
 
   tutorialText.value = '';
   tutorialInputLocked.value = false;
 }
 
-const tutorialTextStyle = {
+// Bottom-anchored (20% up from the bottom edge, author's spec), white text
+// on an OPAQUE black box sized tightly around the text (minimal padding,
+// sharp corners — deliberately not the InfoOverlay panel's rounded/
+// translucent look, this is a fleeting instruction, not a persistent UI
+// surface).
+const tutorialTextStyle = computed(() => ({
   position: 'fixed' as const,
-  top: '50%',
+  bottom: '20%',
   left: '50%',
-  transform: 'translate(-50%, -50%)',
-  padding: '4vw 6vw',
-  borderRadius: '12px',
-  background: 'rgba(0, 0, 0, 0.6)',
+  transform: `translate(-50%, ${tutorialTextSlideOffset.value}px)`,
+  padding: '6px 10px',
+  background: '#000000',
   color: '#ffffff',
   fontFamily: 'sans-serif',
   fontSize: '18px',
   textAlign: 'center' as const,
   zIndex: '1000',
   pointerEvents: 'none' as const
-};
+}));
 
 onMounted(() => {
   detachSwipeDrag = attachSwipeDrag(
