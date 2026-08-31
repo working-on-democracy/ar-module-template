@@ -27,7 +27,7 @@ declare const AFRAME: any;
 //      screen coverage, and NOT this object's currently-animated position
 //      — author's correction, 31.08.2026): NOT an oscillating hop (removed
 //      31.08.2026, direction inverted per author's spec) — a smooth,
-//      monotonic height that's HIGHEST (zBobHeightMax) at zBobFar (20cm)
+//      monotonic height that's HIGHEST (zBobHeightMax) at zBobFar (15cm)
 //      and beyond, and sinks toward the ground the closer the camera gets,
 //      reaching its LOWEST (zBobHeightMin) at zBobNear (4cm) and closer.
 //   3. Idle float (all three local axes) — gated by the SAME
@@ -163,7 +163,7 @@ export default {
     proximityCoverageFar: { type: "number", default: 0.5 }, // raised from 0.3, author's recalibration 31.08.2026
 
     // Vertical (local Y) height bounds, local units — direction inverted
-    // 31.08.2026, s. file header: zBobHeightMax at zBobFar (20cm) and
+    // 31.08.2026, s. file header: zBobHeightMax at zBobFar (15cm) and
     // beyond, easing down to zBobHeightMin at zBobNear (4cm) and closer.
     zBobHeightMax: { type: "number", default: 0.1 },
     zBobHeightMin: { type: "number", default: 0.04 },
@@ -171,7 +171,7 @@ export default {
     // object's own fixed grid position — s. file header) the vertical
     // height ramps over.
     zBobNear: { type: "number", default: 0.04 }, // 4cm, lowered from 6cm, author's recalibration 31.08.2026
-    zBobFar: { type: "number", default: 0.2 },
+    zBobFar: { type: "number", default: 0.15 }, // 15cm, lowered from 20cm, author's recalibration 31.08.2026
 
     // Idle float amplitude (local units), gated by proximityFactor (s.
     // above). Ground-plane (X/Z) kept deliberately tiny so neighbouring
@@ -257,7 +257,13 @@ export default {
     const self = this as any;
     const data = self.data;
     if (data.frozen) {
-      self.el.object3D.position.set(self.baseX, self.baseY, self.baseZ);
+      // Y rests at baseY + zBobHeightMin, NOT bare baseY (bugfix,
+      // 31.08.2026) — the tutorial typically runs with the camera already
+      // close to the target, where live zBobFactor would sit near 1 (=
+      // zBobHeightMin) anyway; resting frozen height at bare baseY caused
+      // a visible jump the instant unfreezing handed height control back
+      // to the live distance-based calculation below.
+      self.el.object3D.position.set(self.baseX, self.baseY + data.zBobHeightMin, self.baseZ);
       return;
     }
     const camera = self.el.sceneEl.camera;
@@ -303,7 +309,7 @@ export default {
     // Direct, non-oscillating height — no sine, no phase/angle accumulator
     // (author's spec, 31.08.2026: a smooth "sinks as you approach"
     // position, not a hop). zBobFactor: 0 at <=zBobNear (4cm) -> height =
-    // zBobHeightMin, 1 at >=zBobFar (20cm) -> height = zBobHeightMax.
+    // zBobHeightMin, 1 at >=zBobFar (15cm) -> height = zBobHeightMax.
     const objDist = self.cameraPos.distanceTo(self.zBobAnchorPos);
     const zBobFactor = rampFactor(objDist, data.zBobNear, data.zBobFar);
     const zbob = data.zBobHeightMin + zBobFactor * (data.zBobHeightMax - data.zBobHeightMin);

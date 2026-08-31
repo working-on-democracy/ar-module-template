@@ -233,7 +233,7 @@ const randomFieldAttr = computed(
 // vertical height has no overlap risk to guard against, so tying its size
 // to density/field-size at all was pointless coupling; a fixed physical-
 // scale reference is the right basis instead. Direction inverted the same
-// day (s. proximity-swing.ts's own comment): highest at zBobFar (20cm),
+// day (s. proximity-swing.ts's own comment): highest at zBobFar (15cm),
 // sinking toward the ground the closer the camera gets. proximityCoverageNear/Far,
 // zBobNear/Far, idleGroundRadius/idleHeightRadius and the two colours stay
 // on the component's own schema defaults — no GUI/scene-specific override
