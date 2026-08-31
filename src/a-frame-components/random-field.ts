@@ -145,11 +145,25 @@ export default {
    * before giving up — rather than a one-shot A-Frame `selectorAll` schema
    * lookup that can't recover if the referenced entities weren't
    * connected to the document yet on this component's very first frame.
+   *
+   * Scoped to `this.el.parentNode`, NOT the whole scene (bugfix,
+   * 31.08.2026) — `items` is always authored as a sibling of this entity
+   * inside the same wrapper (s. RANDOM-FIELD-FEATURE-GUIDE.md), so its
+   * parent already contains everything `items` could legitimately match.
+   * Querying the whole scene instead let a brief, real overlap during a
+   * key-driven remount (the OLD wrapper not fully torn down yet while the
+   * NEW one is already querying) match the OLD, about-to-be-removed
+   * source too — doubling the placement queue for one frame and producing
+   * a visible one-off "half-empty final row" glitch on an otherwise
+   * complete grid. A DIFFERENT wrapper's same-id source can never satisfy
+   * a parent-scoped query, so this closes the gap outright rather than
+   * just narrowing the race window.
    */
   resolveItemsAndPlace(attempt: number) {
     const self = this as any;
     const data = self.data;
-    const items: any[] = data.items ? Array.from(self.el.sceneEl.querySelectorAll(data.items)) : [];
+    const scope = self.el.parentNode;
+    const items: any[] = data.items && scope ? Array.from(scope.querySelectorAll(data.items)) : [];
 
     if (!items.length) {
       if (attempt < ITEMS_RESOLVE_MAX_RETRIES) {
