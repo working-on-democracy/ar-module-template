@@ -152,40 +152,99 @@ onUnmounted(() => {
 const targetProps = (manifest.imageTargets?.[0] as { properties?: { width: number; height: number } } | undefined)?.properties;
 const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y extent to 1
 const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
+const FOOTPRINT_MIN_SIDE = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH); // the largest SQUARE that fits inside the footprint, whichever axis is narrower
 
-const RADIUS_SCALE = FOOTPRINT_DEPTH * 0.28; // bigger discs (device testing, 30.08.2026: old 0.15 read as too small)
-const DISC_RADII: Record<'a' | 'b' | 'c' | 'd' | 'e' | 'f', number> = {
-  a: 0.3 * RADIUS_SCALE, b: 0.37 * RADIUS_SCALE, c: 0.45 * RADIUS_SCALE,
-  d: 0.52 * RADIUS_SCALE, e: 0.6 * RADIUS_SCALE, f: 0.67 * RADIUS_SCALE
-};
-// Staggering, retuned after device testing (30.08.2026):
-//  - wrapper-local Z (→ real Y, the footprint's own bounded ground axis)
-//    now spans most of the footprint's length, centred on 0 rather than
-//    starting there and only extending one way — "use the full length of
-//    the ground plane".
-//  - wrapper-local Y (→ real Z, the free height axis) is now INVERTED
-//    relative to size: the smallest disc (a) floats highest, the largest
-//    (f) sits closest to the ground, staggered in between — the opposite
-//    of the original "bigger = higher" direction.
-const STEP_COUNT = 5; // 6 items (a..f), 5 steps between them
-const GROUND_STEP = FOOTPRINT_DEPTH * 0.15; // wrapper-local Z per step
-const HEIGHT_STEP = FOOTPRINT_DEPTH * 0.08; // wrapper-local Y per step
-const TILT_DEG = -45; // each disc's own extra tilt, away from the ground plane (device testing, 30.08.2026)
-const LABEL_LIFT = FOOTPRINT_DEPTH * 0.03; // extra wrapper-local Y so each label floats just above its own disc
-const LABEL_NUDGE = FOOTPRINT_DEPTH * 0.002; // tiny wrapper-local Z nudge toward the viewer, avoids z-fighting with the disc
-const BASE_HEIGHT = FOOTPRINT_DEPTH * 0.35; // true footprint Z — how high above the image the whole showcase floats
+// Spiral/helix redesign (31.08.2026, replaces the diagonal Y+Z 45° stack
+// of flat discs — s. archive-of-practice
+// projects/an-alle/concepts/material-shader-showcase.md) — six SPHERES
+// (primitive: sphere, not circle: unlike a flat disc, a sphere looks the
+// same from every angle, so the old per-item facing tilt is gone) placed
+// around a vertical helix instead. STEP_COUNT/a-f keep their existing
+// meaning (a = smallest, f = largest) and material-technique assignment
+// (s. the template below) — only the geometry/position/colour changed.
+//
+// RING_RADIUS is sized so the LARGEST sphere's outer edge just reaches
+// the edge of the largest square that fits inside the footprint
+// (FOOTPRINT_MIN_SIDE) — "möglichst gut eine maximal große quadratische
+// Fläche ausfüllen" (author's spec, smaller spheres at the same ring
+// radius then sit safely inside that square too). Each sphere's own
+// height is TANGENT to the previous (next-larger) one — its bottom
+// touches that sphere's top exactly, forming one continuous,
+// size-decreasing chain rather than independently-spaced steps; the
+// largest (f) sits with its OWN radius as its centre height, i.e. its
+// bottom is AT the ground ("die größte Kugel berührt fast die
+// Grundfläche"). Colours interpolate the same lemon-yellow -> hot-pink
+// scheme used project-wide (s. e.g. proximity-motion.ts's own
+// colorInner/colorOuter defaults): smallest (a) = lemon yellow, largest
+// (f) = hot pink, staggered in between.
+const STEP_COUNT = 5; // 6 items (a..f = step 0..5), 5 gaps between them
+const ANGLE_STEP_DEG = 360 / (STEP_COUNT + 1); // 60° — evenly spaced around the ring
+const SPHERE_R_MAX = FOOTPRINT_MIN_SIDE * 0.22; // largest sphere (step 5, 'f')
+const SPHERE_R_MIN = SPHERE_R_MAX * 0.35; // smallest sphere (step 0, 'a')
+const RING_RADIUS = FOOTPRINT_MIN_SIDE / 2 - SPHERE_R_MAX;
+const LABEL_GAP = FOOTPRINT_DEPTH * 0.03; // clearance above each sphere's own top
+const COLOR_INNER = '#FFF44F'; // lemon yellow — smallest sphere
+const COLOR_OUTER = '#FF69B4'; // hot pink — largest sphere
 
-function heightOffset(step: number): number {
-  return (STEP_COUNT - step) * HEIGHT_STEP; // inverted: smaller step (smaller disc) => more height
+function sphereRadius(step: number): number {
+  return SPHERE_R_MIN + (SPHERE_R_MAX - SPHERE_R_MIN) * (step / STEP_COUNT);
+}
+
+// Height centres, tangent-stacked from the ground up (s. comment above).
+const SPHERE_HEIGHT: number[] = (() => {
+  const heights = new Array(STEP_COUNT + 1);
+  heights[STEP_COUNT] = sphereRadius(STEP_COUNT); // largest: bottom at 0, centre = own radius
+  for (let step = STEP_COUNT - 1; step >= 0; step--) {
+    heights[step] = heights[step + 1] + sphereRadius(step + 1) + sphereRadius(step);
+  }
+  return heights;
+})();
+
+function ringXZ(step: number): { x: number; z: number } {
+  const angleRad = (step * ANGLE_STEP_DEG * Math.PI) / 180;
+  return { x: RING_RADIUS * Math.cos(angleRad), z: RING_RADIUS * Math.sin(angleRad) };
 }
 function itemPosition(step: number): string {
-  const groundOffset = (step - STEP_COUNT / 2) * GROUND_STEP; // centred, spans the ground's length
-  return `0 ${heightOffset(step).toFixed(4)} ${(-groundOffset).toFixed(4)}`;
+  const { x, z } = ringXZ(step);
+  return `${x.toFixed(4)} ${SPHERE_HEIGHT[step].toFixed(4)} ${z.toFixed(4)}`;
 }
 function labelPosition(step: number): string {
-  return `0 ${(heightOffset(step) + LABEL_LIFT).toFixed(4)} ${LABEL_NUDGE.toFixed(4)}`;
+  const { x, z } = ringXZ(step);
+  return `${x.toFixed(4)} ${(SPHERE_HEIGHT[step] + sphereRadius(step) + LABEL_GAP).toFixed(4)} ${z.toFixed(4)}`;
 }
-const tiltAttr = `${TILT_DEG} 0 0`; // each disc's own extra rotation, applied on top of #showcase's own 90 0 0
+
+function clamp01(x: number): number {
+  return x < 0 ? 0 : x > 1 ? 1 : x;
+}
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function toHex(v: number): string {
+  return Math.round(clamp01(v / 255) * 255).toString(16).padStart(2, '0');
+}
+function lerpHexColor(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = parseHex(a);
+  const [br, bg, bb] = parseHex(b);
+  const f = clamp01(t);
+  return `#${toHex(ar + (br - ar) * f)}${toHex(ag + (bg - ag) * f)}${toHex(ab + (bb - ab) * f)}`;
+}
+function sphereColor(step: number): string {
+  return lerpHexColor(COLOR_INNER, COLOR_OUTER, step / STEP_COUNT); // step 0 (smallest) = inner, step 5 (largest) = outer
+}
+// Base material string per item — own colour from the gradient, matching
+// emissive so the global emissive slider has something to boost (same
+// technique as before, just a computed colour instead of a fixed one).
+// The unlit item (a) skips emissive entirely — MeshBasicMaterial (which
+// unlit-material replaces the material with) has no emissive property, so
+// it'd be silently ignored anyway.
+function itemMaterial(step: number): string {
+  const color = sphereColor(step);
+  return `color: ${color}; side: double; transparent: true; emissive: ${color}; emissiveIntensity: 1`;
+}
+function itemMaterialUnlit(step: number): string {
+  return `color: ${sphereColor(step)}; side: double; transparent: true`;
+}
 
 // Two point lights orbiting the whole scene at different speed/direction/
 // color, plus a white spotlight "headlamp" that follows the camera (device
@@ -197,7 +256,7 @@ const tiltAttr = `${TILT_DEG} 0 0`; // each disc's own extra rotation, applied o
 // rotation.z sweeps the ground's X/Y plane) carries a light offset along
 // its own local X by ORBIT_RADIUS, tracing a circle at constant height.
 const ORBIT_RADIUS = Math.max(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH) * 0.55;
-const ORBIT_HEIGHT = BASE_HEIGHT + HEIGHT_STEP * 2.5; // roughly mid-height of the showcase stagger
+const ORBIT_HEIGHT = (SPHERE_HEIGHT[0] + SPHERE_HEIGHT[STEP_COUNT]) / 2; // roughly mid-height of the sphere helix
 
 const ITEM_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
 type ItemId = typeof ITEM_IDS[number];
@@ -334,16 +393,20 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <!-- Material-/Shader-Showcase (archive-of-practice
            projects/an-alle/concepts/material-shader-showcase.md) — sechs
-           farbige Kreis-Scheiben, gestaffelt und nach hinten zunehmend
-           größer, garantiert Überschneidung aus Kamerasicht. Staffelung auf
-           einer 45°-Winkelung zwischen Y und Z statt auf einer reinen Achse
-           (Frage 11, s. Skript-Kommentar oben für die Footprint-Umrechnung
-           und wofür `rotation="90 0 0"` hier steht — rein optisch, keine
-           Komponenten-Achsen-Kompensation). Ein Text-Label über jeder
-           Scheibe zeigt ihren aktuellen render-order-Wert. `:key="fieldKey"`
-           erzwingt einen sauberen Neuaufbau bei jeder
-           Regler-/Reihenfolgeänderung (s. Skript). -->
-      <a-entity id="showcase" :position="`0 0 ${BASE_HEIGHT}`" rotation="90 0 0" :key="fieldKey">
+           farbige KUGELN (31.08.2026, ersetzt die vorherigen flachen
+           Scheiben) auf einer Helix um eine senkrechte Achse gestaffelt,
+           in Größe und Farbe (Zitronengelb → Hot Pink), jede tangential
+           auf der nächstgrößeren aufsitzend (s. Skript-Kommentar oben).
+           `rotation="90 0 0"` bleibt bestehen — rein für die
+           Footprint-Koordinatenumrechnung (lokal X/Y=Boden, Z=Höhe wird
+           zu real X/Z-Boden, Y=Höhe), keine Komponenten-Achsen-
+           Kompensation. Ein Text-Label über jeder Kugel zeigt ihren
+           aktuellen render-order-Wert. `:key="fieldKey"` erzwingt einen
+           sauberen Neuaufbau bei jeder Regler-/Reihenfolgeänderung (s.
+           Skript). Kein zusätzlicher Höhen-Offset mehr auf `#showcase`
+           selbst (vorher `BASE_HEIGHT`) — die größte Kugel sitzt durch
+           die Helix-Berechnung schon direkt auf der Grundfläche auf. -->
+      <a-entity id="showcase" rotation="90 0 0" :key="fieldKey">
 
         <!-- A — vorderstes, unlit. unlit-material zuerst (ersetzt das
              Material durch MeshBasicMaterial), material-properties danach
@@ -352,9 +415,8 @@ const guiControls = computed<GuiControl[]>(() => [
              material-properties stillschweigend übersprungen. -->
         <a-entity :position="itemPosition(0)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.a}`"
-              :rotation="tiltAttr"
-              material="color: #f2f2f2; side: double; transparent: true"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(0)}`"
+              :material="itemMaterialUnlit(0)"
               unlit-material
               :material-properties="unlitOpacityAttr"
               :render-order="renderOrderOf('a')">
@@ -369,9 +431,8 @@ const guiControls = computed<GuiControl[]>(() => [
              material-properties (device testing, 30.08.2026). -->
         <a-entity :position="itemPosition(1)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.b}`"
-              :rotation="tiltAttr"
-              material="color: #ff4d4d; side: double; transparent: true; emissive: #ff4d4d; emissiveIntensity: 1"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(1)}`"
+              :material="itemMaterial(1)"
               :dither-material="ditherAttr('bayer')"
               :render-order="renderOrderOf('b')">
           </a-entity>
@@ -380,9 +441,8 @@ const guiControls = computed<GuiControl[]>(() => [
 
         <a-entity :position="itemPosition(2)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.c}`"
-              :rotation="tiltAttr"
-              material="color: #4d79ff; side: double; transparent: true; emissive: #4d79ff; emissiveIntensity: 1"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(2)}`"
+              :material="itemMaterial(2)"
               :dither-material="ditherAttr('noise')"
               :render-order="renderOrderOf('c')">
           </a-entity>
@@ -391,22 +451,19 @@ const guiControls = computed<GuiControl[]>(() => [
 
         <a-entity :position="itemPosition(3)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.d}`"
-              :rotation="tiltAttr"
-              material="color: #4dff88; side: double; transparent: true; emissive: #4dff88; emissiveIntensity: 1"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(3)}`"
+              :material="itemMaterial(3)"
               :dither-material="ditherAttr('interleaved-gradient')"
               :render-order="renderOrderOf('d')">
           </a-entity>
           <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(3)"></a-entity>
         </a-entity>
 
-        <!-- E/F — normale Alpha-Transparenz, mit eigener Emissiv-Grundfarbe
-             (sonst hätte der globale Emissive-Regler nichts zum Boosten). -->
+        <!-- E/F — normale Alpha-Transparenz. -->
         <a-entity :position="itemPosition(4)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.e}`"
-              :rotation="tiltAttr"
-              material="color: #ffe14d; side: double; transparent: true; emissive: #ffcc00; emissiveIntensity: 1"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(4)}`"
+              :material="itemMaterial(4)"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('e')">
           </a-entity>
@@ -415,9 +472,8 @@ const guiControls = computed<GuiControl[]>(() => [
 
         <a-entity :position="itemPosition(5)">
           <a-entity
-              :geometry="`primitive: circle; radius: ${DISC_RADII.f}`"
-              :rotation="tiltAttr"
-              material="color: #ff4dd2; side: double; transparent: true; emissive: #ff00aa; emissiveIntensity: 1"
+              :geometry="`primitive: sphere; radius: ${sphereRadius(5)}`"
+              :material="itemMaterial(5)"
               :material-properties="materialPropsAttr"
               :render-order="renderOrderOf('f')">
           </a-entity>
