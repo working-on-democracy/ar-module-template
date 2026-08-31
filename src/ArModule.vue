@@ -138,8 +138,13 @@ const PROP_BILLBOARD_HEIGHT = 0.7 * PROP_SCALE;
 const PROP_FOOTPRINT_RADIUS = PROP_BUD_RADIUS;
 // Grid nodes per side, hard-capped regardless of density (rendering
 // budget — the jittered-grid algorithm itself is cheap regardless of `n`,
-// unlike the old Poisson-disk's per-point candidate search). 7 → 49 props.
-const MAX_GRID_NODES_PER_SIDE = 7;
+// unlike the old Poisson-disk's per-point candidate search). 14 → 196
+// props — high enough that "almost touching" at max density actually
+// holds for large field sizes too (author's call, 31.08.2026: at a small
+// field size this cap is never hit; at a large field size + max density,
+// the "touching" guarantee below now costs up to ~196 clones instead of
+// silently loosening the spacing at 49 as it used to).
+const MAX_GRID_NODES_PER_SIDE = 14;
 
 // riseStart/riseEnd are real camera-to-target distances (like
 // proximity-fade/-cutout elsewhere in this template) — rescaled to the

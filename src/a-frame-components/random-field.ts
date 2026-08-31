@@ -216,6 +216,21 @@ export default {
     return result;
   },
 
+  /**
+   * Deterministic pseudo-random float in [0, 1) — same `seed` always
+   * returns the same value, unlike `Math.random()`. Used only by
+   * `gridPositions` (s. its own doc comment for why the bounded-grid
+   * jitter needs this instead of `Math.random()`); every other random draw
+   * in this component (unbounded strip, tilt/yaw, shuffling) is a genuine
+   * one-shot roll and stays on `Math.random()`.
+   */
+  seededRandom(seed: number): number {
+    let t = (seed + 0x6d2b79f5) | 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  },
+
   /** Fisher–Yates in place. */
   shuffle(arr: unknown[]): void {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -340,10 +355,19 @@ export default {
    * their centres is exactly `2 × boundingBoxRadius`, i.e. their bounding
    * circles touch but never overlap. `randomness` (0–1) linearly
    * interpolates each node between its exact lattice position (0) and that
-   * same fixed offset (1) — moving `randomness` alone (e.g. a live GUI
-   * slider) never re-rolls the offset, it only eases toward/away from one
-   * fixed randomised layout. Corner/edge nodes get the same offset radius
-   * as interior ones, so they CAN spill slightly outside `width`×`depth` at
+   * same fixed offset (1). Each offset is drawn from `seededRandom` (a
+   * DETERMINISTIC hash, not `Math.random()`) keyed only by the node's own
+   * grid index — so for a given `cols`×`rows` the offset is always the
+   * SAME, however many times this runs. This is what makes `randomness` a
+   * genuinely smooth interpolation rather than a reshuffle: this component
+   * only ever places once in `init()` (s. RANDOM-FIELD-FEATURE-GUIDE.md),
+   * so a caller reacting to a live `randomness` slider has to fully
+   * re-run this component (e.g. ArModule.vue's Vue `:key` remount
+   * trick) — without a deterministic seed, THAT re-run would draw fresh
+   * `Math.random()` offsets and the field would visibly reshuffle on every
+   * slider tick instead of easing smoothly toward/away from one fixed
+   * randomised layout. Corner/edge nodes get the same offset radius as
+   * interior ones, so they CAN spill slightly outside `width`×`depth` at
    * high `randomness` — accepted, not clamped (s. the Version 3 decision).
    */
   gridPositions(n: number, width: number, depth: number): Point[] {
@@ -366,8 +390,9 @@ export default {
         let x = cols > 1 ? -width / 2 + c * dx : 0;
         let z = rows > 1 ? -depth / 2 + r * dz : 0;
         if (jitterRadius > 0 && randomness > 0) {
-          const angle = Math.random() * Math.PI * 2;
-          const rad = jitterRadius * Math.sqrt(Math.random()); // uniform over the disk's AREA
+          const nodeIndex = r * cols + c;
+          const angle = self.seededRandom(nodeIndex * 2) * Math.PI * 2;
+          const rad = jitterRadius * Math.sqrt(self.seededRandom(nodeIndex * 2 + 1)); // uniform over the disk's AREA
           x += randomness * Math.cos(angle) * rad;
           z += randomness * Math.sin(angle) * rad;
         }
