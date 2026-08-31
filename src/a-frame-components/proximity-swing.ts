@@ -22,11 +22,14 @@ declare const AFRAME: any;
 //      around that point instead, i.e. approaching is what turns the
 //      orderly grid chaotic (direction fixed 31.08.2026 — an earlier
 //      version had this backwards, resting chaotically from the start).
-//   2. Vertical bob (local Y, height) — a SEPARATE per-object 3D distance
+//   2. Vertical height (local Y) — a SEPARATE per-object 3D distance
 //      measurement (camera to this object's own fixed grid position, NOT
 //      screen coverage, and NOT this object's currently-animated position
-//      — author's correction, 31.08.2026): 0 at zBobFar (20cm), full at
-//      zBobNear (4cm).
+//      — author's correction, 31.08.2026): NOT an oscillating hop (removed
+//      31.08.2026, direction inverted per author's spec) — a smooth,
+//      monotonic height that's HIGHEST (zBobHeightMax) at zBobFar (20cm)
+//      and beyond, and sinks toward the ground the closer the camera gets,
+//      reaching its LOWEST (zBobHeightMin) at zBobNear (4cm) and closer.
 //   3. Idle float (all three local axes) — gated by the SAME
 //      `proximityFactor` as the swing, same linear ramp: fully STILL at
 //      proximityCoverageFar (0 at/below it, no motion at all, not just
@@ -49,7 +52,6 @@ declare const AFRAME: any;
 // current `.data` onto each clone (see random-field.ts), so every placed
 // copy gets its own independent, correctly-initialized instance.
 const SWING_SPEED = 2.5; // rad/s, at full proximityFactor (near proximity-wave.ts's waveSpeed default of 3)
-const ZBOB_SPEED = 2.0; // rad/s, at full zBobFactor
 const IDLE_SPEED = 1.0; // rad/s base — identical constant to proximity-wave.ts's own idle float
 
 // How "close" the camera is to the WHOLE TARGET IMAGE, measured as SCREEN
@@ -160,12 +162,14 @@ export default {
     proximityCoverageNear: { type: "number", default: 1.0 }, // raised from 0.9, author's recalibration 31.08.2026
     proximityCoverageFar: { type: "number", default: 0.5 }, // raised from 0.3, author's recalibration 31.08.2026
 
-    // Maximum vertical (local Y) bob amplitude, local units.
-    zBobHeight: { type: "number", default: 0.03 },
+    // Vertical (local Y) height bounds, local units — direction inverted
+    // 31.08.2026, s. file header: zBobHeightMax at zBobFar (20cm) and
+    // beyond, easing down to zBobHeightMin at zBobNear (4cm) and closer.
+    zBobHeightMax: { type: "number", default: 0.1 },
+    zBobHeightMin: { type: "number", default: 0.04 },
     // Own, SEPARATE per-object 3D distance band (metres, camera to this
-    // object's own fixed grid position — s. file header) the vertical bob
-    // ramps over. At/beyond zBobFar (20cm) -> no bob. At/within zBobNear
-    // (4cm) -> full bob.
+    // object's own fixed grid position — s. file header) the vertical
+    // height ramps over.
     zBobNear: { type: "number", default: 0.04 }, // 4cm, lowered from 6cm, author's recalibration 31.08.2026
     zBobFar: { type: "number", default: 0.2 },
 
@@ -231,14 +235,14 @@ export default {
     self.randomTargetZ = self.baseZ + self.swingDirZ * self.data.swingRadius;
 
     self.swingPhase = Math.random() * Math.PI * 2;
-    self.zBobPhase = Math.random() * Math.PI * 2;
     self.idlePhaseX = Math.random() * Math.PI * 2;
     self.idlePhaseY = Math.random() * Math.PI * 2;
     self.idlePhaseZ = Math.random() * Math.PI * 2;
     // Running phase accumulators (s. tick()'s own comment for why these
-    // can't just be `elapsedTime * currentFactor`).
+    // can't just be `elapsedTime * currentFactor`). None needed for the
+    // vertical height — it's a direct, non-oscillating function of
+    // distance now, s. tick()'s own comment.
     self.swingAngle = 0;
-    self.zBobAngle = 0;
     self.idleAngleX = 0;
     self.idleAngleY = 0;
     self.idleAngleZ = 0;
@@ -295,11 +299,14 @@ export default {
     const swingX = self.swingDirX * osc;
     const swingZ = self.swingDirZ * osc;
 
-    // --- Vertical bob: own, SEPARATE per-object 3D distance (not screen coverage) ---
+    // --- Vertical height: own, SEPARATE per-object 3D distance (not screen coverage) ---
+    // Direct, non-oscillating height — no sine, no phase/angle accumulator
+    // (author's spec, 31.08.2026: a smooth "sinks as you approach"
+    // position, not a hop). zBobFactor: 0 at <=zBobNear (4cm) -> height =
+    // zBobHeightMin, 1 at >=zBobFar (20cm) -> height = zBobHeightMax.
     const objDist = self.cameraPos.distanceTo(self.zBobAnchorPos);
-    const zBobFactor = rampFactor(objDist, data.zBobFar, data.zBobNear); // 0 at >=20cm, 1 at <=4cm
-    self.zBobAngle += ZBOB_SPEED * zBobFactor * dt;
-    const zbob = data.zBobHeight * zBobFactor * Math.sin(self.zBobAngle + self.zBobPhase);
+    const zBobFactor = rampFactor(objDist, data.zBobNear, data.zBobFar);
+    const zbob = data.zBobHeightMin + zBobFactor * (data.zBobHeightMax - data.zBobHeightMin);
 
     // --- Idle float: same linear proximityFactor ramp as the swing (0 = fully still), tiny on X/Z ---
     self.idleAngleX += IDLE_SPEED * 0.7 * proximityFactor * dt;
