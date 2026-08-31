@@ -71,7 +71,7 @@ three combined into one scene.
 | `minDistance` | number | `2.5` | UNBOUNDED mode only (`areaDepth: 0`). Hard minimum gap (metres) between any two clones. |
 | `maxDistance` | number | `6` | UNBOUNDED mode only. Max gap to the nearest neighbour — both bounds honoured exactly. |
 | `randomness` | number | `0` | BOUNDED mode only (`areaDepth` > 0). `0` = exact regular grid, `1` = every point at its full random offset; values between linearly interpolate each point toward that same fixed offset, so moving this alone (e.g. a live GUI slider) eases toward/away from one randomised layout rather than re-rolling it. |
-| `boundingBoxRadius` | number | `0` | BOUNDED mode only. Shrinks each point's random-offset radius by half this amount so neighbouring bounding boxes can't overlap even at `randomness: 1`. `0` = offset radius is the full half grid-spacing. |
+| `boundingBoxRadius` | number | `0` | BOUNDED mode only. Each clone's own ground-plane radius — shrinks the random-offset radius by exactly this much, so two neighbouring clones' bounding circles can touch but never overlap even at `randomness: 1`. `0` = offset radius is the full half grid-spacing. |
 | `copies` | int | `1` | How many copies of **each** referenced entity (uniform across all of them). |
 | `minCopyDistance` | number | `0` (disabled) | Minimum ground-plane gap between two copies of the *same* referenced entity. Only meaningful when `copies` > 1; degrades gracefully rather than failing if the area's too tight. |
 | `scale` | number | `1` | Uniform multiplier on each clone's *own* authored scale (not a replacement). |
@@ -177,18 +177,26 @@ silently placing fewer points than asked.
 visible gaps and uneven coverage once the area stopped growing to fit
 (AN ALLE! `projects/an-alle/concepts/zufallsverteilung-lod.md`,
 "Platzierungsalgorithmus — Version 3", 31.08.2026), so a bounded field uses
-a different algorithm entirely: lay out a regular grid with one spacing `d`
-shared by both axes, sized so its cell count covers the requested number of
-points; give each grid point ONE fixed random offset sampled uniformly over
-a disk of radius `d/2 − boundingBoxRadius/2` (shrunk so neighbouring
-bounding boxes can't touch even at maximum jitter); then `randomness`
-(0–1) linearly interpolates every point between its exact grid position and
-that same fixed offset. Because the offset is rolled once and only scaled
-by `randomness` afterwards, sweeping a live GUI slider eases the whole
-field toward/away from one randomised layout instead of reshuffling it
-every frame. Edge cells get the same offset radius as interior ones, so at
-high `randomness` they can spill slightly outside `areaWidth`×`areaDepth`
-— accepted by design, not clamped.
+a different algorithm entirely: lay out a regular LATTICE — nodes spaced
+`dx`/`dz` apart spanning the FULL width/depth edge to edge, not cell
+centres, so e.g. a 2×2 lattice (the smallest non-trivial grid) lands its
+four nodes exactly in the rectangle's four corners — sized so its node
+count covers the requested number of points; give each node ONE fixed
+random offset sampled uniformly over a disk of radius `spacing/2 −
+boundingBoxRadius` (`spacing` = the tighter of `dx`/`dz`), chosen so that
+even if two lattice neighbours both jitter maximally toward each other,
+their bounding circles end up touching but never overlapping; then
+`randomness` (0–1) linearly interpolates every point between its exact
+lattice position and that same fixed offset. Because the offset is rolled
+once and only scaled by `randomness` afterwards, sweeping a live GUI slider
+eases the whole field toward/away from one randomised layout instead of
+reshuffling it every frame — and because the offset radius is a *fraction*
+of the current spacing, the same `randomness` value looks different at
+different `areaWidth`/`areaDepth`/node-count combinations; that's
+intentional (it's what keeps the touch-but-never-overlap guarantee valid
+at every spacing), not a bug to fix. Corner/edge nodes get the same offset
+radius as interior ones, so at high `randomness` they can spill slightly
+outside `areaWidth`×`areaDepth` — accepted by design, not clamped.
 
 ## 4. Incompatibilities, risks & troubleshooting
 

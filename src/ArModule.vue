@@ -132,10 +132,14 @@ const PROP_STEM_HEIGHT = 0.5 * PROP_SCALE;
 const PROP_BUD_RADIUS = 0.14 * PROP_SCALE;
 const PROP_BILLBOARD_WIDTH = 0.28 * PROP_SCALE;
 const PROP_BILLBOARD_HEIGHT = 0.7 * PROP_SCALE;
-const PROP_FOOTPRINT_AREA = 0.08 * PROP_SCALE * PROP_SCALE; // area scales with the square of the linear factor
-const FIXED_MIN_DISTANCE = 0.4 * PROP_SCALE;
-const FIXED_MAX_DISTANCE = 1.0 * PROP_SCALE;
-const MAX_COPIES = 60; // hard cap regardless of density, s. random-field.ts's K=30-attempts-per-point cost
+// Ground-plane radius of a placed prop (== PROP_BILLBOARD_WIDTH / 2, both
+// tuned to the same footprint) — random-field's `boundingBoxRadius`
+// attribute below, and the spacing-at-max-density calc, both need this.
+const PROP_FOOTPRINT_RADIUS = PROP_BUD_RADIUS;
+// Grid nodes per side, hard-capped regardless of density (rendering
+// budget — the jittered-grid algorithm itself is cheap regardless of `n`,
+// unlike the old Poisson-disk's per-point candidate search). 7 → 49 props.
+const MAX_GRID_NODES_PER_SIDE = 7;
 
 // riseStart/riseEnd are real camera-to-target distances (like
 // proximity-fade/-cutout elsewhere in this template) — rescaled to the
@@ -147,7 +151,10 @@ const RISE_HEIGHT = PROP_STEM_HEIGHT * 0.8;
 const riseAttr = `riseStart: ${RISE_START.toFixed(3)}; riseEnd: ${RISE_END.toFixed(3)}; riseHeight: ${RISE_HEIGHT.toFixed(4)}`;
 
 const fieldSizePercent = ref(70); // 20–100, % of FOOTPRINT_MIN_SIDE
-const density = ref(40); // 10–90, % of the field area filled with objects
+const DENSITY_MIN = 10;
+const DENSITY_MAX = 90;
+const density = ref(40); // 10–90 — s. gridSpacing below for what the extremes now guarantee
+const randomness = ref(0.4); // 0–1, random-field's `randomness` (Version 3, 31.08.2026)
 // LOD near/far are also real camera-to-target distances — rescaled the
 // same way as riseStart/riseEnd above (was 4/7m, tuned for a 6m room-scale
 // field; the required camera-to-target closeness for stable image tracking
@@ -156,15 +163,37 @@ const lodNear = ref(FOOTPRINT_DEPTH * 1.5);
 const lodFar = ref(FOOTPRINT_DEPTH * 3);
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
-const targetCopies = computed(() => {
-  const area = areaSide.value * areaSide.value;
-  const raw = Math.round((density.value / 100) * area / PROP_FOOTPRINT_AREA);
-  return Math.min(MAX_COPIES, Math.max(1, raw));
+
+// Density now drives the GRID SPACING directly rather than an area/prop-
+// footprint-area ratio (archive-of-practice projects/an-alle/concepts/
+// zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3",
+// 31.08.2026 — the old ratio saturated the copy-count cap well before the
+// slider's high end, so most of its range did nothing visible). Highest density
+// (DENSITY_MAX) → spacing = one prop diameter (props almost touching);
+// lowest density (DENSITY_MIN) → spacing = the full field side, i.e. a 2×2
+// lattice with exactly one prop in each of the field's four corners.
+// Linear interpolation between those two spacings by where `density` sits
+// in [DENSITY_MIN, DENSITY_MAX].
+const gridSpacing = computed(() => {
+  const t = (density.value - DENSITY_MIN) / (DENSITY_MAX - DENSITY_MIN);
+  const spacingAtMaxDensity = PROP_FOOTPRINT_RADIUS * 2;
+  const spacingAtMinDensity = areaSide.value;
+  return spacingAtMinDensity + t * (spacingAtMaxDensity - spacingAtMinDensity);
 });
+
+// Grid nodes per side implied by that spacing (>= 2 so the low-density
+// four-corner case always holds), capped at MAX_GRID_NODES_PER_SIDE — above
+// the cap, actual spacing ends up looser than the density slider alone
+// would imply rather than exceeding the rendering budget.
+const gridNodesPerSide = computed(() =>
+  Math.min(MAX_GRID_NODES_PER_SIDE, Math.max(2, Math.round(areaSide.value / gridSpacing.value) + 1))
+);
+const targetCopies = computed(() => gridNodesPerSide.value * gridNodesPerSide.value);
 
 const randomFieldAttr = computed(
   () => `items: #prop; areaWidth: ${areaSide.value.toFixed(3)}; areaDepth: ${areaSide.value.toFixed(3)}; ` +
-        `minDistance: ${FIXED_MIN_DISTANCE.toFixed(4)}; maxDistance: ${FIXED_MAX_DISTANCE.toFixed(4)}; copies: ${targetCopies.value}`
+        `randomness: ${randomness.value.toFixed(3)}; boundingBoxRadius: ${PROP_FOOTPRINT_RADIUS.toFixed(4)}; ` +
+        `copies: ${targetCopies.value}`
 );
 const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value.toFixed(3)}; farDistance: ${lodFar.value.toFixed(3)}`);
 
@@ -184,7 +213,7 @@ const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 // adjusting a slider genuinely re-scatters the field with the new
 // parameters (arguably the point of this Themenfeld's demo, too).
 const fieldKey = computed(
-  () => `${fieldSizePercent.value}-${density.value}-${lodNear.value}-${lodFar.value}`
+  () => `${fieldSizePercent.value}-${density.value}-${randomness.value}-${lodNear.value}-${lodFar.value}`
 );
 
 const guiControls = computed<GuiControl[]>(() => [
@@ -203,12 +232,23 @@ const guiControls = computed<GuiControl[]>(() => [
     type: 'slider',
     id: 'density',
     label: 'Dichte',
-    min: 10,
-    max: 90,
+    min: DENSITY_MIN,
+    max: DENSITY_MAX,
     step: 5,
     value: density.value,
     unit: '%',
     onInput: (value) => { density.value = value; }
+  },
+  {
+    type: 'slider',
+    id: 'randomness',
+    label: 'Zufall',
+    min: 0,
+    max: 100,
+    step: 5,
+    value: Math.round(randomness.value * 100),
+    unit: '%',
+    onInput: (value) => { randomness.value = value / 100; }
   },
   {
     type: 'range-slider',

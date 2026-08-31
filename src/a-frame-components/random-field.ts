@@ -91,10 +91,11 @@ export default {
     // than re-rolling it.
     randomness: { type: "number", default: 0 },
 
-    // BOUNDED rectangle only (areaDepth > 0). Shrinks each point's random-
-    // offset radius by half this amount, so neighbouring bounding boxes
-    // can't overlap even at randomness: 1. 0 (default) = offset radius is
-    // the full half grid-spacing.
+    // BOUNDED rectangle only (areaDepth > 0). Each clone's own ground-plane
+    // radius — shrinks the random-offset radius by exactly this much, so
+    // two neighbouring clones' bounding circles can touch but never overlap
+    // even at randomness: 1. 0 (default) = offset radius is the full half
+    // grid-spacing.
     boundingBoxRadius: { type: "number", default: 0 },
 
     // How many copies of EACH referenced entity (uniform across all of them).
@@ -324,17 +325,25 @@ export default {
    * Jittered-grid sample of `n` points inside a BOUNDED `width`×`depth`
    * rectangle centred on the origin (s. the file header comment and AN
    * ALLE! zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3").
-   * First lays out a REGULAR grid with a single spacing `d` shared by both
-   * axes, sized so `cols × rows` covers at least `n` cells (excess trailing
-   * cells, if any, are simply not used). Each grid point then gets ONE
-   * fixed random offset, sampled uniformly over a disk of radius
-   * `d/2 − boundingBoxRadius/2` (so neighbouring bounding boxes can't
-   * overlap even at `randomness: 1`), and `randomness` (0–1) linearly
-   * interpolates that point between its exact grid position (0) and that
+   * Lays out a REGULAR LATTICE — nodes spaced `dx`/`dz` apart spanning the
+   * FULL width/depth edge to edge, not cell centres — sized so
+   * `cols × rows` covers at least `n` nodes (excess trailing nodes, if any,
+   * are simply not used). Spanning edge to edge (rather than insetting by
+   * half a cell) matters at the low end: a 2×2 lattice (the smallest
+   * non-trivial grid) puts its four nodes exactly in the rectangle's four
+   * corners, not in the middle of four quadrants.
+   *
+   * Each node then gets ONE fixed random offset, sampled uniformly over a
+   * disk of radius `spacing/2 − boundingBoxRadius` (`spacing` = the
+   * tighter of `dx`/`dz`) — chosen so that even if two lattice NEIGHBOURS
+   * both jitter maximally toward each other, the worst-case gap between
+   * their centres is exactly `2 × boundingBoxRadius`, i.e. their bounding
+   * circles touch but never overlap. `randomness` (0–1) linearly
+   * interpolates each node between its exact lattice position (0) and that
    * same fixed offset (1) — moving `randomness` alone (e.g. a live GUI
    * slider) never re-rolls the offset, it only eases toward/away from one
-   * fixed randomised layout. Edge cells get the same offset radius as
-   * interior ones, so they CAN spill slightly outside `width`×`depth` at
+   * fixed randomised layout. Corner/edge nodes get the same offset radius
+   * as interior ones, so they CAN spill slightly outside `width`×`depth` at
    * high `randomness` — accepted, not clamped (s. the Version 3 decision).
    */
   gridPositions(n: number, width: number, depth: number): Point[] {
@@ -343,17 +352,19 @@ export default {
 
     const cols = Math.max(1, Math.ceil(Math.sqrt((n * width) / depth)));
     const rows = Math.max(1, Math.ceil(n / cols));
-    const d = Math.min(width / cols, depth / rows);
+    const dx = cols > 1 ? width / (cols - 1) : 0;
+    const dz = rows > 1 ? depth / (rows - 1) : 0;
+    const spacing = cols > 1 && rows > 1 ? Math.min(dx, dz) : cols > 1 ? dx : rows > 1 ? dz : Math.min(width, depth);
 
     const boundingBoxRadius = Math.max(0, self.data.boundingBoxRadius);
-    const jitterRadius = Math.max(0, d / 2 - boundingBoxRadius / 2);
+    const jitterRadius = Math.max(0, spacing / 2 - boundingBoxRadius);
     const randomness = Math.min(1, Math.max(0, self.data.randomness));
 
     const points: Point[] = [];
     for (let r = 0; r < rows && points.length < n; r++) {
       for (let c = 0; c < cols && points.length < n; c++) {
-        let x = -width / 2 + d * (c + 0.5);
-        let z = -depth / 2 + d * (r + 0.5);
+        let x = cols > 1 ? -width / 2 + c * dx : 0;
+        let z = rows > 1 ? -depth / 2 + r * dz : 0;
         if (jitterRadius > 0 && randomness > 0) {
           const angle = Math.random() * Math.PI * 2;
           const rad = jitterRadius * Math.sqrt(Math.random()); // uniform over the disk's AREA
