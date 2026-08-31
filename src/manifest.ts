@@ -32,6 +32,7 @@ import soundController from "./a-frame-components/sound-controller";
 import soundButton from "./a-frame-components/sound-button";
 import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
+import proximityOpacity from "./a-frame-components/proximity-opacity";
 import proximityCutout from "./a-frame-components/proximity-cutout";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
@@ -88,6 +89,12 @@ export const manifest: Manifest = {
     // proximity-fade.ts/proximity-fade-dither.ts are built from.)
     "proximity-fade": proximityFade,
     "proximity-fade-dither": proximityFadeDither,
+    // Drives a sibling material-properties/dither-material component's own
+    // `opacity` field from this entity's own live camera distance — see
+    // proximity-opacity.ts for why this isn't just proximity-fade/
+    // proximity-fade-dither above (gltf-model-only, and its own dithering
+    // writer would conflict with dither-material.ts's).
+    "proximity-opacity": proximityOpacity,
     // Camera-proximity cutout sphere — see proximity-cutout.ts and
     // examples/proximity-cutout-usage.html.
     "proximity-cutout": proximityCutout,

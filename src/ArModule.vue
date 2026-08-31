@@ -2,9 +2,8 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
-import GuiPanel from './GuiPanel.vue';
+import { attachSwipeDrag } from './swipe-drag';
 import InfoOverlay from './InfoOverlay.vue';
-import type { GuiControl } from './gui-controls';
 
 interface ArModuleData {
   id: string;
@@ -99,38 +98,34 @@ onUnmounted(() => {
 
 // AN ALLE! Material-/Shader-Showcase (archive-of-practice
 // projects/an-alle/concepts/material-shader-showcase.md) — sechs
-// überlappende Objekte, drei Transparenz-Techniken. Keine Emoji-PNGs vom
+// überlappende Objekte, zwei Transparenz-Techniken. Keine Emoji-PNGs vom
 // Autor vorhanden (Entscheidung: "sechs Emoji-PNGs, vom Autor
 // bereitgestellt") — wie schon in examples/random-field-lod-billboard-
 // proximity-wave-scene.html bei fehlenden Assets, stehen sechs farbige
-// Kreis-Primitives stellvertretend dafür; Transparenz/Dither/Unlit wirken
+// Kugel-Primitives stellvertretend dafür; Transparenz/Dither wirken
 // identisch unabhängig von einer Textur.
 //
-// Item A (vorderstes) = unlit-material + material-properties auf DERSELBEN
-// Entity: unlit-material ersetzt das Material zuerst durch ein flaches
-// MeshBasicMaterial (ignoriert roughness/metalness/emissive, die es nicht
-// besitzt), material-properties wendet danach NUR opacity darauf an (opacity
-// existiert auf jedem Material) — genau das in der Entscheidung beschriebene
-// Verhalten ("nur Opacity, Roughness/Metalness/Emissive haben keine
-// Wirkung"), ohne Sonderfall-Code, allein durch Komponenten-Reihenfolge.
-// Items B/C/D = dither-material (je ein ditherType). dither-material trägt
-// seit 30.08.2026 (device testing) auch roughness/metalness/emissiveIntensity
-// (gleiche Semantik/Sentinel wie material-properties, s. dessen
-// applyPbrOverrides) — die globalen Regler wirken deshalb jetzt auf alle
-// sechs Items, nicht nur E/F. Own base emissive colour on B/C/D's own
-// `material=`-Attribut (analog zu E/F), sonst hätte der Emissive-Regler
-// nichts zum Boosten. Items E/F = material-properties (normale
-// Alpha-Transparenz).
+// "Bedienfeld weg" (31.08.2026) — kein GUI-Panel mehr, alles über
+// swipe/proximity, wie schon in zufallsverteilung-lod: Roughness auf
+// vertikalen Swipe, Metalness auf horizontalen Swipe (global, alle sechs
+// Kugeln gemeinsam, s. attachSwipeDrag unten). Opacity ist PRO Kugel an
+// deren eigenen Kameraabstand gekoppelt (proximity-opacity.ts, 6cm/15cm-
+// Schwelle) statt an einen globalen Regler. Unlit entfällt ganz — alle
+// sechs Kugeln reagieren jetzt auf Licht. Die drei Dither-Typen liegen
+// nicht mehr auf drei benachbarten Kugeln, sondern alternierend über die
+// Größenstaffelung verteilt (größte ohne Dither, zweitgrößte gedithert,
+// nächste ohne, usw. — s. Kommentar am Helix-Block unten); die übrigen
+// drei nutzen normale Alpha-Transparenz (material-properties.ts).
+// proximity-opacity.ts treibt bei beiden Techniken nur das jeweils schon
+// vorhandene `opacity`-Feld der sitzenden Komponente an, kein neuer
+// Material-Patch nötig (s. dessen eigener Kommentar für die Begründung,
+// insbesondere wieso NICHT proximity-fade/-dither wiederverwendet wird).
 //
-// render-order.ts und die vier Material-Komponenten oben lesen ihre Daten
-// größtenteils nur einmal in init() (render-order/unlit-material haben kein
-// update(); material-properties/dither-material haben zwar update(), aber
-// die zusammengesetzte unlit+material-properties-Reihenfolge auf Item A
-// bräuchte ohnehin einen sauberen Neuaufbau bei Reihenfolgeänderungen) — statt
-// die Update()-Fähigkeit jeder Komponente einzeln nachzuvollziehen, erzwingt
-// ein `:key` auf der ganzen Gruppe (wie schon in zufallsverteilung-lod) bei
-// jeder Regler-/Reihenfolgeänderung einen vollständigen Neuaufbau. Bei nur
-// sechs einfachen Primitives ist das trivial günstig.
+// Da render-order jetzt fest ist (keine Auf/Ab-Knöpfe mehr) und
+// material-properties/dither-material Attributänderungen bereits live über
+// ihr eigenes update() übernehmen, ist kein erzwungener Neuaufbau (`:key`)
+// mehr nötig — jede Änderung (Roughness/Metalness/Opacity) aktualisiert die
+// bestehenden Entities in place.
 //
 // Footprint convention (s. sound-player's own ArModule.vue and
 // guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
@@ -185,17 +180,29 @@ const RING_RADIUS = FOOTPRINT_MIN_SIDE / 2 - SPHERE_R_MAX;
 const LABEL_GAP = FOOTPRINT_DEPTH * 0.03; // clearance above each sphere's own top
 const COLOR_INNER = '#FFF44F'; // lemon yellow — smallest sphere
 const COLOR_OUTER = '#FF69B4'; // hot pink — largest sphere
+// Compresses the vertical climb between successive spheres (device
+// testing, 31.08.2026: the helix reached too high) — the largest sphere's
+// own ground contact (its centre = its own radius) is untouched, only the
+// climb PER STEP shrinks, to 2/3 of the plain tangent-stack value.
+const HELIX_HEIGHT_SCALE = 2 / 3;
+// Continuous rotation of the whole helix around its own vertical axis
+// (31.08.2026) — a positive Z delta on the OUTER real-world pivot below
+// reads as counter-clockwise from the viewer's usual downward-looking
+// vantage over the tracked image (s. the orbit-lights comment further
+// below for the same sign convention already established there).
+const HELIX_SPIN_DUR_MS = 24000;
 
 function sphereRadius(step: number): number {
   return SPHERE_R_MIN + (SPHERE_R_MAX - SPHERE_R_MIN) * (step / STEP_COUNT);
 }
 
-// Height centres, tangent-stacked from the ground up (s. comment above).
+// Height centres, tangent-stacked from the ground up (s. comment above),
+// with each step's climb compressed by HELIX_HEIGHT_SCALE.
 const SPHERE_HEIGHT: number[] = (() => {
   const heights = new Array(STEP_COUNT + 1);
   heights[STEP_COUNT] = sphereRadius(STEP_COUNT); // largest: bottom at 0, centre = own radius
   for (let step = STEP_COUNT - 1; step >= 0; step--) {
-    heights[step] = heights[step + 1] + sphereRadius(step + 1) + sphereRadius(step);
+    heights[step] = heights[step + 1] + (sphereRadius(step + 1) + sphereRadius(step)) * HELIX_HEIGHT_SCALE;
   }
   return heights;
 })();
@@ -233,17 +240,27 @@ function sphereColor(step: number): string {
   return lerpHexColor(COLOR_INNER, COLOR_OUTER, step / STEP_COUNT); // step 0 (smallest) = inner, step 5 (largest) = outer
 }
 // Base material string per item — own colour from the gradient, matching
-// emissive so the global emissive slider has something to boost (same
-// technique as before, just a computed colour instead of a fixed one).
-// The unlit item (a) skips emissive entirely — MeshBasicMaterial (which
-// unlit-material replaces the material with) has no emissive property, so
-// it'd be silently ignored anyway.
+// emissive as the material's own authored base glow (no global emissive
+// slider anymore, s. "Bedienfeld weg" comment above — material-properties/
+// dither-material's emissiveIntensity multiplier is simply left at their
+// own schema default of 1, i.e. exactly this base glow, unboosted).
 function itemMaterial(step: number): string {
   const color = sphereColor(step);
   return `color: ${color}; side: double; transparent: true; emissive: ${color}; emissiveIntensity: 1`;
 }
-function itemMaterialUnlit(step: number): string {
-  return `color: ${sphereColor(step)}; side: double; transparent: true`;
+
+// Dither alternates over the size staggering instead of sitting on three
+// adjacent spheres (31.08.2026): largest (f) = no dither, next (e) =
+// dithered, next (d) = no dither, and so on down to the smallest (a) —
+// s. archive-of-practice projects/an-alle/concepts/material-shader-showcase.md.
+// Steps not listed here use plain alpha transparency (material-properties.ts).
+const DITHER_TYPE_BY_STEP: Partial<Record<number, string>> = {
+  4: 'bayer',
+  2: 'noise',
+  0: 'interleaved-gradient'
+};
+function ditherTypeOf(step: number): string | undefined {
+  return DITHER_TYPE_BY_STEP[step];
 }
 
 // Two point lights orbiting the whole scene at different speed/direction/
@@ -260,95 +277,57 @@ const ORBIT_HEIGHT = (SPHERE_HEIGHT[0] + SPHERE_HEIGHT[STEP_COUNT]) / 2; // roug
 
 const ITEM_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
 type ItemId = typeof ITEM_IDS[number];
-const ITEM_LABELS: Record<ItemId, string> = {
-  a: 'Weiß (Unlit)', b: 'Rot (Dither Bayer)', c: 'Blau (Dither Noise)',
-  d: 'Grün (Dither Gradient)', e: 'Gelb (Alpha)', f: 'Magenta (Alpha)'
-};
+// Render order is fixed now — no more Auf/Ab-Knöpfe ("Bedienfeld weg",
+// 31.08.2026) — but the text label over each sphere still shows its
+// (unchanging) render-order value, so this stays a plain lookup.
+const ORDER: ItemId[] = [...ITEM_IDS];
+const renderOrderOf = (id: ItemId) => ORDER.indexOf(id);
 
-const order = ref<ItemId[]>([...ITEM_IDS]);
-const roughness = ref(50); // %
-const metalness = ref(50); // %
-const opacity = ref(100); // %
-const emissive = ref(0); // %, gemappt auf material-properties' 0–3-Multiplikator
+const roughness = ref(50); // %, vertical swipe
+const metalness = ref(50); // %, horizontal swipe
 
 const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
-const renderOrderOf = (id: ItemId) => order.value.indexOf(id);
-
-function moveUp(id: ItemId) {
-  const i = order.value.indexOf(id);
-  if (i <= 0) return;
-  const next = [...order.value];
-  [next[i - 1], next[i]] = [next[i], next[i - 1]];
-  order.value = next;
-}
-
-function moveDown(id: ItemId) {
-  const i = order.value.indexOf(id);
-  if (i === -1 || i >= order.value.length - 1) return;
-  const next = [...order.value];
-  [next[i], next[i + 1]] = [next[i + 1], next[i]];
-  order.value = next;
-}
-
-const opacityFrac = computed(() => opacity.value / 100);
 const roughnessFrac = computed(() => roughness.value / 100);
 const metalnessFrac = computed(() => metalness.value / 100);
-const emissiveMultiplier = computed(() => (emissive.value / 100) * 3);
 
-const unlitOpacityAttr = computed(() => `opacity: ${opacityFrac.value.toFixed(2)}`);
+// Opacity is no longer part of these strings — proximity-opacity.ts drives
+// it directly, per sphere, via a partial `el.setAttribute(component,
+// "opacity", value)` that only touches that one field (s. its own comment
+// for why); the full-string bindings below only ever carry roughness/
+// metalness, so the two update paths never fight over the same key.
 const materialPropsAttr = computed(
-  () => `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
-        `opacity: ${opacityFrac.value.toFixed(2)}; emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`
+  () => `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}`
 );
 function ditherAttr(ditherType: string): string {
-  // roughness/metalness/emissiveIntensity now supported by dither-material
-  // itself (device testing, 30.08.2026: previously had nothing to bind to
-  // here, so B/C/D silently ignored those three global sliders).
-  return `opacity: ${opacityFrac.value.toFixed(2)}; ditherType: ${ditherType}; ` +
-         `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
-         `emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`;
+  return `ditherType: ${ditherType}; roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}`;
 }
 
-const fieldKey = computed(
-  () => `${order.value.join(',')}-${roughness.value}-${metalness.value}-${opacity.value}-${emissive.value}`
-);
+function clamp(v: number, min: number, max: number): number {
+  return v < min ? min : v > max ? max : v;
+}
 
-const guiControls = computed<GuiControl[]>(() => [
-  // Render-order Auf/Ab-Regler vorübergehend ausgeblendet (device testing,
-  // 30.08.2026): versperren den Blick auf die Szene und ihr Effekt ist auf
-  // dem Gerät kaum wahrnehmbar. renderOrderOf/moveUp/moveDown und die
-  // :render-order-Bindung auf jeder Scheibe bleiben bestehen, nur diese
-  // GUI-Exponierung ist raus.
-  // ...ITEM_IDS.map((id): GuiControl => ({
-  //   type: 'updown',
-  //   id: `order-${id}`,
-  //   label: ITEM_LABELS[id],
-  //   value: renderOrderOf(id),
-  //   onDecrement: () => moveUp(id),
-  //   onIncrement: () => moveDown(id)
-  // })),
-  {
-    type: 'slider', id: 'roughness', label: 'Roughness (global)',
-    min: 0, max: 100, step: 5, value: roughness.value, unit: '%',
-    onInput: (v) => { roughness.value = v; }
-  },
-  {
-    type: 'slider', id: 'metalness', label: 'Metalness (global)',
-    min: 0, max: 100, step: 5, value: metalness.value, unit: '%',
-    onInput: (v) => { metalness.value = v; }
-  },
-  {
-    type: 'slider', id: 'opacity', label: 'Opacity (global)',
-    min: 0, max: 100, step: 5, value: opacity.value, unit: '%',
-    onInput: (v) => { opacity.value = v; }
-  },
-  {
-    type: 'slider', id: 'emissive', label: 'Emissive (global)',
-    min: 0, max: 100, step: 5, value: emissive.value, unit: '%',
-    onInput: (v) => { emissive.value = v; }
-  }
-]);
+// Swipe replaces the old GUI sliders entirely ("Bedienfeld weg", 31.08.2026,
+// s. swipe-drag.ts and the same decision in zufallsverteilung-lod.md) —
+// vertical swipe = Roughness, horizontal swipe = Metalness, both relative/
+// incremental (not tied to a fixed screen position). 250px for the full
+// 0–100 range, same sensitivity already established there.
+const SWIPE_PX_FOR_FULL_RANGE = 250;
+const SWIPE_SENSITIVITY = 100 / SWIPE_PX_FOR_FULL_RANGE;
+let detachSwipeDrag: (() => void) | null = null;
+
+onMounted(() => {
+  detachSwipeDrag = attachSwipeDrag(
+    (dx) => { metalness.value = clamp(metalness.value + dx * SWIPE_SENSITIVITY, 0, 100); },
+    // -dy: swiping UP (negative screen dy) increases roughness, matching
+    // zufallsverteilung-lod's "nach oben = mehr" convention.
+    (dy) => { roughness.value = clamp(roughness.value - dy * SWIPE_SENSITIVITY, 0, 100); }
+  );
+});
+
+onUnmounted(() => {
+  detachSwipeDrag?.();
+});
 </script>
 
 <template>
@@ -372,12 +351,16 @@ const guiControls = computed<GuiControl[]>(() => [
 
       <!-- Two point lights orbiting the scene at different speed/direction,
            one pink, one turquoise (device testing, 30.08.2026, s. Skript-
-           Kommentar oben für die Orbit-Mechanik). -->
+           Kommentar oben für die Orbit-Mechanik). castShadow (31.08.2026,
+           "Schlagschatten sollten aktiviert sein") — A-Frame's light
+           component keeps its own shadow config directly on this same
+           `light=` string, separate from the per-mesh `shadow` component
+           used below on the spheres/ground. -->
       <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 9000; easing: linear">
-        <a-entity light="type: point; color: #ff2d95; intensity: 1.3" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
+        <a-entity light="type: point; color: #ff2d95; intensity: 1.3; castShadow: true" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
       </a-entity>
       <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" animation="property: rotation; from: 0 0 180; to: 0 0 -180; loop: true; dur: 14000; easing: linear">
-        <a-entity light="type: point; color: #1fd6c1; intensity: 1.3" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
+        <a-entity light="type: point; color: #1fd6c1; intensity: 1.3; castShadow: true" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
       </a-entity>
 
       <!-- White spotlight "headlamp" — follows the camera's position AND
@@ -387,99 +370,111 @@ const guiControls = computed<GuiControl[]>(() => [
            points a spot/directional light along the entity's own local -Z,
            following its rotation every frame like a real headlamp. -->
       <a-entity
-          light="type: spot; color: #ffffff; intensity: 1.5; angle: 15; penumbra: 0.4; distance: 2.5"
+          light="type: spot; color: #ffffff; intensity: 1.5; angle: 15; penumbra: 0.4; distance: 2.5; castShadow: true"
           attach-to="target: #camera; copyRotation: true">
       </a-entity>
 
       <!-- Material-/Shader-Showcase (archive-of-practice
            projects/an-alle/concepts/material-shader-showcase.md) — sechs
-           farbige KUGELN (31.08.2026, ersetzt die vorherigen flachen
-           Scheiben) auf einer Helix um eine senkrechte Achse gestaffelt,
-           in Größe und Farbe (Zitronengelb → Hot Pink), jede tangential
-           auf der nächstgrößeren aufsitzend (s. Skript-Kommentar oben).
-           `rotation="90 0 0"` bleibt bestehen — rein für die
-           Footprint-Koordinatenumrechnung (lokal X/Y=Boden, Z=Höhe wird
-           zu real X/Z-Boden, Y=Höhe), keine Komponenten-Achsen-
-           Kompensation. Ein Text-Label über jeder Kugel zeigt ihren
-           aktuellen render-order-Wert. `:key="fieldKey"` erzwingt einen
-           sauberen Neuaufbau bei jeder Regler-/Reihenfolgeänderung (s.
-           Skript). Kein zusätzlicher Höhen-Offset mehr auf `#showcase`
-           selbst (vorher `BASE_HEIGHT`) — die größte Kugel sitzt durch
-           die Helix-Berechnung schon direkt auf der Grundfläche auf. -->
-      <a-entity id="showcase" rotation="90 0 0" :key="fieldKey">
+           farbige KUGELN auf einer Helix um eine senkrechte Achse
+           gestaffelt, in Größe und Farbe (Zitronengelb → Hot Pink), jede
+           tangential auf der nächstgrößeren aufsitzend (s. Skript-
+           Kommentar oben). Kein Unlit mehr — alle sechs reagieren auf
+           Licht und werfen/empfangen Schlagschatten (`shadow` je Kugel).
+           Dither alterniert über die Staffelung (f/d/b ohne, e/c/a mit je
+           einem anderen ditherType) statt auf drei benachbarten Kugeln zu
+           liegen. `#showcase-spin` dreht die GESAMTE Gruppe fortwährend um
+           die eigene senkrechte (Welt-Z-)Achse (31.08.2026) — liegt
+           bewusst AUSSERHALB von `#showcase`s `rotation="90 0 0"`
+           (Footprint-Koordinatenumrechnung, keine Komponenten-Achsen-
+           Kompensation), genau wie die beiden Orbit-Licht-Pivots oben, mit
+           denen sie sich die reale Z-Rotationskonvention teilt. Kein
+           `:key` mehr nötig — roughness/metalness/opacity aktualisieren
+           sich jetzt alle live über bestehendes update() (s. Skript-
+           Kommentar oben), render-order ist fix. -->
+      <a-entity id="showcase-spin" :animation="`property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: ${HELIX_SPIN_DUR_MS}; easing: linear`">
+        <a-entity id="showcase" rotation="90 0 0">
 
-        <!-- A — vorderstes, unlit. unlit-material zuerst (ersetzt das
-             Material durch MeshBasicMaterial), material-properties danach
-             wendet nur noch opacity darauf an — roughness/metalness/emissive
-             existieren auf MeshBasicMaterial nicht und werden von
-             material-properties stillschweigend übersprungen. -->
-        <a-entity :position="itemPosition(0)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(0)}`"
-              :material="itemMaterialUnlit(0)"
-              unlit-material
-              :material-properties="unlitOpacityAttr"
-              :render-order="renderOrderOf('a')">
+          <!-- A (kleinste) — jetzt gedithert (interleaved-gradient), s.
+               DITHER_TYPE_BY_STEP im Skript. -->
+          <a-entity :position="itemPosition(0)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(0)}`"
+                :material="itemMaterial(0)"
+                :dither-material="ditherAttr('interleaved-gradient')"
+                :render-order="renderOrderOf('a')"
+                proximity-opacity="targetComponent: dither-material"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(0)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(0)"></a-entity>
-        </a-entity>
 
-        <!-- B/C/D — dither-transparent, je ein anderer ditherType. Own base
-             emissive colour/intensity (like E/F) so the global emissive
-             slider has something to boost — dither-material's own
-             emissiveIntensity is a multiplier on top of it, same as
-             material-properties (device testing, 30.08.2026). -->
-        <a-entity :position="itemPosition(1)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(1)}`"
-              :material="itemMaterial(1)"
-              :dither-material="ditherAttr('bayer')"
-              :render-order="renderOrderOf('b')">
+          <!-- B — normale Alpha-Transparenz. -->
+          <a-entity :position="itemPosition(1)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(1)}`"
+                :material="itemMaterial(1)"
+                :material-properties="materialPropsAttr"
+                :render-order="renderOrderOf('b')"
+                proximity-opacity="targetComponent: material-properties"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(1)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(1)"></a-entity>
-        </a-entity>
 
-        <a-entity :position="itemPosition(2)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(2)}`"
-              :material="itemMaterial(2)"
-              :dither-material="ditherAttr('noise')"
-              :render-order="renderOrderOf('c')">
+          <!-- C — gedithert (noise). -->
+          <a-entity :position="itemPosition(2)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(2)}`"
+                :material="itemMaterial(2)"
+                :dither-material="ditherAttr('noise')"
+                :render-order="renderOrderOf('c')"
+                proximity-opacity="targetComponent: dither-material"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(2)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(2)"></a-entity>
-        </a-entity>
 
-        <a-entity :position="itemPosition(3)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(3)}`"
-              :material="itemMaterial(3)"
-              :dither-material="ditherAttr('interleaved-gradient')"
-              :render-order="renderOrderOf('d')">
+          <!-- D — normale Alpha-Transparenz. -->
+          <a-entity :position="itemPosition(3)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(3)}`"
+                :material="itemMaterial(3)"
+                :material-properties="materialPropsAttr"
+                :render-order="renderOrderOf('d')"
+                proximity-opacity="targetComponent: material-properties"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(3)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(3)"></a-entity>
-        </a-entity>
 
-        <!-- E/F — normale Alpha-Transparenz. -->
-        <a-entity :position="itemPosition(4)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(4)}`"
-              :material="itemMaterial(4)"
-              :material-properties="materialPropsAttr"
-              :render-order="renderOrderOf('e')">
+          <!-- E — gedithert (bayer). -->
+          <a-entity :position="itemPosition(4)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(4)}`"
+                :material="itemMaterial(4)"
+                :dither-material="ditherAttr('bayer')"
+                :render-order="renderOrderOf('e')"
+                proximity-opacity="targetComponent: dither-material"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(4)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(4)"></a-entity>
-        </a-entity>
 
-        <a-entity :position="itemPosition(5)">
-          <a-entity
-              :geometry="`primitive: sphere; radius: ${sphereRadius(5)}`"
-              :material="itemMaterial(5)"
-              :material-properties="materialPropsAttr"
-              :render-order="renderOrderOf('f')">
+          <!-- F (größte) — normale Alpha-Transparenz. -->
+          <a-entity :position="itemPosition(5)">
+            <a-entity
+                :geometry="`primitive: sphere; radius: ${sphereRadius(5)}`"
+                :material="itemMaterial(5)"
+                :material-properties="materialPropsAttr"
+                :render-order="renderOrderOf('f')"
+                proximity-opacity="targetComponent: material-properties"
+                shadow>
+            </a-entity>
+            <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(5)"></a-entity>
           </a-entity>
-          <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(5)"></a-entity>
-        </a-entity>
 
+        </a-entity>
       </a-entity>
 
       <!-- Ground plane = the tracked image itself (footprint convention, see
@@ -517,15 +512,11 @@ const guiControls = computed<GuiControl[]>(() => [
     </svg>
   </div>
 
-  <!-- AN ALLE! Zwischen-Basis: shared GUI baustein (archive-of-practice
-       projects/an-alle/concepts/zwischen-basis.md) — each Themenfeld branch
-       replaces `guiControls` above with its own attribute wiring, GuiPanel.vue
-       itself is not meant to be forked. -->
-  <GuiPanel :controls="guiControls" />
-
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
-       branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Sechs überlappende Scheiben, drei Transparenz-Techniken: unlit, gedithert und normal durchsichtig. Die Auf/Ab-Knöpfe ändern die Zeichenreihenfolge (Zahl über jeder Scheibe), die vier Regler wirken auf Opacity/Roughness/Metalness/Emissive." />
+       branch passes its own scene-specific explanation text. Kein GuiPanel
+       mehr ("Bedienfeld weg", 31.08.2026) — Erklärung entsprechend auf
+       Swipe/Proximity umgestellt. -->
+  <InfoOverlay text="Sechs rotierende Kugeln, zwei Transparenz-Techniken: gedithert und normal durchsichtig. Vertikaler Swipe ändert die Rauheit, horizontaler Swipe die Metallizität (alle Kugeln gemeinsam). Die Durchsichtigkeit jeder Kugel hängt vom eigenen Abstand zur Kamera ab." />
 </template>
