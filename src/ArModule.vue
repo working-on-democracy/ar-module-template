@@ -183,9 +183,14 @@ const gridNodesPerSide = computed(() =>
 );
 const targetCopies = computed(() => gridNodesPerSide.value * gridNodesPerSide.value);
 
+// elevation: PROP_FOOTPRINT_RADIUS lifts every sphere so it sits ON the
+// ground plane (tangent to it), not centred AT it — a sphere centred at
+// y=0 would have its lower half clipped into the ground (author's
+// correction, 31.08.2026; the earlier LOD/billboard prop never showed this
+// since its meshes were already authored above y=0).
 const randomFieldAttr = computed(
   () => `items: #prop; areaWidth: ${areaSide.value.toFixed(3)}; areaDepth: ${areaSide.value.toFixed(3)}; ` +
-        `copies: ${targetCopies.value}`
+        `elevation: ${PROP_FOOTPRINT_RADIUS.toFixed(4)}; copies: ${targetCopies.value}`
 );
 
 // proximity-swing (archive-of-practice projects/an-alle/concepts/
@@ -201,10 +206,10 @@ const randomFieldAttr = computed(
 // proximity-swing's own screen-coverage measurement (s.
 // proximity-swing.ts's targetCoverage()) — half of the SAME footprint
 // width the ground plane below is actually sized to, so the measurement
-// matches the real printed target exactly. swingCoverageNear/Far,
-// zBobHeight/CoverageNear/Far, idleRadius and the two colours stay on the
-// component's own schema defaults — no GUI/scene-specific override needed
-// for those (targetSelector's own default, #ground, already matches the
+// matches the real printed target exactly. proximityCoverageNear/Far,
+// zBobHeight/Near/Far, idleGroundRadius/idleHeightRadius and the two
+// colours stay on the component's own schema defaults — no GUI/scene-
+// specific override needed for those (targetSelector's own default, #ground, already matches the
 // ground plane's id below).
 const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOTPRINT_RADIUS));
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
