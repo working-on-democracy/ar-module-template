@@ -83,10 +83,6 @@ const IDLE_SPEED = 1.0; // rad/s base — identical constant to proximity-wave.t
 let cachedCoverageTime = -1;
 let cachedCoverage = 0;
 
-// TEMPORARY diagnostic counter (31.08.2026) — s. init()/tick()'s own
-// debug logging, remove together with it once diagnosed.
-let debugLogInit = 0;
-
 function targetCoverage(time: number, camera: any, targetObject3D: any, targetHalfWidth: number): number {
   if (time === cachedCoverageTime) return cachedCoverage;
   cachedCoverageTime = time;
@@ -96,7 +92,21 @@ function targetCoverage(time: number, camera: any, targetObject3D: any, targetHa
   targetObject3D.localToWorld(edge);
   center.project(camera);
   edge.project(camera);
-  cachedCoverage = Math.abs(edge.x - center.x);
+  const value = Math.abs(edge.x - center.x);
+  // `camera.project()` can return NaN for a frame or two right at startup
+  // (root cause, 31.08.2026, confirmed via device console: the camera's
+  // projection matrix isn't valid yet on this component's very first
+  // tick — a known iOS Safari quirk where the WebGL canvas's effective
+  // size/aspect ratio isn't settled until the first resize event, which a
+  // touch/swipe can trigger indirectly, explaining why swiping "fixed"
+  // it). Without this guard, that NaN propagated all the way into
+  // `object3D.position.set(NaN, y, NaN)` in tick() below — which doesn't
+  // just render wrong for one frame, it corrupts the object permanently
+  // until something else (e.g. a field remount) resets its position from
+  // scratch. Falling back to 0 (= "far", the same still-grid state the
+  // scene should show at startup anyway) instead means a bad frame here
+  // just delays the swing/idle motion by a frame, never breaks placement.
+  cachedCoverage = Number.isFinite(value) ? value : 0;
   return cachedCoverage;
 }
 
@@ -227,45 +237,18 @@ export default {
     const dist2D = Math.hypot(self.baseX, self.baseZ);
     const t = self.data.colorMaxDist > 0 ? dist2D / self.data.colorMaxDist : 0;
     self.el.setAttribute("material", "color", lerpHexColor(self.data.colorInner, self.data.colorOuter, t));
-
-    // TEMPORARY diagnostic (31.08.2026) — remove once "no spheres before
-    // first swipe" is diagnosed. Logs once per placed copy; only the FIRST
-    // one's output matters (they should all be near-identical timing-wise).
-    debugLogInit++;
-    if (debugLogInit === 1) {
-      console.log("[proximity-swing DEBUG] first init()", {
-        base: [self.baseX, self.baseY, self.baseZ],
-        swingRadius: self.data.swingRadius,
-        hasCamera: !!self.el.sceneEl.camera
-      });
-    }
   },
 
   tick(time: number, timeDelta: number) {
     const self = this as any;
     const data = self.data;
     const camera = self.el.sceneEl.camera;
-    self.debugTickCount = (self.debugTickCount || 0) + 1;
     if (!self.targetObject3D) {
       const targetEl = self.el.sceneEl.querySelector(data.targetSelector);
-      if (!targetEl) {
-        if (self.debugTickCount <= 3 || self.debugTickCount % 60 === 0) {
-          console.log("[proximity-swing DEBUG] targetSelector not found yet", {
-            selector: data.targetSelector,
-            tickCount: self.debugTickCount
-          });
-        }
-        return; // not in the DOM yet — retry next tick
-      }
+      if (!targetEl) return; // not in the DOM yet — retry next tick
       self.targetObject3D = targetEl.object3D;
-      console.log("[proximity-swing DEBUG] targetSelector resolved", { tickCount: self.debugTickCount });
     }
-    if (!camera) {
-      if (self.debugTickCount <= 3 || self.debugTickCount % 60 === 0) {
-        console.log("[proximity-swing DEBUG] no camera yet", { tickCount: self.debugTickCount });
-      }
-      return;
-    }
+    if (!camera) return;
     // Clamped so a frame hitch (e.g. a stall right after init()) can't
     // suddenly jump the swing/bob/idle phase forward.
     const dt = Math.min(0.1, Math.max(0, (timeDelta || 0) / 1000));
@@ -303,19 +286,6 @@ export default {
     const zBobFactor = rampFactor(objDist, data.zBobFar, data.zBobNear); // 0 at >=20cm, 1 at <=6cm
     self.zBobAngle += ZBOB_SPEED * zBobFactor * dt;
     const zbob = data.zBobHeight * zBobFactor * Math.sin(self.zBobAngle + self.zBobPhase);
-
-    if (!self.debugLoggedFirstPosition) {
-      self.debugLoggedFirstPosition = true;
-      console.log("[proximity-swing DEBUG] first full tick", {
-        tickCount: self.debugTickCount,
-        coverage,
-        proximityFactor,
-        centerX,
-        centerZ,
-        objDist,
-        zBobFactor
-      });
-    }
 
     // --- Idle float: same linear proximityFactor ramp as the swing (0 = fully still), tiny on X/Z ---
     self.idleAngleX += IDLE_SPEED * 0.7 * proximityFactor * dt;
