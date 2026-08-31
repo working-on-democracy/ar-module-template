@@ -21,7 +21,19 @@
 // replaces was (the actual complaint that prompted this: sliders were hard
 // to operate and got stuck at their extremes). Any number of short drags
 // in the same direction keep accumulating; there's no track to run out of.
-export function attachSwipeDrag(onDeltaX: (px: number) => void, onDeltaY: (px: number) => void): () => void {
+//
+// onHoldStart/onHoldEnd (optional, 31.08.2026 — material-shader-showcase's
+// press-and-hold emissive boost) fire on exactly the same bracket as the
+// drag itself (canvas pointerdown -> pointerup/pointercancel), regardless
+// of whether the finger also moved in between — a swipe is still a hold
+// for as long as the pointer stays down, so both gestures read from the
+// same touch session instead of needing separate listeners/guards.
+export function attachSwipeDrag(
+  onDeltaX: (px: number) => void,
+  onDeltaY: (px: number) => void,
+  onHoldStart?: () => void,
+  onHoldEnd?: () => void
+): () => void {
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -31,6 +43,7 @@ export function attachSwipeDrag(onDeltaX: (px: number) => void, onDeltaY: (px: n
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
+    onHoldStart?.();
   };
 
   const onPointerMove = (e: PointerEvent) => {
@@ -44,7 +57,9 @@ export function attachSwipeDrag(onDeltaX: (px: number) => void, onDeltaY: (px: n
   };
 
   const onPointerEnd = () => {
+    if (!dragging) return;
     dragging = false;
+    onHoldEnd?.();
   };
 
   document.addEventListener("pointerdown", onPointerDown);

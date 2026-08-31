@@ -106,27 +106,31 @@ onUnmounted(() => {
 // identisch unabhängig von einer Textur.
 //
 // "Bedienfeld weg" (31.08.2026) — kein GUI-Panel mehr, alles über
-// swipe/proximity, wie schon in zufallsverteilung-lod: Roughness auf
+// swipe/proximity/Geste, wie schon in zufallsverteilung-lod: Roughness auf
 // vertikalen Swipe, Metalness auf horizontalen Swipe (global, alle sechs
-// Kugeln gemeinsam, s. attachSwipeDrag unten). Opacity ist PRO Kugel an
-// deren eigenen Kameraabstand gekoppelt (proximity-opacity.ts, Schwelle
-// selbst wieder relativ zu FOOTPRINT_MIN_SIDE, s. OPACITY_FADE_FAR/NEAR
-// unten) statt an einen globalen Regler. Unlit entfällt ganz — alle
-// sechs Kugeln reagieren jetzt auf Licht. Die drei Dither-Typen liegen
-// nicht mehr auf drei benachbarten Kugeln, sondern alternierend über die
-// Größenstaffelung verteilt (größte ohne Dither, zweitgrößte gedithert,
-// nächste ohne, usw. — s. Kommentar am Helix-Block unten); die übrigen
-// drei nutzen normale Alpha-Transparenz (material-properties.ts).
-// proximity-opacity.ts treibt bei beiden Techniken nur das jeweils schon
-// vorhandene `opacity`-Feld der sitzenden Komponente an, kein neuer
-// Material-Patch nötig (s. dessen eigener Kommentar für die Begründung,
-// insbesondere wieso NICHT proximity-fade/-dither wiederverwendet wird).
+// Kugeln gemeinsam, s. attachSwipeDrag unten). Emissive liegt standardmäßig
+// bei 0 und steigt bei gehaltenem Finger (unabhängig von Bewegung) über
+// EMISSIVE_RAMP_MS auf 100%, beim Loslassen fällt er von seinem aktuellen
+// Wert aus mit derselben Rate zurück auf 0 (s. stepEmissive/
+// ensureEmissiveRamping unten). Opacity ist PRO Kugel an deren eigenen
+// Kameraabstand gekoppelt (proximity-opacity.ts, Schwelle selbst wieder
+// relativ zu FOOTPRINT_MIN_SIDE, s. OPACITY_FADE_FAR/NEAR unten) statt an
+// einen globalen Regler. Unlit entfällt ganz — alle sechs Kugeln reagieren
+// jetzt auf Licht. Die drei Dither-Typen liegen nicht mehr auf drei
+// benachbarten Kugeln, sondern alternierend über die Größenstaffelung
+// verteilt (größte ohne Dither, zweitgrößte gedithert, nächste ohne, usw.
+// — s. Kommentar am Helix-Block unten); die übrigen drei nutzen normale
+// Alpha-Transparenz (material-properties.ts). proximity-opacity.ts treibt
+// bei beiden Techniken nur das jeweils schon vorhandene `opacity`-Feld der
+// sitzenden Komponente an, kein neuer Material-Patch nötig (s. dessen
+// eigener Kommentar für die Begründung, insbesondere wieso NICHT
+// proximity-fade/-dither wiederverwendet wird).
 //
 // Da render-order jetzt fest ist (keine Auf/Ab-Knöpfe mehr) und
 // material-properties/dither-material Attributänderungen bereits live über
 // ihr eigenes update() übernehmen, ist kein erzwungener Neuaufbau (`:key`)
-// mehr nötig — jede Änderung (Roughness/Metalness/Opacity) aktualisiert die
-// bestehenden Entities in place.
+// mehr nötig — jede Änderung (Roughness/Metalness/Emissive/Opacity)
+// aktualisiert die bestehenden Entities in place.
 //
 // Footprint convention (s. sound-player's own ArModule.vue and
 // guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
@@ -326,22 +330,29 @@ const renderOrderOf = (id: ItemId) => ORDER.indexOf(id);
 
 const roughness = ref(50); // %, vertical swipe
 const metalness = ref(50); // %, horizontal swipe
+const emissive = ref(0); // %, press-and-hold (s. below) — 0 at rest
 
 const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
 const roughnessFrac = computed(() => roughness.value / 100);
 const metalnessFrac = computed(() => metalness.value / 100);
+// Same 0–300% mapping the old GUI slider used — kept as-is, only the input
+// mechanism (hold gesture instead of a slider) changed.
+const emissiveMultiplier = computed(() => (emissive.value / 100) * 3);
 
 // Opacity is no longer part of these strings — proximity-opacity.ts drives
 // it directly, per sphere, via a partial `el.setAttribute(component,
 // "opacity", value)` that only touches that one field (s. its own comment
 // for why); the full-string bindings below only ever carry roughness/
-// metalness, so the two update paths never fight over the same key.
+// metalness/emissiveIntensity, so the two update paths never fight over
+// the same key.
 const materialPropsAttr = computed(
-  () => `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}`
+  () => `roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
+        `emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`
 );
 function ditherAttr(ditherType: string): string {
-  return `ditherType: ${ditherType}; roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}`;
+  return `ditherType: ${ditherType}; roughness: ${roughnessFrac.value.toFixed(2)}; metalness: ${metalnessFrac.value.toFixed(2)}; ` +
+         `emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`;
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -357,17 +368,52 @@ const SWIPE_PX_FOR_FULL_RANGE = 250;
 const SWIPE_SENSITIVITY = 100 / SWIPE_PX_FOR_FULL_RANGE;
 let detachSwipeDrag: (() => void) | null = null;
 
+// Press-and-hold emissive boost (31.08.2026): holding the finger down on
+// the canvas ramps `emissive` 0 -> 100% over EMISSIVE_RAMP_MS; releasing
+// (or the drag ending any other way) ramps it back down to 0 at the same
+// rate, starting from whatever value it had already reached — not a fixed
+// 2s round trip, so letting go early falls proportionally faster. A plain
+// rAF loop (not A-Frame tick(), nothing here touches a 3D entity directly)
+// that only keeps running while `emissive` hasn't yet settled at its
+// current target, so it's a no-op cost once idle at rest (target 0,
+// already there) or fully held (target 100, already there).
+const EMISSIVE_RAMP_MS = 2000;
+const EMISSIVE_RAMP_RATE = 100 / EMISSIVE_RAMP_MS; // %/ms
+let emissiveHeld = false;
+let emissiveRafId: number | null = null;
+let lastEmissiveFrameTime = 0;
+
+function stepEmissive(now: number) {
+  const dt = now - lastEmissiveFrameTime;
+  lastEmissiveFrameTime = now;
+  const target = emissiveHeld ? 100 : 0;
+  const delta = EMISSIVE_RAMP_RATE * dt;
+  if (emissive.value < target) emissive.value = Math.min(target, emissive.value + delta);
+  else if (emissive.value > target) emissive.value = Math.max(target, emissive.value - delta);
+
+  emissiveRafId = emissive.value === target ? null : requestAnimationFrame(stepEmissive);
+}
+
+function ensureEmissiveRamping() {
+  if (emissiveRafId !== null) return;
+  lastEmissiveFrameTime = performance.now();
+  emissiveRafId = requestAnimationFrame(stepEmissive);
+}
+
 onMounted(() => {
   detachSwipeDrag = attachSwipeDrag(
     (dx) => { metalness.value = clamp(metalness.value + dx * SWIPE_SENSITIVITY, 0, 100); },
     // -dy: swiping UP (negative screen dy) increases roughness, matching
     // zufallsverteilung-lod's "nach oben = mehr" convention.
-    (dy) => { roughness.value = clamp(roughness.value - dy * SWIPE_SENSITIVITY, 0, 100); }
+    (dy) => { roughness.value = clamp(roughness.value - dy * SWIPE_SENSITIVITY, 0, 100); },
+    () => { emissiveHeld = true; ensureEmissiveRamping(); },
+    () => { emissiveHeld = false; ensureEmissiveRamping(); }
   );
 });
 
 onUnmounted(() => {
   detachSwipeDrag?.();
+  if (emissiveRafId !== null) cancelAnimationFrame(emissiveRafId);
 });
 </script>
 
@@ -559,5 +605,5 @@ onUnmounted(() => {
        branch passes its own scene-specific explanation text. Kein GuiPanel
        mehr ("Bedienfeld weg", 31.08.2026) — Erklärung entsprechend auf
        Swipe/Proximity umgestellt. -->
-  <InfoOverlay text="Sechs rotierende Kugeln, zwei Transparenz-Techniken: gedithert und normal durchsichtig. Vertikaler Swipe ändert die Rauheit, horizontaler Swipe die Metallizität (alle Kugeln gemeinsam). Die Durchsichtigkeit jeder Kugel hängt vom eigenen Abstand zur Kamera ab." />
+  <InfoOverlay text="Sechs rotierende Kugeln, zwei Transparenz-Techniken: gedithert und normal durchsichtig. Vertikaler Swipe ändert die Rauheit, horizontaler Swipe die Metallizität (alle Kugeln gemeinsam). Finger gedrückt halten lässt das Leuchten ansteigen, Loslassen lässt es wieder abklingen. Die Durchsichtigkeit jeder Kugel hängt vom eigenen Abstand zur Kamera ab." />
 </template>
