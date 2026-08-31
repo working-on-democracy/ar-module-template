@@ -3,6 +3,7 @@ import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
+import { animateValue } from './tween';
 import InfoOverlay from './InfoOverlay.vue';
 
 interface ArModuleData {
@@ -262,20 +263,75 @@ const DENSITY_PER_PX = (DENSITY_MAX - DENSITY_MIN) / SWIPE_PX_FOR_FULL_RANGE;
 const FIELD_SIZE_PER_PX = (FIELD_SIZE_MAX - FIELD_SIZE_MIN) / SWIPE_PX_FOR_FULL_RANGE;
 let detachSwipeDrag: (() => void) | null = null;
 
+// Tutorial animation (archive-of-practice projects/an-alle/concepts/
+// zufallsverteilung-lod.md, "Tutorial-Animation" decision, 31.08.2026) —
+// plays once, on the FIRST successful image recognition (`xrextrasfound`,
+// fired by `xrextras-named-image-target` itself — s. the vendored
+// `@8thwall/xrextras` source; already pre-filtered to THIS named target,
+// no need to check event.detail), since swiping no longer has any visible
+// GUI to hint at what it does. Two back-to-back phases, each a screen-
+// centred text label naming the gesture while its own attribute sweeps
+// through its full range and back: field size (MIN -> MAX -> its own
+// start value, density held constant), then density (its own start value
+// -> MIN -> MAX -> back to start, field size held at its now-real start
+// value). `tutorialInputLocked` blocks swipe input for the whole
+// sequence so a real drag can't fight the animation.
+const tutorialInputLocked = ref(true);
+const tutorialText = ref('');
+const imageTargetEl = ref<HTMLElement | null>(null);
+const TUTORIAL_SEGMENT_MS = 2500; // long enough to read either label, s. concept doc
+
+async function runTutorial() {
+  const fieldSizeStart = fieldSizePercent.value;
+  fieldSizePercent.value = FIELD_SIZE_MIN;
+  tutorialText.value = 'Vertikaler Swipe ↕️ = Feldgröße';
+  await animateValue(fieldSizePercent, FIELD_SIZE_MIN, FIELD_SIZE_MAX, TUTORIAL_SEGMENT_MS);
+  await animateValue(fieldSizePercent, FIELD_SIZE_MAX, fieldSizeStart, TUTORIAL_SEGMENT_MS);
+
+  const densityStart = density.value;
+  tutorialText.value = 'Horizontaler Swipe ↔️ = Dichte';
+  await animateValue(density, densityStart, DENSITY_MIN, TUTORIAL_SEGMENT_MS);
+  await animateValue(density, DENSITY_MIN, DENSITY_MAX, TUTORIAL_SEGMENT_MS);
+  await animateValue(density, DENSITY_MAX, densityStart, TUTORIAL_SEGMENT_MS);
+
+  tutorialText.value = '';
+  tutorialInputLocked.value = false;
+}
+
+const tutorialTextStyle = {
+  position: 'fixed' as const,
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  padding: '4vw 6vw',
+  borderRadius: '12px',
+  background: 'rgba(0, 0, 0, 0.6)',
+  color: '#ffffff',
+  fontFamily: 'sans-serif',
+  fontSize: '18px',
+  textAlign: 'center' as const,
+  zIndex: '1000',
+  pointerEvents: 'none' as const
+};
+
 onMounted(() => {
   detachSwipeDrag = attachSwipeDrag(
     (dx) => {
+      if (tutorialInputLocked.value) return;
       density.value = Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, density.value + dx * DENSITY_PER_PX));
     },
     (dy) => {
+      if (tutorialInputLocked.value) return;
       // Screen Y grows downward, so swiping UP (negative dy) should grow the field.
       fieldSizePercent.value = Math.min(FIELD_SIZE_MAX, Math.max(FIELD_SIZE_MIN, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
     }
   );
+  imageTargetEl.value?.addEventListener('xrextrasfound', runTutorial, { once: true });
 });
 
 onUnmounted(() => {
   detachSwipeDrag?.();
+  imageTargetEl.value?.removeEventListener('xrextrasfound', runTutorial);
 });
 </script>
 
@@ -292,7 +348,7 @@ onUnmounted(() => {
        real AN ALLE! target image is designed and compiled. Only works in the real
        AR preview (npm run dev:ar) or the host, per
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
-  <xrextras-named-image-target name="video-target">
+  <xrextras-named-image-target name="video-target" ref="imageTargetEl">
     <a-entity
         no-frustum-cull
         :visible="assetsLoaded"
@@ -379,6 +435,10 @@ onUnmounted(() => {
   <!-- No GuiPanel in this scene (removed 31.08.2026) — density/field size
        are swipe-driven (s. Skript-Kommentar, swipe-drag.ts), not GUI
        sliders. -->
+
+  <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
+       screen-centred, only rendered while a tutorial phase is showing. -->
+  <div v-if="tutorialText" :style="tutorialTextStyle">{{ tutorialText }}</div>
 
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
