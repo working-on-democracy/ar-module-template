@@ -295,11 +295,11 @@ function ditherTypeOf(step: number): string | undefined {
 // to FOOTPRINT_MIN_SIDE rather than a fixed cm value (31.08.2026, same
 // reasoning as the helix height budget above — "auch die Abstands-
 // berechnung kann sich an der Kantenlänge orientieren"): fully OPAQUE at
-// one full edge length away, fully TRANSPARENT within a tenth of that
+// two full edge lengths away, fully TRANSPARENT within a fifth of one
 // (device testing, 31.08.2026: opposite of a typical fade-in-on-approach —
 // here the sphere fades away as the camera gets close to it).
-const OPACITY_FADE_FAR = FOOTPRINT_MIN_SIDE;
-const OPACITY_FADE_NEAR = FOOTPRINT_MIN_SIDE * 0.1;
+const OPACITY_FADE_FAR = FOOTPRINT_MIN_SIDE * 2;
+const OPACITY_FADE_NEAR = FOOTPRINT_MIN_SIDE * 0.2;
 function proximityOpacityAttr(targetComponent: string): string {
   return `targetComponent: ${targetComponent}; near: ${OPACITY_FADE_NEAR.toFixed(4)}; far: ${OPACITY_FADE_FAR.toFixed(4)}`;
 }
