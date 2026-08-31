@@ -1,4 +1,5 @@
 import type { ComponentDefinition } from "aframe";
+import { seededRandom } from "./seeded-random";
 
 // Scatters clones of one or more referenced entities across a rectangular
 // area, using Poisson-disk (Bridson) sampling so both a minimum AND maximum
@@ -48,6 +49,11 @@ import type { ComponentDefinition } from "aframe";
 interface Point {
   x: number;
   z: number;
+  // Only set by gridPositions() (bounded mode) — the point's own row*cols+col
+  // grid index, exposed on each clone as a `data-grid-index` attribute so a
+  // consumer (e.g. proximity-swing.ts) can derive its OWN stable per-node
+  // seed the same way, without re-implementing grid math itself.
+  index?: number;
 }
 
 export default {
@@ -141,6 +147,14 @@ export default {
         z: self.randomTilt()
       };
       const clone = self.cloneItem(queue[i], placement[i], y, rot);
+      // Bounded/grid mode only (s. the Point interface above) — exposes
+      // this clone's own stable grid index as a plain DOM attribute so a
+      // consumer component (e.g. proximity-swing.ts) can derive its own
+      // seeded-random value from it, independent of this component's
+      // internals.
+      if (typeof placement[i].index === "number") {
+        clone.setAttribute("data-grid-index", String(placement[i].index));
+      }
       self.el.appendChild(clone);
     }
 
@@ -214,21 +228,6 @@ export default {
     }
 
     return result;
-  },
-
-  /**
-   * Deterministic pseudo-random float in [0, 1) — same `seed` always
-   * returns the same value, unlike `Math.random()`. Used only by
-   * `gridPositions` (s. its own doc comment for why the bounded-grid
-   * jitter needs this instead of `Math.random()`); every other random draw
-   * in this component (unbounded strip, tilt/yaw, shuffling) is a genuine
-   * one-shot roll and stays on `Math.random()`.
-   */
-  seededRandom(seed: number): number {
-    let t = (seed + 0x6d2b79f5) | 0;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   },
 
   /** Fisher–Yates in place. */
@@ -387,16 +386,16 @@ export default {
     const points: Point[] = [];
     for (let r = 0; r < rows && points.length < n; r++) {
       for (let c = 0; c < cols && points.length < n; c++) {
+        const nodeIndex = r * cols + c;
         let x = cols > 1 ? -width / 2 + c * dx : 0;
         let z = rows > 1 ? -depth / 2 + r * dz : 0;
         if (jitterRadius > 0 && randomness > 0) {
-          const nodeIndex = r * cols + c;
-          const angle = self.seededRandom(nodeIndex * 2) * Math.PI * 2;
-          const rad = jitterRadius * Math.sqrt(self.seededRandom(nodeIndex * 2 + 1)); // uniform over the disk's AREA
+          const angle = seededRandom(nodeIndex * 2) * Math.PI * 2;
+          const rad = jitterRadius * Math.sqrt(seededRandom(nodeIndex * 2 + 1)); // uniform over the disk's AREA
           x += randomness * Math.cos(angle) * rad;
           z += randomness * Math.sin(angle) * rad;
         }
-        points.push({ x, z });
+        points.push({ x, z, index: nodeIndex });
       }
     }
 

@@ -1,5 +1,6 @@
 import type { ComponentDefinition } from "aframe";
 import { rampFactor } from "./proximity-fade-shared";
+import { seededRandom } from "./seeded-random";
 
 declare const AFRAME: any;
 
@@ -13,11 +14,14 @@ declare const AFRAME: any;
 //
 //   1. Radial swing (local X/Z, ground plane) — driven by `proximityFactor`
 //      (s. below): swings back/forth along its own fixed random direction.
-//      At proximityCoverageNear (screen coverage, closest): full amplitude
-//      (= swingRadius), centred on the grid position. At
-//      proximityCoverageFar (farthest): amplitude eased to 0, centre eased
-//      to a fixed random target point — the object ends up resting exactly
-//      there, motionless.
+//      At proximityCoverageFar (screen coverage, farthest — e.g. app start,
+//      before anyone approaches): ZERO amplitude, centred exactly on the
+//      grid position — a perfectly still, ordered grid. At
+//      proximityCoverageNear (closest): full amplitude (= swingRadius),
+//      centre eased to a fixed random target point — the object swings
+//      around that point instead, i.e. approaching is what turns the
+//      orderly grid chaotic (direction fixed 31.08.2026 — an earlier
+//      version had this backwards, resting chaotically from the start).
 //   2. Vertical bob (local Y, height) — a SEPARATE per-object 3D distance
 //      measurement (camera to this object's own fixed grid position, NOT
 //      screen coverage, and NOT this object's currently-animated position
@@ -181,13 +185,22 @@ export default {
     self.zBobAnchorPos = new AFRAME.THREE.Vector3(0, 0, 0);
     self.el.object3D.localToWorld(self.zBobAnchorPos);
 
-    // Own fixed random swing direction + the fixed point it swings toward
-    // at full amplitude ("die Zufallsposition") — rolled once per clone
-    // with plain Math.random(), safe here (unlike random-field.ts's own
-    // grid jitter) because this component is created exactly once per
-    // placed copy and then runs continuously via tick(); nothing about
-    // camera movement ever re-creates it.
-    const angle = Math.random() * Math.PI * 2;
+    // Own fixed swing direction + the fixed point it swings toward at full
+    // amplitude ("die Zufallsposition") — seeded from this clone's OWN
+    // stable grid index (random-field.ts's `data-grid-index` attribute,
+    // s. seeded-random.ts), NOT `Math.random()` (bugfix, 31.08.2026): a
+    // density/field-size swipe forces a full unmount/remount of the whole
+    // field (s. ArModule.vue's `fieldKey`), so every placed copy gets a
+    // brand new component instance on every swipe — `Math.random()` would
+    // scatter a completely different chaotic arrangement each time instead
+    // of the same arrangement only shifting where the grid itself changed
+    // shape (a genuinely different row/column count). Falls back to
+    // Math.random() only for the hidden, never-cloned #prop template
+    // itself (no data-grid-index there), which is harmless since nothing
+    // ever looks at its position.
+    const gridIndexAttr = self.el.getAttribute("data-grid-index");
+    const gridIndex = gridIndexAttr !== null ? parseInt(gridIndexAttr, 10) : NaN;
+    const angle = !Number.isNaN(gridIndex) ? seededRandom(gridIndex) * Math.PI * 2 : Math.random() * Math.PI * 2;
     self.swingDirX = Math.cos(angle);
     self.swingDirZ = Math.sin(angle);
     self.randomTargetX = self.baseX + self.swingDirX * self.data.swingRadius;
@@ -232,8 +245,14 @@ export default {
     const coverage = targetCoverage(time, camera, self.targetObject3D, data.targetHalfWidth);
     const proximityFactor = rampFactor(coverage, data.proximityCoverageFar, data.proximityCoverageNear); // 0 at <=far, 1 at >=near
 
-    // --- Radial swing: centre eases grid -> random target, amplitude/speed full -> 0 ---
-    const centerT = 1 - proximityFactor; // 0 at near (centre = grid), 1 at far (centre = random target)
+    // --- Radial swing: centre eases grid -> random target, amplitude/speed 0 -> full ---
+    // Direction fixed 31.08.2026: LOW coverage (far, at/below
+    // proximityCoverageFar) must read as a PERFECTLY STILL GRID — centre =
+    // grid position, zero amplitude. HIGH coverage (near, at/above
+    // proximityCoverageNear) is where it comes alive — full amplitude,
+    // swinging around the fixed random target. So centerT tracks
+    // proximityFactor directly (NOT its inverse).
+    const centerT = proximityFactor; // 0 at far (centre = grid, still), 1 at near (centre = random target, swinging)
     const centerX = self.baseX + centerT * (self.randomTargetX - self.baseX);
     const centerZ = self.baseZ + centerT * (self.randomTargetZ - self.baseZ);
     // Phase is ACCUMULATED (angular velocity * dt), not `elapsedTime *
