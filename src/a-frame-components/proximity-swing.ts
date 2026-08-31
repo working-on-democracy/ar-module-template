@@ -26,7 +26,7 @@ declare const AFRAME: any;
 //      measurement (camera to this object's own fixed grid position, NOT
 //      screen coverage, and NOT this object's currently-animated position
 //      — author's correction, 31.08.2026): 0 at zBobFar (20cm), full at
-//      zBobNear (6cm).
+//      zBobNear (4cm).
 //   3. Idle float (all three local axes) — gated by the SAME
 //      `proximityFactor` as the swing, same linear ramp: fully STILL at
 //      proximityCoverageFar (0 at/below it, no motion at all, not just
@@ -165,8 +165,8 @@ export default {
     // Own, SEPARATE per-object 3D distance band (metres, camera to this
     // object's own fixed grid position — s. file header) the vertical bob
     // ramps over. At/beyond zBobFar (20cm) -> no bob. At/within zBobNear
-    // (6cm) -> full bob.
-    zBobNear: { type: "number", default: 0.06 },
+    // (4cm) -> full bob.
+    zBobNear: { type: "number", default: 0.04 }, // 4cm, lowered from 6cm, author's recalibration 31.08.2026
     zBobFar: { type: "number", default: 0.2 },
 
     // Idle float amplitude (local units), gated by proximityFactor (s.
@@ -297,7 +297,7 @@ export default {
 
     // --- Vertical bob: own, SEPARATE per-object 3D distance (not screen coverage) ---
     const objDist = self.cameraPos.distanceTo(self.zBobAnchorPos);
-    const zBobFactor = rampFactor(objDist, data.zBobFar, data.zBobNear); // 0 at >=20cm, 1 at <=6cm
+    const zBobFactor = rampFactor(objDist, data.zBobFar, data.zBobNear); // 0 at >=20cm, 1 at <=4cm
     self.zBobAngle += ZBOB_SPEED * zBobFactor * dt;
     const zbob = data.zBobHeight * zBobFactor * Math.sin(self.zBobAngle + self.zBobPhase);
 

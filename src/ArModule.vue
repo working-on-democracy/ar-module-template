@@ -224,22 +224,25 @@ const randomFieldAttr = computed(
 // proximity-swing's own screen-coverage measurement (s.
 // proximity-swing.ts's targetCoverage()) — half of the SAME footprint
 // width the ground plane below is actually sized to, so the measurement
-// matches the real printed target exactly. zBobHeight is a multiple of the
-// prop's own radius rather than the component's small fixed default — the
-// fixed default read as imperceptible on device (author's report,
-// 31.08.2026); scaling with the prop's own size keeps the bob clearly
-// visible (about 2x the prop's own diameter at its peak) regardless of how
-// big/small the target image ends up being. proximityCoverageNear/Far,
-// zBobNear/Far, idleGroundRadius/idleHeightRadius and the two colours stay
-// on the component's own schema defaults — no GUI/scene-specific override
-// needed for those (targetSelector's own default, #ground, already matches
-// the ground plane's id below).
+// matches the real printed target exactly. zBobHeight is a fixed fraction
+// of the field's own MAXIMUM possible edge length (FOOTPRINT_MIN_SIDE, s.
+// its own comment above — not the prop's radius, and not the CURRENT,
+// live-changing areaSide) — author's correction, 31.08.2026: unlike
+// swingRadius (which genuinely has to shrink with density/grid spacing to
+// keep neighbouring props from overlapping), the vertical bob has no
+// overlap risk to guard against, so tying its size to density/field-size
+// at all was pointless coupling; a fixed physical-scale reference is the
+// right basis instead. proximityCoverageNear/Far, zBobNear/Far,
+// idleGroundRadius/idleHeightRadius and the two colours stay on the
+// component's own schema defaults — no GUI/scene-specific override needed
+// for those (targetSelector's own default, #ground, already matches the
+// ground plane's id below).
 const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOTPRINT_RADIUS));
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
-const zBobHeight = computed(() => PROP_FOOTPRINT_RADIUS * 4);
+const zBobHeight = FOOTPRINT_MIN_SIDE / 8;
 const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
-        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; zBobHeight: ${zBobHeight.value.toFixed(4)}; ` +
+        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; zBobHeight: ${zBobHeight.toFixed(4)}; ` +
         `frozen: ${tutorialInputLocked.value}`
 );
 
