@@ -109,8 +109,9 @@ onUnmounted(() => {
 // swipe/proximity, wie schon in zufallsverteilung-lod: Roughness auf
 // vertikalen Swipe, Metalness auf horizontalen Swipe (global, alle sechs
 // Kugeln gemeinsam, s. attachSwipeDrag unten). Opacity ist PRO Kugel an
-// deren eigenen Kameraabstand gekoppelt (proximity-opacity.ts, 6cm/15cm-
-// Schwelle) statt an einen globalen Regler. Unlit entfällt ganz — alle
+// deren eigenen Kameraabstand gekoppelt (proximity-opacity.ts, Schwelle
+// selbst wieder relativ zu FOOTPRINT_MIN_SIDE, s. OPACITY_FADE_FAR/NEAR
+// unten) statt an einen globalen Regler. Unlit entfällt ganz — alle
 // sechs Kugeln reagieren jetzt auf Licht. Die drei Dither-Typen liegen
 // nicht mehr auf drei benachbarten Kugeln, sondern alternierend über die
 // Größenstaffelung verteilt (größte ohne Dither, zweitgrößte gedithert,
@@ -180,11 +181,19 @@ const RING_RADIUS = FOOTPRINT_MIN_SIDE / 2 - SPHERE_R_MAX;
 const LABEL_GAP = FOOTPRINT_DEPTH * 0.03; // clearance above each sphere's own top
 const COLOR_INNER = '#FFF44F'; // lemon yellow — smallest sphere
 const COLOR_OUTER = '#FF69B4'; // hot pink — largest sphere
-// Compresses the vertical climb between successive spheres (device
-// testing, 31.08.2026: the helix reached too high) — the largest sphere's
-// own ground contact (its centre = its own radius) is untouched, only the
-// climb PER STEP shrinks, to 2/3 of the plain tangent-stack value.
-const HELIX_HEIGHT_SCALE = 2 / 3;
+// Total helix height (ground to the TOP of the smallest sphere) is capped
+// as a fraction of FOOTPRINT_MIN_SIDE — the same maximum square edge
+// length RING_RADIUS/SPHERE_R_MAX already fill horizontally (device
+// testing, 31.08.2026: a plain tangent stack of all six radii reaches
+// roughly 1.8x FOOTPRINT_MIN_SIDE, even a 2/3 compression of that only
+// got to ~1.3x — tall enough that the camera ends up INSIDE the sphere
+// volume at normal viewing distance; a `side: double` sphere enclosing
+// the camera doesn't render its own surface at all, which read as
+// "everything's transparent"/"we're standing in the middle of the
+// scene"). Author's explicit ceiling: never taller than ONE full
+// FOOTPRINT_MIN_SIDE edge length — kept well under that (half) for a low,
+// ground-hugging composition ("viel näher am Boden").
+const HELIX_TOTAL_HEIGHT_FRACTION = 0.5;
 // Continuous rotation of the whole helix around its own vertical axis
 // (31.08.2026) — a positive Z delta on the OUTER real-world pivot below
 // reads as counter-clockwise from the viewer's usual downward-looking
@@ -196,13 +205,32 @@ function sphereRadius(step: number): number {
   return SPHERE_R_MIN + (SPHERE_R_MAX - SPHERE_R_MIN) * (step / STEP_COUNT);
 }
 
+// A plain tangent stack of N spheres spans exactly 2x the sum of their
+// radii (each pair's centre-to-centre gap is r_i+r_(i+1); telescoping the
+// chain leaves only the bottom-most and top-most sphere's own radius plus
+// twice every radius in between). HELIX_CLIMB_SCALE below derives the
+// fraction of that plain (uncompressed) climb needed so the compressed
+// total exactly hits HELIX_TOTAL_HEIGHT_FRACTION * FOOTPRINT_MIN_SIDE,
+// while the bottom sphere (f) keeps touching the ground and the top
+// sphere (a) keeps its own full rendered radius — only the CLIMB between
+// them is what gets compressed, same mechanism as before, just aimed at
+// an explicit height budget instead of a flat, hard-to-predict ratio.
+const RADIUS_SUM = Array.from({ length: STEP_COUNT + 1 }, (_, step) => sphereRadius(step)).reduce((a, b) => a + b, 0);
+const HELIX_CLIMB_SCALE = (() => {
+  const rTop = sphereRadius(0);
+  const rBottom = sphereRadius(STEP_COUNT);
+  const targetTotalHeight = HELIX_TOTAL_HEIGHT_FRACTION * FOOTPRINT_MIN_SIDE;
+  const plainGapSum = 2 * RADIUS_SUM - rTop - rBottom; // uncompressed sum of all 5 tangent gaps
+  return Math.max(0, (targetTotalHeight - rBottom - rTop) / plainGapSum);
+})();
+
 // Height centres, tangent-stacked from the ground up (s. comment above),
-// with each step's climb compressed by HELIX_HEIGHT_SCALE.
+// with each step's climb compressed by HELIX_CLIMB_SCALE.
 const SPHERE_HEIGHT: number[] = (() => {
   const heights = new Array(STEP_COUNT + 1);
   heights[STEP_COUNT] = sphereRadius(STEP_COUNT); // largest: bottom at 0, centre = own radius
   for (let step = STEP_COUNT - 1; step >= 0; step--) {
-    heights[step] = heights[step + 1] + (sphereRadius(step + 1) + sphereRadius(step)) * HELIX_HEIGHT_SCALE;
+    heights[step] = heights[step + 1] + (sphereRadius(step + 1) + sphereRadius(step)) * HELIX_CLIMB_SCALE;
   }
   return heights;
 })();
@@ -261,6 +289,17 @@ const DITHER_TYPE_BY_STEP: Partial<Record<number, string>> = {
 };
 function ditherTypeOf(step: number): string | undefined {
   return DITHER_TYPE_BY_STEP[step];
+}
+
+// Per-sphere opacity fade (proximity-opacity.ts) is also expressed relative
+// to FOOTPRINT_MIN_SIDE rather than a fixed cm value (31.08.2026, same
+// reasoning as the helix height budget above — "auch die Abstands-
+// berechnung kann sich an der Kantenlänge orientieren"): fully transparent
+// at one full edge length away, fully opaque within a tenth of that.
+const OPACITY_FADE_FAR = FOOTPRINT_MIN_SIDE;
+const OPACITY_FADE_NEAR = FOOTPRINT_MIN_SIDE * 0.1;
+function proximityOpacityAttr(targetComponent: string): string {
+  return `targetComponent: ${targetComponent}; near: ${OPACITY_FADE_NEAR.toFixed(4)}; far: ${OPACITY_FADE_FAR.toFixed(4)}`;
 }
 
 // Two point lights orbiting the whole scene at different speed/direction/
@@ -403,7 +442,7 @@ onUnmounted(() => {
                 :material="itemMaterial(0)"
                 :dither-material="ditherAttr('interleaved-gradient')"
                 :render-order="renderOrderOf('a')"
-                proximity-opacity="targetComponent: dither-material"
+                :proximity-opacity="proximityOpacityAttr('dither-material')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('a') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(0)"></a-entity>
@@ -416,7 +455,7 @@ onUnmounted(() => {
                 :material="itemMaterial(1)"
                 :material-properties="materialPropsAttr"
                 :render-order="renderOrderOf('b')"
-                proximity-opacity="targetComponent: material-properties"
+                :proximity-opacity="proximityOpacityAttr('material-properties')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('b') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(1)"></a-entity>
@@ -429,7 +468,7 @@ onUnmounted(() => {
                 :material="itemMaterial(2)"
                 :dither-material="ditherAttr('noise')"
                 :render-order="renderOrderOf('c')"
-                proximity-opacity="targetComponent: dither-material"
+                :proximity-opacity="proximityOpacityAttr('dither-material')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('c') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(2)"></a-entity>
@@ -442,7 +481,7 @@ onUnmounted(() => {
                 :material="itemMaterial(3)"
                 :material-properties="materialPropsAttr"
                 :render-order="renderOrderOf('d')"
-                proximity-opacity="targetComponent: material-properties"
+                :proximity-opacity="proximityOpacityAttr('material-properties')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('d') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(3)"></a-entity>
@@ -455,7 +494,7 @@ onUnmounted(() => {
                 :material="itemMaterial(4)"
                 :dither-material="ditherAttr('bayer')"
                 :render-order="renderOrderOf('e')"
-                proximity-opacity="targetComponent: dither-material"
+                :proximity-opacity="proximityOpacityAttr('dither-material')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('e') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(4)"></a-entity>
@@ -468,7 +507,7 @@ onUnmounted(() => {
                 :material="itemMaterial(5)"
                 :material-properties="materialPropsAttr"
                 :render-order="renderOrderOf('f')"
-                proximity-opacity="targetComponent: material-properties"
+                :proximity-opacity="proximityOpacityAttr('material-properties')"
                 shadow>
             </a-entity>
             <a-entity :text="'value: ' + renderOrderOf('f') + '; align: center; color: #ffffff; width: 1.6'" :position="labelPosition(5)"></a-entity>

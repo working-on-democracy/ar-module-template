@@ -27,12 +27,12 @@ export default {
   schema: {
     // Which sibling component's `opacity` field to drive.
     targetComponent: { type: "string", default: "material-properties" },
-    // 6cm / 15cm — the threshold already established for AN ALLE!
-    // proximity ramps elsewhere (s. zufallsverteilung-lod.md's
-    // proximity-motion zBobNear/zBobFar history). Near = fully opaque,
-    // far = fully transparent.
-    near: { type: "number", default: 0.06 },
-    far: { type: "number", default: 0.15 }
+    // Near = fully opaque, far = fully transparent. Plain fallbacks here —
+    // callers with a meaningful size reference (e.g. a footprint edge
+    // length) should pass their own near/far explicitly rather than rely
+    // on these.
+    near: { type: "number", default: 0.02 },
+    far: { type: "number", default: 0.10 }
   },
 
   init() {
