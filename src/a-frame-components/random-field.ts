@@ -1,4 +1,5 @@
 import type { ComponentDefinition } from "aframe";
+import { seededRandom } from "./seeded-random";
 
 // Scatters clones of one or more referenced entities across a rectangular
 // area, using Poisson-disk (Bridson) sampling so both a minimum AND maximum
@@ -28,23 +29,59 @@ import type { ComponentDefinition } from "aframe";
 // doesn't ALSO render at wherever you happened to author it — only the
 // placed clones are shown.
 //
-// Placement is a FIXED-WIDTH strip on the ground (XZ plane): `areaWidth` is
-// centred on this entity's own origin so it extends equally left/right.
-// There's deliberately no depth setting — depth grows automatically away
-// from the viewer (into -Z) to fit however many clones there are, so
-// min/maxDistance always hold exactly regardless of `copies`.
+// Placement is a FIXED-WIDTH strip on the ground (XZ plane) by default:
+// `areaWidth` is centred on this entity's own origin so it extends equally
+// left/right. With no `areaDepth` set (0, the default), depth grows
+// automatically away from the viewer (into -Z) to fit however many clones
+// there are, so min/maxDistance always hold exactly regardless of `copies`.
+//
+// Setting `areaDepth` > 0 switches to a BOUNDED `areaWidth`×`areaDepth`
+// rectangle instead, centred on this entity's own origin in both X and Z
+// (s. AN ALLE! projects/an-alle/concepts/zufallsverteilung-lod.md,
+// "Verteilungsmodell — Version 2" — needed there so the field's footprint
+// stays within a printed image target's own bounds instead of growing
+// indefinitely). The bounded rectangle uses a DIFFERENT placement
+// algorithm than the unbounded strip: a jittered grid instead of
+// Poisson-disk (s. the same file, "Platzierungsalgorithmus — Version 3",
+// 31.08.2026 — Poisson-disk left visible gaps/uneven coverage across a
+// fixed footprint), controlled by `randomness`/`boundingBoxRadius` below
+// instead of `minDistance`/`maxDistance` (those two stay unbounded-only).
 interface Point {
   x: number;
   z: number;
+  // Only set by gridPositions() (bounded mode) — the point's own row*cols+col
+  // grid index, exposed on each clone as a `data-grid-index` attribute so a
+  // consumer (e.g. proximity-swing.ts) can derive its OWN stable per-node
+  // seed the same way, without re-implementing grid math itself.
+  index?: number;
 }
+
+// s. resolveItemsAndPlace()'s own doc comment — 10 frames is ~160ms at
+// 60fps, comfortably past a single reactive-render batch on a slow device
+// without risking a long-lived retry loop if `items` is just a genuine typo.
+const ITEMS_RESOLVE_MAX_RETRIES = 10;
 
 export default {
   schema: {
     // Entities to clone into the field — a CSS selector list, e.g.
     // "#propA, #propB". Each is cloned `copies` times and hidden once cloned.
-    items: { type: "selectorAll" },
+    // A plain string, not A-Frame's `selectorAll` schema type (bugfix,
+    // 31.08.2026) — that type resolves ONCE, synchronously, at schema-parse
+    // time, with no retry if the referenced entities aren't connected to
+    // the document YET even though they're correctly authored earlier in
+    // markup (confirmed on a real host/Vue-driven scene: sibling entities
+    // inserted in the same reactive-render batch aren't reliably
+    // queryable on this component's very first init() there, even though
+    // the exact same markup order works fine on every SUBSEQUENT
+    // recreation of this entity — a plain string lets init() retry the
+    // query itself instead of trusting a one-shot schema-time lookup).
+    items: { type: "string", default: "" },
 
     areaWidth: { type: "number", default: 20 }, // fixed width along X, centred on origin
+    // 0 (default) = unbounded strip, depth grows in -Z as needed (legacy
+    // behaviour). > 0 = bounded areaWidth × areaDepth rectangle, centred on
+    // origin in both X and Z — see the header comment above.
+    areaDepth: { type: "number", default: 0 },
 
     elevation: { type: "number", default: 0 }, // base Y height of every clone
     elevationVariation: { type: "number", default: 0 }, // ± random offset from `elevation`
@@ -61,9 +98,26 @@ export default {
     tiltMin: { type: "number", default: 0 },
     tiltMax: { type: "number", default: 0 },
 
-    // Spacing between any two clones (both honoured exactly).
+    // Spacing between any two clones (both honoured exactly). UNBOUNDED
+    // strip only (areaDepth 0) — ignored in bounded mode, see
+    // `randomness`/`boundingBoxRadius` below for that case instead.
     minDistance: { type: "number", default: 2.5 },
     maxDistance: { type: "number", default: 6 },
+
+    // BOUNDED rectangle only (areaDepth > 0). 0 (default) = exact regular
+    // grid, no jitter. 1 = every point at its full random offset. Values in
+    // between linearly interpolate each point between its grid position and
+    // that same random offset, so moving this alone (e.g. a live GUI
+    // slider) eases toward/away from one fixed randomised layout rather
+    // than re-rolling it.
+    randomness: { type: "number", default: 0 },
+
+    // BOUNDED rectangle only (areaDepth > 0). Each clone's own ground-plane
+    // radius — shrinks the random-offset radius by exactly this much, so
+    // two neighbouring clones' bounding circles can touch but never overlap
+    // even at randomness: 1. 0 (default) = offset radius is the full half
+    // grid-spacing.
+    boundingBoxRadius: { type: "number", default: 0 },
 
     // How many copies of EACH referenced entity (uniform across all of them).
     copies: { type: "int", default: 1 },
@@ -81,13 +135,51 @@ export default {
 
   init() {
     const self = this as any;
-    const data = self.data;
+    self.resolveItemsAndPlace(0);
+  },
 
-    const items: any[] = Array.from(data.items ?? []);
+  /**
+   * Resolves `items` (a plain selector-list string, s. the schema comment
+   * above) via a manual `querySelectorAll`, retrying up to
+   * ITEMS_RESOLVE_MAX_RETRIES times (one `requestAnimationFrame` apart)
+   * before giving up — rather than a one-shot A-Frame `selectorAll` schema
+   * lookup that can't recover if the referenced entities weren't
+   * connected to the document yet on this component's very first frame.
+   *
+   * Scoped to `this.el.parentNode`, NOT the whole scene (bugfix,
+   * 31.08.2026) — `items` is always authored as a sibling of this entity
+   * inside the same wrapper (s. RANDOM-FIELD-FEATURE-GUIDE.md), so its
+   * parent already contains everything `items` could legitimately match.
+   * Querying the whole scene instead let a brief, real overlap during a
+   * key-driven remount (the OLD wrapper not fully torn down yet while the
+   * NEW one is already querying) match the OLD, about-to-be-removed
+   * source too — doubling the placement queue for one frame and producing
+   * a visible one-off "half-empty final row" glitch on an otherwise
+   * complete grid. A DIFFERENT wrapper's same-id source can never satisfy
+   * a parent-scoped query, so this closes the gap outright rather than
+   * just narrowing the race window.
+   */
+  resolveItemsAndPlace(attempt: number) {
+    const self = this as any;
+    const data = self.data;
+    const scope = self.el.parentNode;
+    const items: any[] = data.items && scope ? Array.from(scope.querySelectorAll(data.items)) : [];
+
     if (!items.length) {
-      console.warn("[random-field] `items` resolved to nothing; nothing placed");
+      if (attempt < ITEMS_RESOLVE_MAX_RETRIES) {
+        requestAnimationFrame(() => self.resolveItemsAndPlace(attempt + 1));
+        return;
+      }
+      console.warn(`[random-field] \`items\` ("${data.items}") resolved to nothing after retrying; nothing placed`);
       return;
     }
+
+    self.placeItems(items);
+  },
+
+  placeItems(items: any[]) {
+    const self = this as any;
+    const data = self.data;
 
     const copies = Math.max(1, data.copies);
     // The full placement list: every referenced item repeated `copies`
@@ -108,6 +200,14 @@ export default {
         z: self.randomTilt()
       };
       const clone = self.cloneItem(queue[i], placement[i], y, rot);
+      // Bounded/grid mode only (s. the Point interface above) — exposes
+      // this clone's own stable grid index as a plain DOM attribute so a
+      // consumer component (e.g. proximity-swing.ts) can derive its own
+      // seeded-random value from it, independent of this component's
+      // internals.
+      if (typeof placement[i].index === "number") {
+        clone.setAttribute("data-grid-index", String(placement[i].index));
+      }
       self.el.appendChild(clone);
     }
 
@@ -209,18 +309,18 @@ export default {
   },
 
   /**
-   * Poisson-disk (Bridson) sample `n` points in a FIXED-WIDTH strip. Width is
-   * bounded and centred on the origin (x ∈ [-width/2, width/2]); depth is
-   * unbounded and grows away from the viewer (z ≤ 0), starting at z = 0
-   * right in front of them. Each new point is dropped into an annulus
-   * [minDistance, maxDistance] around an existing one and rejected if it
-   * lands closer than minDistance to any neighbour, so both spacing bounds
-   * hold exactly. Because depth is free there is always room ahead, so all
-   * `n` points get placed however many there are — the field just grows
-   * deeper.
+   * Dispatches to whichever placement algorithm matches the current mode
+   * (s. the file header comment): the BOUNDED `width`×`areaDepth`
+   * rectangle (`areaDepth` > 0) uses a jittered grid (`gridPositions`); the
+   * legacy UNBOUNDED strip (`areaDepth` 0, width bounded and centred on the
+   * origin, depth unbounded and growing away from the viewer into -Z) uses
+   * Poisson-disk (Bridson) sampling.
    */
   samplePositions(n: number, width: number): Point[] {
     const self = this as any;
+    const depth = Math.max(0, self.data.areaDepth);
+    if (depth > 0) return self.gridPositions(n, width, depth);
+
     const halfW = width / 2;
     const minDist = Math.max(0, self.data.minDistance);
     const maxDist = Math.max(minDist, self.data.maxDistance);
@@ -249,7 +349,8 @@ export default {
         const angle = Math.random() * Math.PI * 2;
         const rad = minDist + Math.random() * (maxDist - minDist);
         const c: Point = { x: p.x + Math.cos(angle) * rad, z: p.z + Math.sin(angle) * rad };
-        if (c.x < -halfW || c.x > halfW || c.z > 0) continue; // stay in the strip, in front of the viewer
+        if (c.x < -halfW || c.x > halfW) continue; // stay within the width
+        if (c.z > 0) continue; // stay in front of the viewer, depth unbounded
         if (minDist > 0 && nearestDistSq(c, samples) < minDistSq) continue;
         placed = c;
         break;
@@ -262,9 +363,9 @@ export default {
       }
     }
 
-    // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
-    // keep placing straight back from the deepest point at maxDistance spacing.
     if (samples.length < n) {
+      // Safety net: if the frontier ever stalls before `n` (e.g. width < minDistance),
+      // keep placing straight back from the deepest point at maxDistance spacing.
       let z = 0;
       for (const p of samples) if (p.z < z) z = p.z;
       const step = Math.max(maxDist, minDist, 0.0001);
@@ -274,8 +375,7 @@ export default {
       }
     }
 
-    // Centre the strip on X so it extends equally to the viewer's left and right
-    // (the near edge is already at z = 0 by construction).
+    // Centre on X so the field extends equally left/right.
     let minX = Infinity;
     let maxX = -Infinity;
     for (const p of samples) {
@@ -286,6 +386,73 @@ export default {
     for (const p of samples) p.x -= xMid;
 
     return samples;
+  },
+
+  /**
+   * Jittered-grid sample of `n` points inside a BOUNDED `width`×`depth`
+   * rectangle centred on the origin (s. the file header comment and AN
+   * ALLE! zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3").
+   * Lays out a REGULAR LATTICE — nodes spaced `dx`/`dz` apart spanning the
+   * FULL width/depth edge to edge, not cell centres — sized so
+   * `cols × rows` covers at least `n` nodes (excess trailing nodes, if any,
+   * are simply not used). Spanning edge to edge (rather than insetting by
+   * half a cell) matters at the low end: a 2×2 lattice (the smallest
+   * non-trivial grid) puts its four nodes exactly in the rectangle's four
+   * corners, not in the middle of four quadrants.
+   *
+   * Each node then gets ONE fixed random offset, sampled uniformly over a
+   * disk of radius `spacing/2 − boundingBoxRadius` (`spacing` = the
+   * tighter of `dx`/`dz`) — chosen so that even if two lattice NEIGHBOURS
+   * both jitter maximally toward each other, the worst-case gap between
+   * their centres is exactly `2 × boundingBoxRadius`, i.e. their bounding
+   * circles touch but never overlap. `randomness` (0–1) linearly
+   * interpolates each node between its exact lattice position (0) and that
+   * same fixed offset (1). Each offset is drawn from `seededRandom` (a
+   * DETERMINISTIC hash, not `Math.random()`) keyed only by the node's own
+   * grid index — so for a given `cols`×`rows` the offset is always the
+   * SAME, however many times this runs. This is what makes `randomness` a
+   * genuinely smooth interpolation rather than a reshuffle: this component
+   * only ever places once in `init()` (s. RANDOM-FIELD-FEATURE-GUIDE.md),
+   * so a caller reacting to a live `randomness` slider has to fully
+   * re-run this component (e.g. ArModule.vue's Vue `:key` remount
+   * trick) — without a deterministic seed, THAT re-run would draw fresh
+   * `Math.random()` offsets and the field would visibly reshuffle on every
+   * slider tick instead of easing smoothly toward/away from one fixed
+   * randomised layout. Corner/edge nodes get the same offset radius as
+   * interior ones, so they CAN spill slightly outside `width`×`depth` at
+   * high `randomness` — accepted, not clamped (s. the Version 3 decision).
+   */
+  gridPositions(n: number, width: number, depth: number): Point[] {
+    const self = this as any;
+    if (n <= 0 || width <= 0 || depth <= 0) return [];
+
+    const cols = Math.max(1, Math.ceil(Math.sqrt((n * width) / depth)));
+    const rows = Math.max(1, Math.ceil(n / cols));
+    const dx = cols > 1 ? width / (cols - 1) : 0;
+    const dz = rows > 1 ? depth / (rows - 1) : 0;
+    const spacing = cols > 1 && rows > 1 ? Math.min(dx, dz) : cols > 1 ? dx : rows > 1 ? dz : Math.min(width, depth);
+
+    const boundingBoxRadius = Math.max(0, self.data.boundingBoxRadius);
+    const jitterRadius = Math.max(0, spacing / 2 - boundingBoxRadius);
+    const randomness = Math.min(1, Math.max(0, self.data.randomness));
+
+    const points: Point[] = [];
+    for (let r = 0; r < rows && points.length < n; r++) {
+      for (let c = 0; c < cols && points.length < n; c++) {
+        const nodeIndex = r * cols + c;
+        let x = cols > 1 ? -width / 2 + c * dx : 0;
+        let z = rows > 1 ? -depth / 2 + r * dz : 0;
+        if (jitterRadius > 0 && randomness > 0) {
+          const angle = seededRandom(nodeIndex * 2) * Math.PI * 2;
+          const rad = jitterRadius * Math.sqrt(seededRandom(nodeIndex * 2 + 1)); // uniform over the disk's AREA
+          x += randomness * Math.cos(angle) * rad;
+          z += randomness * Math.sin(angle) * rad;
+        }
+        points.push({ x, z, index: nodeIndex });
+      }
+    }
+
+    return points;
   },
 
   /**

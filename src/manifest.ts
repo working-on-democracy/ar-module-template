@@ -33,6 +33,7 @@ import soundButton from "./a-frame-components/sound-button";
 import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
+import proximityMotion from "./a-frame-components/proximity-motion";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
@@ -91,6 +92,16 @@ export const manifest: Manifest = {
     // Camera-proximity cutout sphere — see proximity-cutout.ts and
     // examples/proximity-cutout-usage.html.
     "proximity-cutout": proximityCutout,
+    // Swipe + proximity as a GUI-free control model (AN ALLE! Zwischen-
+    // Basis decision, 31.08.2026, s. archive-of-practice
+    // projects/an-alle/concepts/zwischen-basis.md): radial swing + vertical
+    // height + idle float + one-time radial colour gradient, all gated by
+    // camera proximity (screen coverage for swing/idle, real 3D distance
+    // for height) — see proximity-motion.ts and screen-coverage.ts (the
+    // shared coverage-measurement helper it's built on, alongside
+    // proximity-fade-shared.ts's rampFactor and seeded-random.ts).
+    // Generalized from zufallsverteilung-lod's own proximity-swing.ts.
+    "proximity-motion": proximityMotion,
     // Glass "mirror shard" field — see mirror-shard.ts and
     // examples/mirror-shard-usage.html. Its optional inner illustration
     // layer samples liquid-texture, a separate generic effect (not
