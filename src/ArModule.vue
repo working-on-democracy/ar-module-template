@@ -2,9 +2,8 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
-import GuiPanel from './GuiPanel.vue';
+import { attachSwipeDrag } from './swipe-drag';
 import InfoOverlay from './InfoOverlay.vue';
-import type { GuiControl } from './gui-controls';
 
 interface ArModuleData {
   id: string;
@@ -108,7 +107,7 @@ onUnmounted(() => {
 //
 // Footprint convention (s. sound-player's own ArModule.vue and
 // guides/IMAGE-TRACKING-FEATURE-GUIDE.md) — the tracked image is the
-// scene's ground plane. `random-field`/`proximity-rise` (like
+// scene's ground plane. `random-field`/`proximity-swing` (like
 // `wander-in-band`) assume the older three.js/A-Frame default (X/Z ground,
 // Y height) rather than the convention's X/Y ground, Z height, so the
 // field/prop group below sits inside ONE compensating `rotation: 90 0 0`
@@ -122,20 +121,15 @@ const FOOTPRINT_DEPTH = 1; // the engine always normalizes the target's local Y 
 const FOOTPRINT_WIDTH = targetProps ? targetProps.width / targetProps.height : 0.75; // local X extent, from the target's own aspect ratio
 const FOOTPRINT_MIN_SIDE = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH);
 
-// Every prop dimension below is the old room-scale value (tuned for a 6m
-// reference field) times PROP_SCALE — a direct proportional shrink to the
-// image target's own much smaller physical size, preserving every ratio
-// (stem width:height, bud radius, billboard size) exactly.
+// The prop is now a single sphere (LOD/billboard removed 31.08.2026 — added
+// little to this scene and was hard to demonstrate) — its radius is the old
+// room-scale bud radius (tuned for a 6m reference field) times PROP_SCALE, a
+// direct proportional shrink to the image target's own much smaller
+// physical size.
 const PROP_SCALE = FOOTPRINT_MIN_SIDE / 6;
-const PROP_STEM_WIDTH = 0.08 * PROP_SCALE;
-const PROP_STEM_HEIGHT = 0.5 * PROP_SCALE;
-const PROP_BUD_RADIUS = 0.14 * PROP_SCALE;
-const PROP_BILLBOARD_WIDTH = 0.28 * PROP_SCALE;
-const PROP_BILLBOARD_HEIGHT = 0.7 * PROP_SCALE;
-// Ground-plane radius of a placed prop (== PROP_BILLBOARD_WIDTH / 2, both
-// tuned to the same footprint) — random-field's `boundingBoxRadius`
-// attribute below, and the spacing-at-max-density calc, both need this.
-const PROP_FOOTPRINT_RADIUS = PROP_BUD_RADIUS;
+// Ground-plane radius of a placed prop — the density/spacing calc below and
+// proximity-swing's own colour/motion attributes both need this.
+const PROP_FOOTPRINT_RADIUS = 0.14 * PROP_SCALE;
 // Grid nodes per side, hard-capped regardless of density (rendering
 // budget — the jittered-grid algorithm itself is cheap regardless of `n`,
 // unlike the old Poisson-disk's per-point candidate search). 14 → 196
@@ -146,26 +140,10 @@ const PROP_FOOTPRINT_RADIUS = PROP_BUD_RADIUS;
 // silently loosening the spacing at 49 as it used to).
 const MAX_GRID_NODES_PER_SIDE = 14;
 
-// riseStart/riseEnd are real camera-to-target distances (like
-// proximity-fade/-cutout elsewhere in this template) — rescaled to the
-// target's own small physical size, not the prop's linear scale.
-// riseHeight is a spatial rise amount, scaled with the props themselves.
-const RISE_START = FOOTPRINT_DEPTH * 3;
-const RISE_END = FOOTPRINT_DEPTH * 1.2;
-const RISE_HEIGHT = PROP_STEM_HEIGHT * 0.8;
-const riseAttr = `riseStart: ${RISE_START.toFixed(3)}; riseEnd: ${RISE_END.toFixed(3)}; riseHeight: ${RISE_HEIGHT.toFixed(4)}`;
-
 const fieldSizePercent = ref(70); // 20–100, % of FOOTPRINT_MIN_SIDE
 const DENSITY_MIN = 10;
 const DENSITY_MAX = 90;
 const density = ref(40); // 10–90 — s. gridSpacing below for what the extremes now guarantee
-const randomness = ref(0.4); // 0–1, random-field's `randomness` (Version 3, 31.08.2026)
-// LOD near/far are also real camera-to-target distances — rescaled the
-// same way as riseStart/riseEnd above (was 4/7m, tuned for a 6m room-scale
-// field; the required camera-to-target closeness for stable image tracking
-// makes these much smaller values likely, s. zufallsverteilung-lod.md).
-const lodNear = ref(FOOTPRINT_DEPTH * 1.5);
-const lodFar = ref(FOOTPRINT_DEPTH * 3);
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
@@ -173,19 +151,19 @@ const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 1
 // footprint-area ratio (archive-of-practice projects/an-alle/concepts/
 // zufallsverteilung-lod.md, "Platzierungsalgorithmus — Version 3",
 // 31.08.2026 — the old ratio saturated the copy-count cap well before the
-// slider's high end, so most of its range did nothing visible). Highest
+// density range's high end, so most of it did nothing visible). Highest
 // density (DENSITY_MAX) → spacing = one prop diameter PLUS a small margin
 // (props close but not exactly touching — exact touching would zero out
-// random-field's jitter radius, making the `randomness` slider invisible
+// proximity-swing's swingRadius below, making its swing motion invisible
 // right when density is highest; author's call, 31.08.2026); lowest
 // density (DENSITY_MIN) → spacing = the full field side, i.e. a 2×2
 // lattice with exactly one prop in each of the field's four corners.
 // Linear interpolation between those two spacings by where `density` sits
 // in [DENSITY_MIN, DENSITY_MAX].
-// random-field's jitter radius = spacing/2 - PROP_FOOTPRINT_RADIUS (s.
-// random-field.ts's gridPositions) — so spacing = 2R keeps NO jitter room
-// at all. This fraction of R is added on top so DENSITY_MAX still leaves
-// that much jitter radius (e.g. 0.3 → 0.3 × R of visible wiggle room).
+// proximity-swing's swingRadius = spacing/2 - PROP_FOOTPRINT_RADIUS (s.
+// its own computed below) — so spacing = 2R keeps NO swing room at all.
+// This fraction of R is added on top so DENSITY_MAX still leaves that much
+// swing radius (e.g. 0.3 → 0.3 × R of visible wiggle room).
 const MAX_DENSITY_JITTER_FRACTION = 0.3;
 const gridSpacing = computed(() => {
   const t = (density.value - DENSITY_MIN) / (DENSITY_MAX - DENSITY_MIN);
@@ -196,8 +174,8 @@ const gridSpacing = computed(() => {
 
 // Grid nodes per side implied by that spacing (>= 2 so the low-density
 // four-corner case always holds), capped at MAX_GRID_NODES_PER_SIDE — above
-// the cap, actual spacing ends up looser than the density slider alone
-// would imply rather than exceeding the rendering budget.
+// the cap, actual spacing ends up looser than `density` alone would imply
+// rather than exceeding the rendering budget.
 const gridNodesPerSide = computed(() =>
   Math.min(MAX_GRID_NODES_PER_SIDE, Math.max(2, Math.round(areaSide.value / gridSpacing.value) + 1))
 );
@@ -205,77 +183,74 @@ const targetCopies = computed(() => gridNodesPerSide.value * gridNodesPerSide.va
 
 const randomFieldAttr = computed(
   () => `items: #prop; areaWidth: ${areaSide.value.toFixed(3)}; areaDepth: ${areaSide.value.toFixed(3)}; ` +
-        `randomness: ${randomness.value.toFixed(3)}; boundingBoxRadius: ${PROP_FOOTPRINT_RADIUS.toFixed(4)}; ` +
         `copies: ${targetCopies.value}`
 );
-const lodObjectAttr = computed(() => `nearDistance: ${lodNear.value.toFixed(3)}; farDistance: ${lodFar.value.toFixed(3)}`);
+
+// proximity-swing (archive-of-practice projects/an-alle/concepts/
+// zufallsverteilung-lod.md, "Proximity-Swing" decision, 31.08.2026) —
+// replaces both the old randomness-driven static jitter (random-field no
+// longer bakes any offset, see randomFieldAttr above) and proximity-rise.
+// swingRadius mirrors the same "grid spacing / 2 - own radius" calc that
+// random-field's own jitter radius used to do internally, just computed
+// here and driven live instead of baked into a placed position.
+// colorMaxDist is the field's own half-diagonal, so the radial colour
+// gradient always spans exactly from this field's centre to its actual
+// edge regardless of current field size. swingNear/Far, zBobHeight/Near/
+// Far, idleRadius and the two colours stay on the component's own schema
+// defaults — no GUI/scene-specific override needed for those.
+const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOTPRINT_RADIUS));
+const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
+const proximitySwingAttr = computed(
+  () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}`
+);
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
 const lightConfig = `type: directional; intensity: 1; target: #lightTarget; castShadow: true; shadowMapHeight: 2048; shadowMapWidth: 2048; shadowCameraTop: ${FOOTPRINT_DEPTH}; shadowCameraBottom: ${-FOOTPRINT_DEPTH}; shadowCameraRight: ${FOOTPRINT_DEPTH}; shadowCameraLeft: ${-FOOTPRINT_DEPTH}; shadowRadius: 4`;
 const groundMaterial = 'color: #3b82f6; opacity: 0.35; side: double';
 
 // random-field places its clones once in init() (a one-shot procedural
-// generation, not a per-frame effect) and lod-object likewise only reads
-// nearDistance/farDistance in its own init() — neither component defines an
-// update() handler, so changing their DOM attribute reactively (the pattern
-// proximity-effekte/animationssystem-wanderer use for their own, genuinely
-// per-tick components) would update the GUI's displayed number without
-// touching the actual scene. A Vue `:key` tied to every GUI-affecting value
-// forces a full unmount/remount of the field on any change instead — the
-// standard Vue technique for "re-run a one-shot child from scratch" — so
-// adjusting a slider genuinely re-scatters the field with the new
-// parameters (arguably the point of this Themenfeld's demo, too).
-const fieldKey = computed(
-  () => `${fieldSizePercent.value}-${density.value}-${randomness.value}-${lodNear.value}-${lodFar.value}`
-);
+// generation, not a per-frame effect) — it defines no update() handler, so
+// changing its DOM attribute reactively (the pattern proximity-effekte/
+// animationssystem-wanderer use for their own, genuinely per-tick
+// components) would update density/fieldSizePercent without touching the
+// actual scene. A Vue `:key` tied to both forces a full unmount/remount of
+// the field on any change instead — the standard Vue technique for
+// "re-run a one-shot child from scratch" — so a swipe gesture genuinely
+// re-scatters the field with the new parameters. proximity-swing itself
+// needs no remount even though it also reacts to swingRadius/colorMaxDist —
+// those only change together with density/fieldSizePercent anyway, so the
+// remount this key already triggers re-initializes it with fresh values.
+const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}`);
 
-const guiControls = computed<GuiControl[]>(() => [
-  {
-    type: 'slider',
-    id: 'field-size',
-    label: 'Feldgröße',
-    min: 20,
-    max: 100,
-    step: 5,
-    value: fieldSizePercent.value,
-    unit: '%',
-    onInput: (value) => { fieldSizePercent.value = value; }
-  },
-  {
-    type: 'slider',
-    id: 'density',
-    label: 'Dichte',
-    min: DENSITY_MIN,
-    max: DENSITY_MAX,
-    step: 5,
-    value: density.value,
-    unit: '%',
-    onInput: (value) => { density.value = value; }
-  },
-  {
-    type: 'slider',
-    id: 'randomness',
-    label: 'Zufall',
-    min: 0,
-    max: 100,
-    step: 5,
-    value: Math.round(randomness.value * 100),
-    unit: '%',
-    onInput: (value) => { randomness.value = value / 100; }
-  },
-  {
-    type: 'range-slider',
-    id: 'lod-distance',
-    label: 'LOD-Umschaltdistanz',
-    min: Math.round(FOOTPRINT_DEPTH * 0.5 * 1000) / 1000,
-    max: Math.round(FOOTPRINT_DEPTH * 4 * 1000) / 1000,
-    step: Math.round(FOOTPRINT_DEPTH * 0.1 * 1000) / 1000,
-    valueLow: lodNear.value,
-    valueHigh: lodFar.value,
-    unit: 'm',
-    onInput: (low, high) => { lodNear.value = low; lodFar.value = high; }
-  }
-]);
+// Swipe-driven density/field-size (archive-of-practice projects/an-alle/
+// concepts/zufallsverteilung-lod.md, "Swipe statt Regler" decision,
+// 31.08.2026) — replaces the GUI sliders above with a relative/incremental
+// screen drag (see swipe-drag.ts for why relative, not absolute-position,
+// mapping): horizontal = density, vertical = field size, up/right = more.
+// SWIPE_PX_FOR_FULL_RANGE is deliberately much shorter than a full screen
+// drag — short enough for several comfortable partial drags to cover the
+// whole range, so nothing is ever pinned to a screen edge the way the old
+// sliders were pinned to their track ends.
+const SWIPE_PX_FOR_FULL_RANGE = 250;
+const DENSITY_PER_PX = (DENSITY_MAX - DENSITY_MIN) / SWIPE_PX_FOR_FULL_RANGE;
+const FIELD_SIZE_PER_PX = (100 - 20) / SWIPE_PX_FOR_FULL_RANGE;
+let detachSwipeDrag: (() => void) | null = null;
+
+onMounted(() => {
+  detachSwipeDrag = attachSwipeDrag(
+    (dx) => {
+      density.value = Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, density.value + dx * DENSITY_PER_PX));
+    },
+    (dy) => {
+      // Screen Y grows downward, so swiping UP (negative dy) should grow the field.
+      fieldSizePercent.value = Math.min(100, Math.max(20, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
+    }
+  );
+});
+
+onUnmounted(() => {
+  detachSwipeDrag?.();
+});
 </script>
 
 <template>
@@ -310,57 +285,30 @@ const guiControls = computed<GuiControl[]>(() => [
       <a-light type="ambient" intensity="0.7"></a-light>
 
       <!-- Zufallsverteilung & LOD (archive-of-practice
-           projects/an-alle/concepts/zufallsverteilung-lod.md) — structure
-           and attribute conventions ported from
-           examples/random-field-lod-billboard-proximity-wave-scene.html
-           (lod-manager wrapper, .lod-mesh-group/.lod-mesh/.lod-billboard
-           classes, per-part render-order). No custom detail-model/billboard
-           texture from the author yet (Entscheidung 2), so — same reasoning
-           as that reference example — this uses plain primitives as a
-           stand-in: a "sprout" (stem + bud) for the detail mesh, a
-           matching-coloured plane for the billboard. Swap for a real
-           gltf-model once the author's assets exist; nothing else about
-           the structure changes. `:key="fieldKey"` forces a full field
-           regeneration when a GUI slider changes (s. Skript-Kommentar).
-           `rotation="90 0 0"` is the compensating rotation from the script
-           block above — random-field/proximity-rise's native X/Z-ground,
-           Y-height authoring maps onto the real footprint's X/Y-ground,
-           Z-height outside this wrapper. -->
-      <a-entity lod-manager="chunksPerCycle: 6" rotation="90 0 0" :key="fieldKey">
+           projects/an-alle/concepts/zufallsverteilung-lod.md) — LOD/
+           billboard removed 31.08.2026 (added little to this scene, hard
+           to demonstrate); prop is now a single sphere, coloured once per
+           clone by [proximity-swing] itself (radial gradient, s.
+           proximity-swing.ts), not authored here. `:key="fieldKey"` forces
+           a full field regeneration on a swipe-driven density/field-size
+           change (s. Skript-Kommentar). `rotation="90 0 0"` is the
+           compensating rotation from the script block above — random-
+           field/proximity-swing's native X/Z-ground, Y-height authoring
+           maps onto the real footprint's X/Y-ground, Z-height outside this
+           wrapper. -->
+      <a-entity rotation="90 0 0" :key="fieldKey">
 
-        <!-- Prop template — hidden by random-field once cloned. Rises on
-             approach via [proximity-rise] (own Entscheidung 1, fixed
-             parameters, not a GUI target, rescaled to the footprint's own
-             size — s. Skript); LOD-swaps to the billboard via [lod-object]
-             (nearDistance/farDistance GUI-bound). Both components live on
-             this same entity and get cloned onto every placed copy along
-             with it (s. proximity-rise.ts). -->
-        <a-entity id="prop" :lod-object="lodObjectAttr" :proximity-rise="riseAttr">
-          <a-entity class="lod-mesh-group">
-            <a-entity
-                class="lod-mesh"
-                :geometry="`primitive: box; width: ${PROP_STEM_WIDTH}; height: ${PROP_STEM_HEIGHT}; depth: ${PROP_STEM_WIDTH}`"
-                material="color: #6b4a2f"
-                :position="`0 ${PROP_STEM_HEIGHT / 2} 0`"
-                render-order="1">
-            </a-entity>
-            <a-entity
-                class="lod-mesh"
-                :geometry="`primitive: sphere; radius: ${PROP_BUD_RADIUS}`"
-                material="color: #e8c34a"
-                :position="`0 ${PROP_STEM_HEIGHT + PROP_BUD_RADIUS * 0.4} 0`"
-                render-order="2">
-            </a-entity>
-          </a-entity>
-          <a-entity
-              class="lod-billboard"
-              :geometry="`primitive: plane; width: ${PROP_BILLBOARD_WIDTH}; height: ${PROP_BILLBOARD_HEIGHT}`"
-              material="color: #b89a3a; side: double"
-              :position="`0 ${PROP_BILLBOARD_HEIGHT / 2} 0`"
-              render-order="3"
-              billboard
-              unlit-material="brightness: 0.4">
-          </a-entity>
+        <!-- Prop template — hidden by random-field once cloned. All motion
+             (radial swing/vertical bob/idle float) and its own colour come
+             from [proximity-swing] (own Entscheidung, 31.08.2026,
+             replacing proximity-rise + random-field's old randomness-baked
+             jitter — s. Skript-Kommentar and proximity-swing.ts), cloned
+             onto every placed copy along with it. -->
+        <a-entity
+            id="prop"
+            :geometry="`primitive: sphere; radius: ${PROP_FOOTPRINT_RADIUS}`"
+            material="color: #ffffff"
+            :proximity-swing="proximitySwingAttr">
         </a-entity>
 
         <a-entity :random-field="randomFieldAttr"></a-entity>
@@ -402,15 +350,13 @@ const guiControls = computed<GuiControl[]>(() => [
     </svg>
   </div>
 
-  <!-- AN ALLE! Zwischen-Basis: shared GUI baustein (archive-of-practice
-       projects/an-alle/concepts/zwischen-basis.md) — each Themenfeld branch
-       replaces `guiControls` above with its own attribute wiring, GuiPanel.vue
-       itself is not meant to be forked. -->
-  <GuiPanel :controls="guiControls" />
+  <!-- No GuiPanel in this scene (removed 31.08.2026) — density/field size
+       are swipe-driven (s. Skript-Kommentar, swipe-drag.ts), not GUI
+       sliders. -->
 
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
        branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Ein Feld zufällig verteilter Pflänzchen: aus der Ferne nur flache Bildchen (Billboards), aus der Nähe echte 3D-Modelle — und sie wachsen sichtbar, je näher du kommst. Die Regler unten steuern Feldbreite, Abstand, Anzahl und die Umschaltdistanz." />
+  <InfoOverlay text="Ein Feld zufällig verteilter Kugeln: Wische horizontal, um die Dichte zu ändern, vertikal für die Feldgröße. Kommst du mit der Kamera nah heran (ab ca. 60 cm), beginnen die Kugeln um ihre Position zu schwingen und leicht zu hüpfen." />
 </template>

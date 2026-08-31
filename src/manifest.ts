@@ -34,6 +34,7 @@ import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
 import proximityRise from "./a-frame-components/proximity-rise";
+import proximitySwing from "./a-frame-components/proximity-swing";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
@@ -99,6 +100,14 @@ export const manifest: Manifest = {
     // material.opacity: objects rise monotonically as the camera
     // approaches. Not a feature_template backport candidate at this time.
     "proximity-rise": proximityRise,
+    // AN ALLE!-specific (archive-of-practice
+    // projects/an-alle/concepts/zufallsverteilung-lod.md, "Proximity-Swing"
+    // decision, 31.08.2026) — replaces this scene's use of proximity-rise
+    // above with a closer-range (20-60cm) swing/bob/idle-float/colour
+    // motion; reuses proximity-fade-shared.ts's rampFactor the same way
+    // proximity-rise does. Not a feature_template backport candidate at
+    // this time (same status as proximity-rise).
+    "proximity-swing": proximitySwing,
     // Glass "mirror shard" field — see mirror-shard.ts and
     // examples/mirror-shard-usage.html. Its optional inner illustration
     // layer samples liquid-texture, a separate generic effect (not
