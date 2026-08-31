@@ -61,7 +61,7 @@ three combined into one scene.
 
 | Attribute | Type | Default | Meaning |
 |---|---|---|---|
-| `items` | selectorAll | — | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
+| `items` | string | `""` | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
 | `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. |
 | `areaDepth` | number | `0` | `0` (default) = unbounded — depth grows automatically away from the viewer to fit however many copies there are, `minDistance`/`maxDistance` always honoured exactly (Poisson-disk). `> 0` = bounded `areaWidth`×`areaDepth` rectangle, centred on this entity's own origin in both X and Z — uses a jittered grid instead (`randomness`/`boundingBoxRadius` below, `minDistance`/`maxDistance` ignored in this mode). |
 | `elevation` | number | `0` | Base Y height of every clone. |
@@ -228,12 +228,21 @@ distance settings if that's visible.
 
 ### No `items` resolved
 
-If `items` doesn't resolve to anything (typo in the selector, or referenced
-entities not yet in the DOM when this component initializes — `selectorAll`
-is resolved once, synchronously, at `init()`, not lazily), this logs one
-console warning (`[random-field] items resolved to nothing; nothing
-placed`) and the field stays empty. Author your `items` entities *before*
-the field entity in markup to guarantee they're already in the DOM.
+If `items` still doesn't resolve to anything (typo in the selector — the
+usual cause), this logs one console warning (`` [random-field] `items`
+("...") resolved to nothing after retrying; nothing placed ``) and the
+field stays empty. Referenced entities not yet in the DOM is no longer a
+failure mode on its own: `items` is a plain selector-list string (not
+A-Frame's `selectorAll` schema type), resolved via a manual
+`querySelectorAll` that retries up to 10 animation frames (~160ms) apart
+before giving up — found necessary on a real host/Vue-driven scene where
+sibling entities inserted in the same reactive-render batch weren't
+reliably queryable on this component's very first `init()`, even with
+`items` entities correctly authored earlier in markup (s.
+archive-of-practice `projects/an-alle/concepts/zufallsverteilung-lod.md`,
+31.08.2026). Still author your `items` entities *before* the field entity
+in markup — that's what makes them resolvable at all once connected, the
+retry only covers the timing gap until they are.
 
 ### No interaction found with any other feature on this branch
 

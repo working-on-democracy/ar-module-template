@@ -142,10 +142,14 @@ const MAX_GRID_NODES_PER_SIDE = 14;
 
 const FIELD_SIZE_MIN = 20;
 const FIELD_SIZE_MAX = 100;
-const fieldSizePercent = ref((FIELD_SIZE_MIN + FIELD_SIZE_MAX) / 2); // % of FOOTPRINT_MIN_SIDE, starts centred (31.08.2026)
+// Raised above the mathematical midpoint (author's call, 31.08.2026 — the
+// midpoint didn't read as visually "medium", the density/field-size scales
+// aren't linear-aesthetic) — % of FOOTPRINT_MIN_SIDE.
+const fieldSizePercent = ref(75);
 const DENSITY_MIN = 10;
 const DENSITY_MAX = 90;
-const density = ref((DENSITY_MIN + DENSITY_MAX) / 2); // s. gridSpacing below for what the extremes now guarantee; starts centred (31.08.2026)
+// Same reasoning as fieldSizePercent above — s. gridSpacing below for what the extremes guarantee.
+const density = ref(65);
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
@@ -206,16 +210,22 @@ const randomFieldAttr = computed(
 // proximity-swing's own screen-coverage measurement (s.
 // proximity-swing.ts's targetCoverage()) — half of the SAME footprint
 // width the ground plane below is actually sized to, so the measurement
-// matches the real printed target exactly. proximityCoverageNear/Far,
-// zBobHeight/Near/Far, idleGroundRadius/idleHeightRadius and the two
-// colours stay on the component's own schema defaults — no GUI/scene-
-// specific override needed for those (targetSelector's own default, #ground, already matches the
-// ground plane's id below).
+// matches the real printed target exactly. zBobHeight is a multiple of the
+// prop's own radius rather than the component's small fixed default — the
+// fixed default read as imperceptible on device (author's report,
+// 31.08.2026); scaling with the prop's own size keeps the bob clearly
+// visible (about 2x the prop's own diameter at its peak) regardless of how
+// big/small the target image ends up being. proximityCoverageNear/Far,
+// zBobNear/Far, idleGroundRadius/idleHeightRadius and the two colours stay
+// on the component's own schema defaults — no GUI/scene-specific override
+// needed for those (targetSelector's own default, #ground, already matches
+// the ground plane's id below).
 const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOTPRINT_RADIUS));
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
+const zBobHeight = computed(() => PROP_FOOTPRINT_RADIUS * 4);
 const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
-        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}`
+        `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; zBobHeight: ${zBobHeight.value.toFixed(4)}`
 );
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;

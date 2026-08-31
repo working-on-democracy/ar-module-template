@@ -56,11 +56,26 @@ interface Point {
   index?: number;
 }
 
+// s. resolveItemsAndPlace()'s own doc comment — 10 frames is ~160ms at
+// 60fps, comfortably past a single reactive-render batch on a slow device
+// without risking a long-lived retry loop if `items` is just a genuine typo.
+const ITEMS_RESOLVE_MAX_RETRIES = 10;
+
 export default {
   schema: {
     // Entities to clone into the field — a CSS selector list, e.g.
     // "#propA, #propB". Each is cloned `copies` times and hidden once cloned.
-    items: { type: "selectorAll" },
+    // A plain string, not A-Frame's `selectorAll` schema type (bugfix,
+    // 31.08.2026) — that type resolves ONCE, synchronously, at schema-parse
+    // time, with no retry if the referenced entities aren't connected to
+    // the document YET even though they're correctly authored earlier in
+    // markup (confirmed on a real host/Vue-driven scene: sibling entities
+    // inserted in the same reactive-render batch aren't reliably
+    // queryable on this component's very first init() there, even though
+    // the exact same markup order works fine on every SUBSEQUENT
+    // recreation of this entity — a plain string lets init() retry the
+    // query itself instead of trusting a one-shot schema-time lookup).
+    items: { type: "string", default: "" },
 
     areaWidth: { type: "number", default: 20 }, // fixed width along X, centred on origin
     // 0 (default) = unbounded strip, depth grows in -Z as needed (legacy
@@ -120,13 +135,37 @@ export default {
 
   init() {
     const self = this as any;
-    const data = self.data;
+    self.resolveItemsAndPlace(0);
+  },
 
-    const items: any[] = Array.from(data.items ?? []);
+  /**
+   * Resolves `items` (a plain selector-list string, s. the schema comment
+   * above) via a manual `querySelectorAll`, retrying up to
+   * ITEMS_RESOLVE_MAX_RETRIES times (one `requestAnimationFrame` apart)
+   * before giving up — rather than a one-shot A-Frame `selectorAll` schema
+   * lookup that can't recover if the referenced entities weren't
+   * connected to the document yet on this component's very first frame.
+   */
+  resolveItemsAndPlace(attempt: number) {
+    const self = this as any;
+    const data = self.data;
+    const items: any[] = data.items ? Array.from(self.el.sceneEl.querySelectorAll(data.items)) : [];
+
     if (!items.length) {
-      console.warn("[random-field] `items` resolved to nothing; nothing placed");
+      if (attempt < ITEMS_RESOLVE_MAX_RETRIES) {
+        requestAnimationFrame(() => self.resolveItemsAndPlace(attempt + 1));
+        return;
+      }
+      console.warn(`[random-field] \`items\` ("${data.items}") resolved to nothing after retrying; nothing placed`);
       return;
     }
+
+    self.placeItems(items);
+  },
+
+  placeItems(items: any[]) {
+    const self = this as any;
+    const data = self.data;
 
     const copies = Math.max(1, data.copies);
     // The full placement list: every referenced item repeated `copies`
