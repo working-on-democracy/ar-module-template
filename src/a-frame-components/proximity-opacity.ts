@@ -27,10 +27,11 @@ export default {
   schema: {
     // Which sibling component's `opacity` field to drive.
     targetComponent: { type: "string", default: "material-properties" },
-    // Near = fully opaque, far = fully transparent. Plain fallbacks here —
-    // callers with a meaningful size reference (e.g. a footprint edge
-    // length) should pass their own near/far explicitly rather than rely
-    // on these.
+    // Near = fully transparent, far = fully opaque (device testing,
+    // 31.08.2026: the opposite of a typical fade-in-on-approach). Plain
+    // fallbacks here — callers with a meaningful size reference (e.g. a
+    // footprint edge length) should pass their own near/far explicitly
+    // rather than rely on these.
     near: { type: "number", default: 0.02 },
     far: { type: "number", default: 0.10 }
   },
@@ -48,7 +49,7 @@ export default {
     camera.getWorldPosition(self.cameraPos);
     self.el.object3D.getWorldPosition(self.objectPos);
     const dist = self.cameraPos.distanceTo(self.objectPos);
-    const opacity = rampFactor(dist, self.data.far, self.data.near);
+    const opacity = rampFactor(dist, self.data.near, self.data.far);
     self.el.setAttribute(self.data.targetComponent, "opacity", opacity);
   }
 } as ComponentDefinition;
