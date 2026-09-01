@@ -52,6 +52,7 @@ import ditherMaterial from "./a-frame-components/dither-material";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
+import reflectionProbe from "./a-frame-components/reflection-probe";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 // AN ALLE! Zwischen-Basis: placeholder target until the real printed image
@@ -171,7 +172,10 @@ export const manifest: Manifest = {
     // Pins a decal plane flat on the ground under its parent's pivot and
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
-    "ground-decal": groundDecal
+    "ground-decal": groundDecal,
+    // Real-time environment reflections for metallic materials via a
+    // shared THREE.CubeCamera — see reflection-probe.ts.
+    "reflection-probe": reflectionProbe
   },
 
   // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one
