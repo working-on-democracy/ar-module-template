@@ -683,12 +683,10 @@ function registerEmissiveMovement(deltaPx: number) {
 // standard value -> 10% -> back (both legs share the same duration as the
 // metalness leg they run alongside, s. runTutorial() below — the author's
 // request, 01.09.2026, was for the two to visibly move together, not
-// roughness sitting still). reflection-probe (s. reflectionEnabled/
-// reflection-probe.ts) is also temporarily forced on for this phase only
-// — high metalness is exactly the state that makes the reflection effect
-// visible, so this phase doubles as its own demonstration — then restored
-// to whatever the visitor's own checkbox already had it at, not just
-// hardcoded back to off.
+// roughness sitting still). No longer also forces reflection-probe on for
+// this phase (removed 01.09.2026, author's correction — Phase 2.5 below
+// already demonstrates the reflection effect on its own terms, so doing
+// it here too was redundant).
 // Phase 2.5 (reflection checkbox, added 01.09.2026, author's request:
 // "einen Tutorial-Abschnitt, der die reflection checkbox erklärt, nach der
 // metalness erklärung"): the checkbox GUI element itself animates up to
@@ -806,17 +804,19 @@ async function runTutorial(myToken: number) {
   await animateValue(roughness, 0, roughnessStart, segmentDuration(0, roughnessStart, 100));
 
   // Phase 2: horizontal swipe -> metalness, roughness co-animating
-  // alongside it (s. Skript-Kommentar oben), reflection-probe forced on for
-  // the duration. Roughness's down-leg no longer restores it back to
-  // roughnessStart here (author's correction, 01.09.2026: "am Ende der
-  // Metallizitäts-Abschnitt muss der Rauheitswert nicht wieder auf
-  // Standardwert hochgezogen werden, das kann am Anfang von Hold
-  // passieren") — it's left at METALNESS_PHASE_ROUGHNESS_LOW, picked up
-  // from exactly there by Phase 2.5 below, and only actually restored once,
-  // at the start of Phase 3.
+  // alongside it (s. Skript-Kommentar oben). No longer also forces
+  // reflection-probe on for the duration (author's correction, 01.09.2026:
+  // "können wir während dem metalness segment uns die aktivierung des
+  // reflektionen häkchens sparen, da es danach ja nochmal demonstriert
+  // wird") — Phase 2.5 below demonstrates the reflection effect on its own
+  // terms already, so doing it here too was redundant. Roughness's
+  // down-leg no longer restores it back to roughnessStart here (author's
+  // earlier correction: "am Ende der Metallizitäts-Abschnitt muss der
+  // Rauheitswert nicht wieder auf Standardwert hochgezogen werden, das
+  // kann am Anfang von Hold passieren") — it's left at
+  // METALNESS_PHASE_ROUGHNESS_LOW, picked up from exactly there by Phase
+  // 2.5 below, and only actually restored once, at the start of Phase 3.
   const METALNESS_PHASE_ROUGHNESS_LOW = 10;
-  const reflectionWasEnabled = reflectionEnabled.value;
-  reflectionEnabled.value = true;
   showTutorialText('Horizontaler Swipe ↔️ = Metallizität');
   const metalnessUpMs = segmentDuration(20, 100, 100);
   await Promise.all([
@@ -825,7 +825,6 @@ async function runTutorial(myToken: number) {
   ]);
   const metalnessDownMs = segmentDuration(100, metalnessStart, 100);
   await animateValue(metalness, 100, metalnessStart, metalnessDownMs);
-  reflectionEnabled.value = reflectionWasEnabled;
 
   // Phase 2.5: reflection checkbox explanation (author's request,
   // 01.09.2026, "nach der metalness erklärung") — a fixed-duration demo
