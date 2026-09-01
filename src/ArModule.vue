@@ -721,6 +721,16 @@ const tutorialLockedIn = ref(false);
 // True until the very first tracking of the whole session — independent
 // of the resettable lead-in state above (this only ever goes false once).
 const awaitingFirstTracking = ref(true);
+// Drives the "Tutorial" header's own visibility (s. tutorialHeaderStyle's
+// template usage below), separate from `tutorialText` itself (author's
+// correction, 01.09.2026: "die Textzeile Tutorial darf niemals ausgeblendet
+// werden während des gesamten Tutorials, außer beim Lead-in") — several
+// phases now briefly clear `tutorialText` to '' (e.g. while the reflection
+// checkbox is physically moving) without that meaning the tutorial itself
+// has paused, so the header can't just share tutorialText's own v-if.
+// True from the moment the lead-in finishes through the whole rest of the
+// tutorial, false again once it actually ends.
+const tutorialPhasesActive = ref(false);
 // The six spheres (and the orbit lights around them) only exist once the
 // lead-in has fully played out (author's request, 01.09.2026: "Kugeln
 // sollten erst vorhanden sein nach Tutorial-Lead-in") — same mechanism as
@@ -780,6 +790,7 @@ async function runTutorial(myToken: number) {
   if (!finishedIntro2) return;
   tutorialLockedIn.value = true;
   sceneContentVisible.value = true;
+  tutorialPhasesActive.value = true;
 
   const roughnessStart = roughness.value;
   const metalnessStart = metalness.value;
@@ -849,7 +860,14 @@ async function runTutorial(myToken: number) {
   // there, OFF again for the move back down (shrinking back to its
   // original size). The explanatory text is only ever shown once the
   // checkbox is stationary at centre, never before or during either move.
+  // "Horizontaler Swipe ↔️ = Metallizität" (still showing from Phase 2)
+  // ends here, at the exact moment the checkbox deactivates before
+  // animating to centre (author's spec, 01.09.2026: "das ist der Moment,
+  // in dem das Reflektionen Häkchen deaktiviert wird, bevor es in die
+  // Mitte animiert wird") — not earlier, and not left showing through the
+  // move itself.
   reflectionEnabled.value = false;
+  tutorialText.value = '';
   await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
   // Extra stillness at centre before/after activating (author's spec,
   // 01.09.2026) — added ON TOP of the move/hold timing above, not carved
@@ -880,6 +898,7 @@ async function runTutorial(myToken: number) {
   await animateValue(emissive, 100, 0, segmentDuration(100, 0, 100));
 
   tutorialText.value = '';
+  tutorialPhasesActive.value = false;
   tutorialInputLocked.value = false;
 }
 
@@ -1215,7 +1234,10 @@ So kannst du mitspielen:
        screen-centred, only rendered while a tutorial phase is showing. -->
   <div v-if="tutorialText" :style="tutorialTextStyle">{{ tutorialText }}</div>
 
-  <!-- "Tutorial" header, same visibility condition as the instruction
-       label above (01.09.2026, author's request). -->
-  <div v-if="tutorialText" :style="tutorialHeaderStyle">Tutorial</div>
+  <!-- "Tutorial" header — deliberately NOT the same v-if as the
+       instruction label above anymore (author's correction, 01.09.2026:
+       it must never disappear across the whole tutorial except during the
+       lead-in, even on the phases that briefly clear tutorialText itself,
+       e.g. while the reflection checkbox is physically moving). -->
+  <div v-if="tutorialPhasesActive" :style="tutorialHeaderStyle">Tutorial</div>
 </template>
