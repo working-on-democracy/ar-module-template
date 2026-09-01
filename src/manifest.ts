@@ -43,11 +43,16 @@ import reflectionProbe from "./a-frame-components/reflection-probe";
 import spin from "./a-frame-components/spin";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
-// AN ALLE! Zwischen-Basis: placeholder target until the real printed image
-// (background structure + emoji + title, per archive-of-practice
-// projects/an-alle/concepts/zwischen-basis.md) is designed and compiled.
-// Every downstream Themenfeld branch swaps this import for its own target.
-import videoTarget from "./image-targets/video-target.json";
+// AN ALLE! final printed image target (archive-of-practice
+// projects/an-alle/concepts/zwischen-basis.md), replacing the placeholder
+// "video-target" used throughout the design/testing phase — same shared
+// target across all three Themenfeld branches (01.09.2026, author's
+// decision). Compiled via `npx @8thwall/image-target-cli@latest`
+// (PLANAR, full-image crop — the interactive CLI only offers a forced
+// 4:3/3:4 default crop, but the underlying compiler itself has no such
+// restriction, so this used a small standalone script calling its
+// `applyCrop` directly with the full square instead).
+import anAlleTarget from "./image-targets/an-alle-target.json";
 
 // Runs as soon as this module is imported — by the local previews AND by the
 // production host, since both must import `manifest` to do anything with this
@@ -83,9 +88,8 @@ export const manifest: Manifest = {
     spin: spin
   },
 
-  // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one
-  // pending asset design.
-  imageTargets: [videoTarget]
+  // AN ALLE! final shared image target (s. o.).
+  imageTargets: [anAlleTarget]
 };
 
 export default manifest;

@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/an-alle-target_luminance.png",
+  "metadata": null,
+  "name": "an-alle-target",
+  "type": "PLANAR",
+  "properties": {
+    "top": 0,
+    "left": 0,
+    "width": 2396,
+    "height": 2396,
+    "isRotated": false,
+    "originalWidth": 2396,
+    "originalHeight": 2396
+  },
+  "resources": {
+    "originalImage": "an-alle-target_original.png",
+    "croppedImage": "an-alle-target_cropped.png",
+    "thumbnailImage": "an-alle-target_thumbnail.png",
+    "luminanceImage": "an-alle-target_luminance.png"
+  },
+  "created": 1788297043079,
+  "updated": 1788297043079
+}
