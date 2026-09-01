@@ -3,7 +3,8 @@ import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
-import { animateValue } from './tween';
+import { animateValue, cancellableFade } from './tween';
+import { TUTORIAL_FONT_FAMILY, ensureTutorialFontLoaded } from './fonts';
 import InfoOverlay from './InfoOverlay.vue';
 
 interface ArModuleData {
@@ -462,7 +463,7 @@ const reflectionToggleStyle = {
   borderRadius: '999px',
   background: 'rgba(0, 0, 0, 0.6)',
   color: '#ffffff',
-  fontFamily: 'sans-serif',
+  fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '14px',
   zIndex: 1000
 } as const;
@@ -543,11 +544,25 @@ let emissiveMoveAccumPx = 0;
 let emissiveSwipeCancelled = false;
 let emissiveRafId: number | null = null;
 let lastEmissiveFrameTime = 0;
+let emissiveHoldWasConfirmed = false;
+// Hold-blocks-swipe mutual exclusion (backported from animationssystem-
+// wanderer's own gold-standard gesture handling, 01.09.2026: "keine
+// versehentlichen swipes bei hold geste") — this branch already had a
+// press-and-hold gesture, but only ever cancelled the EMISSIVE ramp itself
+// on movement past EMISSIVE_SWIPE_CANCEL_PX; roughness/metalness kept
+// updating from that same movement regardless. Once a hold is CONFIRMED
+// (past EMISSIVE_HOLD_DELAY_MS), this sticky flag now also blocks any
+// further roughness/metalness swipe input for the rest of that same touch
+// — releasing and starting a genuinely NEW gesture is required to swipe
+// again, matching wanderer's own pattern exactly.
+let swipeSuppressedThisSession = false;
 
 function stepEmissive(now: number) {
   const dt = now - lastEmissiveFrameTime;
   lastEmissiveFrameTime = now;
   const holdConfirmed = emissiveHeld && !emissiveSwipeCancelled && (now - emissiveHoldStartTime) >= EMISSIVE_HOLD_DELAY_MS;
+  if (holdConfirmed && !emissiveHoldWasConfirmed) swipeSuppressedThisSession = true;
+  emissiveHoldWasConfirmed = holdConfirmed;
   const target = holdConfirmed ? 100 : 0;
   const delta = EMISSIVE_RAMP_RATE * dt;
   if (emissive.value < target) emissive.value = Math.min(target, emissive.value + delta);
@@ -618,6 +633,34 @@ const tutorialInputLocked = ref(true);
 const tutorialText = ref('');
 const imageTargetEl = ref<HTMLElement | null>(null);
 const GROUND_INTRO_SEGMENT_MS = 1500; // x2 = 3s lead-in, same spec as zufallsverteilung-lod's own tutorial
+
+// Resettable tutorial lead-in (archive-of-practice projects/an-alle/
+// concepts/zwischen-basis.md, backported from animationssystem-wanderer,
+// 01.09.2026, same mechanism now also on zufallsverteilung-lod): if the
+// FIRST successful tracking is lost again within the ~3s ground-plane
+// lead-in, the tutorial resets so the NEXT tracking starts it fresh from
+// the beginning; once the lead-in has fully played out, `tutorialLockedIn`
+// flips true and tracking loss no longer resets anything.
+let tutorialRunToken = 0;
+const tutorialLockedIn = ref(false);
+// True until the very first tracking of the whole session — independent
+// of the resettable lead-in state above (this only ever goes false once).
+const awaitingFirstTracking = ref(true);
+
+const trackingHintStyle = {
+  position: 'fixed' as const,
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  padding: '3vw 5vw',
+  background: 'rgba(0, 0, 0, 0.5)',
+  color: '#ffffff',
+  fontFamily: TUTORIAL_FONT_FAMILY,
+  fontSize: '4.5vw',
+  textAlign: 'center' as const,
+  zIndex: 1000,
+  pointerEvents: 'none' as const
+} as const;
 const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.09.2026, author's request)
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
@@ -632,9 +675,13 @@ function showTutorialText(text: string) {
   animateValue(tutorialTextSlideOffset, -TEXT_SLIDE_DISTANCE_PX, 0, TEXT_SLIDE_MS);
 }
 
-async function runTutorial() {
-  await animateValue(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS);
-  await animateValue(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS);
+async function runTutorial(myToken: number) {
+  const cancelled = () => tutorialRunToken !== myToken;
+  const finishedIntro1 = await cancellableFade(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS, cancelled);
+  if (!finishedIntro1) return;
+  const finishedIntro2 = await cancellableFade(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS, cancelled);
+  if (!finishedIntro2) return;
+  tutorialLockedIn.value = true;
 
   const roughnessStart = roughness.value;
   const metalnessStart = metalness.value;
@@ -677,6 +724,24 @@ async function runTutorial() {
   tutorialInputLocked.value = false;
 }
 
+function onTutorialTrackingFound() {
+  awaitingFirstTracking.value = false;
+  if (tutorialLockedIn.value) return; // already played through once — never resets again
+  tutorialRunToken += 1;
+  const myToken = tutorialRunToken;
+  groundOpacity.value = 0;
+  tutorialInputLocked.value = true;
+  runTutorial(myToken);
+}
+
+function onTutorialTrackingLost() {
+  if (tutorialLockedIn.value) return; // locked in — tracking loss no longer resets anything
+  tutorialRunToken += 1; // invalidates any in-flight runTutorial() via cancelled()
+  groundOpacity.value = 0;
+  tutorialText.value = '';
+  tutorialInputLocked.value = true;
+}
+
 const tutorialTextStyle = computed(() => ({
   position: 'fixed' as const,
   bottom: '25%',
@@ -686,7 +751,7 @@ const tutorialTextStyle = computed(() => ({
   padding: '2vw 3vw',
   background: 'rgba(0, 0, 0, 0.5)',
   color: '#ffffff',
-  fontFamily: 'sans-serif',
+  fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '4vw',
   textAlign: 'center' as const,
   zIndex: '1000',
@@ -708,7 +773,7 @@ const tutorialHeaderStyle = {
   padding: '2vw 3vw',
   background: 'rgba(0, 0, 0, 0.5)',
   color: '#ffffff',
-  fontFamily: 'sans-serif',
+  fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '4vw',
   textAlign: 'center' as const,
   zIndex: 1000,
@@ -716,21 +781,24 @@ const tutorialHeaderStyle = {
 } as const;
 
 onMounted(() => {
+  ensureTutorialFontLoaded();
   detachSwipeDrag = attachSwipeDrag(
     (dx) => {
-      if (tutorialInputLocked.value) return;
+      if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       metalness.value = clamp(metalness.value + dx * SWIPE_SENSITIVITY, 0, 100);
       registerEmissiveMovement(dx);
     },
     // -dy: swiping UP (negative screen dy) increases roughness, matching
     // zufallsverteilung-lod's "nach oben = mehr" convention.
     (dy) => {
-      if (tutorialInputLocked.value) return;
+      if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       roughness.value = clamp(roughness.value - dy * SWIPE_SENSITIVITY, 0, 100);
       registerEmissiveMovement(dy);
     },
     () => {
       if (tutorialInputLocked.value) return;
+      swipeSuppressedThisSession = false; // fresh gesture — reset the sticky block from any earlier hold
+      emissiveHoldWasConfirmed = false;
       emissiveMoveAccumPx = 0;
       emissiveSwipeCancelled = false;
       emissiveHeld = true;
@@ -743,12 +811,14 @@ onMounted(() => {
       ensureEmissiveRamping();
     }
   );
-  imageTargetEl.value?.addEventListener('xrextrasfound', runTutorial, { once: true });
+  imageTargetEl.value?.addEventListener('xrextrasfound', onTutorialTrackingFound);
+  imageTargetEl.value?.addEventListener('xrextraslost', onTutorialTrackingLost);
 });
 
 onUnmounted(() => {
   detachSwipeDrag?.();
-  imageTargetEl.value?.removeEventListener('xrextrasfound', runTutorial);
+  imageTargetEl.value?.removeEventListener('xrextrasfound', onTutorialTrackingFound);
+  imageTargetEl.value?.removeEventListener('xrextraslost', onTutorialTrackingLost);
   if (emissiveRafId !== null) cancelAnimationFrame(emissiveRafId);
 });
 </script>
@@ -938,10 +1008,22 @@ onUnmounted(() => {
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
-       branch passes its own scene-specific explanation text. Kein GuiPanel
-       mehr ("Bedienfeld weg", 31.08.2026) — Erklärung entsprechend auf
-       Swipe/Proximity umgestellt. -->
-  <InfoOverlay text="Sechs rotierende Kugeln, zwei kamera-abstandsgetriebene Techniken: drei werden komplett durchsichtig, je näher die Kamera kommt, drei öffnen stattdessen ein gedithertes Loch um die Kamera herum. Vertikaler Swipe ändert die Rauheit, horizontaler Swipe die Metallizität (alle Kugeln gemeinsam). Finger gedrückt halten lässt das Leuchten ansteigen, Loslassen lässt es wieder abklingen." />
+       branch passes its own scene-specific explanation text. Rewritten
+       01.09.2026 (Wanderer-Goldstandard): Überschrift, allgemeine
+       Einleitung zur AN ALLE!-Plattform, Szenenbeschreibung, dann eine
+       übersichtliche Emoji-Gestenliste statt Fließtext — für Leute
+       geschrieben, die sich mit der Materie nicht auskennen. -->
+  <InfoOverlay
+      heading="Material- & Shader-Showcase AR Demo"
+      :font-family="TUTORIAL_FONT_FAMILY"
+      text="Dies ist eine Demo für die AR-Funktionen unserer AN ALLE!-Plattform. Sie zeigt beispielhaft, was in einer solchen Anwendung möglich ist: Materialien, die live auf deine Eingaben reagieren, und Oberflächen, die sich je nach Nähe der Kamera anders verhalten.
+
+Sechs bunte Kugeln kreisen übereinander gestaffelt auf dem Bild. Drei von ihnen werden komplett durchsichtig, je näher du mit der Kamera kommst; die anderen drei öffnen stattdessen ein kleines, gemustertes Loch genau an der Stelle, wo die Kamera gerade ist.
+
+So kannst du mitspielen:
+↕️ Hoch/runter wischen: wie rau oder glatt die Kugeln wirken
+↔️ Links/rechts wischen: wie metallisch die Kugeln wirken
+✋ Gedrückt halten: die Kugeln beginnen zu leuchten" />
 
   <!-- Reflection-Toggle (01.09.2026, author's request) — plain screen-space
        checkbox, not an A-Frame component/GuiPanel control (s. Skript-
@@ -951,6 +1033,12 @@ onUnmounted(() => {
     <input type="checkbox" v-model="reflectionEnabled" />
     reflection
   </label>
+
+  <!-- Kamera-Hinweis (backported from animationssystem-wanderer,
+       01.09.2026) — shown until the very first successful tracking of the
+       whole session, independent of the resettable tutorial-lead-in state
+       below. -->
+  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf das Bild richten 🎯</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
