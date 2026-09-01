@@ -35,6 +35,7 @@ import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityCutout from "./a-frame-components/proximity-cutout";
 import proximityRise from "./a-frame-components/proximity-rise";
 import proximitySwing from "./a-frame-components/proximity-swing";
+import proximityMotion from "./a-frame-components/proximity-motion";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
@@ -53,6 +54,8 @@ import ditherMaterial from "./a-frame-components/dither-material";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
+import reflectionProbe from "./a-frame-components/reflection-probe";
+import wanderSound from "./a-frame-components/wander-sound";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 // AN ALLE! Zwischen-Basis: placeholder target until the real printed image
@@ -106,8 +109,23 @@ export const manifest: Manifest = {
     // above with a closer-range (20-60cm) swing/bob/idle-float/colour
     // motion; reuses proximity-fade-shared.ts's rampFactor the same way
     // proximity-rise does. Not a feature_template backport candidate at
-    // this time (same status as proximity-rise).
+    // this time (same status as proximity-rise). This scene's own live
+    // ArModule.vue still uses this directly, not the generalized
+    // proximity-motion below — kept registered alongside it rather than
+    // migrating, since nothing about the 01.09.2026 tutorial/info-panel/
+    // usability pass requires switching the underlying motion component.
     "proximity-swing": proximitySwing,
+    // Swipe + proximity as a GUI-free control model (AN ALLE! Zwischen-
+    // Basis decision, 31.08.2026, s. archive-of-practice
+    // projects/an-alle/concepts/zwischen-basis.md): radial swing + vertical
+    // height + idle float + one-time radial colour gradient, all gated by
+    // camera proximity (screen coverage for swing/idle, real 3D distance
+    // for height) — see proximity-motion.ts and screen-coverage.ts (the
+    // shared coverage-measurement helper it's built on, alongside
+    // proximity-fade-shared.ts's rampFactor and seeded-random.ts).
+    // Generalized from zufallsverteilung-lod's own proximity-swing.ts, but
+    // not (yet) switched over to by this scene itself, s. above.
+    "proximity-motion": proximityMotion,
     // Glass "mirror shard" field — see mirror-shard.ts and
     // examples/mirror-shard-usage.html. Its optional inner illustration
     // layer samples liquid-texture, a separate generic effect (not
@@ -181,7 +199,16 @@ export const manifest: Manifest = {
     // Pins a decal plane flat on the ground under its parent's pivot and
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
-    "ground-decal": groundDecal
+    "ground-decal": groundDecal,
+    // Real-time environment reflections for metallic materials via a
+    // shared THREE.CubeCamera — see reflection-probe.ts (generalized from
+    // material-shader-showcase's own first build of this idea).
+    "reflection-probe": reflectionProbe,
+    // Per-entity tap-to-play/pause sound with a colour/pulse reaction on its
+    // own child segments while playing — see wander-sound.ts (AN ALLE!
+    // Animationssystem Wanderer, not a single-active mutex like
+    // sound-controller.ts: any number of instances may play at once).
+    "wander-sound": wanderSound
   },
 
   // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one

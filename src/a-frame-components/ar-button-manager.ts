@@ -31,10 +31,32 @@ declare const THREE: any;
 // propagation — and (b) didn't move far from where it started, so a camera
 // drag/pinch gesture doesn't also register as a tap.
 const TAP_MOVE_THRESHOLD = 10; // px
+// Screen-space tap resolution's own max distance from a button's projected
+// screen position to the actual tap point, in CSS pixels — generous since
+// AR taps aren't pixel-precise and small/moving targets (e.g. a wandering
+// worm) are easy to slightly miss.
+const SCREEN_SPACE_TAP_RADIUS_PX = 80;
 
 export default {
+  schema: {
+    // "gaze" (default, unchanged): continuous raycast straight out from the
+    // camera's own forward direction, tap activates whichever registered
+    // button is currently nearest along that ray — requires centering the
+    // target in view first. "screen-space" (AN ALLE! Animationssystem
+    // Wanderer, 01.09.2026, Autor-Entscheidung): no centering needed at
+    // all — on tap, projects every registered button's CURRENT world
+    // position to screen space and activates whichever one is closest to
+    // the actual tap point (within SCREEN_SPACE_TAP_RADIUS_PX), like tapping
+    // an icon in a photo. No continuous gaze/pulse in this mode (there's no
+    // single persistent reticle position to highlight against), so tick()
+    // is a no-op — each [ar-button]'s OWN near/far distance-fade still runs
+    // independently either way (see ar-button.ts's own tick()).
+    tapSelection: { type: "string", default: "gaze" }
+  },
+
   init() {
     const self = this as any;
+    self.scratchWorldPos = new THREE.Vector3();
     // A-Frame doesn't guarantee this entity's init() runs before a
     // descendant button's — an [ar-button] child may already have called
     // register() (see below), so don't clobber a targets array it already
@@ -74,6 +96,7 @@ export default {
 
   tick() {
     const self = this as any;
+    if (self.data.tapSelection === "screen-space") return; // no continuous gaze/pulse in this mode, s. schema comment
     const camera = self.el.sceneEl.camera;
     if (!camera) return;
 
@@ -133,6 +156,43 @@ export default {
       if (Math.sqrt(dx * dx + dy * dy) > TAP_MOVE_THRESHOLD) return; // drag/gesture, not a tap
     }
 
+    if (self.data.tapSelection === "screen-space") {
+      const target = self.resolveScreenSpaceTarget(e.clientX, e.clientY);
+      if (target) target.el.emit("ar-button-tap", null, false);
+      return;
+    }
+
     if (self.gazed) self.gazed.el.emit("ar-button-tap", null, false);
+  },
+
+  // Screen-space tap resolution (s. schema comment above): projects every
+  // enabled candidate's CURRENT world position through the active camera,
+  // picks whichever lands closest to the actual tap point in CSS pixels —
+  // no raycasting against a 3D zone at all, so a moving/small target
+  // doesn't need to be centered in view first, only tapped where it
+  // visually is.
+  resolveScreenSpaceTarget(clientX: number, clientY: number): any {
+    const self = this as any;
+    const camera = self.el.sceneEl.camera;
+    const canvas = self.el.sceneEl.canvas;
+    if (!camera || !canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const candidates = self.targets.filter((t: any) => t.isEnabled());
+
+    let closest: any = null;
+    let closestPixelDist = Infinity;
+    for (const target of candidates) {
+      target.el.object3D.getWorldPosition(self.scratchWorldPos);
+      self.scratchWorldPos.project(camera); // -> NDC, [-1, 1] on each axis
+      const screenX = rect.left + ((self.scratchWorldPos.x + 1) / 2) * rect.width;
+      const screenY = rect.top + ((1 - self.scratchWorldPos.y) / 2) * rect.height;
+      const dist = Math.hypot(screenX - clientX, screenY - clientY);
+      if (dist < closestPixelDist) {
+        closestPixelDist = dist;
+        closest = target;
+      }
+    }
+    return closestPixelDist <= SCREEN_SPACE_TAP_RADIUS_PX ? closest : null;
   }
 } as ComponentDefinition;
