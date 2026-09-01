@@ -10,27 +10,44 @@
 //
 // Plain screen-space Vue UI, not an A-Frame component or entity — no gaze/
 // raycast, no 3D placement, just a fixed 2D button toggling a fixed overlay.
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
-defineProps<{ text: string }>();
+// `fontFamily` (optional, 01.09.2026) — an AN ALLE! Themenfeld branch may
+// pass its own project-wide font (see e.g. animationssystem-wanderer's own
+// ArModule.vue, TUTORIAL_FONT_FAMILY) so every visible text/GUI element
+// shares one look; defaults to the original plain system stack so any
+// branch that doesn't pass it keeps its exact previous appearance.
+// `heading` (optional, 01.09.2026) — an AN ALLE! Themenfeld branch may pass
+// a short title shown above `text` (e.g. "Wandernde Soundelemente AR
+// Demo"); omitted entirely (no empty heading space reserved) for any
+// branch that doesn't pass one.
+const props = defineProps<{ text: string; fontFamily?: string; heading?: string }>();
 const open = ref(false);
+const textFontFamily = computed(() => props.fontFamily ?? "sans-serif");
+const iconFontFamily = computed(() => props.fontFamily ?? "serif");
 
-const buttonStyle = {
-  position: "fixed",
+const buttonStyle = computed(() => ({
+  // Top-CENTRED (01.09.2026, Autor-Entscheidung — was top-right) — a
+  // branch-level positioning choice; if this is ever backported to
+  // feature_template as a generic component (s. header comment above),
+  // reconsider whether top-centre should be the new shared default or a
+  // configurable position prop.
+  position: "fixed" as const,
   top: "4%",
-  right: "4%",
+  left: "50%",
+  transform: "translateX(-50%)",
   width: "36px",
   height: "36px",
   borderRadius: "50%",
   border: "none",
   background: "rgba(0, 0, 0, 0.6)",
   color: "#ffffff",
-  fontFamily: "serif",
+  fontFamily: iconFontFamily.value,
   fontStyle: "italic" as const,
   fontSize: "18px",
   cursor: "pointer",
   zIndex: 1000
-} as const;
+}));
 
 const backdropStyle = {
   position: "fixed",
@@ -42,18 +59,32 @@ const backdropStyle = {
   zIndex: 1001
 } as const;
 
-const panelStyle = {
+const panelStyle = computed(() => ({
   maxWidth: "80%",
   padding: "6vw",
   borderRadius: "12px",
   background: "#ffffff",
   color: "#000000",
-  fontFamily: "sans-serif",
+  fontFamily: textFontFamily.value,
   fontSize: "15px",
   lineHeight: "1.4"
-} as const;
+}));
 
-const closeButtonStyle = {
+// pre-line (01.09.2026): lets a caller structure `text` into distinct
+// sections (e.g. gesture controls, then a scene summary) via a literal
+// blank line in the passed string, without needing to change this
+// component's own template into multiple <p> tags.
+const textStyle = { margin: "0", whiteSpace: "pre-line" as const };
+
+const headingStyle = computed(() => ({
+  margin: "0 0 3vw 0",
+  fontFamily: textFontFamily.value,
+  fontSize: "5.5vw",
+  fontWeight: 700 as const,
+  textAlign: "center" as const
+}));
+
+const closeButtonStyle = computed(() => ({
   display: "block",
   marginTop: "4vw",
   marginLeft: "auto",
@@ -62,15 +93,17 @@ const closeButtonStyle = {
   padding: "2vw 4vw",
   background: "#000000",
   color: "#ffffff",
+  fontFamily: textFontFamily.value,
   cursor: "pointer"
-} as const;
+}));
 </script>
 
 <template>
   <button type="button" aria-label="Erklärung anzeigen" :style="buttonStyle" @click="open = true">i</button>
   <div v-if="open" :style="backdropStyle" @click="open = false">
     <div :style="panelStyle" @click.stop>
-      <p style="margin: 0">{{ text }}</p>
+      <h2 v-if="heading" :style="headingStyle">{{ heading }}</h2>
+      <p :style="textStyle">{{ text }}</p>
       <button type="button" :style="closeButtonStyle" @click="open = false">Schließen</button>
     </div>
   </div>

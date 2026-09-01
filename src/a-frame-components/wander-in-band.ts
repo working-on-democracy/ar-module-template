@@ -1,4 +1,5 @@
 import type { ComponentDefinition } from "aframe";
+import { rampFactor } from "./proximity-fade-shared";
 
 // Makes an entity continuously orbit within an annulus ("band") around a
 // center entity — inner/outer radius, slow forward-facing crawl, subtle Y
@@ -60,7 +61,18 @@ const TOLERANCE_FRACTION = 0.4;
 const TOLERANCE_FLOOR_REFERENCE = 0.5; // meters, at REFERENCE_OUTER_RADIUS
 const SEPARATION_RADIUS_REFERENCE = 2; // meters, at REFERENCE_OUTER_RADIUS
 const REFERENCE_OUTER_RADIUS = 7; // this schema's own default outerRadius
-const BOUNDARY_TURN_RATE = 1.5; // gentle — spirals back in rather than snapping
+// AN ALLE! Animationssystem Wanderer (01.09.2026, Autor-Korrektur: "die
+// Wanderer brauchen mehr Erlaubnis... sich mehr um die eigene Achse zu
+// drehen, um besser wieder ihren eigentlichen Pfad erreichen zu können")
+// — previously defined but never actually wired into tick() at all (the
+// heading blend below used the same flat HEADING_SMOOTH_RATE regardless
+// of how far outside the band an entity had drifted, so correcting course
+// was exactly as slow as ordinary wandering — confirmed as the cause of
+// wanderers drifting far outside the band and staying there for a while).
+// Now blended in via boundaryBias (s. step 3/4 below): full HEADING_SMOOTH_RATE
+// while inside tolerance, ramping up to this much faster turn rate the
+// further outside it an entity is.
+const BOUNDARY_TURN_RATE = 4;
 const SEPARATION_TURN_RATE = 3;
 const FLOAT_FREQ = 0.6; // Hz-ish, fixed — floatIntensity controls amplitude only
 
@@ -89,7 +101,31 @@ export default {
     chaos: { type: "number", default: 0.5, min: 0, max: 1 },
     // Degrees added to the computed heading, in case a model's forward axis
     // isn't +Z — try 180 if it appears to walk backwards.
-    yawOffset: { type: "number", default: 0 }
+    yawOffset: { type: "number", default: 0 },
+
+    // Optional camera-proximity speed modulation (AN ALLE! Animationssystem
+    // Wanderer, 01.09.2026, "Proximity: Wanderer-Tempo" — Autor-Entscheidung).
+    // Real 3D world distance from the camera to `center` (NOT screen
+    // coverage — there's no single tracked-image entity guaranteed present
+    // for every consumer of this generic component, unlike proximity-motion.ts).
+    // Both distances default to 0/0, a no-op (multiplier pinned at 1
+    // regardless of speedNear/FarMultiplier) — existing callers (Fanyu_module
+    // etc.) that never set these two keep their exact old behaviour.
+    speedProximityNear: { type: "number", default: 0 },
+    speedProximityFar: { type: "number", default: 0 },
+    // Multiplier applied to `speed` at/within speedProximityNear and at/
+    // beyond speedProximityFar respectively — which is numerically larger
+    // is up to the caller (e.g. >1 near/<1 far reads as "faster as the
+    // camera approaches").
+    speedNearMultiplier: { type: "number", default: 1 },
+    speedFarMultiplier: { type: "number", default: 1 },
+    // Scales the sibling-separation radius (s. tick()'s own step 5) —
+    // default 1 is a no-op (existing callers unaffected). AN ALLE!
+    // Animationssystem Wanderer (01.09.2026, Autor-Entscheidung: "sie
+    // verkeilen sich gerade gerne ineinander") raises this on a branch
+    // whose wanderers are small/densely packed relative to the old
+    // room-scale default this radius was tuned for.
+    separationRadiusMultiplier: { type: "number", default: 1 }
   },
 
   init() {
@@ -175,18 +211,27 @@ export default {
       (data.outerRadius - data.innerRadius) * TOLERANCE_FRACTION,
       TOLERANCE_FLOOR_REFERENCE * boundaryScale
     );
+    // boundaryBias (0 inside tolerance, up to 1 well outside) also drives
+    // step 4's heading turn RATE below, not just the tangent's own target
+    // direction here.
+    let boundaryBias = 0;
     if (dist > data.outerRadius) {
-      const bias = THREE.MathUtils.clamp((dist - data.outerRadius) / tolerance, 0, 1);
-      tangentAngle = lerpAngle(tangentAngle, outwardAngle + Math.PI, bias * 0.8);
+      boundaryBias = THREE.MathUtils.clamp((dist - data.outerRadius) / tolerance, 0, 1);
+      tangentAngle = lerpAngle(tangentAngle, outwardAngle + Math.PI, boundaryBias);
     } else if (dist < data.innerRadius) {
-      const bias = THREE.MathUtils.clamp((data.innerRadius - dist) / tolerance, 0, 1);
-      tangentAngle = lerpAngle(tangentAngle, outwardAngle, bias * 0.8);
+      boundaryBias = THREE.MathUtils.clamp((data.innerRadius - dist) / tolerance, 0, 1);
+      tangentAngle = lerpAngle(tangentAngle, outwardAngle, boundaryBias);
     }
 
     // 4. Chaos deviation layered on top of the tangent, smoothed toward the
-    // combined target heading.
+    // combined target heading — at BOUNDARY_TURN_RATE instead of the calm
+    // HEADING_SMOOTH_RATE once boundaryBias rises (s. step 3 above and
+    // BOUNDARY_TURN_RATE's own comment), so an entity that's drifted
+    // outside the band can actually turn around fast enough to get back,
+    // rather than slowly arcing further out while it catches up.
     const targetHeading = tangentAngle + self.deviation;
-    self.heading = lerpAngle(self.heading, targetHeading, 1 - Math.exp(-HEADING_SMOOTH_RATE * dt));
+    const headingRate = lerp(HEADING_SMOOTH_RATE, BOUNDARY_TURN_RATE, boundaryBias);
+    self.heading = lerpAngle(self.heading, targetHeading, 1 - Math.exp(-headingRate * dt));
 
     // 5. Soft separation from other wandering siblings (avoid overlap).
     if (!self.siblings) {
@@ -199,7 +244,7 @@ export default {
       if (!op) continue;
       const dx = pos.x - op.x, dz = pos.z - op.z;
       const d = Math.hypot(dx, dz);
-      const separationRadius = SEPARATION_RADIUS_REFERENCE * boundaryScale;
+      const separationRadius = SEPARATION_RADIUS_REFERENCE * boundaryScale * data.separationRadiusMultiplier;
       if (d > 0 && d < separationRadius) {
         const w = (separationRadius - d) / separationRadius;
         repelX += (dx / d) * w;
@@ -212,8 +257,38 @@ export default {
       self.heading = lerpAngle(self.heading, awayAngle, Math.min(repelMag, 1) * (1 - Math.exp(-SEPARATION_TURN_RATE * dt)));
     }
 
+    // 5b. Optional camera-proximity speed modulation (s. schema comment
+    // above) — skipped entirely (proximitySpeedMul stays 1) unless the
+    // caller set at least one of the two distances away from its 0 default.
+    // Measured against `center`'s WORLD position the first time this runs,
+    // then frozen (self.speedAnchorWorldPos) — NOT re-read live every
+    // frame. Confirmed as a real bug (device testing, 01.09.2026): `center`
+    // may itself be animated (e.g. bobbing up/down independently of this
+    // component), and re-reading a live, already-moving position back into
+    // this distance measurement fed that motion back into wander speed —
+    // the wanderers visibly sped up purely because the centre floated
+    // higher, nothing to do with the camera at all. Same fix/reasoning as
+    // proximity-motion.ts's own zBobAnchorPos. A caller whose `center`
+    // never moves (the common case) sees no behaviour change at all — the
+    // frozen and live positions are identical.
+    let proximitySpeedMul = 1;
+    if (data.speedProximityNear !== 0 || data.speedProximityFar !== 0) {
+      const camera = self.el.sceneEl.camera;
+      if (camera) {
+        if (!self.cameraPos) self.cameraPos = new THREE.Vector3();
+        if (!self.speedAnchorWorldPos) {
+          self.speedAnchorWorldPos = new THREE.Vector3();
+          centerObj.getWorldPosition(self.speedAnchorWorldPos);
+        }
+        camera.getWorldPosition(self.cameraPos);
+        const camDist = self.cameraPos.distanceTo(self.speedAnchorWorldPos);
+        const proximityFactor = rampFactor(camDist, data.speedProximityNear, data.speedProximityFar);
+        proximitySpeedMul = lerp(data.speedNearMultiplier, data.speedFarMultiplier, proximityFactor);
+      }
+    }
+
     // 6. Advance along the (now-steered) heading.
-    const step = data.speed * self.speedMul * dt;
+    const step = data.speed * self.speedMul * proximitySpeedMul * dt;
     pos.x += Math.sin(self.heading) * step;
     pos.z += Math.cos(self.heading) * step;
 
