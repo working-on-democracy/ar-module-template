@@ -53,6 +53,7 @@ import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
 import reflectionProbe from "./a-frame-components/reflection-probe";
+import wanderSound from "./a-frame-components/wander-sound";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 // AN ALLE! Zwischen-Basis: placeholder target until the real printed image
@@ -180,7 +181,12 @@ export const manifest: Manifest = {
     // Real-time environment reflections for metallic materials via a
     // shared THREE.CubeCamera — see reflection-probe.ts (generalized from
     // material-shader-showcase's own first build of this idea).
-    "reflection-probe": reflectionProbe
+    "reflection-probe": reflectionProbe,
+    // Per-entity tap-to-play/pause sound with a colour/pulse reaction on its
+    // own child segments while playing — see wander-sound.ts (AN ALLE!
+    // Animationssystem Wanderer, not a single-active mutex like
+    // sound-controller.ts: any number of instances may play at once).
+    "wander-sound": wanderSound
   },
 
   // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one
