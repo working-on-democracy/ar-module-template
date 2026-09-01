@@ -61,14 +61,17 @@ three combined into one scene.
 
 | Attribute | Type | Default | Meaning |
 |---|---|---|---|
-| `items` | selectorAll | — | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
-| `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. No depth setting — depth grows automatically away from the viewer to fit however many copies there are. |
+| `items` | string | `""` | Required. A CSS selector list (e.g. `"#propA, #propB"`) naming the entities to clone. Each can be a single mesh or a whole bundle. Every referenced entity is hidden (`visible: false`) once cloning starts. |
+| `areaWidth` | number | `20` | FIXED width (metres, X axis), centred on this entity's own origin. |
+| `areaDepth` | number | `0` | `0` (default) = unbounded — depth grows automatically away from the viewer to fit however many copies there are, `minDistance`/`maxDistance` always honoured exactly (Poisson-disk). `> 0` = bounded `areaWidth`×`areaDepth` rectangle, centred on this entity's own origin in both X and Z — uses a jittered grid instead (`randomness`/`boundingBoxRadius` below, `minDistance`/`maxDistance` ignored in this mode). |
 | `elevation` | number | `0` | Base Y height of every clone. |
 | `elevationVariation` | number | `0` | ± random offset from `elevation`. |
 | `yawMax` | number | `180` | Degrees. Each clone's Y rotation gets a random value in `[-yawMax, +yawMax]` **added** to its source entity's own authored Y rotation. `180` = fully random heading; `0` = no extra spin. |
 | `tiltMin` / `tiltMax` | number | `0` / `0` | Degrees. X and Z each get an independent random tilt magnitude in this range (± direction), added to the source's own authored X/Z rotation. |
-| `minDistance` | number | `2.5` | Hard minimum gap (metres) between any two clones. |
-| `maxDistance` | number | `6` | Max gap to the nearest neighbour — both bounds honoured exactly. |
+| `minDistance` | number | `2.5` | UNBOUNDED mode only (`areaDepth: 0`). Hard minimum gap (metres) between any two clones. |
+| `maxDistance` | number | `6` | UNBOUNDED mode only. Max gap to the nearest neighbour — both bounds honoured exactly. |
+| `randomness` | number | `0` | BOUNDED mode only (`areaDepth` > 0). `0` = exact regular grid, `1` = every point at its full random offset; values between linearly interpolate each point toward that same fixed offset, so moving this alone (e.g. a live GUI slider) eases toward/away from one randomised layout rather than re-rolling it. |
+| `boundingBoxRadius` | number | `0` | BOUNDED mode only. Each clone's own ground-plane radius — shrinks the random-offset radius by exactly this much, so two neighbouring clones' bounding circles can touch but never overlap even at `randomness: 1`. `0` = offset radius is the full half grid-spacing. |
 | `copies` | int | `1` | How many copies of **each** referenced entity (uniform across all of them). |
 | `minCopyDistance` | number | `0` (disabled) | Minimum ground-plane gap between two copies of the *same* referenced entity. Only meaningful when `copies` > 1; degrades gracefully rather than failing if the area's too tight. |
 | `scale` | number | `1` | Uniform multiplier on each clone's *own* authored scale (not a replacement). |
@@ -153,19 +156,47 @@ subtree, not just `geometry`/`material` specifically, so there's nothing
 
 ### Placement algorithm
 
-Bridson's algorithm: seed one point at the front-centre (z = 0, right in
-front of the viewer), then repeatedly pick a random *active* point and try
-up to 30 random candidate points in the annulus `[minDistance, maxDistance]`
-around it, accepting the first one that both stays inside the width strip
-and clears `minDistance` from every existing point. A point that can't
-spawn any more valid neighbours after 30 tries is dropped from the active
-set. Because depth is unbounded (the strip only has a fixed **width**), the
-sampler never runs out of room — however many points are requested
-(`copies × items.length`), the field just grows deeper to fit them at the
-requested spacing. If the whole frontier stalls before reaching the
-requested count (only possible in a degenerate case like `areaWidth`
-narrower than `minDistance`), a safety net keeps placing straight back at
-`maxDistance` spacing rather than silently placing fewer points than asked.
+Two entirely different algorithms depending on `areaDepth`:
+
+**Unbounded strip (`areaDepth: 0`) — Poisson-disk (Bridson).** Seed one
+point at the front-centre (z = 0, right in front of the viewer), then
+repeatedly pick a random *active* point and try up to 30 random candidate
+points in the annulus `[minDistance, maxDistance]` around it, accepting the
+first one that both stays inside the width strip and clears `minDistance`
+from every existing point. A point that can't spawn any more valid
+neighbours after 30 tries is dropped from the active set. Because depth is
+unbounded (the strip only has a fixed **width**), the sampler never runs
+out of room — however many points are requested (`copies × items.length`),
+the field just grows deeper to fit them at the requested spacing. If the
+whole frontier stalls before reaching the requested count (only possible in
+a degenerate case like `areaWidth` narrower than `minDistance`), a safety
+net keeps placing straight back at `maxDistance` spacing rather than
+silently placing fewer points than asked.
+
+**Bounded rectangle (`areaDepth` > 0) — jittered grid.** Poisson-disk left
+visible gaps and uneven coverage once the area stopped growing to fit
+(AN ALLE! `projects/an-alle/concepts/zufallsverteilung-lod.md`,
+"Platzierungsalgorithmus — Version 3", 31.08.2026), so a bounded field uses
+a different algorithm entirely: lay out a regular LATTICE — nodes spaced
+`dx`/`dz` apart spanning the FULL width/depth edge to edge, not cell
+centres, so e.g. a 2×2 lattice (the smallest non-trivial grid) lands its
+four nodes exactly in the rectangle's four corners — sized so its node
+count covers the requested number of points; give each node ONE fixed
+random offset sampled uniformly over a disk of radius `spacing/2 −
+boundingBoxRadius` (`spacing` = the tighter of `dx`/`dz`), chosen so that
+even if two lattice neighbours both jitter maximally toward each other,
+their bounding circles end up touching but never overlapping; then
+`randomness` (0–1) linearly interpolates every point between its exact
+lattice position and that same fixed offset. Because the offset is rolled
+once and only scaled by `randomness` afterwards, sweeping a live GUI slider
+eases the whole field toward/away from one randomised layout instead of
+reshuffling it every frame — and because the offset radius is a *fraction*
+of the current spacing, the same `randomness` value looks different at
+different `areaWidth`/`areaDepth`/node-count combinations; that's
+intentional (it's what keeps the touch-but-never-overlap guarantee valid
+at every spacing), not a bug to fix. Corner/edge nodes get the same offset
+radius as interior ones, so at high `randomness` they can spill slightly
+outside `areaWidth`×`areaDepth` — accepted by design, not clamped.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
@@ -197,12 +228,21 @@ distance settings if that's visible.
 
 ### No `items` resolved
 
-If `items` doesn't resolve to anything (typo in the selector, or referenced
-entities not yet in the DOM when this component initializes — `selectorAll`
-is resolved once, synchronously, at `init()`, not lazily), this logs one
-console warning (`[random-field] items resolved to nothing; nothing
-placed`) and the field stays empty. Author your `items` entities *before*
-the field entity in markup to guarantee they're already in the DOM.
+If `items` still doesn't resolve to anything (typo in the selector — the
+usual cause), this logs one console warning (`` [random-field] `items`
+("...") resolved to nothing after retrying; nothing placed ``) and the
+field stays empty. Referenced entities not yet in the DOM is no longer a
+failure mode on its own: `items` is a plain selector-list string (not
+A-Frame's `selectorAll` schema type), resolved via a manual
+`querySelectorAll` that retries up to 10 animation frames (~160ms) apart
+before giving up — found necessary on a real host/Vue-driven scene where
+sibling entities inserted in the same reactive-render batch weren't
+reliably queryable on this component's very first `init()`, even with
+`items` entities correctly authored earlier in markup (s.
+archive-of-practice `projects/an-alle/concepts/zufallsverteilung-lod.md`,
+31.08.2026). Still author your `items` entities *before* the field entity
+in markup — that's what makes them resolvable at all once connected, the
+retry only covers the timing gap until they are.
 
 ### No interaction found with any other feature on this branch
 
