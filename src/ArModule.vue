@@ -3,7 +3,8 @@ import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
-import { animateValue } from './tween';
+import { animateValue, cancellableFade } from './tween';
+import { TUTORIAL_FONT_FAMILY, ensureTutorialFontLoaded } from './fonts';
 import InfoOverlay from './InfoOverlay.vue';
 
 interface ArModuleData {
@@ -243,11 +244,65 @@ const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOT
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
 const zBobHeightMax = FOOTPRINT_MIN_SIDE / 4;
 const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
+
+// Chaos-Modus (archive-of-practice projects/an-alle/concepts/
+// zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026,
+// analog zum animationssystem-wanderer-Standard: dort "Chaos-Boost") — ein
+// Hold maximiert Zufallsverteilung UND Animation zugleich. Zwei getrennte
+// Mechanismen, weil random-field ein EINMALIGER Platzierungs-Vorgang ist
+// (kein tick(), s. fieldKey-Kommentar oben) und proximity-swing dagegen
+// ein echtes Pro-Frame-tick():
+//   - Feldgröße/Dichte springen DISKRET auf ihr Maximum, sobald der Hold
+//     bestätigt ist, und ebenso diskret zurück auf den zuletzt per Swipe
+//     gesetzten Wert beim Loslassen/Abbrechen — ein kontinuierliches Ranpen
+//     wäre hier NICHT sichtbar glatt, sondern hätte bei jeder Änderung ein
+//     volles Remount des Feldes ausgelöst (:key="fieldKey").
+//   - Die Schwing-/Bob-/Idle-Animation jeder platzierten Kugel
+//     (proximity-swing's neues `chaosBoost`) ist dagegen für die gesamte
+//     Dauer des Holds fest auf ihren Maximalwert gesetzt (kein Ranpen
+//     nötig — sie wird ohnehin nur bei jedem Remount neu an die Klone
+//     verteilt, s. proximity-swing.ts's eigener Schema-Kommentar).
+const CHAOS_HOLD_DELAY_MS = 700;
+const chaosActive = ref(false);
+let chaosConfirmTimer: number | null = null;
+let chaosHoldConfirmed = false;
+let swipeSuppressedThisSession = false;
+let preChaosDensity = density.value;
+let preChaosFieldSize = fieldSizePercent.value;
+
+function onChaosHoldStart() {
+  if (tutorialInputLocked.value) return;
+  swipeSuppressedThisSession = false; // fresh gesture — reset the sticky block from any earlier hold
+  chaosHoldConfirmed = false;
+  chaosConfirmTimer = window.setTimeout(() => {
+    chaosHoldConfirmed = true;
+    swipeSuppressedThisSession = true; // block a swipe from this same gesture once released
+    preChaosDensity = density.value;
+    preChaosFieldSize = fieldSizePercent.value;
+    density.value = DENSITY_MAX;
+    fieldSizePercent.value = FIELD_SIZE_MAX;
+    chaosActive.value = true;
+  }, CHAOS_HOLD_DELAY_MS);
+}
+
+function onChaosHoldEnd() {
+  if (chaosConfirmTimer !== null) {
+    window.clearTimeout(chaosConfirmTimer);
+    chaosConfirmTimer = null;
+  }
+  if (chaosHoldConfirmed) {
+    density.value = preChaosDensity;
+    fieldSizePercent.value = preChaosFieldSize;
+    chaosActive.value = false;
+    chaosHoldConfirmed = false;
+  }
+}
+
 const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
         `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; ` +
         `zBobHeightMax: ${zBobHeightMax.toFixed(4)}; zBobHeightMin: ${zBobHeightMin.toFixed(4)}; ` +
-        `frozen: ${tutorialInputLocked.value}`
+        `frozen: ${tutorialInputLocked.value}; chaosBoost: ${chaosActive.value ? 1 : 0}`
 );
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
@@ -275,7 +330,7 @@ const groundMaterial = computed(() => `color: #3b82f6; opacity: ${groundOpacity.
 // transition always gets a remount exactly when it toggles, even on the
 // rare tick where fieldSizePercent/density don't ALSO happen to change at
 // that same instant.
-const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}-${tutorialInputLocked.value}`);
+const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}-${tutorialInputLocked.value}-${chaosActive.value}`);
 
 // Swipe-driven density/field-size (archive-of-practice projects/an-alle/
 // concepts/zufallsverteilung-lod.md, "Swipe statt Regler" decision,
@@ -320,6 +375,40 @@ const tutorialText = ref('');
 const imageTargetEl = ref<HTMLElement | null>(null);
 const GROUND_INTRO_SEGMENT_MS = 1500; // x2 = 3s lead-in/delay, author's spec
 
+// Resettable tutorial lead-in (archive-of-practice projects/an-alle/
+// concepts/zwischen-basis.md, backported from animationssystem-wanderer,
+// 01.09.2026): if the FIRST successful tracking is lost again within the
+// ~3s ground-plane lead-in, the whole tutorial resets so the NEXT tracking
+// starts the lead-in and tutorial fresh from the beginning; once the
+// lead-in has fully played out, `tutorialLockedIn` flips true and tracking
+// loss no longer resets anything. `tutorialRunToken` is an incrementing
+// "run identity" — cancellableFade's `isCancelled` predicate below simply
+// checks whether the token it captured when it started is still current,
+// so a stale, still-in-flight lead-in from a previous run can never write
+// into a newer one's state.
+let tutorialRunToken = 0;
+const tutorialLockedIn = ref(false);
+// True until the very first tracking of the whole session — drives the
+// "Kamera auf Bild richten" hint below, independent of the resettable
+// lead-in state above (this only ever goes false once, the first time
+// tracking succeeds at all).
+const awaitingFirstTracking = ref(true);
+
+const trackingHintStyle = {
+  position: 'fixed' as const,
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  padding: '3vw 5vw',
+  background: 'rgba(0, 0, 0, 0.5)',
+  color: '#ffffff',
+  fontFamily: TUTORIAL_FONT_FAMILY,
+  fontSize: '4.5vw',
+  textAlign: 'center' as const,
+  zIndex: 1000,
+  pointerEvents: 'none' as const
+} as const;
+
 // Segment durations are PROPORTIONAL to how much of the value's own full
 // range that segment actually covers (author's spec, 31.08.2026 — makes
 // every segment move at the same underlying speed, so a short hop, e.g.
@@ -349,9 +438,13 @@ function showTutorialText(text: string) {
   animateValue(tutorialTextSlideOffset, -TEXT_SLIDE_DISTANCE_PX, 0, TEXT_SLIDE_MS);
 }
 
-async function runTutorial() {
-  await animateValue(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS);
-  await animateValue(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS);
+async function runTutorial(myToken: number) {
+  const cancelled = () => tutorialRunToken !== myToken;
+  const finishedIntro1 = await cancellableFade(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS, cancelled);
+  if (!finishedIntro1) return;
+  const finishedIntro2 = await cancellableFade(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS, cancelled);
+  if (!finishedIntro2) return;
+  tutorialLockedIn.value = true;
   fieldVisible.value = true;
 
   const fieldRange = FIELD_SIZE_MAX - FIELD_SIZE_MIN;
@@ -373,6 +466,26 @@ async function runTutorial() {
   tutorialInputLocked.value = false;
 }
 
+function onTutorialTrackingFound() {
+  awaitingFirstTracking.value = false;
+  if (tutorialLockedIn.value) return; // already played through once — never resets again
+  tutorialRunToken += 1;
+  const myToken = tutorialRunToken;
+  groundOpacity.value = 0;
+  fieldVisible.value = false;
+  tutorialInputLocked.value = true;
+  runTutorial(myToken);
+}
+
+function onTutorialTrackingLost() {
+  if (tutorialLockedIn.value) return; // locked in — tracking loss no longer resets anything
+  tutorialRunToken += 1; // invalidates any in-flight runTutorial() via cancelled()
+  groundOpacity.value = 0;
+  fieldVisible.value = false;
+  tutorialText.value = '';
+  tutorialInputLocked.value = true;
+}
+
 // Bottom-anchored (25% up from the bottom edge, author's spec), white text
 // on a 50%-opacity black box, sharp corners (deliberately not the
 // InfoOverlay panel's rounded look, this is a fleeting instruction, not a
@@ -391,7 +504,7 @@ const tutorialTextStyle = computed(() => ({
   padding: '2vw 3vw',
   background: 'rgba(0, 0, 0, 0.5)',
   color: '#ffffff',
-  fontFamily: 'sans-serif',
+  fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '4vw',
   textAlign: 'center' as const,
   zIndex: '1000',
@@ -413,7 +526,7 @@ const tutorialHeaderStyle = {
   padding: '2vw 3vw',
   background: 'rgba(0, 0, 0, 0.5)',
   color: '#ffffff',
-  fontFamily: 'sans-serif',
+  fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '4vw',
   textAlign: 'center' as const,
   zIndex: 1000,
@@ -421,23 +534,28 @@ const tutorialHeaderStyle = {
 } as const;
 
 onMounted(() => {
+  ensureTutorialFontLoaded();
   detachSwipeDrag = attachSwipeDrag(
     (dx) => {
-      if (tutorialInputLocked.value) return;
+      if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       density.value = Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, density.value + dx * DENSITY_PER_PX));
     },
     (dy) => {
-      if (tutorialInputLocked.value) return;
+      if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       // Screen Y grows downward, so swiping UP (negative dy) should grow the field.
       fieldSizePercent.value = Math.min(FIELD_SIZE_MAX, Math.max(FIELD_SIZE_MIN, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
-    }
+    },
+    onChaosHoldStart,
+    onChaosHoldEnd
   );
-  imageTargetEl.value?.addEventListener('xrextrasfound', runTutorial, { once: true });
+  imageTargetEl.value?.addEventListener('xrextrasfound', onTutorialTrackingFound);
+  imageTargetEl.value?.addEventListener('xrextraslost', onTutorialTrackingLost);
 });
 
 onUnmounted(() => {
   detachSwipeDrag?.();
-  imageTargetEl.value?.removeEventListener('xrextrasfound', runTutorial);
+  imageTargetEl.value?.removeEventListener('xrextrasfound', onTutorialTrackingFound);
+  imageTargetEl.value?.removeEventListener('xrextraslost', onTutorialTrackingLost);
 });
 </script>
 
@@ -543,6 +661,12 @@ onUnmounted(() => {
        are swipe-driven (s. Skript-Kommentar, swipe-drag.ts), not GUI
        sliders. -->
 
+  <!-- Kamera-Hinweis (backported from animationssystem-wanderer,
+       01.09.2026) — shown until the very first successful tracking of the
+       whole session, independent of the resettable tutorial-lead-in state
+       below. -->
+  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf das Bild richten 🎯</div>
+
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
   <div v-if="tutorialText" :style="tutorialTextStyle">{{ tutorialText }}</div>
@@ -554,6 +678,20 @@ onUnmounted(() => {
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
        Sound-Player (s. projects/an-alle/concepts/sound-player.md). Each
-       branch passes its own scene-specific explanation text. -->
-  <InfoOverlay text="Ein Feld zufällig verteilter Kugeln: Wische horizontal, um die Dichte zu ändern, vertikal für die Feldgröße. Kommst du mit der Kamera näher heran, beginnen die Kugeln um ihre Position zu schwingen und leicht zu hüpfen." />
+       branch passes its own scene-specific explanation text. Rewritten
+       01.09.2026 (Wanderer-Goldstandard): Überschrift, allgemeine
+       Einleitung zur AN ALLE!-Plattform, Szenenbeschreibung, dann eine
+       übersichtliche Emoji-Gestenliste statt Fließtext — für Leute
+       geschrieben, die sich mit der Materie nicht auskennen. -->
+  <InfoOverlay
+      heading="Zufallsverteilung & Animation AR Demo"
+      :font-family="TUTORIAL_FONT_FAMILY"
+      text="Dies ist eine Demo für die AR-Funktionen unserer AN ALLE!-Plattform. Sie zeigt beispielhaft, was in einer solchen Anwendung möglich ist: eine Anordnung von Objekten, die sich live und zufällig verändern lässt und die auf die Nähe der Kamera reagiert.
+
+Ein Feld aus kleinen, bunten Kugeln liegt auf dem Bild. Wie viele Kugeln es sind und wie groß das Feld ist, kannst du direkt verändern. Kommst du mit der Kamera näher heran, beginnen die Kugeln sanft zu schwingen und zu hüpfen.
+
+So kannst du mitspielen:
+↕️ Hoch/runter wischen: Feldgröße ändern
+↔️ Links/rechts wischen: Dichte ändern
+✋ Gedrückt halten: Chaos-Modus — für einen Moment wird alles maximal" />
 </template>

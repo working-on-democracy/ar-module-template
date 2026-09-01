@@ -53,6 +53,12 @@ declare const AFRAME: any;
 // copy gets its own independent, correctly-initialized instance.
 const SWING_SPEED = 2.5; // rad/s, at full proximityFactor (near proximity-wave.ts's waveSpeed default of 3)
 const IDLE_SPEED = 1.0; // rad/s base — identical constant to proximity-wave.ts's own idle float
+// Chaos-Modus multipliers at full chaosBoost (author's guess, 01.09.2026,
+// needs on-device retuning like every other tuned number in this codebase)
+// — additive on top of the normal full-proximity baseline (1x), so chaos
+// reads as visibly MORE energetic than just being close to the target.
+const CHAOS_SPEED_MULTIPLIER = 2.0;
+const CHAOS_AMPLITUDE_MULTIPLIER = 1.6;
 
 // How "close" the camera is to the WHOLE TARGET IMAGE, measured as SCREEN
 // COVERAGE rather than a 3D world distance (author's correction,
@@ -195,7 +201,24 @@ export default {
     // otherwise fight the very thing the tutorial is trying to show
     // clearly. ArModule.vue ties this to the same flag that locks swipe
     // input for the tutorial's duration.
-    frozen: { type: "boolean", default: false }
+    frozen: { type: "boolean", default: false },
+
+    // AN ALLE! "Chaos-Modus" hold gesture (archive-of-practice
+    // projects/an-alle/concepts/zufallsverteilung-lod.md, 01.09.2026) — 0
+    // (default, no-op) to 1. Baked in once per clone at random-field's own
+    // clone time (s. random-field.ts's cloneItem(), a one-shot attribute
+    // copy, not a live binding — same reason swingRadius/colorMaxDist above
+    // only ever change via ArModule.vue's `:key="fieldKey"` remount, not a
+    // reactive per-frame update), so this is effectively a fixed value for
+    // a given clone's whole lifetime, changing only across a remount —
+    // exactly when ArModule.vue's own chaos state flips. At 1, overrides
+    // BOTH the swing's and the idle float's proximityFactor gate to full
+    // (s. tick(): motion no longer waits for the camera to actually be
+    // close), and additionally boosts their speed/amplitude beyond the
+    // normal "full proximity" baseline — the whole point of an explicit
+    // manual trigger is to look MORE energetic than the automatic
+    // proximity ramp ever does on its own, not just to bypass it.
+    chaosBoost: { type: "number", default: 0 }
   },
 
   init() {
@@ -281,7 +304,13 @@ export default {
 
     // --- Shared proximity factor (screen coverage): drives BOTH the swing and the idle float ---
     const coverage = targetCoverage(time, camera, self.targetObject3D, data.targetHalfWidth);
-    const proximityFactor = rampFactor(coverage, data.proximityCoverageFar, data.proximityCoverageNear); // 0 at <=far, 1 at >=near
+    const rawProximityFactor = rampFactor(coverage, data.proximityCoverageFar, data.proximityCoverageNear); // 0 at <=far, 1 at >=near
+    // Chaos-Modus (s. schema comment above) overrides the gate to full
+    // regardless of actual camera distance — a manual hold shouldn't
+    // depend on also physically standing close.
+    const proximityFactor = Math.max(rawProximityFactor, data.chaosBoost);
+    const chaosSpeedMul = 1 + (CHAOS_SPEED_MULTIPLIER - 1) * data.chaosBoost;
+    const chaosAmplitudeMul = 1 + (CHAOS_AMPLITUDE_MULTIPLIER - 1) * data.chaosBoost;
 
     // --- Radial swing: centre eases grid -> random target, amplitude/speed 0 -> full ---
     // Direction fixed 31.08.2026: LOW coverage (far, at/below
@@ -300,8 +329,8 @@ export default {
     // changed factor re-scales the ENTIRE accumulated angle at once, not
     // just its future growth). Accumulating means the speed genuinely
     // eases without ever jumping.
-    self.swingAngle += SWING_SPEED * proximityFactor * dt;
-    const osc = data.swingRadius * proximityFactor * Math.sin(self.swingAngle + self.swingPhase);
+    self.swingAngle += SWING_SPEED * chaosSpeedMul * proximityFactor * dt;
+    const osc = data.swingRadius * chaosAmplitudeMul * proximityFactor * Math.sin(self.swingAngle + self.swingPhase);
     const swingX = self.swingDirX * osc;
     const swingZ = self.swingDirZ * osc;
 
@@ -310,17 +339,19 @@ export default {
     // (author's spec, 31.08.2026: a smooth "sinks as you approach"
     // position, not a hop). zBobFactor: 0 at <=zBobNear (4cm) -> height =
     // zBobHeightMin, 1 at >=zBobFar (15cm) -> height = zBobHeightMax.
+    // Chaos-Modus also overrides THIS gate to full, same reasoning as
+    // proximityFactor above.
     const objDist = self.cameraPos.distanceTo(self.zBobAnchorPos);
-    const zBobFactor = rampFactor(objDist, data.zBobNear, data.zBobFar);
+    const zBobFactor = Math.max(rampFactor(objDist, data.zBobNear, data.zBobFar), data.chaosBoost);
     const zbob = data.zBobHeightMin + zBobFactor * (data.zBobHeightMax - data.zBobHeightMin);
 
     // --- Idle float: same linear proximityFactor ramp as the swing (0 = fully still), tiny on X/Z ---
-    self.idleAngleX += IDLE_SPEED * 0.7 * proximityFactor * dt;
-    self.idleAngleY += IDLE_SPEED * 0.9 * proximityFactor * dt;
-    self.idleAngleZ += IDLE_SPEED * 1.1 * proximityFactor * dt;
-    const idleX = data.idleGroundRadius * proximityFactor * Math.sin(self.idleAngleX + self.idlePhaseX);
-    const idleY = data.idleHeightRadius * proximityFactor * Math.sin(self.idleAngleY + self.idlePhaseY);
-    const idleZ = data.idleGroundRadius * proximityFactor * Math.sin(self.idleAngleZ + self.idlePhaseZ);
+    self.idleAngleX += IDLE_SPEED * chaosSpeedMul * 0.7 * proximityFactor * dt;
+    self.idleAngleY += IDLE_SPEED * chaosSpeedMul * 0.9 * proximityFactor * dt;
+    self.idleAngleZ += IDLE_SPEED * chaosSpeedMul * 1.1 * proximityFactor * dt;
+    const idleX = data.idleGroundRadius * chaosAmplitudeMul * proximityFactor * Math.sin(self.idleAngleX + self.idlePhaseX);
+    const idleY = data.idleHeightRadius * chaosAmplitudeMul * proximityFactor * Math.sin(self.idleAngleY + self.idlePhaseY);
+    const idleZ = data.idleGroundRadius * chaosAmplitudeMul * proximityFactor * Math.sin(self.idleAngleZ + self.idlePhaseZ);
 
     // All three motions are additive on top of the grid/random-target base.
     self.el.object3D.position.set(
