@@ -785,7 +785,7 @@ async function runTutorial(myToken: number) {
   // through roughnessStart.
   const REFLECTION_DEMO_METALNESS = 100;
   const REFLECTION_DEMO_ROUGHNESS = 20;
-  showTutorialText('Reflection-Häkchen ☑️ = Spiegelungen');
+  showTutorialText('Häkchen Reflektionen ☑️ = Spiegelungen');
   const reflectionDemoInMs = segmentDuration(metalnessStart, REFLECTION_DEMO_METALNESS, 100);
   await Promise.all([
     animateValue(metalness, metalnessStart, REFLECTION_DEMO_METALNESS, reflectionDemoInMs),
@@ -1132,7 +1132,8 @@ Sechs bunte Kugeln kreisen übereinander gestaffelt auf dem Bild. Drei von ihnen
 So kannst du mitspielen:
 ↕️ Hoch/runter wischen: wie rau oder glatt die Kugeln wirken
 ↔️ Links/rechts wischen: wie metallisch die Kugeln wirken
-✋ Gedrückt halten: die Kugeln beginnen zu leuchten" />
+✋ Gedrückt halten: die Kugeln beginnen zu leuchten
+☑️ Häkchen Reflektionen: Spiegelungen in den Kugeln ein-/ausschalten" />
 
   <!-- Reflection-Toggle (01.09.2026, author's request) — plain screen-space
        checkbox, not an A-Frame component/GuiPanel control (s. Skript-
@@ -1140,7 +1141,7 @@ So kannst du mitspielen:
        aus, da reflection-probe.ts laufend eine Cube-Map rendert. -->
   <label :style="reflectionToggleStyle">
     <input type="checkbox" v-model="reflectionEnabled" />
-    reflection
+    Reflektionen
   </label>
 
   <!-- Kamera-Hinweis (backported from animationssystem-wanderer,
