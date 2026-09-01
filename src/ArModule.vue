@@ -398,6 +398,28 @@ const tutorialTextStyle = computed(() => ({
   pointerEvents: 'none' as const
 }));
 
+// "Tutorial" header (01.09.2026, author's request, ported over from
+// material-shader-showcase's own tutorial) — same 25% distance from the
+// TOP edge as the instruction label above has from the bottom, shown for
+// the exact same duration (both gated on tutorialText being non-empty). No
+// slide-in of its own — it's a static label naming the whole sequence, not
+// a per-phase instruction that needs to draw the eye each time it changes.
+const tutorialHeaderStyle = {
+  position: 'fixed' as const,
+  top: '25%',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  whiteSpace: 'nowrap' as const,
+  padding: '2vw 3vw',
+  background: 'rgba(0, 0, 0, 0.5)',
+  color: '#ffffff',
+  fontFamily: 'sans-serif',
+  fontSize: '4vw',
+  textAlign: 'center' as const,
+  zIndex: 1000,
+  pointerEvents: 'none' as const
+} as const;
+
 onMounted(() => {
   detachSwipeDrag = attachSwipeDrag(
     (dx) => {
@@ -524,6 +546,10 @@ onUnmounted(() => {
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
   <div v-if="tutorialText" :style="tutorialTextStyle">{{ tutorialText }}</div>
+
+  <!-- "Tutorial" header, same visibility condition as the instruction
+       label above (01.09.2026, author's request). -->
+  <div v-if="tutorialText" :style="tutorialHeaderStyle">Tutorial</div>
 
   <!-- AN ALLE! Zwischen-Basis: shared info button + overlay, replacing the
        raycast-driven context-text idea for every Themenfeld except
