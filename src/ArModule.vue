@@ -754,41 +754,66 @@ async function runTutorial(myToken: number) {
 
   // Phase 2: horizontal swipe -> metalness, roughness co-animating
   // alongside it (s. Skript-Kommentar oben), reflection-probe forced on for
-  // the duration.
+  // the duration. Roughness's down-leg no longer restores it back to
+  // roughnessStart here (author's correction, 01.09.2026: "am Ende der
+  // Metallizitäts-Abschnitt muss der Rauheitswert nicht wieder auf
+  // Standardwert hochgezogen werden, das kann am Anfang von Hold
+  // passieren") — it's left at METALNESS_PHASE_ROUGHNESS_LOW, picked up
+  // from exactly there by Phase 2.5 below, and only actually restored once,
+  // at the start of Phase 3.
+  const METALNESS_PHASE_ROUGHNESS_LOW = 10;
   const reflectionWasEnabled = reflectionEnabled.value;
   reflectionEnabled.value = true;
   showTutorialText('Horizontaler Swipe ↔️ = Metallizität');
   const metalnessUpMs = segmentDuration(20, 100, 100);
   await Promise.all([
     animateValue(metalness, 20, 100, metalnessUpMs),
-    animateValue(roughness, roughnessStart, 10, metalnessUpMs)
+    animateValue(roughness, roughnessStart, METALNESS_PHASE_ROUGHNESS_LOW, metalnessUpMs)
   ]);
   const metalnessDownMs = segmentDuration(100, metalnessStart, 100);
-  await Promise.all([
-    animateValue(metalness, 100, metalnessStart, metalnessDownMs),
-    animateValue(roughness, 10, roughnessStart, metalnessDownMs)
-  ]);
+  await animateValue(metalness, 100, metalnessStart, metalnessDownMs);
   reflectionEnabled.value = reflectionWasEnabled;
 
   // Phase 2.5: reflection checkbox explanation (author's request,
-  // 01.09.2026, "nach der metalness erklärung") — a fixed-duration demo,
-  // no value to sweep here. Explicitly OFF first (not just trusting the
-  // restore above, since the checkbox is a plain DOM control the visitor
-  // could already have toggled themselves during an earlier phase — it
-  // isn't gated by tutorialInputLocked like swipe/hold are), then ON, each
-  // held long enough to actually notice the reflections appear/disappear.
+  // 01.09.2026, "nach der metalness erklärung") — a fixed-duration demo
+  // (off, then on) for the checkbox itself, but the reflection EFFECT is
+  // only actually visible at high metalness/low roughness (s.
+  // reflection-probe.ts). Metalness re-animates up from its own standard
+  // value; roughness only needs a small nudge from
+  // METALNESS_PHASE_ROUGHNESS_LOW (where phase 2 left it, s. its own
+  // comment above) to REFLECTION_DEMO_ROUGHNESS, not a big round trip
+  // through roughnessStart.
+  const REFLECTION_DEMO_METALNESS = 100;
+  const REFLECTION_DEMO_ROUGHNESS = 20;
   showTutorialText('Reflection-Häkchen ☑️ = Spiegelungen');
+  const reflectionDemoInMs = segmentDuration(metalnessStart, REFLECTION_DEMO_METALNESS, 100);
+  await Promise.all([
+    animateValue(metalness, metalnessStart, REFLECTION_DEMO_METALNESS, reflectionDemoInMs),
+    animateValue(roughness, METALNESS_PHASE_ROUGHNESS_LOW, REFLECTION_DEMO_ROUGHNESS, reflectionDemoInMs)
+  ]);
+  // Explicitly OFF first (not just trusting the restore above, since the
+  // checkbox is a plain DOM control the visitor could already have toggled
+  // themselves during an earlier phase — it isn't gated by
+  // tutorialInputLocked like swipe/hold are), then ON, each held long
+  // enough to actually notice the reflections appear/disappear.
   reflectionEnabled.value = false;
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
   reflectionEnabled.value = true;
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
 
-  // Phase 3: hold -> emissive. Both roughness/metalness already sit at
-  // their standard values from the previous two phases' own final
-  // segments. Reflection explicitly OFF again right at the start of this
-  // section (author's spec) — it isn't part of this phase's own demo and
-  // shouldn't linger on from the previous one.
+  // Phase 3: hold -> emissive. Reflection explicitly OFF again right at
+  // the start of this section (author's spec) — it isn't part of this
+  // phase's own demo and shouldn't linger on from the previous one.
+  // Roughness/metalness animate back to their standard values here too
+  // (author's follow-up spec: "am Anfang des Holds Abschnitts dann wieder
+  // zurück auf Standardwerte") — this phase's own emissive demo doesn't
+  // need the reflection-demo's exaggerated metalness/roughness either.
   reflectionEnabled.value = false;
+  const reflectionDemoOutMs = segmentDuration(REFLECTION_DEMO_METALNESS, metalnessStart, 100);
+  await Promise.all([
+    animateValue(metalness, REFLECTION_DEMO_METALNESS, metalnessStart, reflectionDemoOutMs),
+    animateValue(roughness, REFLECTION_DEMO_ROUGHNESS, roughnessStart, reflectionDemoOutMs)
+  ]);
   showTutorialText('Finger halten ✋ = Leuchten');
   await animateValue(emissive, 0, 100, segmentDuration(0, 100, 100));
   await animateValue(emissive, 100, 0, segmentDuration(100, 0, 100));
