@@ -1023,14 +1023,14 @@ onUnmounted(() => {
        into the scene's <a-assets> by the host before this module mounts. Reference
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
-  <!-- AN ALLE! Zwischen-Basis: all five Themenfeld modules anchor to a printed
+  <!-- AN ALLE! Zwischen-Basis: all Themenfeld modules anchor to a printed
        image target (archive-of-practice
-       projects/an-alle/concepts/zwischen-basis.md, Entscheidung 1) — "video-target"
-       is still the template's placeholder descriptor (s. manifest.ts) until the
-       real AN ALLE! target image is designed and compiled. Only works in the real
+       projects/an-alle/concepts/zwischen-basis.md, Entscheidung 1) — the
+       final, shared "an-alle-target" (s. manifest.ts), same across all
+       three Themenfeld branches (01.09.2026). Only works in the real
        AR preview (npm run dev:ar) or the host, per
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
-  <xrextras-named-image-target name="video-target" ref="imageTargetEl">
+  <xrextras-named-image-target name="an-alle-target" ref="imageTargetEl">
     <a-entity
         no-frustum-cull
         :visible="assetsLoaded && sceneContentVisible"
