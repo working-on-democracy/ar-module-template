@@ -501,6 +501,46 @@ const materialPropsAttr = computed(
         `emissiveIntensity: ${emissiveMultiplier.value.toFixed(2)}`
 );
 
+// Faster rotation on approach AND on hold (author's request, 01.09.2026:
+// "Bei der Hold-Geste, sollten sich die Kugeln und die Lichter schneller
+// drehen. Auch beim Näherkommen sollte das passieren, auch wenn die Hold-
+// Geste eine größere Geschwindigkeitssteigerung auslöst.") — spin.ts's own
+// proximity term handles "closer = faster" internally (each rotating
+// entity measures its own fixed anchor point), so this file only needs to
+// feed it a shared `holdBoost`. Reusing `emissiveMultiplier` directly
+// (already 0..1, already tracking the exact same hold-delay/ramp/swipe-
+// cancel state emissiveIntensity itself uses) keeps the glow-up and the
+// speed-up perfectly in sync, driven by one underlying value, rather than
+// building a second, separate hold-tracking mechanism.
+// SPIN_PROXIMITY_NEAR/FAR reuse the same OPACITY_FADE_NEAR/FAR thresholds
+// (already the established "close"/"far" scale for this scene, s. their
+// own comment above) rather than inventing a third distance convention.
+// Multiplier magnitudes are author-guess starting points (needs on-device
+// retuning like every other tuned number in this codebase) — hold's own
+// multiplier is deliberately larger than proximity's, per the author's
+// explicit ordering above.
+const SPIN_PROXIMITY_NEAR = OPACITY_FADE_NEAR;
+const SPIN_PROXIMITY_FAR = OPACITY_FADE_FAR;
+const SPIN_PROXIMITY_SPEED_MULTIPLIER = 1.6;
+const SPIN_HOLD_SPEED_MULTIPLIER = 3;
+function spinAttr(baseSpeedDegPerSec: number, direction: number): string {
+  return `baseSpeedDegPerSec: ${baseSpeedDegPerSec}; direction: ${direction}; ` +
+         `proximityNear: ${SPIN_PROXIMITY_NEAR.toFixed(4)}; proximityFar: ${SPIN_PROXIMITY_FAR.toFixed(4)}; ` +
+         `proximitySpeedMultiplier: ${SPIN_PROXIMITY_SPEED_MULTIPLIER}; ` +
+         `holdBoost: ${emissiveMultiplier.value.toFixed(2)}; holdSpeedMultiplier: ${SPIN_HOLD_SPEED_MULTIPLIER}`;
+}
+// Base speeds derived from the old `animation` components' own from/to/dur
+// (360° over each one's own duration) — unchanged from before, just now
+// expressed as deg/s for spin.ts instead of a start/end/duration triple.
+const HELIX_SPIN_SPEED_DEG_PER_SEC = 360 / (HELIX_SPIN_DUR_MS / 1000);
+const ORBIT_PINK_SPEED_DEG_PER_SEC = 360 / 9; // 9000ms, direction 1
+const ORBIT_TURQUOISE_SPEED_DEG_PER_SEC = 360 / 14; // 14000ms, direction -1 (180 -> -180)
+const ORBIT_WHITE_SPEED_DEG_PER_SEC = 360 / 19; // 19000ms, direction 1
+const helixSpinAttr = computed(() => spinAttr(HELIX_SPIN_SPEED_DEG_PER_SEC, 1));
+const orbitPinkSpinAttr = computed(() => spinAttr(ORBIT_PINK_SPEED_DEG_PER_SEC, 1));
+const orbitTurquoiseSpinAttr = computed(() => spinAttr(ORBIT_TURQUOISE_SPEED_DEG_PER_SEC, -1));
+const orbitWhiteSpinAttr = computed(() => spinAttr(ORBIT_WHITE_SPEED_DEG_PER_SEC, 1));
+
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
@@ -624,9 +664,14 @@ function registerEmissiveMovement(deltaPx: number) {
 // visible, so this phase doubles as its own demonstration — then restored
 // to whatever the visitor's own checkbox already had it at, not just
 // hardcoded back to off.
+// Phase 2.5 (reflection checkbox, added 01.09.2026, author's request:
+// "einen Tutorial-Abschnitt, der die reflection checkbox erklärt, nach der
+// metalness erklärung"): a fixed-duration demo, no value to sweep —
+// reflection explicitly off, then on, each held for REFLECTION_DEMO_HALF_MS.
 // Phase 3 (hold/emissive, new — not part of zufallsverteilung-lod's own
-// tutorial, which has no hold gesture): both roughness and metalness sit
-// at their standard values, emissive sweeps 0% -> 100% -> 0%. Every
+// tutorial, which has no hold gesture): reflection explicitly OFF again at
+// the very start (author's spec), then both roughness and metalness sit at
+// their standard values while emissive sweeps 0% -> 100% -> 0%. Every
 // waypoint here is the author's explicit spec, not derived from any
 // existing constant.
 const tutorialInputLocked = ref(true);
@@ -646,6 +691,13 @@ const tutorialLockedIn = ref(false);
 // True until the very first tracking of the whole session — independent
 // of the resettable lead-in state above (this only ever goes false once).
 const awaitingFirstTracking = ref(true);
+// The six spheres (and the orbit lights around them) only exist once the
+// lead-in has fully played out (author's request, 01.09.2026: "Kugeln
+// sollten erst vorhanden sein nach Tutorial-Lead-in") — same mechanism as
+// zufallsverteilung-lod's own `fieldVisible`. The ground plane itself is
+// NOT gated by this (stays visible throughout, per the footprint
+// convention every branch already follows).
+const sceneContentVisible = ref(false);
 
 const trackingHintStyle = {
   position: 'fixed' as const,
@@ -662,6 +714,9 @@ const trackingHintStyle = {
   pointerEvents: 'none' as const
 } as const;
 const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.09.2026, author's request)
+// Fixed duration of each half (off, then on) of the tutorial's reflection-
+// checkbox demo phase (s. runTutorial() below) — no value to sweep here.
+const REFLECTION_DEMO_HALF_MS = 2000;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
@@ -682,6 +737,7 @@ async function runTutorial(myToken: number) {
   const finishedIntro2 = await cancellableFade(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS, cancelled);
   if (!finishedIntro2) return;
   tutorialLockedIn.value = true;
+  sceneContentVisible.value = true;
 
   const roughnessStart = roughness.value;
   const metalnessStart = metalness.value;
@@ -714,8 +770,25 @@ async function runTutorial(myToken: number) {
   ]);
   reflectionEnabled.value = reflectionWasEnabled;
 
+  // Phase 2.5: reflection checkbox explanation (author's request,
+  // 01.09.2026, "nach der metalness erklärung") — a fixed-duration demo,
+  // no value to sweep here. Explicitly OFF first (not just trusting the
+  // restore above, since the checkbox is a plain DOM control the visitor
+  // could already have toggled themselves during an earlier phase — it
+  // isn't gated by tutorialInputLocked like swipe/hold are), then ON, each
+  // held long enough to actually notice the reflections appear/disappear.
+  showTutorialText('Reflection-Häkchen ☑️ = Spiegelungen');
+  reflectionEnabled.value = false;
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
+  reflectionEnabled.value = true;
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
+
   // Phase 3: hold -> emissive. Both roughness/metalness already sit at
-  // their standard values from the previous two phases' own final segments.
+  // their standard values from the previous two phases' own final
+  // segments. Reflection explicitly OFF again right at the start of this
+  // section (author's spec) — it isn't part of this phase's own demo and
+  // shouldn't linger on from the previous one.
+  reflectionEnabled.value = false;
   showTutorialText('Finger halten ✋ = Leuchten');
   await animateValue(emissive, 0, 100, segmentDuration(0, 100, 100));
   await animateValue(emissive, 100, 0, segmentDuration(100, 0, 100));
@@ -730,6 +803,7 @@ function onTutorialTrackingFound() {
   tutorialRunToken += 1;
   const myToken = tutorialRunToken;
   groundOpacity.value = 0;
+  sceneContentVisible.value = false;
   tutorialInputLocked.value = true;
   runTutorial(myToken);
 }
@@ -854,14 +928,17 @@ onUnmounted(() => {
            config directly on this same `light=` string, separate from the
            per-mesh `shadow` component used below on the spheres/ground.
            shadowBias (01.09.2026, s. SHADOW_BIAS oben) fixes shadow-acne
-           artifacts on the spheres. -->
-      <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 9000; easing: linear">
+           artifacts on the spheres. `spin` (01.09.2026, replaces the old
+           fixed-duration `animation` component, s. Skript-Kommentar bei
+           spinAttr) speeds these orbits up live on camera-proximity and on
+           a hold, in sync with the helix's own spin below. -->
+      <a-entity :position="`0 0 ${ORBIT_HEIGHT}`" :spin="orbitPinkSpinAttr">
         <a-entity :light="`type: point; color: #ff2d95; intensity: 1.3; castShadow: true; shadowBias: ${SHADOW_BIAS}`" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
       </a-entity>
-      <a-entity :position="`0 0 ${ORBIT_HEIGHT_TURQUOISE}`" animation="property: rotation; from: 0 0 180; to: 0 0 -180; loop: true; dur: 14000; easing: linear">
+      <a-entity :position="`0 0 ${ORBIT_HEIGHT_TURQUOISE}`" :spin="orbitTurquoiseSpinAttr">
         <a-entity :light="`type: point; color: #1fd6c1; intensity: 1.3; castShadow: true; shadowBias: ${SHADOW_BIAS}`" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
       </a-entity>
-      <a-entity :position="`0 0 ${ORBIT_HEIGHT_WHITE}`" animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 19000; easing: linear">
+      <a-entity :position="`0 0 ${ORBIT_HEIGHT_WHITE}`" :spin="orbitWhiteSpinAttr">
         <a-entity :light="`type: point; color: #ffffff; intensity: 0.8; castShadow: true; shadowBias: ${SHADOW_BIAS}`" :position="`${ORBIT_RADIUS} 0 0`"></a-entity>
       </a-entity>
 
@@ -884,8 +961,15 @@ onUnmounted(() => {
            roughness/metalness/opacity aktualisieren sich jetzt alle live
            über bestehendes update() (s. Skript-Kommentar oben); render-
            order-Komponente und Nummern-Labels ersatzlos entfernt
-           (01.09.2026), da nicht mehr relevant. -->
-      <a-entity id="showcase-spin" :animation="`property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: ${HELIX_SPIN_DUR_MS}; easing: linear`">
+           (01.09.2026), da nicht mehr relevant. `spin` (01.09.2026, ersetzt
+           die alte, feste `animation`-Komponente) beschleunigt die Drehung
+           live bei Kameranähe und während eines Holds (s. Skript-Kommentar
+           bei spinAttr). `:visible="sceneContentVisible"` (01.09.2026,
+           Autor-Wunsch: "Kugeln sollten erst vorhanden sein nach Tutorial-
+           Lead-in") hält die gesamte Kugel-Helix bis zum Ende des ~3s
+           Grundflächen-Lead-ins unsichtbar — die Grundfläche selbst bleibt
+           davon unberührt (Footprint-Konvention). -->
+      <a-entity id="showcase-spin" :spin="helixSpinAttr" :visible="sceneContentVisible">
         <a-entity id="showcase" rotation="90 0 0">
 
           <!-- A (kleinste) — Proximity Cutout, ditherType interleaved-gradient. -->

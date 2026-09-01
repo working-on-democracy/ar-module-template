@@ -55,6 +55,7 @@ import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
 import reflectionProbe from "./a-frame-components/reflection-probe";
 import wanderSound from "./a-frame-components/wander-sound";
+import spin from "./a-frame-components/spin";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 // AN ALLE! Zwischen-Basis: placeholder target until the real printed image
@@ -193,7 +194,12 @@ export const manifest: Manifest = {
     // own child segments while playing — see wander-sound.ts (AN ALLE!
     // Animationssystem Wanderer, not a single-active mutex like
     // sound-controller.ts: any number of instances may play at once).
-    "wander-sound": wanderSound
+    "wander-sound": wanderSound,
+    // Generic continuously-spinning-entity component whose speed reacts
+    // live to camera proximity and/or an externally-fed hold-boost — see
+    // spin.ts (AN ALLE! Material-/Shader-Showcase, replaces that scene's
+    // own fixed-duration `animation` rotations).
+    spin: spin
   },
 
   // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one
