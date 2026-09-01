@@ -13,8 +13,6 @@
     "originalHeight": 2396
   },
   "resources": {
-    "originalImage": "an-alle-target_original.png",
-    "croppedImage": "an-alle-target_cropped.png",
     "thumbnailImage": "an-alle-target_thumbnail.png",
     "luminanceImage": "an-alle-target_luminance.png"
   },
