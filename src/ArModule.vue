@@ -3,7 +3,8 @@ import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
-import { animateValue } from './tween';
+import { animateValue, cancellableFade } from './tween';
+import { TUTORIAL_FONT_FAMILY, ensureTutorialFontLoaded } from './fonts';
 import InfoOverlay from './InfoOverlay.vue';
 
 interface ArModuleData {
@@ -717,25 +718,6 @@ function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
 
-// Google-Fonts-hosted "Atkinson Hyperlegible Next" (Autor-Entscheidung,
-// 01.09.2026: "gleiche Font wie die 'AN ALLE'-Überschrift auf
-// https://an-alle.net/", confirmed from that site's own bundled CSS —
-// `font-family:Atkinson Hyperlegible Next,Arial,Helvetica,sans-serif`).
-// Injected via a plain <link>, NOT a component <style> block (s.
-// README.md's own "Caveats" section — SFC <style> never ships to the
-// host; a dynamically appended <link rel="stylesheet"> is plain DOM/JS,
-// unaffected by that constraint). Guarded by its own id so re-mounting
-// this module twice in the same host session doesn't inject it twice.
-const TUTORIAL_FONT_FAMILY = "'Atkinson Hyperlegible Next', Arial, Helvetica, sans-serif";
-function ensureTutorialFontLoaded() {
-  if (document.getElementById('an-alle-tutorial-font')) return;
-  const link = document.createElement('link');
-  link.id = 'an-alle-tutorial-font';
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@500;700&display=swap';
-  document.head.appendChild(link);
-}
-
 // Info-Button-Überschrift + -Text (Autor-Entscheidung, 01.09.2026,
 // überarbeitet: Zielgruppe sind Menschen ohne Vorwissen, die evtl. nicht
 // wissen, was sie vor sich haben, und nicht zwangsläufig technikaffin sind
@@ -795,38 +777,10 @@ let tutorialLockedIn = false;
 // flips back false on a reset, same as groundOpacity.
 const sceneContentVisible = ref(false);
 
-// Cancellable fade for JUST the resettable lead-in (unlike tween.ts's
-// shared animateValue, which can't be aborted mid-flight — its own rAF
-// loop keeps overwriting the target every frame for its full fixed
-// duration regardless of anything else, so a token check only after
-// awaiting it is too late: the fade would visibly finish playing out
-// before the check ever runs). Checks `token` EVERY frame instead,
-// stopping immediately (without writing anywhere near `to`) the moment
-// onTutorialTrackingLost below invalidates it — resolves `false` when
-// cancelled this way, `true` on a normal, uninterrupted finish.
-function cancellableFade(target: typeof groundOpacity, from: number, to: number, durationMs: number, token: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const start = performance.now();
-    function step(now: number) {
-      if (token !== tutorialRunToken) {
-        resolve(false);
-        return;
-      }
-      const t = Math.min(1, durationMs > 0 ? (now - start) / durationMs : 1);
-      target.value = from + (to - from) * t;
-      if (t >= 1) {
-        resolve(true);
-        return;
-      }
-      requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  });
-}
-
 async function runTutorial(myToken: number) {
-  if (!(await cancellableFade(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS, myToken))) return;
-  if (!(await cancellableFade(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS, myToken))) return;
+  const cancelled = () => tutorialRunToken !== myToken;
+  if (!(await cancellableFade(groundOpacity, 0, 1, GROUND_INTRO_SEGMENT_MS, cancelled))) return;
+  if (!(await cancellableFade(groundOpacity, 1, STANDARD_GROUND_OPACITY, GROUND_INTRO_SEGMENT_MS, cancelled))) return;
 
   tutorialLockedIn = true; // past the lead-in now — no longer resettable
   sceneContentVisible.value = true;

@@ -27,11 +27,9 @@ const textFontFamily = computed(() => props.fontFamily ?? "sans-serif");
 const iconFontFamily = computed(() => props.fontFamily ?? "serif");
 
 const buttonStyle = computed(() => ({
-  // Top-CENTRED (01.09.2026, Autor-Entscheidung — was top-right) — a
-  // branch-level positioning choice; if this is ever backported to
-  // feature_template as a generic component (s. header comment above),
-  // reconsider whether top-centre should be the new shared default or a
-  // configurable position prop.
+  // Top-CENTRED (01.09.2026, Autor-Entscheidung, backported from
+  // animationssystem-wanderer as the new shared default alongside the rest
+  // of this component's own gold-standard usability polish — was top-right).
   position: "fixed" as const,
   top: "4%",
   left: "50%",
