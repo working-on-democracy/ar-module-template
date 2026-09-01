@@ -254,15 +254,29 @@ const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
 // beeinflussen") — nur die Bewegung selbst wird wilder, die Anordnung der
 // Kugeln bleibt exakt die, die zuletzt per Swipe gesetzt wurde.
 const CHAOS_HOLD_DELAY_MS = 700;
+// Reverse of swipeSuppressedThisSession below (01.09.2026, author's
+// correction: "Eine Swipe Geste sollte nicht in eine Hold Geste übergehen,
+// wenn der Finger noch zu lange auf dem Display gehalten wird") — a real
+// swipe must cancel a still-PENDING (not yet confirmed) hold outright, or
+// simply stopping mid-swipe without lifting the finger would let
+// CHAOS_HOLD_DELAY_MS quietly elapse afterwards and activate Chaos-Modus
+// on what was clearly meant as a swipe. Same threshold/shape already used
+// for the opposite direction on this same gesture pair, and for the
+// analogous emissive-hold gesture in material-shader-showcase.
+const CHAOS_SWIPE_CANCEL_PX = 6;
 const chaosActive = ref(false);
 let chaosConfirmTimer: number | null = null;
 let chaosHoldConfirmed = false;
+let chaosMoveAccumPx = 0;
+let chaosSwipeCancelled = false;
 let swipeSuppressedThisSession = false;
 
 function onChaosHoldStart() {
   if (tutorialInputLocked.value) return;
   swipeSuppressedThisSession = false; // fresh gesture — reset the sticky block from any earlier hold
   chaosHoldConfirmed = false;
+  chaosMoveAccumPx = 0;
+  chaosSwipeCancelled = false;
   chaosConfirmTimer = window.setTimeout(() => {
     chaosHoldConfirmed = true;
     swipeSuppressedThisSession = true; // block a swipe from this same gesture once released
@@ -278,6 +292,21 @@ function onChaosHoldEnd() {
   if (chaosHoldConfirmed) {
     chaosActive.value = false;
     chaosHoldConfirmed = false;
+  }
+}
+
+// Fed from the same dx/dy swipe callbacks that already drive density/
+// fieldSizePercent — accumulates movement while a hold-confirm timer is
+// still pending, and cancels that timer outright once it crosses
+// CHAOS_SWIPE_CANCEL_PX (a no-op once already confirmed or already
+// cancelled, s. the early return below).
+function registerChaosMovement(deltaPx: number) {
+  if (chaosSwipeCancelled || chaosHoldConfirmed || chaosConfirmTimer === null) return;
+  chaosMoveAccumPx += Math.abs(deltaPx);
+  if (chaosMoveAccumPx > CHAOS_SWIPE_CANCEL_PX) {
+    chaosSwipeCancelled = true;
+    window.clearTimeout(chaosConfirmTimer);
+    chaosConfirmTimer = null;
   }
 }
 
@@ -549,11 +578,13 @@ onMounted(() => {
     (dx) => {
       if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       density.value = Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, density.value + dx * DENSITY_PER_PX));
+      registerChaosMovement(dx);
     },
     (dy) => {
       if (tutorialInputLocked.value || swipeSuppressedThisSession) return;
       // Screen Y grows downward, so swiping UP (negative dy) should grow the field.
       fieldSizePercent.value = Math.min(FIELD_SIZE_MAX, Math.max(FIELD_SIZE_MIN, fieldSizePercent.value - dy * FIELD_SIZE_PER_PX));
+      registerChaosMovement(dy);
     },
     onChaosHoldStart,
     onChaosHoldEnd
