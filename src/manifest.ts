@@ -34,6 +34,7 @@ import proximityFade from "./a-frame-components/proximity-fade";
 import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
 import proximityOpacity from "./a-frame-components/proximity-opacity";
 import proximityCutout from "./a-frame-components/proximity-cutout";
+import proximityMotion from "./a-frame-components/proximity-motion";
 import mirrorShard from "./a-frame-components/mirror-shard";
 import liquidTexture from "./a-frame-components/liquid-texture";
 import followNode from "./a-frame-components/follow-node";
@@ -53,6 +54,7 @@ import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
 import reflectionProbe from "./a-frame-components/reflection-probe";
+import wanderSound from "./a-frame-components/wander-sound";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 // AN ALLE! Zwischen-Basis: placeholder target until the real printed image
@@ -99,6 +101,16 @@ export const manifest: Manifest = {
     // Camera-proximity cutout sphere — see proximity-cutout.ts and
     // examples/proximity-cutout-usage.html.
     "proximity-cutout": proximityCutout,
+    // Swipe + proximity as a GUI-free control model (AN ALLE! Zwischen-
+    // Basis decision, 31.08.2026, s. archive-of-practice
+    // projects/an-alle/concepts/zwischen-basis.md): radial swing + vertical
+    // height + idle float + one-time radial colour gradient, all gated by
+    // camera proximity (screen coverage for swing/idle, real 3D distance
+    // for height) — see proximity-motion.ts and screen-coverage.ts (the
+    // shared coverage-measurement helper it's built on, alongside
+    // proximity-fade-shared.ts's rampFactor and seeded-random.ts).
+    // Generalized from zufallsverteilung-lod's own proximity-swing.ts.
+    "proximity-motion": proximityMotion,
     // Glass "mirror shard" field — see mirror-shard.ts and
     // examples/mirror-shard-usage.html. Its optional inner illustration
     // layer samples liquid-texture, a separate generic effect (not
@@ -174,8 +186,14 @@ export const manifest: Manifest = {
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
     "ground-decal": groundDecal,
     // Real-time environment reflections for metallic materials via a
-    // shared THREE.CubeCamera — see reflection-probe.ts.
-    "reflection-probe": reflectionProbe
+    // shared THREE.CubeCamera — see reflection-probe.ts (generalized from
+    // material-shader-showcase's own first build of this idea).
+    "reflection-probe": reflectionProbe,
+    // Per-entity tap-to-play/pause sound with a colour/pulse reaction on its
+    // own child segments while playing — see wander-sound.ts (AN ALLE!
+    // Animationssystem Wanderer, not a single-active mutex like
+    // sound-controller.ts: any number of instances may play at once).
+    "wander-sound": wanderSound
   },
 
   // AN ALLE! Zwischen-Basis baseline (s. o.) — placeholder target, real one

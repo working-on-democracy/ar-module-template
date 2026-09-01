@@ -49,3 +49,44 @@ export function animateValue(
     requestAnimationFrame(step);
   });
 }
+
+// AN ALLE! Zwischen-Basis (archive-of-practice
+// projects/an-alle/concepts/zwischen-basis.md) — extracted from
+// animationssystem-wanderer's own ArModule.vue (01.09.2026), where it was
+// needed for a resettable tutorial lead-in ("wenn die erste Bilderkennung
+// innerhalb der ersten Sekunden abgebrochen wird, wird das Tutorial
+// zurückgesetzt"). animateValue above can't be used for that: its own
+// rAF loop keeps writing toward `to` for the FULL fixed duration
+// regardless of anything else, so a cancellation check only after
+// `await`-ing it is too late — the fade would already have finished
+// playing out. This checks `isCancelled()` every frame instead, resolving
+// `false` (without ever reaching `to`) the instant it starts returning
+// true, or `true` on a normal, uninterrupted finish. Generic over
+// whatever cancellation condition the caller wants to use (e.g. an
+// incrementing "run token" no longer matching the value captured when the
+// fade started) — no fixed token concept baked in here.
+export function cancellableFade(
+  target: Ref<number>,
+  from: number,
+  to: number,
+  durationMs: number,
+  isCancelled: () => boolean
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    function step(now: number) {
+      if (isCancelled()) {
+        resolve(false);
+        return;
+      }
+      const t = Math.min(1, durationMs > 0 ? (now - start) / durationMs : 1);
+      target.value = from + (to - from) * t;
+      if (t >= 1) {
+        resolve(true);
+        return;
+      }
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
