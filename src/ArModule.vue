@@ -753,6 +753,12 @@ const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.
 // actually notice the reflections.
 const REFLECTION_CHECKBOX_MOVE_MS = 2400;
 const REFLECTION_DEMO_HOLD_MS = 2400;
+// Extra pause once the checkbox is stationary at centre, both right
+// before activating it and right after deactivating it again (author's
+// spec, 01.09.2026) — added on top of MOVE/HOLD above, not carved out of
+// either, so a still, unchecked/checked moment brackets the actual on/off
+// flip on both sides.
+const REFLECTION_CHECKBOX_STILL_MS = 500;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
@@ -845,11 +851,17 @@ async function runTutorial(myToken: number) {
   // checkbox is stationary at centre, never before or during either move.
   reflectionEnabled.value = false;
   await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
+  // Extra stillness at centre before/after activating (author's spec,
+  // 01.09.2026) — added ON TOP of the move/hold timing above, not carved
+  // out of it, so REFLECTION_CHECKBOX_MOVE_MS/REFLECTION_DEMO_HOLD_MS keep
+  // meaning exactly what their own names say.
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_CHECKBOX_STILL_MS));
   reflectionEnabled.value = true;
   showTutorialText('Häkchen Reflektionen ☑️ = Spiegelungen');
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HOLD_MS));
   reflectionEnabled.value = false;
   tutorialText.value = '';
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_CHECKBOX_STILL_MS));
   await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
 
   // Phase 3: hold -> emissive. Reflection is already off from Phase 2.5's
