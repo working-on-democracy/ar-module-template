@@ -751,7 +751,7 @@ const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.
 // since it stays off for the whole move — author's spec, 01.09.2026); HOLD
 // is the stationary "on" stretch at centre in between, long enough to
 // actually notice the reflections.
-const REFLECTION_CHECKBOX_MOVE_MS = 1200;
+const REFLECTION_CHECKBOX_MOVE_MS = 2400;
 const REFLECTION_DEMO_HOLD_MS = 2400;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
