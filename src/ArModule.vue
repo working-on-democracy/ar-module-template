@@ -464,11 +464,23 @@ const REFLECTION_CHECKBOX_REST_TOP_PERCENT = 96;
 const REFLECTION_CHECKBOX_CENTER_TOP_PERCENT = 50;
 const reflectionCheckboxTopPercent = ref(REFLECTION_CHECKBOX_REST_TOP_PERCENT);
 
+// Grows while animating to centre, shrinks back while animating back down
+// (author's request, 01.09.2026) — derived directly from
+// reflectionCheckboxTopPercent's own progress (0 at rest, 1 at centre)
+// rather than a second animated ref, so size and position always stay
+// perfectly in lockstep with a single driven value.
+const REFLECTION_CHECKBOX_SCALE_MAX = 1.8;
+const reflectionCheckboxProgress = computed(() => {
+  const range = REFLECTION_CHECKBOX_REST_TOP_PERCENT - REFLECTION_CHECKBOX_CENTER_TOP_PERCENT;
+  return range === 0 ? 0 : (REFLECTION_CHECKBOX_REST_TOP_PERCENT - reflectionCheckboxTopPercent.value) / range;
+});
+const reflectionCheckboxScale = computed(() => 1 + (REFLECTION_CHECKBOX_SCALE_MAX - 1) * reflectionCheckboxProgress.value);
+
 const reflectionToggleStyle = computed(() => ({
   position: 'fixed' as const,
   top: `${reflectionCheckboxTopPercent.value}%`,
   left: '50%',
-  transform: 'translate(-50%, -50%)',
+  transform: `translate(-50%, -50%) scale(${reflectionCheckboxScale.value.toFixed(3)})`,
   display: 'flex' as const,
   alignItems: 'center' as const,
   gap: '8px',
@@ -809,7 +821,12 @@ async function runTutorial(myToken: number) {
   // through roughnessStart.
   const REFLECTION_DEMO_METALNESS = 100;
   const REFLECTION_DEMO_ROUGHNESS = 20;
-  showTutorialText('Häkchen Reflektionen ☑️ = Spiegelungen');
+  // No showTutorialText() here yet (author's correction, 01.09.2026: the
+  // text "erscheint schon kurz, bevor das Häkchen GUI-Element nach oben
+  // animiert wird... sie soll nur in der Mitte des Segments sichtbar
+  // sein") — it's only shown once the checkbox is actually centred and
+  // held there, s. further below; neither the material ramp nor either
+  // checkbox move should show any text at all.
   const reflectionDemoInMs = segmentDuration(metalnessStart, REFLECTION_DEMO_METALNESS, 100);
   await Promise.all([
     animateValue(metalness, metalnessStart, REFLECTION_DEMO_METALNESS, reflectionDemoInMs),
@@ -821,13 +838,12 @@ async function runTutorial(myToken: number) {
   // restore above, since the checkbox is a plain DOM control the visitor
   // could already have toggled themselves during an earlier phase — it
   // isn't gated by tutorialInputLocked like swipe/hold are), staying off
-  // for the checkbox's own move-to-centre animation, ON once centred and
-  // actually held there, OFF again for the move back down. The
-  // explanatory text is hidden for both moves (s. Phase 2.5's own header
-  // comment above) and re-shown (sliding back in via showTutorialText)
-  // once the checkbox is stationary again at centre.
+  // for the checkbox's own move-to-centre animation (which also grows it,
+  // s. reflectionCheckboxScale above), ON once centred and actually held
+  // there, OFF again for the move back down (shrinking back to its
+  // original size). The explanatory text is only ever shown once the
+  // checkbox is stationary at centre, never before or during either move.
   reflectionEnabled.value = false;
-  tutorialText.value = '';
   await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
   reflectionEnabled.value = true;
   showTutorialText('Häkchen Reflektionen ☑️ = Spiegelungen');
