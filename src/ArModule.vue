@@ -666,11 +666,13 @@ function registerEmissiveMovement(deltaPx: number) {
 // hardcoded back to off.
 // Phase 2.5 (reflection checkbox, added 01.09.2026, author's request:
 // "einen Tutorial-Abschnitt, der die reflection checkbox erklärt, nach der
-// metalness erklärung"): a fixed-duration demo, no value to sweep —
-// reflection explicitly off, then on, each held for REFLECTION_DEMO_HALF_MS.
+// metalness erklärung"): a fixed-duration demo, no value to sweep — off
+// briefly (REFLECTION_DEMO_BRIEF_MS), on and actually held
+// (REFLECTION_DEMO_HOLD_MS), then off briefly again right before the next
+// section (refined 01.09.2026, author's follow-up spec — all three steps
+// belong to this phase, not deferred to Phase 3's own start).
 // Phase 3 (hold/emissive, new — not part of zufallsverteilung-lod's own
-// tutorial, which has no hold gesture): reflection explicitly OFF again at
-// the very start (author's spec), then both roughness and metalness sit at
+// tutorial, which has no hold gesture): both roughness and metalness sit at
 // their standard values while emissive sweeps 0% -> 100% -> 0%. Every
 // waypoint here is the author's explicit spec, not derived from any
 // existing constant.
@@ -714,9 +716,13 @@ const trackingHintStyle = {
   pointerEvents: 'none' as const
 } as const;
 const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.09.2026, author's request)
-// Fixed duration of each half (off, then on) of the tutorial's reflection-
-// checkbox demo phase (s. runTutorial() below) — no value to sweep here.
-const REFLECTION_DEMO_HALF_MS = 2000;
+// Fixed durations of the tutorial's reflection-checkbox demo phase (s.
+// runTutorial() below) — no value to sweep here. BRIEF is the two short
+// "off" moments (immediately at the start, and again right before the
+// next section); HOLD is the longer "on" stretch in between, long enough
+// to actually notice the reflections (author's spec, 01.09.2026).
+const REFLECTION_DEMO_BRIEF_MS = 800;
+const REFLECTION_DEMO_HOLD_MS = 3000;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
@@ -791,24 +797,27 @@ async function runTutorial(myToken: number) {
     animateValue(metalness, metalnessStart, REFLECTION_DEMO_METALNESS, reflectionDemoInMs),
     animateValue(roughness, METALNESS_PHASE_ROUGHNESS_LOW, REFLECTION_DEMO_ROUGHNESS, reflectionDemoInMs)
   ]);
-  // Explicitly OFF first (not just trusting the restore above, since the
-  // checkbox is a plain DOM control the visitor could already have toggled
-  // themselves during an earlier phase — it isn't gated by
-  // tutorialInputLocked like swipe/hold are), then ON, each held long
-  // enough to actually notice the reflections appear/disappear.
+  // Off/on/off timing (author's spec, 01.09.2026): OFF immediately (not
+  // just trusting the restore above, since the checkbox is a plain DOM
+  // control the visitor could already have toggled themselves during an
+  // earlier phase — it isn't gated by tutorialInputLocked like swipe/hold
+  // are) for only a BRIEF moment, then ON and actually HELD for a few
+  // seconds (long enough to really notice the reflections), then OFF again
+  // briefly right before the next section — all three steps belong to
+  // THIS phase's own demo, not deferred to Phase 3's start.
   reflectionEnabled.value = false;
-  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
   reflectionEnabled.value = true;
-  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HALF_MS));
-
-  // Phase 3: hold -> emissive. Reflection explicitly OFF again right at
-  // the start of this section (author's spec) — it isn't part of this
-  // phase's own demo and shouldn't linger on from the previous one.
-  // Roughness/metalness animate back to their standard values here too
-  // (author's follow-up spec: "am Anfang des Holds Abschnitts dann wieder
-  // zurück auf Standardwerte") — this phase's own emissive demo doesn't
-  // need the reflection-demo's exaggerated metalness/roughness either.
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HOLD_MS));
   reflectionEnabled.value = false;
+  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
+
+  // Phase 3: hold -> emissive. Reflection is already off from Phase 2.5's
+  // own final step above, so nothing further to do for it here. Roughness/
+  // metalness animate back to their standard values here (author's
+  // follow-up spec: "am Anfang des Holds Abschnitts dann wieder zurück auf
+  // Standardwerte") — this phase's own emissive demo doesn't need the
+  // reflection-demo's exaggerated metalness/roughness either.
   const reflectionDemoOutMs = segmentDuration(REFLECTION_DEMO_METALNESS, metalnessStart, 100);
   await Promise.all([
     animateValue(metalness, REFLECTION_DEMO_METALNESS, metalnessStart, reflectionDemoOutMs),
