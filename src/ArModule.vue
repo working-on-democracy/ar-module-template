@@ -675,7 +675,7 @@ onUnmounted(() => {
        01.09.2026) — shown until the very first successful tracking of the
        whole session, independent of the resettable tutorial-lead-in state
        below. -->
-  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf das Bild richten!</div>
+  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf Image Target richten!</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
