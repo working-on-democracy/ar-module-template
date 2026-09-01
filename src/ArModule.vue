@@ -468,6 +468,23 @@ const reflectionToggleStyle = {
   zIndex: 1000
 } as const;
 
+// Centre-screen cross/check indicator (author's request, 01.09.2026) —
+// only shown during the tutorial's own reflection-checkbox off/on/off
+// sequence (s. runTutorial() below), alternating in sync with
+// reflectionEnabled itself: a second, more eye-catching cue than the
+// small checkbox alone for whichever state it's currently demonstrating.
+const reflectionDemoActive = ref(false);
+const reflectionDemoIndicatorText = computed(() => (reflectionEnabled.value ? '✅' : '❌'));
+const reflectionDemoIndicatorStyle = {
+  position: 'fixed' as const,
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  fontSize: '20vw',
+  zIndex: 999,
+  pointerEvents: 'none' as const
+} as const;
+
 // Animated 0 -> 1 -> STANDARD_GROUND_OPACITY as the tutorial's own lead-in
 // (s. runTutorial() below, same mechanism as zufallsverteilung-lod's own
 // tutorial) — starts at 0 (invisible) until that animation runs, rather
@@ -805,12 +822,19 @@ async function runTutorial(myToken: number) {
   // seconds (long enough to really notice the reflections), then OFF again
   // briefly right before the next section — all three steps belong to
   // THIS phase's own demo, not deferred to Phase 3's start.
+  // reflectionDemoActive (author's follow-up spec, 01.09.2026) shows a
+  // second, centre-screen text field for exactly this off/on/off sequence,
+  // alternating a cross/check emoji in sync with reflectionEnabled itself
+  // (s. reflectionDemoIndicatorText below) — a second, more eye-catching
+  // cue than the small checkbox alone for whichever state it's in.
+  reflectionDemoActive.value = true;
   reflectionEnabled.value = false;
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
   reflectionEnabled.value = true;
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HOLD_MS));
   reflectionEnabled.value = false;
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
+  reflectionDemoActive.value = false;
 
   // Phase 3: hold -> emissive. Reflection is already off from Phase 2.5's
   // own final step above, so nothing further to do for it here. Roughness/
@@ -1166,4 +1190,9 @@ So kannst du mitspielen:
   <!-- "Tutorial" header, same visibility condition as the instruction
        label above (01.09.2026, author's request). -->
   <div v-if="tutorialText" :style="tutorialHeaderStyle">Tutorial</div>
+
+  <!-- Centre-screen cross/check indicator (01.09.2026, author's request) —
+       only during the tutorial's own reflection-checkbox off/on/off
+       sequence, s. reflectionDemoActive/runTutorial() above. -->
+  <div v-if="reflectionDemoActive" :style="reflectionDemoIndicatorStyle">{{ reflectionDemoIndicatorText }}</div>
 </template>
