@@ -752,7 +752,7 @@ const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.
 // is the stationary "on" stretch at centre in between, long enough to
 // actually notice the reflections.
 const REFLECTION_CHECKBOX_MOVE_MS = 2400;
-const REFLECTION_DEMO_HOLD_MS = 2400;
+const REFLECTION_DEMO_HOLD_MS = 3000;
 // Extra pause once the checkbox is stationary at centre, both right
 // before activating it and right after deactivating it again (author's
 // spec, 01.09.2026) — added on top of MOVE/HOLD above, not carved out of
