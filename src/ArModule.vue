@@ -246,29 +246,18 @@ const zBobHeightMax = FOOTPRINT_MIN_SIDE / 4;
 const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
 
 // Chaos-Modus (archive-of-practice projects/an-alle/concepts/
-// zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026,
-// analog zum animationssystem-wanderer-Standard: dort "Chaos-Boost") — ein
-// Hold maximiert Zufallsverteilung UND Animation zugleich. Zwei getrennte
-// Mechanismen, weil random-field ein EINMALIGER Platzierungs-Vorgang ist
-// (kein tick(), s. fieldKey-Kommentar oben) und proximity-swing dagegen
-// ein echtes Pro-Frame-tick():
-//   - Feldgröße/Dichte springen DISKRET auf ihr Maximum, sobald der Hold
-//     bestätigt ist, und ebenso diskret zurück auf den zuletzt per Swipe
-//     gesetzten Wert beim Loslassen/Abbrechen — ein kontinuierliches Ranpen
-//     wäre hier NICHT sichtbar glatt, sondern hätte bei jeder Änderung ein
-//     volles Remount des Feldes ausgelöst (:key="fieldKey").
-//   - Die Schwing-/Bob-/Idle-Animation jeder platzierten Kugel
-//     (proximity-swing's neues `chaosBoost`) ist dagegen für die gesamte
-//     Dauer des Holds fest auf ihren Maximalwert gesetzt (kein Ranpen
-//     nötig — sie wird ohnehin nur bei jedem Remount neu an die Klone
-//     verteilt, s. proximity-swing.ts's eigener Schema-Kommentar).
+// zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026, analog
+// zum animationssystem-wanderer-Standard: dort "Chaos-Boost") — ein Hold
+// maximiert die Schwing-/Bob-/Idle-Animation jeder platzierten Kugel
+// (proximity-swing's neues `chaosBoost`). Bewusst NICHT Feldgröße/Dichte
+// (Autor-Korrektur, 01.09.2026: "Hold darf nicht die Feldgröße und Dichte
+// beeinflussen") — nur die Bewegung selbst wird wilder, die Anordnung der
+// Kugeln bleibt exakt die, die zuletzt per Swipe gesetzt wurde.
 const CHAOS_HOLD_DELAY_MS = 700;
 const chaosActive = ref(false);
 let chaosConfirmTimer: number | null = null;
 let chaosHoldConfirmed = false;
 let swipeSuppressedThisSession = false;
-let preChaosDensity = density.value;
-let preChaosFieldSize = fieldSizePercent.value;
 
 function onChaosHoldStart() {
   if (tutorialInputLocked.value) return;
@@ -277,10 +266,6 @@ function onChaosHoldStart() {
   chaosConfirmTimer = window.setTimeout(() => {
     chaosHoldConfirmed = true;
     swipeSuppressedThisSession = true; // block a swipe from this same gesture once released
-    preChaosDensity = density.value;
-    preChaosFieldSize = fieldSizePercent.value;
-    density.value = DENSITY_MAX;
-    fieldSizePercent.value = FIELD_SIZE_MAX;
     chaosActive.value = true;
   }, CHAOS_HOLD_DELAY_MS);
 }
@@ -291,8 +276,6 @@ function onChaosHoldEnd() {
     chaosConfirmTimer = null;
   }
   if (chaosHoldConfirmed) {
-    density.value = preChaosDensity;
-    fieldSizePercent.value = preChaosFieldSize;
     chaosActive.value = false;
     chaosHoldConfirmed = false;
   }
@@ -302,7 +285,14 @@ const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
         `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; ` +
         `zBobHeightMax: ${zBobHeightMax.toFixed(4)}; zBobHeightMin: ${zBobHeightMin.toFixed(4)}; ` +
-        `frozen: ${tutorialInputLocked.value}; chaosBoost: ${chaosActive.value ? 1 : 0}`
+        // frozen also unfreezes while chaosActive is true (not just once the
+        // tutorial fully ends) — the only time that combination happens
+        // DURING the tutorial is its own hold/Chaos-Modus demo phase below,
+        // deliberately un-freezing the grid for exactly that phase so the
+        // boosted motion is actually visible; after the tutorial ends,
+        // tutorialInputLocked is already false, so this term is moot for
+        // the real, visitor-triggered hold.
+        `frozen: ${tutorialInputLocked.value && !chaosActive.value}; chaosBoost: ${chaosActive.value ? 1 : 0}`
 );
 
 const lightPosition = `${(FOOTPRINT_WIDTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 0.3).toFixed(3)} ${(FOOTPRINT_DEPTH * 1.5).toFixed(3)}`;
@@ -329,7 +319,12 @@ const groundMaterial = computed(() => `color: #3b82f6; opacity: ${groundOpacity.
 // tutorialInputLocked is also included so the frozen <-> live motion
 // transition always gets a remount exactly when it toggles, even on the
 // rare tick where fieldSizePercent/density don't ALSO happen to change at
-// that same instant.
+// that same instant. chaosActive is included for the same reason as
+// swingRadius/colorMaxDist above, just the other way round: proximity-
+// swing's `chaosBoost` (s. Chaos-Modus comment below) is baked into each
+// clone ONCE at random-field's own clone time, not live-bound — so toggling
+// it needs an explicit remount of its own, even though it no longer changes
+// density/fieldSizePercent at all (01.09.2026 correction).
 const fieldKey = computed(() => `${fieldSizePercent.value}-${density.value}-${tutorialInputLocked.value}-${chaosActive.value}`);
 
 // Swipe-driven density/field-size (archive-of-practice projects/an-alle/
@@ -421,6 +416,10 @@ const FULL_RANGE_MS = 2500;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
+// Fixed length of the tutorial's own hold/Chaos-Modus demo (s. runTutorial()
+// below) — no value sweep to derive a duration from here, same order of
+// magnitude as a FULL_RANGE_MS segment.
+const CHAOS_DEMO_MS = 2500;
 
 // Slides each label down into its resting position (s. tutorialTextStyle
 // below) rather than just appearing there — plain inline-style transform
@@ -461,6 +460,17 @@ async function runTutorial(myToken: number) {
   await animateValue(density, densityStart, DENSITY_MAX, segmentDuration(densityStart, DENSITY_MAX, densityRange));
   await animateValue(density, DENSITY_MAX, DENSITY_TUTORIAL_WAYPOINT, segmentDuration(DENSITY_MAX, DENSITY_TUTORIAL_WAYPOINT, densityRange));
   await animateValue(density, DENSITY_TUTORIAL_WAYPOINT, densityStart, segmentDuration(DENSITY_TUTORIAL_WAYPOINT, densityStart, densityRange));
+
+  // Phase 3 (hold/Chaos-Modus, 01.09.2026, s. Chaos-Modus-Kommentar oben) —
+  // no value to sweep here (Feldgröße/Dichte bleiben bewusst unberührt),
+  // just a fixed-duration demo hold: chaosActive briefly forces the grid's
+  // `frozen` off (s. proximitySwingAttr above) and its own `chaosBoost` on,
+  // so the boosted swing/idle motion is visible for CHAOS_DEMO_MS before
+  // settling back to the still, frozen grid for the rest of this instant.
+  showTutorialText('Gedrückt halten ✋ = Chaos-Modus');
+  chaosActive.value = true;
+  await new Promise<void>((resolve) => setTimeout(resolve, CHAOS_DEMO_MS));
+  chaosActive.value = false;
 
   tutorialText.value = '';
   tutorialInputLocked.value = false;
@@ -665,7 +675,7 @@ onUnmounted(() => {
        01.09.2026) — shown until the very first successful tracking of the
        whole session, independent of the resettable tutorial-lead-in state
        below. -->
-  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf das Bild richten 🎯</div>
+  <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf das Bild richten!</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
@@ -693,5 +703,5 @@ Ein Feld aus kleinen, bunten Kugeln liegt auf dem Bild. Wie viele Kugeln es sind
 So kannst du mitspielen:
 ↕️ Hoch/runter wischen: Feldgröße ändern
 ↔️ Links/rechts wischen: Dichte ändern
-✋ Gedrückt halten: Chaos-Modus — für einen Moment wird alles maximal" />
+✋ Gedrückt halten: Chaos-Modus — die Kugeln bewegen sich für einen Moment besonders wild" />
 </template>
