@@ -451,11 +451,24 @@ const emissive = ref(0); // %, press-and-hold (s. below) — 0 at rest
 // GuiPanel/gui-controls swipe-era system for one boolean.
 const reflectionEnabled = ref(false);
 
-const reflectionToggleStyle = {
+// Vertical position of the checkbox itself, expressed as a single `top`
+// percentage (01.09.2026, author's request: animate the actual GUI element
+// to screen centre for the tutorial's reflection demo, replacing an
+// earlier separate cross/check emoji overlay the author didn't like) — one
+// consistent anchor scheme (`top` + `transform: translate(-50%, -50%)`)
+// throughout, at BOTH its resting position (near the bottom) and centred,
+// so animateValue can smoothly interpolate a single number between them
+// with no discontinuity, rather than switching between a `bottom`- and a
+// `top`-anchored style partway through.
+const REFLECTION_CHECKBOX_REST_TOP_PERCENT = 96;
+const REFLECTION_CHECKBOX_CENTER_TOP_PERCENT = 50;
+const reflectionCheckboxTopPercent = ref(REFLECTION_CHECKBOX_REST_TOP_PERCENT);
+
+const reflectionToggleStyle = computed(() => ({
   position: 'fixed' as const,
-  bottom: '4%',
+  top: `${reflectionCheckboxTopPercent.value}%`,
   left: '50%',
-  transform: 'translateX(-50%)',
+  transform: 'translate(-50%, -50%)',
   display: 'flex' as const,
   alignItems: 'center' as const,
   gap: '8px',
@@ -466,24 +479,7 @@ const reflectionToggleStyle = {
   fontFamily: TUTORIAL_FONT_FAMILY,
   fontSize: '14px',
   zIndex: 1000
-} as const;
-
-// Centre-screen cross/check indicator (author's request, 01.09.2026) —
-// only shown during the tutorial's own reflection-checkbox off/on/off
-// sequence (s. runTutorial() below), alternating in sync with
-// reflectionEnabled itself: a second, more eye-catching cue than the
-// small checkbox alone for whichever state it's currently demonstrating.
-const reflectionDemoActive = ref(false);
-const reflectionDemoIndicatorText = computed(() => (reflectionEnabled.value ? '✅' : '❌'));
-const reflectionDemoIndicatorStyle = {
-  position: 'fixed' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  fontSize: '20vw',
-  zIndex: 999,
-  pointerEvents: 'none' as const
-} as const;
+}));
 
 // Animated 0 -> 1 -> STANDARD_GROUND_OPACITY as the tutorial's own lead-in
 // (s. runTutorial() below, same mechanism as zufallsverteilung-lod's own
@@ -683,11 +679,14 @@ function registerEmissiveMovement(deltaPx: number) {
 // hardcoded back to off.
 // Phase 2.5 (reflection checkbox, added 01.09.2026, author's request:
 // "einen Tutorial-Abschnitt, der die reflection checkbox erklärt, nach der
-// metalness erklärung"): a fixed-duration demo, no value to sweep — off
-// briefly (REFLECTION_DEMO_BRIEF_MS), on and actually held
-// (REFLECTION_DEMO_HOLD_MS), then off briefly again right before the next
-// section (refined 01.09.2026, author's follow-up spec — all three steps
-// belong to this phase, not deferred to Phase 3's own start).
+// metalness erklärung"): the checkbox GUI element itself animates up to
+// screen centre over REFLECTION_CHECKBOX_MOVE_MS (author's later refinement
+// — replaces an earlier separate cross/check emoji overlay), staying OFF
+// for that whole move; once centred, ON for REFLECTION_DEMO_HOLD_MS; then
+// OFF again and animates back down over another REFLECTION_CHECKBOX_MOVE_MS.
+// The explanatory tutorial text is hidden for both moves (only shown while
+// the checkbox itself is stationary — author's spec: "während das GUI
+// Element animiert, ist die erklärende Texteinblendung nicht sichtbar").
 // Phase 3 (hold/emissive, new — not part of zufallsverteilung-lod's own
 // tutorial, which has no hold gesture): both roughness and metalness sit at
 // their standard values while emissive sweeps 0% -> 100% -> 0%. Every
@@ -734,12 +733,14 @@ const trackingHintStyle = {
 } as const;
 const FULL_RANGE_MS = 3500; // slower than zufallsverteilung-lod's own 2500 (01.09.2026, author's request)
 // Fixed durations of the tutorial's reflection-checkbox demo phase (s.
-// runTutorial() below) — no value to sweep here. BRIEF is the two short
-// "off" moments (immediately at the start, and again right before the
-// next section); HOLD is the longer "on" stretch in between, long enough
-// to actually notice the reflections (author's spec, 01.09.2026).
-const REFLECTION_DEMO_BRIEF_MS = 800;
-const REFLECTION_DEMO_HOLD_MS = 3000;
+// runTutorial() below and reflectionCheckboxTopPercent above) — no value
+// to sweep here. MOVE is how long the checkbox itself takes to slide to/
+// from screen centre (the OFF state lasts exactly this long each way,
+// since it stays off for the whole move — author's spec, 01.09.2026); HOLD
+// is the stationary "on" stretch at centre in between, long enough to
+// actually notice the reflections.
+const REFLECTION_CHECKBOX_MOVE_MS = 1200;
+const REFLECTION_DEMO_HOLD_MS = 2400;
 function segmentDuration(from: number, to: number, fullRange: number): number {
   return (Math.abs(to - from) / fullRange) * FULL_RANGE_MS;
 }
@@ -814,27 +815,26 @@ async function runTutorial(myToken: number) {
     animateValue(metalness, metalnessStart, REFLECTION_DEMO_METALNESS, reflectionDemoInMs),
     animateValue(roughness, METALNESS_PHASE_ROUGHNESS_LOW, REFLECTION_DEMO_ROUGHNESS, reflectionDemoInMs)
   ]);
-  // Off/on/off timing (author's spec, 01.09.2026): OFF immediately (not
-  // just trusting the restore above, since the checkbox is a plain DOM
-  // control the visitor could already have toggled themselves during an
-  // earlier phase — it isn't gated by tutorialInputLocked like swipe/hold
-  // are) for only a BRIEF moment, then ON and actually HELD for a few
-  // seconds (long enough to really notice the reflections), then OFF again
-  // briefly right before the next section — all three steps belong to
-  // THIS phase's own demo, not deferred to Phase 3's start.
-  // reflectionDemoActive (author's follow-up spec, 01.09.2026) shows a
-  // second, centre-screen text field for exactly this off/on/off sequence,
-  // alternating a cross/check emoji in sync with reflectionEnabled itself
-  // (s. reflectionDemoIndicatorText below) — a second, more eye-catching
-  // cue than the small checkbox alone for whichever state it's in.
-  reflectionDemoActive.value = true;
+  // Checkbox move/off/on/off sequence (author's spec, 01.09.2026, replaces
+  // an earlier fixed-timing off/on/off with a separate emoji overlay the
+  // author didn't like) — OFF explicitly first (not just trusting the
+  // restore above, since the checkbox is a plain DOM control the visitor
+  // could already have toggled themselves during an earlier phase — it
+  // isn't gated by tutorialInputLocked like swipe/hold are), staying off
+  // for the checkbox's own move-to-centre animation, ON once centred and
+  // actually held there, OFF again for the move back down. The
+  // explanatory text is hidden for both moves (s. Phase 2.5's own header
+  // comment above) and re-shown (sliding back in via showTutorialText)
+  // once the checkbox is stationary again at centre.
   reflectionEnabled.value = false;
-  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
+  tutorialText.value = '';
+  await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
   reflectionEnabled.value = true;
+  showTutorialText('Häkchen Reflektionen ☑️ = Spiegelungen');
   await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_HOLD_MS));
   reflectionEnabled.value = false;
-  await new Promise<void>((resolve) => setTimeout(resolve, REFLECTION_DEMO_BRIEF_MS));
-  reflectionDemoActive.value = false;
+  tutorialText.value = '';
+  await animateValue(reflectionCheckboxTopPercent, REFLECTION_CHECKBOX_CENTER_TOP_PERCENT, REFLECTION_CHECKBOX_REST_TOP_PERCENT, REFLECTION_CHECKBOX_MOVE_MS);
 
   // Phase 3: hold -> emissive. Reflection is already off from Phase 2.5's
   // own final step above, so nothing further to do for it here. Roughness/
@@ -1190,9 +1190,4 @@ So kannst du mitspielen:
   <!-- "Tutorial" header, same visibility condition as the instruction
        label above (01.09.2026, author's request). -->
   <div v-if="tutorialText" :style="tutorialHeaderStyle">Tutorial</div>
-
-  <!-- Centre-screen cross/check indicator (01.09.2026, author's request) —
-       only during the tutorial's own reflection-checkbox off/on/off
-       sequence, s. reflectionDemoActive/runTutorial() above. -->
-  <div v-if="reflectionDemoActive" :style="reflectionDemoIndicatorStyle">{{ reflectionDemoIndicatorText }}</div>
 </template>
