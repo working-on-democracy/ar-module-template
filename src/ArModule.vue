@@ -238,7 +238,19 @@ const FOOTPRINT_MIN_SIDE = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH);
 // room-scale bud radius (tuned for a 6m reference field) times PROP_SCALE, a
 // direct proportional shrink to the image target's own much smaller
 // physical size.
-const PROP_SCALE = FOOTPRINT_MIN_SIDE / 6;
+//
+// Divisor recalibrated 6 -> 2 (02.09.2026, live host bug: text/GUI/tracking
+// all worked, but the field was completely imperceptible — confirmed live
+// via an on-screen debug overlay that placement/visibility/material were
+// all correct, only the REAL-WORLD size was wrong). The original "/6"
+// preserved the exact bud-to-field proportion of an old 6m room-scale
+// scene, but on the actual printed AN ALLE! target (~20-22cm physical
+// width, measured live via the tracked anchor's own world scale) that
+// proportion works out to a ~4.7mm-radius sphere — invisible in practice.
+// "/2" instead targets a clearly visible ~1.4cm radius (2.8cm diameter) at
+// that same real-world print size. Like every other tuned number in this
+// codebase, still needs on-device (re-)confirmation by the author.
+const PROP_SCALE = FOOTPRINT_MIN_SIDE / 2;
 // Ground-plane radius of a placed prop — the density/spacing calc below and
 // proximity-swing's own colour/motion attributes both need this.
 const PROP_FOOTPRINT_RADIUS = 0.14 * PROP_SCALE;
