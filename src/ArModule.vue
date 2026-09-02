@@ -268,11 +268,11 @@ const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
 // fractions, not real-world distances, so a LOWER value means full swing
 // triggers at LESS screen fill, i.e. from farther away, making the field
 // read as more chaotic at a normal viewing distance instead of less.
-// Reversed and doubled past the original defaults instead (author's
-// correction, same session): full motion now needs genuinely close
-// framing, stillness holds until markedly closer too.
-const PROXIMITY_COVERAGE_NEAR = 2.0;
-const PROXIMITY_COVERAGE_FAR = 1.0;
+// Reversed and doubled past the original defaults (2.0/1.0) — read as too
+// extreme on device (author's correction, same session). Settled on the
+// midpoint between that and the original defaults (1.5/0.75) instead.
+const PROXIMITY_COVERAGE_NEAR = 1.5;
+const PROXIMITY_COVERAGE_FAR = 0.75;
 
 // Chaos-Modus (archive-of-practice projects/an-alle/concepts/
 // zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026, analog
