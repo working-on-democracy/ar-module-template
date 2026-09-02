@@ -10,7 +10,8 @@
     "build:ar": "vite build --mode ar",
     "build:watch": "vite build --watch",
     "compress-assets": "tsx scripts/compress-assets.ts",
-    "deploy:ar": "bash scripts/deploy-ar.sh"
+    "deploy:ar": "bash scripts/deploy-ar.sh",
+    "deploy:production": "bash scripts/deploy-production.sh"
   },
   "devDependencies": {
     "@8thwall/engine-binary": "1.0.0",
