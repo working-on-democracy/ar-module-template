@@ -168,6 +168,25 @@ function inspectFirstClone(randomFieldEl: Element) {
   }
   const camera = clone.sceneEl?.camera;
   pushDebug(`renderer camera=${Boolean(camera)} sceneVisible=${clone.sceneEl?.object3D?.visible}`);
+
+  // Checks the user's own hypothesis (02.09.2026): the host owns the
+  // <a-camera>'s `position` attribute for its own "locate the viewer"
+  // purposes (s. README's host contract) — if that fights with 8th Wall's
+  // own SLAM tracking on the SAME entity, content anchored relative to the
+  // camera's tracked motion could end up offset. Logs both the DOM
+  // attribute (whatever the host last wrote) and the live rendered world
+  // position (whatever 8th Wall/A-Frame is actually using this frame) side
+  // by side — a persistent mismatch between the two would confirm it.
+  const cameraEl = document.querySelector('#camera') as any;
+  if (cameraEl && camera) {
+    const camWorldPos = new AFRAME.THREE.Vector3();
+    camera.getWorldPosition(camWorldPos);
+    const attrPos = cameraEl.getAttribute('position');
+    pushDebug(
+      `camera: attr=${attrPos ? `${attrPos.x.toFixed(2)},${attrPos.y.toFixed(2)},${attrPos.z.toFixed(2)}` : 'n/a'} ` +
+      `world=${camWorldPos.x.toFixed(2)},${camWorldPos.y.toFixed(2)},${camWorldPos.z.toFixed(2)}`
+    );
+  }
 }
 function onDebugRandomField(e: Event) {
   const detail = (e as CustomEvent).detail;
