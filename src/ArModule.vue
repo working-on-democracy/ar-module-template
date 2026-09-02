@@ -320,12 +320,12 @@ function itemMaterial(step: number): string {
 // three needed to fade out earlier, i.e. while the camera is still further
 // away, not only once nearly touching) — narrows the whole fade band, so
 // full transparency arrives sooner during approach.
-// Both halved again 1.5x/0.5x -> 0.75x/0.25x (02.09.2026, live host test:
-// spheres were already invisible at a normal scanning distance in front of
-// the printed target) — same fade-band shape, just triggering markedly
-// closer to the target.
-const OPACITY_FADE_FAR = FOOTPRINT_MIN_SIDE * 0.75;
-const OPACITY_FADE_NEAR = FOOTPRINT_MIN_SIDE * 0.25;
+// Halved again 1.5x/0.5x -> 0.75x/0.25x, then tightened once more to
+// 0.5x/0.1x (02.09.2026, live host test: spheres were already invisible at
+// a normal scanning distance in front of the printed target) — same
+// fade-band shape, just triggering markedly closer to the target.
+const OPACITY_FADE_FAR = FOOTPRINT_MIN_SIDE * 0.5;
+const OPACITY_FADE_NEAR = FOOTPRINT_MIN_SIDE * 0.1;
 function proximityOpacityAttr(targetComponent: string): string {
   return `targetComponent: ${targetComponent}; near: ${OPACITY_FADE_NEAR.toFixed(4)}; far: ${OPACITY_FADE_FAR.toFixed(4)}`;
 }
@@ -389,11 +389,12 @@ function cutoutEffectiveRadius(step: number): number {
 }
 function cutoutAttr(step: number, ditherType: string): string {
   const r = cutoutEffectiveRadius(step);
-  // Both halved 7.0x/1.8x -> 3.5x/0.9x (02.09.2026, live host test: same
-  // "already invisible at a normal scanning distance" issue as the opacity
-  // fade above — the discard band started too far from the target).
-  const radius = r * 3.5;
-  const feather = r * 0.9;
+  // Halved 7.0x/1.8x -> 3.5x/0.9x, then tightened once more to 2.0x/0.5x
+  // (02.09.2026, live host test: same "already invisible at a normal
+  // scanning distance" issue as the opacity fade above — the discard band
+  // started too far from the target).
+  const radius = r * 2.0;
+  const feather = r * 0.5;
   return `radius: ${radius.toFixed(4)}; feather: ${feather.toFixed(4)}; ditherType: ${ditherType}; innerColor: ${innerSphereColor(step)}`;
 }
 
