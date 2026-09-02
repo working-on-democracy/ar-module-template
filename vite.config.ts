@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { fileURLToPath, URL } from "node:url";
-import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
 import { join, parse, extname, sep } from "node:path";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
@@ -202,13 +202,25 @@ export default defineConfig(async ({ command, mode }) => {
     // dist-ar/ resolves the AR app at the root. Renamed on disk after the bundle
     // is written (build-only — no effect on the dev server, which keeps serving
     // the ar.html source).
+    //
+    // Also strips the dev-only `.preview-overlay` div (the "AR Module Preview ·
+    // 8th Wall / Grant camera access…" note) from that copy — it's a helpful
+    // reminder while testing via `npm run dev:ar`, but has no place in the
+    // shipped standalone build. Only the built output is touched; ar.html
+    // itself (and thus the dev server) is untouched.
     plugins.push({
       name: "ar-html-as-index",
       writeBundle(options: any) {
         const dir = options.dir ?? "dist-ar";
         const from = join(dir, "ar.html");
         const to = join(dir, "index.html");
-        if (existsSync(from)) renameSync(from, to);
+        if (!existsSync(from)) return;
+        const html = readFileSync(from, "utf-8")
+          .replace(/\s*<div class="preview-overlay">[\s\S]*?<\/div>/, "")
+          .replace(/\s*\.preview-overlay\s*\{[\s\S]*?\}/, "")
+          .replace(/\s*\.preview-overlay strong\s*\{[\s\S]*?\}/, "");
+        writeFileSync(from, html);
+        renameSync(from, to);
       }
     });
 
