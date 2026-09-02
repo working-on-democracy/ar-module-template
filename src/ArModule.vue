@@ -262,10 +262,17 @@ const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
 // the wanderer sound-radius/speed-proximity halving) — these gate
 // proximity-swing's own swing/idle SPEED (proximityFactor multiplies
 // SWING_SPEED/IDLE_SPEED directly, s. proximity-swing.ts's tick()), no
-// longer left on the component's own schema defaults (1.0/0.5) so they can
-// be halved here like every other proximity threshold this session.
-const PROXIMITY_COVERAGE_NEAR = 0.5;
-const PROXIMITY_COVERAGE_FAR = 0.25;
+// longer left on the component's own schema defaults (1.0/0.5).
+// First halved (0.5/0.25) to match the other proximity thresholds this
+// session — wrong direction here, though: these are SCREEN-COVERAGE
+// fractions, not real-world distances, so a LOWER value means full swing
+// triggers at LESS screen fill, i.e. from farther away, making the field
+// read as more chaotic at a normal viewing distance instead of less.
+// Reversed and doubled past the original defaults instead (author's
+// correction, same session): full motion now needs genuinely close
+// framing, stillness holds until markedly closer too.
+const PROXIMITY_COVERAGE_NEAR = 2.0;
+const PROXIMITY_COVERAGE_FAR = 1.0;
 
 // Chaos-Modus (archive-of-practice projects/an-alle/concepts/
 // zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026, analog
