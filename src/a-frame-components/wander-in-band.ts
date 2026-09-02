@@ -235,9 +235,29 @@ export default {
     // boundaryBias (0 inside tolerance, up to 1 well outside) also drives
     // step 4's heading turn RATE below, not just the tangent's own target
     // direction here.
+    //
+    // Redesigned 02.09.2026 (author's correction: wanderers were still
+    // spending most of their time right at/past the outer edge, circling
+    // it rather than actually heading back toward the band's own middle) —
+    // two changes from the original single tolerance-ramp:
+    //   1. Once genuinely PAST outerRadius, boundaryBias jumps straight to
+    //      1 (full inward priority) instead of ramping across the whole
+    //      tolerance zone — the old gradual ramp let the tangential/orbit
+    //      component dominate for most of an excursion, which is exactly
+    //      what read as "circling outside the band". `tolerance` still
+    //      exists purely as the hard-clamp safety margin in step 7 below.
+    //   2. A new ramp zone between the band's own midpoint and outerRadius
+    //      pulls the heading inward with increasing strength BEFORE the
+    //      entity actually exits — so by the time it's back inside, it's
+    //      already aimed toward the middle rather than just re-crossing the
+    //      boundary and immediately resuming a peripheral orbit there.
+    const midRadius = (data.innerRadius + data.outerRadius) / 2;
     let boundaryBias = 0;
     if (dist > data.outerRadius) {
-      boundaryBias = THREE.MathUtils.clamp((dist - data.outerRadius) / tolerance, 0, 1);
+      boundaryBias = 1;
+      tangentAngle = lerpAngle(tangentAngle, outwardAngle + Math.PI, boundaryBias);
+    } else if (dist > midRadius) {
+      boundaryBias = (dist - midRadius) / (data.outerRadius - midRadius);
       tangentAngle = lerpAngle(tangentAngle, outwardAngle + Math.PI, boundaryBias);
     } else if (dist < data.innerRadius) {
       boundaryBias = THREE.MathUtils.clamp((data.innerRadius - dist) / tolerance, 0, 1);
