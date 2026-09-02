@@ -57,7 +57,15 @@ const SPEED_SMOOTH_RATE = 0.15;
 // that scale the 0.5m floor alone dwarfed the entire band, so the soft
 // correction never engaged and the hard clamp only caught drift far beyond
 // the visible scene.
-const TOLERANCE_FRACTION = 0.4;
+// Lowered 0.4 -> 0.15 (author's correction, 02.09.2026: wanderers were
+// visibly spending a lot of time genuinely OUTSIDE the band, not just
+// hugging its inner tolerance edge) — on this branch's own footprint-scaled
+// outerRadius, TOLERANCE_FRACTION * band width dominates over
+// TOLERANCE_FLOOR_REFERENCE below (the latter stays here for the small-
+// footprint floor case the comment above already covers), so this directly
+// shrinks how far past the nominal radius drifting is tolerated before the
+// soft correction actively pulls back.
+const TOLERANCE_FRACTION = 0.15;
 const TOLERANCE_FLOOR_REFERENCE = 0.5; // meters, at REFERENCE_OUTER_RADIUS
 const SEPARATION_RADIUS_REFERENCE = 2; // meters, at REFERENCE_OUTER_RADIUS
 const REFERENCE_OUTER_RADIUS = 7; // this schema's own default outerRadius
@@ -72,7 +80,11 @@ const REFERENCE_OUTER_RADIUS = 7; // this schema's own default outerRadius
 // Now blended in via boundaryBias (s. step 3/4 below): full HEADING_SMOOTH_RATE
 // while inside tolerance, ramping up to this much faster turn rate the
 // further outside it an entity is.
-const BOUNDARY_TURN_RATE = 4;
+// Raised 4 -> 6 alongside the tighter TOLERANCE_FRACTION above (author's
+// correction, 02.09.2026) — the smaller tolerance zone needs a snappier
+// turn-back to actually keep excursions past the band brief, not just less
+// wide.
+const BOUNDARY_TURN_RATE = 6;
 const SEPARATION_TURN_RATE = 3;
 const FLOAT_FREQ = 0.6; // Hz-ish, fixed — floatIntensity controls amplitude only
 
