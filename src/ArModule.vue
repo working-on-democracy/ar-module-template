@@ -86,11 +86,44 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// TEMPORARY diagnostic overlay (02.09.2026) — on-screen substitute for a
+// console, since the host-loaded module.js has no Eruda (only wired into
+// ar.html, the standalone shell). Added to chase a live an-alle.net-only
+// bug: nothing renders at all, not even the tutorial text. Catches
+// uncaught errors and unhandled promise rejections. Remove once resolved.
+const debugMessages = ref<string[]>([]);
+function pushDebug(msg: string) {
+  debugMessages.value = [...debugMessages.value.slice(-11), `${new Date().toISOString().slice(11, 19)} ${msg}`];
+}
+function onDebugError(e: ErrorEvent) {
+  pushDebug(`JS error: ${e.message}`);
+}
+function onDebugRejection(e: PromiseRejectionEvent) {
+  pushDebug(`Promise rejection: ${String(e.reason)}`);
+}
+const debugOverlayStyle = {
+  position: 'fixed' as const,
+  top: '0',
+  left: '0',
+  right: '0',
+  padding: '2vw',
+  background: 'rgba(200, 0, 0, 0.75)',
+  color: '#ffffff',
+  fontFamily: 'monospace',
+  fontSize: '3vw',
+  whiteSpace: 'pre-wrap' as const,
+  zIndex: 100000,
+  pointerEvents: 'none' as const
+} as const;
+
 onMounted(() => {
+  pushDebug('mounted');
+  window.addEventListener('error', onDebugError);
+  window.addEventListener('unhandledrejection', onDebugRejection);
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
     (loaded, total) => { loadProgress.value = loaded / total; },
-    () => { assetsLoaded.value = true; }
+    () => { assetsLoaded.value = true; pushDebug('assetsLoaded -> true'); }
   );
 });
 
@@ -902,6 +935,7 @@ async function runTutorial(myToken: number) {
 }
 
 function onTutorialTrackingFound() {
+  pushDebug('xrextrasfound');
   awaitingFirstTracking.value = false;
   if (tutorialLockedIn.value) return; // already played through once — never resets again
   tutorialRunToken += 1;
@@ -913,6 +947,7 @@ function onTutorialTrackingFound() {
 }
 
 function onTutorialTrackingLost() {
+  pushDebug('xrextraslost');
   if (tutorialLockedIn.value) return; // locked in — tracking loss no longer resets anything
   tutorialRunToken += 1; // invalidates any in-flight runTutorial() via cancelled()
   groundOpacity.value = 0;
@@ -1249,6 +1284,10 @@ So kannst du mitspielen:
        whole session, independent of the resettable tutorial-lead-in state
        below. -->
   <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf Image Target richten!</div>
+
+  <!-- TEMPORARY diagnostic overlay, s. Skript-Kommentar oben — remove once
+       the host-only "nothing renders" bug is found. -->
+  <div v-if="debugMessages.length" :style="debugOverlayStyle">{{ debugMessages.join('\n') }}</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
