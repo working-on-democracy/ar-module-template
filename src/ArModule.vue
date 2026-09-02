@@ -98,6 +98,53 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
+// TEMPORARY diagnostic overlay (02.09.2026) — on-screen substitute for a
+// console, since the host-loaded module.js has no Eruda (that's only wired
+// into ar.html, the standalone shell). Added to chase a live an-alle.net-only
+// bug: text/GUI/tutorial all render, but no 3D content ever appears, even
+// though the identical build works standalone. Catches uncaught errors,
+// unhandled promise rejections, and a custom "random-field-debug" event
+// random-field.ts dispatches after every placement attempt (success or
+// exhausted retries). Remove once the root cause is found.
+const debugMessages = ref<string[]>([]);
+function pushDebug(msg: string) {
+  debugMessages.value = [...debugMessages.value.slice(-5), `${new Date().toISOString().slice(11, 19)} ${msg}`];
+}
+function onDebugError(e: ErrorEvent) {
+  pushDebug(`JS error: ${e.message}`);
+}
+function onDebugRejection(e: PromiseRejectionEvent) {
+  pushDebug(`Promise rejection: ${String(e.reason)}`);
+}
+function onDebugRandomField(e: Event) {
+  pushDebug(`random-field: ${JSON.stringify((e as CustomEvent).detail)}`);
+}
+const debugOverlayStyle = {
+  position: 'fixed' as const,
+  top: '0',
+  left: '0',
+  right: '0',
+  padding: '2vw',
+  background: 'rgba(200, 0, 0, 0.75)',
+  color: '#ffffff',
+  fontFamily: 'monospace',
+  fontSize: '3vw',
+  whiteSpace: 'pre-wrap' as const,
+  zIndex: 100000,
+  pointerEvents: 'none' as const
+} as const;
+onMounted(() => {
+  pushDebug('mounted');
+  window.addEventListener('error', onDebugError);
+  window.addEventListener('unhandledrejection', onDebugRejection);
+  document.addEventListener('random-field-debug', onDebugRandomField);
+});
+onUnmounted(() => {
+  window.removeEventListener('error', onDebugError);
+  window.removeEventListener('unhandledrejection', onDebugRejection);
+  document.removeEventListener('random-field-debug', onDebugRandomField);
+});
+
 // AN ALLE! Zufallsverteilung & LOD (archive-of-practice
 // projects/an-alle/concepts/zufallsverteilung-lod.md) — Version 2
 // (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md, Frage 10):
@@ -707,6 +754,10 @@ onUnmounted(() => {
        whole session, independent of the resettable tutorial-lead-in state
        below. -->
   <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf Image Target richten!</div>
+
+  <!-- TEMPORARY diagnostic overlay, s. Skript-Kommentar oben — remove once
+       the host-only missing-3D-content bug is found. -->
+  <div v-if="debugMessages.length" :style="debugOverlayStyle">{{ debugMessages.join('\n') }}</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
