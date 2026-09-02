@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue';
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
@@ -108,7 +108,7 @@ onUnmounted(() => {
 // exhausted retries). Remove once the root cause is found.
 const debugMessages = ref<string[]>([]);
 function pushDebug(msg: string) {
-  debugMessages.value = [...debugMessages.value.slice(-5), `${new Date().toISOString().slice(11, 19)} ${msg}`];
+  debugMessages.value = [...debugMessages.value.slice(-11), `${new Date().toISOString().slice(11, 19)} ${msg}`];
 }
 function onDebugError(e: ErrorEvent) {
   pushDebug(`JS error: ${e.message}`);
@@ -116,8 +116,40 @@ function onDebugError(e: ErrorEvent) {
 function onDebugRejection(e: PromiseRejectionEvent) {
   pushDebug(`Promise rejection: ${String(e.reason)}`);
 }
+// Inspects one placed clone (found via its random-field-assigned
+// data-grid-index) one frame after placement: local position/scale/visible
+// straight off object3D, plus its resolved material — tells us whether the
+// clone is actually a sane, visible object in the scene graph, or placed
+// somewhere degenerate (NaN, zero-scale, invisible parent, ...).
+function inspectFirstClone(randomFieldEl: Element) {
+  const clone = randomFieldEl.parentElement?.querySelector('[data-grid-index]') as any;
+  if (!clone) {
+    pushDebug('clone0: not found in DOM');
+    return;
+  }
+  const obj = clone.object3D;
+  let visibleChain = obj.visible;
+  let node = obj.parent;
+  while (node) {
+    visibleChain = visibleChain && node.visible;
+    node = node.parent;
+  }
+  const p = obj.position;
+  const s = obj.scale;
+  pushDebug(
+    `clone0: ownVis=${obj.visible} chainVis=${visibleChain} ` +
+    `pos=${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)} scale=${s.x.toFixed(3)}`
+  );
+  const material = clone.getAttribute('material');
+  const geometry = clone.getAttribute('geometry');
+  pushDebug(`clone0 mat=${JSON.stringify(material)} geo=${JSON.stringify(geometry)}`);
+}
 function onDebugRandomField(e: Event) {
-  pushDebug(`random-field: ${JSON.stringify((e as CustomEvent).detail)}`);
+  const detail = (e as CustomEvent).detail;
+  pushDebug(`random-field: ${JSON.stringify(detail)}`);
+  if (detail?.status === 'placed' && detail.count > 0) {
+    requestAnimationFrame(() => inspectFirstClone(e.target as Element));
+  }
 }
 const debugOverlayStyle = {
   position: 'fixed' as const,
@@ -138,7 +170,13 @@ onMounted(() => {
   window.addEventListener('error', onDebugError);
   window.addEventListener('unhandledrejection', onDebugRejection);
   document.addEventListener('random-field-debug', onDebugRandomField);
+  pushDebug(`camera=${self_hasCamera()}`);
 });
+// TEMPORARY (s. above) — self_ prefix only to avoid clashing with any later
+// non-debug `hasCamera` if one's ever added.
+function self_hasCamera(): boolean {
+  return Boolean(document.querySelector('#camera'));
+}
 onUnmounted(() => {
   window.removeEventListener('error', onDebugError);
   window.removeEventListener('unhandledrejection', onDebugRejection);
@@ -212,6 +250,11 @@ const tutorialInputLocked = ref(true);
 // runTutorial()) — the field stays hidden for those ~3s rather than
 // popping in before the intro fade has even started.
 const fieldVisible = ref(false);
+// TEMPORARY (s. debug-overlay block above) — logs assetsLoaded/fieldVisible
+// transitions so we can see on-screen whether the field wrapper's own
+// :visible gates ever actually flip true in the host.
+watch(assetsLoaded, (v) => pushDebug(`assetsLoaded -> ${v}`));
+watch(fieldVisible, (v) => pushDebug(`fieldVisible -> ${v}`));
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
