@@ -7,6 +7,8 @@ import { animateValue, cancellableFade } from './tween';
 import { TUTORIAL_FONT_FAMILY, ensureTutorialFontLoaded } from './fonts';
 import InfoOverlay from './InfoOverlay.vue';
 
+declare const AFRAME: any;
+
 interface ArModuleData {
   id: string;
   text: string;
@@ -140,9 +142,32 @@ function inspectFirstClone(randomFieldEl: Element) {
     `clone0: ownVis=${obj.visible} chainVis=${visibleChain} ` +
     `pos=${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)} scale=${s.x.toFixed(3)}`
   );
-  const material = clone.getAttribute('material');
   const geometry = clone.getAttribute('geometry');
-  pushDebug(`clone0 mat=${JSON.stringify(material)} geo=${JSON.stringify(geometry)}`);
+  pushDebug(`clone0 geo=${JSON.stringify(geometry)}`);
+
+  // World-space check — every LOCAL flag above can be perfectly correct
+  // while the shared image-target ANCHOR's own world matrix (driven by the
+  // tracking pose, not by anything we author) is degenerate (zero scale,
+  // way off/behind camera, ...), which would make everything under it
+  // invisible despite locally "correct" data.
+  const worldPos = new AFRAME.THREE.Vector3();
+  const worldScale = new AFRAME.THREE.Vector3();
+  obj.getWorldPosition(worldPos);
+  obj.getWorldScale(worldScale);
+  pushDebug(
+    `clone0 world: pos=${worldPos.x.toFixed(3)},${worldPos.y.toFixed(3)},${worldPos.z.toFixed(3)} ` +
+    `scale=${worldScale.x.toFixed(4)}`
+  );
+  const anchorObj = (imageTargetEl.value as any)?.object3D;
+  if (anchorObj) {
+    const aScale = new AFRAME.THREE.Vector3();
+    anchorObj.getWorldScale(aScale);
+    pushDebug(`anchor: visible=${anchorObj.visible} worldScale=${aScale.x.toFixed(4)}`);
+  } else {
+    pushDebug('anchor: not found');
+  }
+  const camera = clone.sceneEl?.camera;
+  pushDebug(`renderer camera=${Boolean(camera)} sceneVisible=${clone.sceneEl?.object3D?.visible}`);
 }
 function onDebugRandomField(e: Event) {
   const detail = (e as CustomEvent).detail;
