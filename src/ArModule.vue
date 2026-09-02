@@ -258,6 +258,14 @@ const swingRadius = computed(() => Math.max(0, gridSpacing.value / 2 - PROP_FOOT
 const colorMaxDist = computed(() => Math.SQRT1_2 * areaSide.value);
 const zBobHeightMax = FOOTPRINT_MIN_SIDE / 4;
 const zBobHeightMin = FOOTPRINT_MIN_SIDE / 10;
+// proximityCoverageNear/Far (02.09.2026, author's request, same session as
+// the wanderer sound-radius/speed-proximity halving) — these gate
+// proximity-swing's own swing/idle SPEED (proximityFactor multiplies
+// SWING_SPEED/IDLE_SPEED directly, s. proximity-swing.ts's tick()), no
+// longer left on the component's own schema defaults (1.0/0.5) so they can
+// be halved here like every other proximity threshold this session.
+const PROXIMITY_COVERAGE_NEAR = 0.5;
+const PROXIMITY_COVERAGE_FAR = 0.25;
 
 // Chaos-Modus (archive-of-practice projects/an-alle/concepts/
 // zufallsverteilung-lod.md, "Chaos-Modus" Entscheidung, 01.09.2026, analog
@@ -328,6 +336,7 @@ const proximitySwingAttr = computed(
   () => `swingRadius: ${swingRadius.value.toFixed(4)}; colorMaxDist: ${colorMaxDist.value.toFixed(4)}; ` +
         `targetHalfWidth: ${(FOOTPRINT_WIDTH / 2).toFixed(4)}; ` +
         `zBobHeightMax: ${zBobHeightMax.toFixed(4)}; zBobHeightMin: ${zBobHeightMin.toFixed(4)}; ` +
+        `proximityCoverageNear: ${PROXIMITY_COVERAGE_NEAR}; proximityCoverageFar: ${PROXIMITY_COVERAGE_FAR}; ` +
         // frozen also unfreezes while chaosActive is true (not just once the
         // tutorial fully ends) — the only time that combination happens
         // DURING the tutorial is its own hold/Chaos-Modus demo phase below,
