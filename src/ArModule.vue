@@ -376,16 +376,20 @@ const ringMaterial = computed(() => `color: #ffffff; opacity: ${ringOpacity.valu
 // gain) — accepted as the intended tradeoff for a warmer, more natural
 // curve.
 const WANDERER_BOUNDING_RADIUS = WORM_SEGMENT_SPACING + WANDER_OBJECT_SIZE; // still used for the tap zone below
-const SOUND_REF_DISTANCE = FOOTPRINT_MIN_SIDE * 0.2;
-const SOUND_MAX_DISTANCE = FOOTPRINT_MIN_SIDE * 0.7;
+// Both the audio falloff radii AND the mute fade below halved again
+// (02.09.2026, author's request) — same proportions, just triggering at
+// half the distance.
+const SOUND_REF_DISTANCE = FOOTPRINT_MIN_SIDE * 0.1;
+const SOUND_MAX_DISTANCE = FOOTPRINT_MIN_SIDE * 0.35;
 // Extra long-range mute fade (Autor-Entscheidung, 01.09.2026), layered on
 // top of the panner's own inverse falloff via wander-sound.ts's own
 // muteFadeStart/End — inverse alone never reaches true silence past
 // SOUND_MAX_DISTANCE, so this gives an explicit, separate hard cutoff
 // further out (full volume up to 1.5 edge lengths, linearly down to
-// exactly silent at 3).
-const SOUND_MUTE_FADE_START = FOOTPRINT_MIN_SIDE * 0.6;
-const SOUND_MUTE_FADE_END = FOOTPRINT_MIN_SIDE * 2;
+// exactly silent at 3). Halved alongside SOUND_REF_DISTANCE/SOUND_MAX_DISTANCE
+// above so the mute fade stays proportioned to the (now closer) audible range.
+const SOUND_MUTE_FADE_START = FOOTPRINT_MIN_SIDE * 0.3;
+const SOUND_MUTE_FADE_END = FOOTPRINT_MIN_SIDE * 1;
 const WANDERER_SOUND_ASSET_IDS = [
   'wanderer-sound-1',
   'wanderer-sound-2',
