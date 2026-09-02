@@ -86,6 +86,9 @@ const REFERENCE_OUTER_RADIUS = 7; // this schema's own default outerRadius
 // wide.
 const BOUNDARY_TURN_RATE = 6;
 const SEPARATION_TURN_RATE = 3;
+// Fraction of the band's [innerRadius, outerRadius] range spawn points are
+// drawn from (0 = always innerRadius, 1 = full range, s. init() below).
+const SPAWN_RADIUS_BIAS = 0.6;
 const FLOAT_FREQ = 0.6; // Hz-ish, fixed — floatIntensity controls amplitude only
 
 function lerp(a: number, b: number, t: number): number {
@@ -162,7 +165,13 @@ export default {
     const center = self.data.center?.object3D?.position;
     let spawnAngle = Math.random() * Math.PI * 2;
     if (center) {
-      const radius = lerp(self.data.innerRadius, self.data.outerRadius, Math.random());
+      // Biased toward innerRadius (author's request, 02.09.2026: start
+      // positions should sit a bit more toward the inside of the band) —
+      // SPAWN_RADIUS_BIAS scales the random factor down from its full [0,1]
+      // range before lerping, so spawn points only ever land in the inner
+      // SPAWN_RADIUS_BIAS fraction of the band instead of anywhere across
+      // its full width.
+      const radius = lerp(self.data.innerRadius, self.data.outerRadius, Math.random() * SPAWN_RADIUS_BIAS);
       pos.x = center.x + Math.sin(spawnAngle) * radius;
       pos.z = center.z + Math.cos(spawnAngle) * radius;
     }
