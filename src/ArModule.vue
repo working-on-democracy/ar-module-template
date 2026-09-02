@@ -443,9 +443,11 @@ const SPEED_SCALE = OUTER_RADIUS_MAX / 12; // 12 = the old room-scale default ba
 // dadurch proportionale Geschwindigkeiten steigen") — this scales BOTH the
 // near and far end of the proximity range, so the far/resting speed rises
 // as asked, and the near speed proportionally along with it.
-// Lowered 3.0 -> 2.0 (Autor-Korrektur, 02.09.2026, live host test: overall
-// animation speed read as too fast — reduced to 2/3 of the previous value).
-const BASE_WANDER_SPEED = 2.0 * SPEED_SCALE; // fixed baseline — proximity now supplies the actual dynamic range, s. below
+// Lowered 3.0 -> 2.0, then restored back to 3.0 (Autor-Korrektur,
+// 02.09.2026, same live host test session): the base speed itself was
+// fine — it was SPEED_PROXIMITY_NEAR/FAR (s. below) triggering the speed
+// boost too far from the camera that actually made it read as too fast.
+const BASE_WANDER_SPEED = 3.0 * SPEED_SCALE; // fixed baseline — proximity now supplies the actual dynamic range, s. below
 // Camera-proximity speed range (Autor-Entscheidung: "Proximity: Wanderer-
 // Tempo") — closer camera reads as faster. Widened further (Autor-Korrektur,
 // same session — the effect was too subtle): near/far multipliers now span
