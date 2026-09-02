@@ -49,4 +49,4 @@ rsync -avz --delete \
 
 echo ""
 echo "Modul deployed nach ar-modules/${module_name}/ (vom Host geladen, keine eigene URL)"
-echo "Standalone deployed: https://alnilam.uberspace.de/standalones/${standalone_name}/"
+echo "Standalone deployed: https://allean.uber.space/standalones/${standalone_name}/"
