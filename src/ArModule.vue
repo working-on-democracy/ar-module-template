@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue';
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
@@ -519,9 +519,15 @@ async function runTutorial(myToken: number) {
   tutorialInputLocked.value = false;
 }
 
-function onTutorialTrackingFound() {
-  awaitingFirstTracking.value = false;
-  if (tutorialLockedIn.value) return; // already played through once — never resets again
+// True when image tracking found the target before the manifest's own
+// assets (and thus the load bar/spinner, s. assetsLoaded above) finished —
+// defers the tutorial's lead-in until assetsLoaded flips true instead of
+// starting it against a still-loading scene (author's request, 02.09.2026:
+// tracking — and with it the tutorial — was firing before the load bar had
+// even disappeared).
+let pendingTutorialStart = false;
+
+function startTutorialSequence() {
   tutorialRunToken += 1;
   const myToken = tutorialRunToken;
   groundOpacity.value = 0;
@@ -530,7 +536,25 @@ function onTutorialTrackingFound() {
   runTutorial(myToken);
 }
 
+function onTutorialTrackingFound() {
+  awaitingFirstTracking.value = false;
+  if (tutorialLockedIn.value) return; // already played through once — never resets again
+  if (!assetsLoaded.value) {
+    pendingTutorialStart = true;
+    return;
+  }
+  startTutorialSequence();
+}
+
+watch(assetsLoaded, (loaded) => {
+  if (loaded && pendingTutorialStart && !tutorialLockedIn.value) {
+    pendingTutorialStart = false;
+    startTutorialSequence();
+  }
+});
+
 function onTutorialTrackingLost() {
+  pendingTutorialStart = false;
   if (tutorialLockedIn.value) return; // locked in — tracking loss no longer resets anything
   tutorialRunToken += 1; // invalidates any in-flight runTutorial() via cancelled()
   groundOpacity.value = 0;
