@@ -1030,6 +1030,26 @@ onUnmounted(() => {
        three Themenfeld branches (01.09.2026). Only works in the real
        AR preview (npm run dev:ar) or the host, per
        guides/IMAGE-TRACKING-FEATURE-GUIDE.md. -->
+  <!-- TEMPORARY host-offset compensation (02.09.2026) — live on-screen
+       debugging on an-alle.net (zufallsverteilung-lod branch, same shared
+       image-target anchoring) found placed content consistently offset
+       from the actual tracked target by almost exactly (0, 1.6, -3):
+       subtracting that from the measured camera-to-content vector left a
+       physically sane ~35cm "phone held close to a printed target"
+       remainder. git history in lib/preview-ar.ts already confirmed this
+       exact constant once before, empirically, from a deployed host
+       bundle: "the host's default is `0 0.35 0.8` [camera] with
+       module-root at `0 1.6 -3`" — i.e. the HOST wraps every module's
+       root in a fixed `0 1.6 -3` offset, which our own preview-ar.ts was
+       later fixed to skip for image-target modules (since it makes no
+       sense for tracked content), but that fix only ever touched our own
+       local preview tooling, not the actual (private, inaccessible)
+       host frontend. This cancels that same offset from the module side
+       instead, since we can't reach the host code that applies it.
+       Remove this wrapper (and unwrap its child back out one level) if
+       the host is ever fixed to stop applying it to image-target
+       modules — otherwise it would double-cancel. -->
+  <a-entity position="0 -1.6 3">
   <xrextras-named-image-target name="an-alle-target" ref="imageTargetEl">
     <a-entity
         no-frustum-cull
@@ -1183,6 +1203,7 @@ onUnmounted(() => {
         shadow
     ></a-plane>
   </xrextras-named-image-target>
+  </a-entity>
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once

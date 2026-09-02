@@ -79,15 +79,31 @@ const ArPreviewApp = {
     ];
 
     if (assetsReady.value) {
-      // Placed like the host (AR_MODULE_POSITION) so the module previews where it
-      // would actually appear in the app — EXCEPT for image-target-anchored
-      // modules: their content's position is entirely driven by the tracked
-      // image's live pose (composed as a child of this entity), so adding a
-      // fixed placement offset on top just shifts the tracked content away
-      // from the actual image instead of leaving it anchored to it.
-      const moduleRootPosition = manifest.imageTargets?.length ? "0 0 0" : "0 1.6 -3";
+      // Placed like the host (AR_MODULE_POSITION) so the module previews where
+      // it would actually appear in the app — UNCONDITIONALLY (02.09.2026,
+      // reverted the image-target special case below). That special case
+      // assumed the real host skips this offset for image-target-anchored
+      // modules too, since a fixed placement offset makes no sense stacked
+      // on top of tracked content — but a live an-alle.net bug (module
+      // content consistently offset by ~exactly this constant) showed the
+      // real host does NOT special-case it; it always wraps module-root at
+      // "0 1.6 -3" regardless of imageTargets. The actual fix now lives in
+      // ArModule.vue itself (a matching "0 -1.6 3" counter-offset around the
+      // tracked xrextras-named-image-target subtree, since that's the code
+      // we can actually ship to the host) — this preview needs to apply the
+      // SAME "0 1.6 -3" wrapper unconditionally too, or that counter-offset
+      // would double-cancel here and in the standalone build (dist-ar, which
+      // boots via this same script) instead of just cancelling once.
+      //
+      // (Old comment, no longer accurate — kept for context: "EXCEPT for
+      // image-target-anchored modules: their content's position is entirely
+      // driven by the tracked image's live pose (composed as a child of this
+      // entity), so adding a fixed placement offset on top just shifts the
+      // tracked content away from the actual image instead of leaving it
+      // anchored to it." True in isolation, but wrong about what the real
+      // host does.)
       children.push(
-        h("a-entity", { id: "module-root", position: moduleRootPosition }, [
+        h("a-entity", { id: "module-root", position: "0 1.6 -3" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );
