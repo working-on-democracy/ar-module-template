@@ -171,15 +171,6 @@ export default {
         return;
       }
       console.warn(`[random-field] \`items\` ("${data.items}") resolved to nothing after retrying; nothing placed`);
-      // TEMPORARY diagnostic (02.09.2026, s. ArModule.vue) — surfaces this
-      // failure on-screen since the host has no console. Remove alongside
-      // the debug overlay once the host-only bug is found.
-      self.el.dispatchEvent(
-        new CustomEvent("random-field-debug", {
-          bubbles: true,
-          detail: { status: "failed", items: data.items, attempts: attempt }
-        })
-      );
       return;
     }
 
@@ -223,16 +214,6 @@ export default {
     // Hide the source entities now that they've been cloned from, so they
     // don't also render at wherever they happen to be authored.
     for (const item of items) item.setAttribute("visible", "false");
-
-    // TEMPORARY diagnostic (02.09.2026, s. ArModule.vue) — surfaces
-    // successful placement counts on-screen since the host has no console.
-    // Remove alongside the debug overlay once the host-only bug is found.
-    self.el.dispatchEvent(
-      new CustomEvent("random-field-debug", {
-        bubbles: true,
-        detail: { status: "placed", count, requested: queue.length }
-      })
-    );
   },
 
   /**
