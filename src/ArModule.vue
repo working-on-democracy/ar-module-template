@@ -451,8 +451,11 @@ const BASE_WANDER_SPEED = 2.0 * SPEED_SCALE; // fixed baseline — proximity now
 // same session — the effect was too subtle): near/far multipliers now span
 // a full 6x, well within "darf ruhig doppelt oder dreifach so schnell
 // werden" relative to the old near multiplier.
-const SPEED_PROXIMITY_NEAR = FOOTPRINT_MIN_SIDE * 0.3;
-const SPEED_PROXIMITY_FAR = FOOTPRINT_MIN_SIDE * 1.2;
+// Both halved again 0.3x/1.2x -> 0.15x/0.6x (02.09.2026, author's request,
+// same session as the sound radii/mute fade halving) — same proportion,
+// triggering at half the camera distance.
+const SPEED_PROXIMITY_NEAR = FOOTPRINT_MIN_SIDE * 0.15;
+const SPEED_PROXIMITY_FAR = FOOTPRINT_MIN_SIDE * 0.6;
 const SPEED_NEAR_MULTIPLIER = 3.5;
 const SPEED_FAR_MULTIPLIER = 0.5;
 
