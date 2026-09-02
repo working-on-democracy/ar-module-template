@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
 import { attachSwipeDrag } from './swipe-drag';
 import { animateValue, cancellableFade } from './tween';
 import { TUTORIAL_FONT_FAMILY, ensureTutorialFontLoaded } from './fonts';
 import InfoOverlay from './InfoOverlay.vue';
-
-declare const AFRAME: any;
 
 interface ArModuleData {
   id: string;
@@ -100,114 +98,6 @@ onUnmounted(() => {
   stopAssetTracking?.();
 });
 
-// TEMPORARY diagnostic overlay (02.09.2026) — on-screen substitute for a
-// console, since the host-loaded module.js has no Eruda (that's only wired
-// into ar.html, the standalone shell). Added to chase a live an-alle.net-only
-// bug: text/GUI/tutorial all render, but no 3D content ever appears, even
-// though the identical build works standalone. Catches uncaught errors,
-// unhandled promise rejections, and a custom "random-field-debug" event
-// random-field.ts dispatches after every placement attempt (success or
-// exhausted retries). Remove once the root cause is found.
-const debugMessages = ref<string[]>([]);
-function pushDebug(msg: string) {
-  debugMessages.value = [...debugMessages.value.slice(-11), `${new Date().toISOString().slice(11, 19)} ${msg}`];
-}
-function onDebugError(e: ErrorEvent) {
-  pushDebug(`JS error: ${e.message}`);
-}
-function onDebugRejection(e: PromiseRejectionEvent) {
-  pushDebug(`Promise rejection: ${String(e.reason)}`);
-}
-// Inspects one placed clone (found via its random-field-assigned
-// data-grid-index) one frame after placement: local position/scale/visible
-// straight off object3D, plus its resolved material — tells us whether the
-// clone is actually a sane, visible object in the scene graph, or placed
-// somewhere degenerate (NaN, zero-scale, invisible parent, ...).
-function inspectFirstClone(randomFieldEl: Element) {
-  const clone = randomFieldEl.parentElement?.querySelector('[data-grid-index]') as any;
-  if (!clone) {
-    pushDebug('clone0: not found in DOM');
-    return;
-  }
-  const obj = clone.object3D;
-  let visibleChain = obj.visible;
-  let node = obj.parent;
-  while (node) {
-    visibleChain = visibleChain && node.visible;
-    node = node.parent;
-  }
-  const p = obj.position;
-  const s = obj.scale;
-  pushDebug(
-    `clone0: ownVis=${obj.visible} chainVis=${visibleChain} ` +
-    `pos=${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)} scale=${s.x.toFixed(3)}`
-  );
-  const geometry = clone.getAttribute('geometry');
-  pushDebug(`clone0 geo=${JSON.stringify(geometry)}`);
-
-  // World-space check — every LOCAL flag above can be perfectly correct
-  // while the shared image-target ANCHOR's own world matrix (driven by the
-  // tracking pose, not by anything we author) is degenerate (zero scale,
-  // way off/behind camera, ...), which would make everything under it
-  // invisible despite locally "correct" data.
-  const worldPos = new AFRAME.THREE.Vector3();
-  const worldScale = new AFRAME.THREE.Vector3();
-  obj.getWorldPosition(worldPos);
-  obj.getWorldScale(worldScale);
-  pushDebug(
-    `clone0 world: pos=${worldPos.x.toFixed(3)},${worldPos.y.toFixed(3)},${worldPos.z.toFixed(3)} ` +
-    `scale=${worldScale.x.toFixed(4)}`
-  );
-  const anchorObj = (imageTargetEl.value as any)?.object3D;
-  if (anchorObj) {
-    const aScale = new AFRAME.THREE.Vector3();
-    anchorObj.getWorldScale(aScale);
-    pushDebug(`anchor: visible=${anchorObj.visible} worldScale=${aScale.x.toFixed(4)}`);
-  } else {
-    pushDebug('anchor: not found');
-  }
-  const camera = clone.sceneEl?.camera;
-  pushDebug(`renderer camera=${Boolean(camera)} sceneVisible=${clone.sceneEl?.object3D?.visible}`);
-}
-function onDebugRandomField(e: Event) {
-  const detail = (e as CustomEvent).detail;
-  pushDebug(`random-field: ${JSON.stringify(detail)}`);
-  if (detail?.status === 'placed' && detail.count > 0) {
-    requestAnimationFrame(() => inspectFirstClone(e.target as Element));
-  }
-}
-const debugOverlayStyle = {
-  position: 'fixed' as const,
-  top: '0',
-  left: '0',
-  right: '0',
-  padding: '2vw',
-  background: 'rgba(200, 0, 0, 0.75)',
-  color: '#ffffff',
-  fontFamily: 'monospace',
-  fontSize: '3vw',
-  whiteSpace: 'pre-wrap' as const,
-  zIndex: 100000,
-  pointerEvents: 'none' as const
-} as const;
-onMounted(() => {
-  pushDebug('mounted');
-  window.addEventListener('error', onDebugError);
-  window.addEventListener('unhandledrejection', onDebugRejection);
-  document.addEventListener('random-field-debug', onDebugRandomField);
-  pushDebug(`camera=${self_hasCamera()}`);
-});
-// TEMPORARY (s. above) — self_ prefix only to avoid clashing with any later
-// non-debug `hasCamera` if one's ever added.
-function self_hasCamera(): boolean {
-  return Boolean(document.querySelector('#camera'));
-}
-onUnmounted(() => {
-  window.removeEventListener('error', onDebugError);
-  window.removeEventListener('unhandledrejection', onDebugRejection);
-  document.removeEventListener('random-field-debug', onDebugRandomField);
-});
-
 // AN ALLE! Zufallsverteilung & LOD (archive-of-practice
 // projects/an-alle/concepts/zufallsverteilung-lod.md) — Version 2
 // (30.08.2026, s. archive-of-practice projects/an-alle/fragen.md, Frage 10):
@@ -275,11 +165,6 @@ const tutorialInputLocked = ref(true);
 // runTutorial()) — the field stays hidden for those ~3s rather than
 // popping in before the intro fade has even started.
 const fieldVisible = ref(false);
-// TEMPORARY (s. debug-overlay block above) — logs assetsLoaded/fieldVisible
-// transitions so we can see on-screen whether the field wrapper's own
-// :visible gates ever actually flip true in the host.
-watch(assetsLoaded, (v) => pushDebug(`assetsLoaded -> ${v}`));
-watch(fieldVisible, (v) => pushDebug(`fieldVisible -> ${v}`));
 
 const areaSide = computed(() => FOOTPRINT_MIN_SIDE * (fieldSizePercent.value / 100));
 
@@ -822,10 +707,6 @@ onUnmounted(() => {
        whole session, independent of the resettable tutorial-lead-in state
        below. -->
   <div v-if="awaitingFirstTracking" :style="trackingHintStyle">Kamera auf Image Target richten!</div>
-
-  <!-- TEMPORARY diagnostic overlay, s. Skript-Kommentar oben — remove once
-       the host-only missing-3D-content bug is found. -->
-  <div v-if="debugMessages.length" :style="debugOverlayStyle">{{ debugMessages.join('\n') }}</div>
 
   <!-- Tutorial-animation text label (s. Skript-Kommentar, runTutorial()) —
        screen-centred, only rendered while a tutorial phase is showing. -->
