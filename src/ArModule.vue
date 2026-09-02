@@ -266,10 +266,12 @@ const FOOTPRINT_MIN_SIDE = Math.min(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH);
 // scene, but on the actual printed AN ALLE! target (~20-22cm physical
 // width, measured live via the tracked anchor's own world scale) that
 // proportion works out to a ~4.7mm-radius sphere — invisible in practice.
-// "/2" instead targets a clearly visible ~1.4cm radius (2.8cm diameter) at
-// that same real-world print size. Like every other tuned number in this
-// codebase, still needs on-device (re-)confirmation by the author.
-const PROP_SCALE = FOOTPRINT_MIN_SIDE / 2;
+// "/2" first (~1.4cm radius / 2.8cm diameter) confirmed visible but read as
+// too big on-device (02.09.2026) — "/3" instead targets ~0.9cm radius
+// (1.9cm diameter) at that same real-world print size. Like every other
+// tuned number in this codebase, still needs on-device (re-)confirmation
+// by the author.
+const PROP_SCALE = FOOTPRINT_MIN_SIDE / 3;
 // Ground-plane radius of a placed prop — the density/spacing calc below and
 // proximity-swing's own colour/motion attributes both need this.
 const PROP_FOOTPRINT_RADIUS = 0.14 * PROP_SCALE;
