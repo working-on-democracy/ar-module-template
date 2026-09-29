@@ -71,9 +71,14 @@ are doing what this repo calls **universalizing** — see §3.
    MeshOpt decoder patch, and two real, previously-found pitfalls (silent
    geometry corruption from double-compressing, `gltfpack` relocating mesh
    names off the mesh node).
-7. **`README.md`** — technical project layout/build details, only if you
+7. **`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`** — read
+   before claiming anything camera/image-target/XR8-dependent works
+   without a phone: how to run `dev:ar` in headless Chromium with an
+   emulated iPhone and a generated video of the image target as the
+   camera, what that does and does not verify.
+8. **`README.md`** — technical project layout/build details, only if you
    need build-system specifics not covered above.
-8. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
+9. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
    artist/end-user of the template, not another engineer. Deliberately
    shallow; don't treat it as a technical reference.
 
@@ -88,7 +93,7 @@ src/image-targets/             8th Wall image-target JSON + images, flat, non-re
 src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not a component)
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression)
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts
@@ -160,7 +165,10 @@ uncompressed-assets/            gitignored, local-only; pristine originals kept 
 - **`npm run dev` cannot test image targets, camera-dependent behavior, or
   anything requiring a real XR8 session** — it's a stock-A-Frame preview
   with no camera engine at all. Use `npm run dev:ar` (or note the
-  limitation explicitly) for anything camera/XR8-dependent.
+  limitation explicitly) for anything camera/XR8-dependent. Without a
+  phone, run `dev:ar` headless with a fake camera video per
+  `cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`, and state
+  what that could not verify (device motion/SLAM, real-GPU performance).
 - **Never mesh/texture-compress an asset that's already compressed** —
   always compress from the pristine original in `uncompressed-assets/`
   (via `npm run compress-assets`, never by hand-invoking `gltfpack`

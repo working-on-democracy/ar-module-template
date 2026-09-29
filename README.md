@@ -58,6 +58,7 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 - `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `lib/preview-ar.ts`.
 - The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
 - **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
+- Without a phone (e.g. an AI agent checking its own work): headless Chromium with an emulated iPhone and a generated video of the image target as the camera verifies target detection and scene rendering, not device motion or real-GPU performance — see [`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md).
 
 ### Builds
 
