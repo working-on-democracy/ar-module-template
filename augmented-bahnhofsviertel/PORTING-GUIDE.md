@@ -1,6 +1,6 @@
 # Portierungs-Guide: 8th-Wall-Werke → ArModule
 
-Wie ein Werk aus dem alten 8th-Wall-Export (`augmented-bahnhofsviertel/Projektordner_alt/`, gitignored) in ein ArModule dieses Templates übertragen wird. Steuerliste und Stand: [AUGMENTED-BAHNHOFSVIERTEL-WORKS.md](../AUGMENTED-BAHNHOFSVIERTEL-WORKS.md). Allgemeine Template-Regeln: [AGENTS.md](../AGENTS.md) — gelten hier uneingeschränkt.
+Wie ein Werk aus dem alten 8th-Wall-Export (`augmented-bahnhofsviertel/Projektordner_alt/`, gitignored) in ein ArModule dieses Templates übertragen wird. Steuerliste und Stand: [AUGMENTED-BAHNHOFSVIERTEL-WORKS.md](../AUGMENTED-BAHNHOFSVIERTEL-WORKS.md). Allgemeine Template-Regeln: [AGENTS.md](../AGENTS.md) — gelten hier uneingeschränkt. Hintergründe zu Bugfixes und Abweichungen (Symptom → Ursache → Lösung): [LEARNINGS-2026-10.md](LEARNINGS-2026-10.md).
 
 ## 1. Grundsätze
 
