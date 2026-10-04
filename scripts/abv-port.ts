@@ -96,6 +96,7 @@ const found = works.find((w) => w.num === Number(numArg));
 if (!found) fail(`no work #${numArg} in works.json`);
 const work: Work = found;
 if (work.status === "zurückgestellt") fail(`#${work.num} ${work.title} is deferred (status "zurückgestellt")`);
+if (work.status.startsWith("entfällt")) fail(`#${work.num} ${work.title} needs no port of its own (status "${work.status}")`);
 const parent = work.seriesParent ? works.find((w) => w.num === work.seriesParent) ?? null : null;
 const dryRunDir = join(tmpdir(), "abv-port-dry-run", `${String(work.num).padStart(2, "0")}-${work.slug}`);
 const ASSETS_DIR = dryRun ? join(dryRunDir, "src/assets") : join(ROOT, "src/assets");
