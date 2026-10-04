@@ -31,7 +31,7 @@ Diese Datei ist die Arbeitsgrundlage des Branches `augmented-bahnhofsviertel` f�
 | 15 | [Milk Glass](#15-milk-glass) | Adrian Williams | Taunusanlage |
 | 16 | [Friendly reminder (enşöligensi)](#16-friendly-reminder-ensoligensi) | Nouria Behloul | Neue Mainzer Str. 24, 60311 Frankfurt am Main |
 | 17 | [Wann ist das Sprechen über Gefühle ein politischer Akt?](#17-wann-ist-das-sprechen-uber-gefuhle-ein-politischer-akt) | Achim Lengerer | Goetheplatz |
-| 18 | [Funkytown](#18-funkytown) | saasfee* | Gallusanlage 2 |
+| 18 | [Funkytown](#18-funkytown) | saasfee\* | Gallusanlage 2 |
 | 19 | [Kleiderberg](#19-kleiderberg) | Frankurt Fashion Movement | Rathenauplatz |
 | 20 | [Solid Dream Level](#20-solid-dream-level) | Anna Hofmann | Kaiserplatz |
 | 21 | [Die Reisende](#21-die-reisende) | HazMatLab | Frankfurt Taunusanlage |
@@ -155,7 +155,7 @@ Der Frankfurter Maler Andreas Diefenbach überträgt eine seiner Textcollagen, b
 
 #### Beschreibung
 
-Die Frankfurter Bewegtbildkünstlerin und Initiatorin von *Augmented Bahnhofsvierte*l, Maiken Laackmann, lässt in AR eine Gruppe von Cyborg-Wesen auf einer "zusammengeschusterten" Lehmofen-Bühne miteinander improvisieren und tanzen. Die Stimmung scheint im Angesicht der Fassaden der Bankentürme zwischen Selbstermächtigung, Solidaritäten und Momenten der Trauer und systemischen Hilflosigkeit beständig hin- und her zu changieren.  
+Die Frankfurter Bewegtbildkünstlerin und Initiatorin von *Augmented Bahnhofsviertel*, Maiken Laackmann, lässt in AR eine Gruppe von Cyborg-Wesen auf einer "zusammengeschusterten" Lehmofen-Bühne miteinander improvisieren und tanzen. Die Stimmung scheint im Angesicht der Fassaden der Bankentürme zwischen Selbstermächtigung, Solidaritäten und Momenten der Trauer und systemischen Hilflosigkeit beständig hin- und her zu changieren.  
 
 Das Musikstück “Flying Carpet” stammt von Florian Gläser.
 
@@ -279,7 +279,7 @@ Yasmin Sibai,  April 2021
 
 #### Beschreibung
 
-Augmented Reality?! Wir kommen ja nicht mal mit der unaugmenteten Version klar, dachte die Künstlerin Nouria Behloul (Marseille/Frankfurt). Dann stolperte sie über das Gedicht *enşöligensi*von Tunay Önder. Behlouls Arbeit erzählt von kulturellen Zuschreibungen, der unhinterfragten Akzeptanz gewisser Widersprüche seitens der sogenannten Mehrheitsgesellschaft bei gleichzeitigem Boykott anderer Gegensätzlichkeiten und stellt die Frage, ob Sprache nicht vielleicht die einzige Augmented Reality ist, die wir brauchen.
+Augmented Reality?! Wir kommen ja nicht mal mit der unaugmenteten Version klar, dachte die Künstlerin Nouria Behloul (Marseille/Frankfurt). Dann stolperte sie über das Gedicht *enşöligensi* von Tunay Önder. Behlouls Arbeit erzählt von kulturellen Zuschreibungen, der unhinterfragten Akzeptanz gewisser Widersprüche seitens der sogenannten Mehrheitsgesellschaft bei gleichzeitigem Boykott anderer Gegensätzlichkeiten und stellt die Frage, ob Sprache nicht vielleicht die einzige Augmented Reality ist, die wir brauchen.
 
 <a id="17-wann-ist-das-sprechen-uber-gefuhle-ein-politischer-akt"></a>
 ### 17. Wann ist das Sprechen über Gefühle ein politischer Akt?
@@ -295,7 +295,7 @@ Augmented Reality?! Wir kommen ja nicht mal mit der unaugmenteten Version klar, 
 
 „I maintain that the cause for much of this depression is social and political.” (Mark Fisher)
 
-Anschließend an die für das Projekt *Augmented Bahnhofsviertel*zentrale Frage des Kulturtheoretikers Mark Fisher nach der „Privatisierung“ des öffentlichen städtischen Raumes, arbeitete die AR-Skulptur von *Achim Lengerer Wann ist das Sprechen über Gefühle ein politischer Akt?* mit Fragmenten aus Fishers Texten wie *Die Privatisierung von Stress*oder *Anti-Therapie* zum Zusammenhang von „psychischer Gesundheit und „neoliberaler Subjektwerdung“.
+Anschließend an die für das Projekt *Augmented Bahnhofsviertel* zentrale Frage des Kulturtheoretikers Mark Fisher nach der „Privatisierung“ des öffentlichen städtischen Raumes, arbeitete die AR-Skulptur von *Achim Lengerer Wann ist das Sprechen über Gefühle ein politischer Akt?* mit Fragmenten aus Fishers Texten wie *Die Privatisierung von Stress* oder *Anti-Therapie* zum Zusammenhang von „psychischer Gesundheit und „neoliberaler Subjektwerdung“.
 
 Das Loop„non-attuned“ beschreibt auf akustischer Ebene die fragile psychische Anspannung zwischen Anpassung, Verweigerung und (vorgeblichem) Scheitern des vereinzelten Individuums in der Leistungsgesellschaft und ruft so indirekt zu einer politisierenden und sich solidarisierenden Mehrstimmigkeit der gesellschaftlichen Diskussion von "psychischer Gesundheit" auf.
 
@@ -312,7 +312,7 @@ https://www.deutsche-depressionshilfe.de/start
 <a id="18-funkytown"></a>
 ### 18. Funkytown
 
-- **Künstler\*in:** saasfee*
+- **Künstler\*in:** saasfee\*
 - **Ort:** Gallusanlage 2 (50.108951, 8.671919)
 - **Verfügbar seit:** 2022-07-02
 - **Beschreibungsseite:** https://broadcastsfromthekitchen.de/ar#/augmented-bahnhofsviertel/funkytown
@@ -321,12 +321,13 @@ https://www.deutsche-depressionshilfe.de/start
 
 #### Beschreibung
 
-Das Kunstkollektiv saasfee*arbeitet in Rauminstallativen und digitalen Dimensionen und zumeist in Verbindung zur elektronischen Musik.  
-*Funkytown*bezieht sich auf verschiedene frühere saasfee*Projekte, wie z.B. die inzwischen legendäre saasfee*1hourdisco - oder auch die saasfee*minidisco. Musik als Ausdruck von Lebensfreude und Energie auf die Straße und den Punkt gebracht, lädt dazu ein, gleich hier Teil des Projekts zu sein. Music by Sergej Auto, saasfee.rec*.
+Das Kunstkollektiv saasfee\* arbeitet in Rauminstallativen und digitalen Dimensionen und zumeist in Verbindung zur elektronischen Musik.  
+*Funkytown* bezieht sich auf verschiedene frühere saasfee\*Projekte, wie z.B. die inzwischen legendäre saasfee\*1hourdisco - oder auch die saasfee\*minidisco. Musik als Ausdruck von Lebensfreude und Energie auf die Straße und den Punkt gebracht, lädt dazu ein, gleich hier Teil des Projekts zu sein. Music by Sergej Auto, saasfee.rec\*.
 
-1hourdisco  © saasfee*/saasfee*pavillon ev, 2008  
+> 1hourdisco  © saasfee\*/saasfee\*pavillon ev, 2008  
+> saasfee\*minidisco © saasfee\*, 2000
 
-saasfee*minidisco © saasfee*, 2000
+*(Hinweis: Auf der Quellseite hat das CMS die Sternchen in „saasfee\*“ fälschlich als Kursiv-Markup interpretiert; hier ist der gemeinte Text wiederhergestellt.)*
 
 <a id="19-kleiderberg"></a>
 ### 19. Kleiderberg

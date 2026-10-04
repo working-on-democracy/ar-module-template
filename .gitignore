@@ -12,3 +12,8 @@ dist-ar/
 # local-only, never shipped, never scanned by the Vite build (see
 # cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
 uncompressed-assets/
+
+# Original 8th Wall project exports of the Augmented Bahnhofsviertel works
+# (~1.3 GB, incl. 21 identical copies of the 8th Wall engine in external/) —
+# local-only source material for porting, never committed.
+augmented-bahnhofsviertel/Projektordner_alt/
