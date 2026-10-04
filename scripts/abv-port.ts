@@ -96,6 +96,7 @@ const found = works.find((w) => w.num === Number(numArg));
 if (!found) fail(`no work #${numArg} in works.json`);
 const work: Work = found;
 if (work.status === "zurückgestellt") fail(`#${work.num} ${work.title} is deferred (status "zurückgestellt")`);
+if (work.status.startsWith("entfällt")) fail(`#${work.num} ${work.title} needs no port of its own (status "${work.status}")`);
 const parent = work.seriesParent ? works.find((w) => w.num === work.seriesParent) ?? null : null;
 const dryRunDir = join(tmpdir(), "abv-port-dry-run", `${String(work.num).padStart(2, "0")}-${work.slug}`);
 const ASSETS_DIR = dryRun ? join(dryRunDir, "src/assets") : join(ROOT, "src/assets");
@@ -405,7 +406,7 @@ Im alten Projekt registrierte Komponenten: ${registered.map((c) => `\`${c}\``).j
 ### \`xrextras-attach\` → \`attach-to\`
 ${[...draftMarkup.matchAll(/xrextras-attach="([^"]*)"/g)].map((m) => `- \`xrextras-attach="${m[1]}"\``).join("\n") || "- (keine)"}
 
-\`xrextras-attach\` kopiert die *lokale* Position des Ziels: unverändert lassen, wenn Ziel und Element denselben Elternteil haben (Ziel-ID ohne \`#\` mitprefixen); bei \`target: camera\` (außerhalb des Moduls) durch \`attach-to="target: #camera; offset: …"\` ersetzen, Offset dann in Welteinheiten — PORTING-GUIDE.md §8.
+\`xrextras-attach\` kopiert die *lokale* Position des Ziels: unverändert lassen, wenn Ziel und Element denselben Elternteil haben (Ziel-ID ohne \`#\` mitprefixen); bei \`target: camera\` (außerhalb des Moduls) durch \`legacy-attach\` mit gleichem Schema ersetzen — PORTING-GUIDE.md §8.
 
 ### Element-IDs in der Szene
 ${elementIds.map((id) => `- \`${id}\``).join("\n") || "- (keine)"}

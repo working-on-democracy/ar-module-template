@@ -19,7 +19,7 @@
       "artist": "Tina Kohlmann",
       "legacyFolder": null,
       "seriesParent": 1,
-      "status": "offen"
+      "status": "entfällt (= Nr. 1)"
     },
     {
       "num": 3,
@@ -29,7 +29,7 @@
       "artist": "Tina Kohlmann",
       "legacyFolder": null,
       "seriesParent": 1,
-      "status": "offen"
+      "status": "entfällt (= Nr. 1)"
     },
     {
       "num": 4,
@@ -119,7 +119,7 @@
       "artist": "freitagsküche",
       "legacyFolder": null,
       "seriesParent": 9,
-      "status": "offen"
+      "status": "entfällt (= Nr. 9)"
     },
     {
       "num": 13,
@@ -129,7 +129,7 @@
       "artist": "Yves Mettler",
       "legacyFolder": null,
       "seriesParent": 4,
-      "status": "offen"
+      "status": "entfällt (= Nr. 4)"
     },
     {
       "num": 14,
@@ -249,7 +249,7 @@
       "artist": "HazMatLab",
       "legacyFolder": null,
       "seriesParent": 21,
-      "status": "offen"
+      "status": "entfällt (= Nr. 21)"
     },
     {
       "num": 26,
