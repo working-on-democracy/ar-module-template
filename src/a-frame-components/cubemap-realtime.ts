@@ -28,6 +28,14 @@ declare const THREE: any;
 //     'cubemap-process', so a second instance replaced the first, and it was
 //     never removed. Here each instance gets a unique name and removes its
 //     module (and frees its render target) on remove().
+//   - The render target is flagged needsPMREMUpdate after every cube update
+//     (three r158 re-prefilters render-target env maps only when flagged).
+//
+// Known incompatibility: don't combine with a cubemap-static on another
+// instance of the same model in the same scene. In three r158 the two
+// prefiltered env maps interfere and the live one ends up showing the
+// static image (found on #18: the visible ball reflected the invisible
+// mini-ball's FUNKY TOWN cube map instead of the camera).
 //   - THREE.RGBFormat no longer exists in three.js r158 (8frame 1.5); the
 //     render target uses the default RGBA. `encoding: sRGBEncoding` is
 //     expressed as `colorSpace: SRGBColorSpace`, its r152+ equivalent.
@@ -75,6 +83,10 @@ export default {
         name: self.pipelineName,
         onUpdate: ({ frameStartResult, processCpuResult }: any) => {
           cubeCamera.update(scene.renderer, cubeMapScene);
+          // three r158 re-prefilters (PMREM) a render-target env map only when
+          // it's flagged; flag it after every cube update so glossy materials
+          // follow the camera image.
+          self.renderTarget.texture.needsPMREMUpdate = true;
           let cameraTexture = frameStartResult.cameraTexture;
           if (processCpuResult.reality) {
             cameraTexture = processCpuResult.reality.realityTexture;
