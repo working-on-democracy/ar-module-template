@@ -2,6 +2,8 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { actionButtonHtml } from './legacy-ui-icons';
 
 interface ArModuleData {
   id: string;
@@ -82,6 +84,25 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #1 Xenoglossy I: the original's UI (image-target-ui with skip-marker,
+// recenter button, startExperience): once the scene is placed, a hint with
+// a Start button; Start re-places the scene and shows the model (the
+// original's order). See LegacyOverlay.vue.
+const centerControls: LegacyControl[] = [
+  {
+    id: 'start',
+    // ((TARGET)) is a deliberate placeholder (2026-10-04): the original said
+    // "Euro-Skulptur" (#1's location), but this module also stands for #2/#3
+    // at other locations. Replace before the final export — see
+    // AUGMENTED-BAHNHOFSVIERTEL-WORKS.md "Vor dem finalen Export".
+    html: 'Richte die Kamera auf die ((TARGET)) und tippe auf "Start" ' + actionButtonHtml('Start'),
+    onClick: () => {
+      document.getElementById('xenoglossy-i-legacy-space')?.dispatchEvent(new CustomEvent('legacy-space-place'));
+      document.getElementById('xenoglossy-i-model')?.setAttribute('visible', 'true');
+    }
+  }
+];
+
 onMounted(() => {
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
@@ -97,57 +118,84 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #1 Xenoglossy I (Tina Kohlmann), ported from the 8th Wall export
+       `kohlmann-xenoglossy` — see augmented-bahnhofsviertel/about/01-xenoglossy-i/
+       and augmented-bahnhofsviertel/PORTING-GUIDE.md. Also stands for
+       Xenoglossy II/III (#2/#3: the same work at other locations).
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
+         floor at y = 0), placed module-locally by legacy-space. The model
+         stays hidden until Start (LegacyOverlay below). Changes against the
+         original body.html:
+         - ids prefixed with "xenoglossy-i-";
+         - xrextras-hold-drag -> hold-drag (works inside the hull; groundId
+           points at the prefixed ground box);
+         - the light's xrextras-attach to the camera -> legacy-attach (same
+           schema; the camera is host-owned, outside the hull);
+         - `env-map-white` dropped: never registered in the original
+           project, so it had no effect;
+         - the `image-target` wrapper kept as a plain entity (its position
+           offset matters; its "hidden until ready" role is the hull's);
+         - `shadow="recieve: false"` kept as authored — the typo means the
+           model did receive shadows in the original. -->
+    <a-entity id="xenoglossy-i-legacy-space" legacy-space>
+      <a-entity position="0 0 -10">
+        <a-entity
+            id="xenoglossy-i-model"
+            visible="false"
+            gltf-model="#xenoglossy-i-Gesicht_v31-1"
+            position="5 0 -4"
+            rotation="0 -70 0"
+            scale="25 25 25"
+            hold-drag="groundId: xenoglossy-i-ground"
+            xrextras-two-finger-rotate
+            xrextras-pinch-scale
+            class="cantap"
+            shadow="recieve: false"
+            animation-mixer="clip: animation_0">
+        </a-entity>
+      </a-entity>
 
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
-    <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+      <a-entity
+          light="
+            type: directional;
+            intensity: 1.3;
+            castShadow: true;
+            shadowMapHeight: 2048;
+            shadowMapWidth: 2048;
+            shadowCameraTop: 40;
+            shadowCameraBottom: -40;
+            shadowCameraRight: 40;
+            shadowCameraLeft: -40;
+            target: #camera"
+          legacy-attach="target: camera; offset: 20 30 14"
+          position="1 4.3 2.5"
+          shadow>
+      </a-entity>
+      <a-light type="ambient" intensity="0.8"></a-light>
+      <a-box
+          id="xenoglossy-i-ground"
+          scale="10000 2 10000"
+          position="0 -1 0"
+          material="shader: shadow; transparent: true; opacity: 0.4"
+          shadow>
+      </a-box>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: hint + Start (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="xenoglossy-i-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
