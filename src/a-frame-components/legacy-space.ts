@@ -46,6 +46,14 @@ declare const THREE: any;
 // the scene canvas, up within TAP_MAX_MS, moved less than TAP_MAX_MOVE_PX —
 // pinches, drags and taps on DOM buttons don't count.
 //
+// `scaleSounds` scales positional sounds inside the same way: three.js'
+// PannerNode distances (refDistance/maxDistance) are in world units, so an
+// old sound authored as "fades out within 10 old units" would otherwise
+// carry 1/s times as far relative to the scene. Applied to each sound's
+// pooled PositionalAudio objects (not via setAttribute, which would rebuild
+// the pool and stop a playing sound on every recenter), at placement and
+// whenever a sound finishes loading.
+//
 // `scaleShadows` also scales the shadow-camera bounds of directional lights
 // inside by s: three.js keeps those in world units regardless of the parent's
 // scale, so the old bounds (e.g. ±80 old units) would otherwise cover a far
@@ -63,6 +71,7 @@ export default {
     fallbackAfter: { type: "number", default: 3 },
     fallbackScale: { type: "number", default: 0.2 },
     scaleShadows: { type: "boolean", default: true },
+    scaleSounds: { type: "boolean", default: true },
     tapRecenter: { type: "boolean", default: false }
   },
 
@@ -74,6 +83,11 @@ export default {
     self.el.object3D.visible = false;
     self.onPlace = () => self.place();
     self.el.addEventListener("legacy-space-place", self.onPlace);
+    self.scale = 1;
+    self.onSoundLoaded = () => {
+      if (self.placed && self.data.scaleSounds) self.scaleSoundDistances(self.scale);
+    };
+    self.el.addEventListener("sound-loaded", self.onSoundLoaded);
     // Tap detection for tapRecenter (see header): track every pointer on the
     // page; a gesture is a tap only if exactly one pointer was involved.
     self.pointers = new Map();
@@ -161,7 +175,9 @@ export default {
     world.decompose(obj.position, obj.quaternion, obj.scale);
     obj.updateMatrixWorld(true);
 
+    self.scale = s;
     if (data.scaleShadows) self.scaleShadowCameras(s);
+    if (data.scaleSounds) self.scaleSoundDistances(s);
     self.placed = true;
     obj.visible = true;
     self.el.emit("legacy-space-placed", { scale: s }, false);
@@ -184,9 +200,23 @@ export default {
     });
   },
 
+  scaleSoundDistances(s: number) {
+    const self = this as any;
+    self.el.querySelectorAll("[sound]").forEach((el: any) => {
+      const sound = el.components?.sound;
+      if (!sound?.data?.positional) return;
+      (sound.pool?.children ?? []).forEach((audio: any) => {
+        if (!audio.setRefDistance) return;
+        audio.setRefDistance(sound.data.refDistance * s);
+        audio.setMaxDistance(sound.data.maxDistance * s);
+      });
+    });
+  },
+
   remove() {
     const self = this as any;
     self.el.removeEventListener("legacy-space-place", self.onPlace);
+    self.el.removeEventListener("sound-loaded", self.onSoundLoaded);
     window.removeEventListener("pointerdown", self.onPointerDown, true);
     window.removeEventListener("pointerup", self.onPointerUp, true);
     window.removeEventListener("pointercancel", self.onPointerCancel, true);
