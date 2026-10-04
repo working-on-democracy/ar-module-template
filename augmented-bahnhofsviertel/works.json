@@ -1,0 +1,265 @@
+{
+  "_comment": "Machine-readable work list for scripts/abv-port.ts. Human steering list: AUGMENTED-BAHNHOFSVIERTEL-WORKS.md. legacyFolder = folder in augmented-bahnhofsviertel/Projektordner_alt/ (gitignored). seriesParent = work whose branch this one branches off.",
+  "works": [
+    {
+      "num": 1,
+      "slug": "xenoglossy-i",
+      "branch": "abv-01-xenoglossy-i",
+      "title": "Xenoglossy I",
+      "artist": "Tina Kohlmann",
+      "legacyFolder": "kohlmann-xenoglossy",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 2,
+      "slug": "xenoglossy-ii",
+      "branch": "abv-02-xenoglossy-ii",
+      "title": "Xenoglossy II",
+      "artist": "Tina Kohlmann",
+      "legacyFolder": null,
+      "seriesParent": 1,
+      "status": "offen"
+    },
+    {
+      "num": 3,
+      "slug": "xenoglossy-iii",
+      "branch": "abv-03-xenoglossy-iii",
+      "title": "Xenoglossy III",
+      "artist": "Tina Kohlmann",
+      "legacyFolder": null,
+      "seriesParent": 1,
+      "status": "offen"
+    },
+    {
+      "num": 4,
+      "slug": "europaplatz-ii",
+      "branch": "abv-04-europaplatz-ii",
+      "title": "Europaplatz (Frankfurt) II",
+      "artist": "Yves Mettler",
+      "legacyFolder": "mettler-europaplatz2",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 5,
+      "slug": "unwetter-am-steg",
+      "branch": "abv-05-unwetter-am-steg",
+      "title": "Unwetter am Steg",
+      "artist": "Parastou Forouhar",
+      "legacyFolder": "forouhar-unwetter",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 6,
+      "slug": "birdkind",
+      "branch": "abv-06-birdkind",
+      "title": "Birdkin(d)",
+      "artist": "Katharina Pelosi",
+      "legacyFolder": "pelosi-birdkind",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 7,
+      "slug": "i-cant-get-no",
+      "branch": "abv-07-i-cant-get-no",
+      "title": "I can‘t get no - yes, we can",
+      "artist": "Andreas Diefenbach",
+      "legacyFolder": "diefenbach-cannotgetno",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 8,
+      "slug": "dead-can-dance",
+      "branch": "abv-08-dead-can-dance",
+      "title": "Dead can Dance",
+      "artist": "Maiken Laackmann",
+      "legacyFolder": "laackmann-deadcandance",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 9,
+      "slug": "fisher-loop-i",
+      "branch": "abv-09-fisher-loop-i",
+      "title": "Fisher-Loop (privatized) I",
+      "artist": "freitagsküche",
+      "legacyFolder": "freitagskueche-fisherloop",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 10,
+      "slug": "neon-organisms-3",
+      "branch": "abv-10-neon-organisms-3",
+      "title": "Neon Organisms 3",
+      "artist": "K. Ulrich Schneider",
+      "legacyFolder": "scheider-organism",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 11,
+      "slug": "die-kommende-gemeinschaft",
+      "branch": "abv-11-die-kommende-gemeinschaft",
+      "title": "Die kommende Gemeinschaft liegt hinter unseren Depressionen",
+      "artist": "Götz Schramm",
+      "legacyFolder": null,
+      "seriesParent": null,
+      "status": "zurückgestellt"
+    },
+    {
+      "num": 12,
+      "slug": "fisher-loop-ii",
+      "branch": "abv-12-fisher-loop-ii",
+      "title": "Fisher-Loop (privatized) II",
+      "artist": "freitagsküche",
+      "legacyFolder": null,
+      "seriesParent": 9,
+      "status": "offen"
+    },
+    {
+      "num": 13,
+      "slug": "europaplatz-i",
+      "branch": "abv-13-europaplatz-i",
+      "title": "Europaplatz (Frankfurt) I",
+      "artist": "Yves Mettler",
+      "legacyFolder": null,
+      "seriesParent": 4,
+      "status": "offen"
+    },
+    {
+      "num": 14,
+      "slug": "kamuro-komet",
+      "branch": "abv-14-kamuro-komet",
+      "title": "Kamuro Komet",
+      "artist": "Sandra Kranich",
+      "legacyFolder": "kranich-komet",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 15,
+      "slug": "milk-glass",
+      "branch": "abv-15-milk-glass",
+      "title": "Milk Glass",
+      "artist": "Adrian Williams",
+      "legacyFolder": "williams",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 16,
+      "slug": "friendly-reminder",
+      "branch": "abv-16-friendly-reminder",
+      "title": "Friendly reminder (enşöligensi)",
+      "artist": "Nouria Behloul",
+      "legacyFolder": "nouria-behloul",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 17,
+      "slug": "sprechen-ueber-gefuehle",
+      "branch": "abv-17-sprechen-ueber-gefuehle",
+      "title": "Wann ist das Sprechen über Gefühle ein politischer Akt?",
+      "artist": "Achim Lengerer",
+      "legacyFolder": "scriptings",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 18,
+      "slug": "funkytown",
+      "branch": "abv-18-funkytown",
+      "title": "Funkytown",
+      "artist": "saasfee*",
+      "legacyFolder": "disco",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 19,
+      "slug": "kleiderberg",
+      "branch": "abv-19-kleiderberg",
+      "title": "Kleiderberg",
+      "artist": "Frankurt Fashion Movement",
+      "legacyFolder": "kleiderberg-fuas",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 20,
+      "slug": "solid-dream-level",
+      "branch": "abv-20-solid-dream-level",
+      "title": "Solid Dream Level",
+      "artist": "Anna Hofmann",
+      "legacyFolder": "anna-hofmann",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 21,
+      "slug": "die-reisende",
+      "branch": "abv-21-die-reisende",
+      "title": "Die Reisende",
+      "artist": "HazMatLab",
+      "legacyFolder": "hazmadlab",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 22,
+      "slug": "privileged-i",
+      "branch": "abv-22-privileged-i",
+      "title": "Privileged I",
+      "artist": "Jonathan Radetz",
+      "legacyFolder": "radetz-nepal",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 23,
+      "slug": "privileged-ii",
+      "branch": "abv-23-privileged-ii",
+      "title": "Privileged II",
+      "artist": "Jonathan Radetz",
+      "legacyFolder": "radetz-istanbul",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 24,
+      "slug": "privileged-iii",
+      "branch": "abv-24-privileged-iii",
+      "title": "Privileged III",
+      "artist": "Jonathan Radetz",
+      "legacyFolder": "radetz-lima",
+      "seriesParent": null,
+      "status": "offen"
+    },
+    {
+      "num": 25,
+      "slug": "die-reisende-ii",
+      "branch": "abv-25-die-reisende-ii",
+      "title": "Die Reisende II",
+      "artist": "HazMatLab",
+      "legacyFolder": null,
+      "seriesParent": 21,
+      "status": "offen"
+    },
+    {
+      "num": 26,
+      "slug": "knusperhaeuschen",
+      "branch": "abv-26-knusperhaeuschen",
+      "title": "Knusperhäuschen",
+      "artist": "Sonja Yakovleva",
+      "legacyFolder": "yakovleva-knusper",
+      "seriesParent": null,
+      "status": "offen"
+    }
+  ]
+}

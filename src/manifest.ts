@@ -51,6 +51,9 @@ import ditherMaterial from "./a-frame-components/dither-material";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
+import xrLight from "./a-frame-components/xr-light";
+import cubemapStatic from "./a-frame-components/cubemap-static";
+import cubemapRealtime from "./a-frame-components/cubemap-realtime";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -159,7 +162,16 @@ export const manifest: Manifest = {
     // Pins a decal plane flat on the ground under its parent's pivot and
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
-    "ground-decal": groundDecal
+    "ground-decal": groundDecal,
+    // Augmented Bahnhofsviertel shared building blocks, ported from the
+    // original 8th Wall projects under their original names so old scene
+    // markup carries over — see augmented-bahnhofsviertel/PORTING-GUIDE.md.
+    // xr-light drives a light from XR8 light estimation; cubemap-static /
+    // cubemap-realtime set a static / camera-feed environment map (both
+    // clone materials before writing envMap, see env-map-shared.ts).
+    "xr-light": xrLight,
+    "cubemap-static": cubemapStatic,
+    "cubemap-realtime": cubemapRealtime
   }
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md

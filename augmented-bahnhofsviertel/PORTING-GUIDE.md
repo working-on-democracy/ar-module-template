@@ -1,0 +1,121 @@
+# Portierungs-Guide: 8th-Wall-Werke → ArModule
+
+Wie ein Werk aus dem alten 8th-Wall-Export (`augmented-bahnhofsviertel/Projektordner_alt/`, gitignored) in ein ArModule dieses Templates übertragen wird. Steuerliste und Stand: [AUGMENTED-BAHNHOFSVIERTEL-WORKS.md](../AUGMENTED-BAHNHOFSVIERTEL-WORKS.md). Allgemeine Template-Regeln: [AGENTS.md](../AGENTS.md) — gelten hier uneingeschränkt.
+
+## 1. Grundsätze
+
+- **Kein Rückfluss nach `feature_template`.** Weder vom Zwischenbranch noch von `abv-*`-Branches wird nach `feature_template` gemergt/gepusht (der lokale pre-push-Hook blockiert es). Ein hier entstandener, allgemein nützlicher Baustein geht nur über `ADDING-FEATURES-WORKFLOW.md` und nach ausdrücklicher Freigabe dorthin.
+- **Originalgetreu.** SLAM-Platzierung vor der Kamera mit Start-Button und Recenter wie im Original, kein Image-Tracking. Look möglichst wie das Original; kleine Abweichungen sind vorerst akzeptiert und werden dokumentiert (Feedback der damals Beteiligten folgt).
+- **Ein Branch pro Werk** (`abv-<Nr>-<slug>`), Reihen-Werke zweigen vom ersten Werk ab. Was mehrere Werke brauchen, kommt auf `augmented-bahnhofsviertel` und wird von dort in die Werk-Branches gemergt — nie zwischen Werk-Branches kopieren.
+- **Die alten Exporte bleiben unverändert.** Builds/Analysen arbeiten auf Kopien (`.reference-build/`, Dry-Run-Ordner).
+
+## 2. Altes Format vs. ArModule
+
+| | Alter 8th-Wall-Export | ArModule (dieses Template) |
+|---|---|---|
+| Einheit | eigenständige Web-App pro Werk (webpack, `index/head/body.html`, `app.js`) | Vue-SFC `src/ArModule.vue`, vom Host in **seine** Szene geladen |
+| Szene | eigene `<a-scene xrweb …>` mit `xrextras-*`, `image-target-ui`, `recenter` | gehört dem Host; das Modul liefert nur Entities |
+| Kamera | eigene `<a-camera position="0 8 8" raycaster cursor …>`, teils mit `sound` oder Kindern | gehört dem Host; `id/position/cursor/raycaster` sind verboten (`CAMERA_PROPS_FORBIDDEN`) |
+| Assets | `<a-assets>` in body.html, Unterordner, glTF als Ordner-Bundles | flach in `src/assets/`, Dateiname = Asset-ID, vom Host injiziert; keine eigenen `<a-assets>` |
+| Komponenten | `AFRAME.registerComponent` in `app.js` (+ Systeme) | `src/a-frame-components/*.ts`, registriert über `src/manifest.ts` (nur Komponenten, keine Systeme) |
+| UI | DOM-Overlays aus `ui.js` (Start, Hinweise, Recenter, Audio/Video freischalten), CSS aus `ui.css` | Vue-Template im Modul (2D-DOM, inline-Styles — `<style>`-Blöcke erreichen den Host nicht, siehe README „Caveats“) |
+| Laufzeit | 8frame **1.3.0** (three r137) im Export-Build, aframe-extras 6.1.1, xrextras | 8frame **1.5.0** (three r158) in `dev:ar`, aframe-extras 6.1.1, xrextras |
+
+Hinweis zur Laufzeit: Die Projekte nennen in `head.html` die A-Frame-Versionen 1.1/1.2/1.3, der Export-Build lädt aber für alle 8frame 1.3.0 — das ist die Referenz, gegen die verglichen wird.
+
+## 3. Werkzeuge
+
+| Befehl | Zweck |
+|---|---|
+| `npm run abv:port -- <Nr>` | legt `abv-<Nr>-<slug>` an (von der Zwischenbasis bzw. vom Reihen-Vorgänger), importiert die referenzierten Assets geprefixt nach `src/assets/` (glTF → GLB verlustfrei) und schreibt `augmented-bahnhofsviertel/port-drafts/<Nr>-<slug>.md` |
+| `npm run abv:port -- <Nr> --dry-run` | dasselbe ohne Git und ohne Projektdateien (Ausgabe in einen Temp-Ordner) — zum Vorab-Ansehen |
+| `npm run abv:port -- <Nr> --no-branch [--force-assets]` | auf dem bereits bestehenden Werk-Branch erneut importieren |
+| `npm run abv:reference -- <Nr> [legacy\|port]` | Headless-Screenshot des Originals (`legacy`, baut den Export aus einer gepatchten Kopie) bzw. des Ports (`port`, startet `dev:ar` auf dem aktuellen Branch) nach `about/<Nr>-<slug>/reference-*.jpg` |
+| `npm run compress-assets` | Mesh-/Textur-Kompression der importierten GLBs (siehe `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`) |
+
+Einmalig pro Rechner für `abv:reference`: `ffmpeg` und `npx playwright install chromium`; der erste Legacy-Lauf führt ein `npm install` in `Projektordner_alt/` aus (alle 22 Exporte haben identische Build-Konfiguration, ein gemeinsames `node_modules` reicht).
+
+## 4. Ablauf pro Werk (Checkliste)
+
+1. **Vorab:** Port-Entwurf per `--dry-run` ansehen; offene Punkte in der Steuerliste vermerken. Referenz des Originals ansehen (`about/<Nr>-<slug>/reference-legacy*.jpg`, ggf. neu aufnehmen).
+2. **Branch + Import:** `npm run abv:port -- <Nr>` (sauberer Working Tree nötig). Status in der Steuerliste auf `in Arbeit`.
+3. **Platzhalter-Szene ersetzen:** Licht und Boden der Template-Szene in `ArModule.vue` durch die des Werks ersetzen — die Lade-UI und `no-frustum-cull` auf dem Wurzel-Entity bleiben. (Die Template-Beispiel-Assets sind auf der Zwischenbasis bereits entfernt, siehe §7.)
+4. **Szene übertragen:** den Szenen-Block aus dem Port-Entwurf in das Wurzel-`<a-entity>` von `ArModule.vue` übernehmen und dabei
+   - Element-IDs mit `<slug>-` prefixen (inkl. Referenzen ohne `#`, z. B. `xrextras-attach="target: model"`),
+   - Kamera-Inhalte (z. B. `sound` an `<a-camera>`) auf eigene Entities verlegen — Ambient-Sound mit dem Tap-to-enable-sound-Overlay des Templates (`examples/sound-unlock-overlay-usage.html`) statt des alten `enable-audio`,
+   - `xrextras-attach` beibehalten, wenn Ziel und Element denselben Elternteil haben (Ziel-ID mitprefixen); bei `target: camera` durch `attach-to` ersetzen (§8),
+   - die alte Szene unverändert in die Legacy-Hülle aus §6 setzen statt Koordinaten einzeln umzurechnen,
+   - das alte `image-target`-Wrapper-Entity (startet unsichtbar, wird per „Start“ eingeblendet) durch den Start/Recenter-Mechanismus aus §6 ersetzen,
+   - `animation-mixer` beibehalten (originalgetreu; nicht mit `trim-loop-clip` auf demselben Entity kombinieren).
+5. **Komponenten:** was im Entwurf unter „Komponenten, die das Template nicht registriert“ steht, prüfen — gemeinsame Bausteine (§5) nutzen; werkspezifische Komponenten als `src/a-frame-components/<slug>-*.ts` portieren und additiv in `manifest.ts` eintragen. Dabei die Template-Regeln: Materialien vor Änderung klonen, `object3dset` (Typ `mesh`) statt nur `model-loaded`, eindeutiger `customProgramCacheKey` bei `onBeforeCompile`, Pipeline-Module/Listener in `remove()` abbauen.
+6. **UI-Texte** (Start-Hinweis u. ä.) aus dem Entwurf wörtlich übernehmen.
+7. **Assets komprimieren:** `npm run compress-assets` für die importierten GLBs/Bilder (nie auf bereits komprimierte Dateien von Hand `gltfpack`).
+8. **Prüfen:** `npx vue-tsc --noEmit`, `npm run build` (danach `dist-platform/` löschen), `npm run abv:reference -- <Nr> port` und mit `reference-legacy.jpg` vergleichen; Abweichungen im Werk-Abschnitt der Steuerliste notieren. Auf dem Handy (`npm run dev:ar`) Maßstab, Platzierung und Bewegung prüfen — headless geht das nicht.
+9. **Steuerliste** aktualisieren (`portiert`), committen nur auf Anweisung.
+
+## 5. Gemeinsame Bausteine (auf der Zwischenbasis)
+
+Unter ihren Originalnamen portiert, damit altes Markup unverändert passt:
+
+| Komponente | Original | Änderungen gegenüber dem Original |
+|---|---|---|
+| `xr-light` | `xrlight.js` (17 Projekte, identisch) | ohne A-Frame-System (Manifest kann keine Systeme registrieren); Pipeline-Modul wird beim letzten `remove()` entfernt; schreibt Intensität nur bei Änderung |
+| `cubemap-static` | `cubemap-static.js` (15 Projekte) | klont Materialien; `object3dset`; `format` wird ignoriert (`THREE.RGBFormat` existiert in r137+ nicht mehr — war also schon im Export-Build wirkungslos) |
+| `cubemap-realtime` | `cubemap-realtime.js` (15 Projekte, 6 Varianten) | klont Materialien; `object3dset`; eindeutiger Pipeline-Name pro Instanz + Abbau in `remove()`; synchronisierte Kameratextur (`realityTexture`) |
+
+Bereits im Template bzw. in der Host-Laufzeit vorhanden: `animation-mixer` und `xrextras-*` (Gesten, `xrextras-hider-material`) über aframe-extras/xrextras; `attach-to` als Ersatz für `xrextras-attach` bei Zielen außerhalb des Moduls, z. B. der Kamera (§8); `no-frustum-cull` für animierte Modelle; `material="shader: shadow"` für Schattenböden; `sound-unlock-audio` als Basis für das Freischalten von Audio.
+
+Noch nicht portiert (Kandidaten, sobald ein Werk sie braucht): Legacy-Hülle mit modul-lokalem Start/Recenter und die übrigen Overlays aus `ui.js`/`image-target-ui.js` (§6, im Pilot), Video-Freischaltung (`enable-video.js`, 5 Varianten), `portal-camera`/Portal-Komponenten (Nr. 7, 22, Referenz `portaljonathan`), Platzierungs-Komponenten von Mettler/Pelosi.
+
+## 6. Platzierung, Recenter und Maßstab
+
+### Wie die alten Szenen platziert sind
+
+Die alten Szenen verwenden durchgängig die 8th-Wall-Konvention „Kamera startet auf `0 8 8`, Boden bei `y = 0`“ im Maßstabsmodus `responsive`: Die Starthöhe der Kamera (8 Einheiten) entspricht der realen Handyhöhe über dem Boden. Eine alte Einheit ist also etwa `H / 8` Meter (bei H ≈ 1,5 m rund 0,19 m) — daher Werte wie `scale="25 25 25"` oder `position="0 0 -30"`. „Start“ und der Recenter-Button lösen `scene.emit('recenter')` aus, ein **globales** XR8-Recenter.
+
+### Warum feste Offsets hier nicht funktionieren
+
+Ein Modul sitzt nicht im Szenen-Ursprung, sondern unter Wrappern, die es selbst nicht kontrolliert:
+
+- `lib/preview-ar.ts` hängt jedes Modul **ohne** Image-Targets in ein `module-root` bei `0 1.6 -3` (bildet laut Kommentar die Host-Platzierung `AR_MODULE_POSITION` nach — der Host-Code selbst liegt nicht in diesem Repo). Siehe `guides/IMAGE-TRACKING-FEATURE-GUIDE.md` §3 Punkt 3: genau dieser Wrapper hat dort schon Inhalte verschoben.
+- Das Wurzel-Entity in `ArModule.vue` hat zusätzlich `position="0 -2 0"`.
+
+Eine Hülle mit fest eingerechneten Offsets (`0 1.6 -3`, `0 -2 0`) wäre die „Kamera-Korrektur für eine bestimmte Host-Installation“, vor der `ADDING-FEATURES-WORKFLOW.md` §3 warnt: Sie stimmt nur, solange Preview und Host genau diese Werte verwenden.
+
+### Entscheidung: modul-lokales Platzieren (2026-10-04)
+
+Kein globales `recenter` (das würde im Host alle gleichzeitig sichtbaren Module und die Host-UI verschieben). Stattdessen setzt das Modul bei „Start“ und bei seinem eigenen Recenter-Button **nur seine eigenen Inhalte** vor die aktuelle Kamera — wie im Original, aber ohne Nebenwirkung auf andere Module.
+
+Geplanter gemeinsamer Baustein (im Pilot zu bauen und auf dem Handy zu prüfen, dann auf die Zwischenbasis): eine **Legacy-Hülle** um die unverändert übernommene alte Szene, die
+
+1. bei Start/Recenter die **Welt**-Pose der Kamera liest (`getWorldPosition`/Gier-Winkel aus `getWorldQuaternion`),
+2. daraus die Ziel-Weltpose der Hülle berechnet: alte Kamera `0 8 8` liegt auf der echten Kamera, alter Boden `y = 0` liegt `H` unter ihr, Blickrichtung nur um die Hochachse übernommen, Skalierung `s = H / 8`,
+3. diese Weltpose über `parent.worldToLocal`/die inverse Welt-Matrix des Elternteils in lokale Koordinaten umrechnet (dasselbe Prinzip wie `attach-to`) — damit ist sie unabhängig davon, welche Wrapper Preview oder Host darüberlegen.
+
+Offen und nur auf dem Handy prüfbar: der Wert für `H` in Host-Einheiten (die Preview-Kamera startet auf `0 0 0`; ob die Szene in Metern rechnet, ist zu bestätigen) und ob die Hülle beim Recenter nur neu platziert oder auch die Werks-Animationen neu startet (Original: Recenter setzte nur die Kamera zurück).
+
+### Start-Overlay
+
+Die alten 2D-Overlays (Hinweistext + „Start“, Recenter-Button oben rechts, Audio/Video-Freischaltung) werden als Vue-Overlay im Modul nachgebaut — wie die Lade-UI in `ArModule.vue`: inline-Styles, kein `<style>`-Block (erreicht den Host nicht, README „Caveats“). Texte wörtlich aus dem Port-Entwurf.
+
+## 7. Entschiedene Grundsatzfragen (2026-10-04)
+
+1. **Start/Recenter:** modul-lokal (§6), kein globales XR8-Recenter.
+2. **Template-Beispiel-Assets:** auf der Zwischenbasis entfernt — `jellyfish-video.mp4`, `liquid-texture-target-1/2.webp`, `mesh-render-order-rosa.glb` (zusammen ~5,5 MB) sowie das Beispiel-Image-Target `src/image-targets/video-target.*` (wird ebenfalls ausgeliefert und injiziert). Behalten: die vier Sound-Icons `sound-*.webp` (~600 Byte, Teil des Sound-Features). Die `examples/*.html` verweisen weiterhin auf die entfernten Dateien — sie werden nicht gebaut und dienen hier nur als Doku. **Bei jedem Merge von `feature_template` in die Zwischenbasis prüfen, ob neue Beispiel-Assets mitkommen.**
+3. **Legacy-Hülle:** ja, als modul-lokale Platzierung nach §6, Bestätigung von Maßstab/Höhe im Pilot auf dem Handy.
+
+## 8. Bekannte Fallstricke
+
+- **Asset-Ordner-Bundles:** `assets/x.gltf` ist im Export ein Ordner mit der eigentlichen Datei; `abv:port` und `abv:reference` lösen das auf.
+- **Mehrere Buffer:** alte `.gltf` haben teils mehrere Buffer; `abv:port` führt sie beim GLB-Export verlustfrei zusammen.
+- **IDs kollidieren** in der gemeinsamen Host-Szene (`model`, `ground`, `group`, `camera` sind in fast allen alten Szenen vergeben).
+- **Kamera-Attribute** (`position="0 8 8"`, `raycaster`, `cursor`) sind host-eigen; Sound an der Kamera muss umziehen.
+- **`xrextras-attach`** (19× in den alten Szenen, meist Lichter) kopiert die **lokale** Position des Ziels plus Offset in die eigene **lokale** Position (geprüft im Quelltext von `@8thwall/xrextras`). Das ist korrekt, solange Ziel und angehängtes Element **denselben Elternteil** haben — z. B. Licht und Modell beide direkt in der Legacy-Hülle (`target: model`/`group`): dann bleibt es unverändert, Offsets in alten Einheiten. Falsch wird es bei Zielen in einem anderen Koordinatenraum, vor allem **`target: camera`** (die Host-Kamera liegt außerhalb des Moduls): dort `attach-to="target: #camera; offset: …"` verwenden (`guides/ATTACH-TO-FEATURE-GUIDE.md`, rechnet über `parent.worldToLocal`; Offset in **Welt**einheiten, also alte Offsets mit `s` skalieren). Das Ziel wird per `getElementById` ohne `#` gesucht — beim ID-Prefixen mitziehen.
+- **Taps:** alte Szenen nutzen `class="cantap"` mit dem Raycaster/Cursor an der Kamera — der gehört im Host dem Host (Preview: `raycaster="objects: .cantap"`). iOS Safari unterdrückt den synthetischen `click` nach `xrextras-gesture-detector` (`guides/SOUND-FEATURE-GUIDE.md` §4) — Werke mit Gesten **und** Tippen auf dem iPhone testen.
+- **Animationen:** animierte Skinned Meshes verschwinden ohne `no-frustum-cull` (sitzt auf dem Wurzel-Entity von `ArModule.vue`, bleibt dort). `animation-mixer` nicht zusammen mit `trim-loop-clip` auf einem Entity.
+- **Audio-Autoplay:** Sounds mit `autoplay`/Loop brauchen eine Nutzergeste — Template-Overlay statt altem `enable-audio`; iPhone-Stummschalter-Workaround steckt in `sound-unlock-audio.ts`.
+- **Pipeline-Module:** alte Komponenten registrieren XR8-Kamera-Pipeline-Module und entfernen sie nie — im Host bliebe nach dem Entladen eines Moduls Code im globalen Pipeline aktiv.
+- **Materialien:** alte Komponenten verändern geteilte glTF-Materialien direkt — im Template immer klonen.
+- **Analytics:** alte Projekte laden umami-Tracking (`head.html`) — nicht mitportieren.
+- **HTML-Fehler** in alten `body.html` (z. B. Nr. 10) — im Port-Entwurf unter „HTML-Fehler“ gemeldet.
+- **Headless-Referenzen** zeigen, ob eine Szene lädt und rendert, nicht SLAM-Verhalten, echte GPU-Darstellung oder Maßstab. Die Fake-Kamera ist bewusst neutrales Rauschen, weil die Marker-Bilder Fotos der AR-Werke selbst sind.
