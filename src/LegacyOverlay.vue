@@ -1,18 +1,21 @@
 <script lang="ts">
 // One control in the overlay's centre column. `html` is trusted, static
 // markup from the port (label text, an inline <svg> icon, or
-// ACTION_BUTTON_HTML). The control disappears once tapped unless `keep`.
+// actionButtonHtml()). The control disappears once tapped unless `keep`.
+// `variant: "hint"` is ui.css' `.hint`: same text style plus a close (x)
+// icon top right — a tap anywhere on it dismisses it, like the original.
 export interface LegacyControl {
   id: string;
   html: string;
   onClick?: () => void;
   keep?: boolean;
+  variant?: "action" | "hint";
 }
 </script>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { RECENTER_ICON } from "./legacy-ui-icons";
+import { RECENTER_ICON, X_ICON } from "./legacy-ui-icons";
 
 // The old 8th Wall projects' 2D UI (ui.js/ui.css + image-target-ui.js),
 // rebuilt as a Vue overlay inside the module: a centre column of controls
@@ -88,6 +91,14 @@ const centerButtonStyle = {
   textAlign: "center" as const,
   cursor: "pointer"
 };
+// ui.css: .hint (padding for the close icon, which sits top right)
+const hintButtonStyle = { ...centerButtonStyle, position: "relative" as const, paddingTop: "1.75em" };
+const hintCloseStyle = {
+  position: "absolute" as const,
+  top: "0.5em",
+  right: "0.5em",
+  lineHeight: "0"
+};
 // ui.css: #topright-controls, .marker-recenter
 const topRightStyle = {
   position: "fixed" as const,
@@ -110,14 +121,24 @@ const recenterButtonStyle = {
 
 <template>
   <div v-if="visible && centerControls.length" :style="centerColumnStyle">
-    <button
-        v-for="control in centerControls"
-        :key="control.id"
-        type="button"
-        :style="centerButtonStyle"
-        @click="tap(control)"
-        v-html="control.html"
-    ></button>
+    <template v-for="control in centerControls" :key="control.id">
+      <button
+          v-if="control.variant === 'hint'"
+          type="button"
+          :style="hintButtonStyle"
+          @click="tap(control)"
+      >
+        <span :style="hintCloseStyle" v-html="X_ICON"></span>
+        <span v-html="control.html"></span>
+      </button>
+      <button
+          v-else
+          type="button"
+          :style="centerButtonStyle"
+          @click="tap(control)"
+          v-html="control.html"
+      ></button>
+    </template>
   </div>
   <div v-if="visible && recenterButton" :style="topRightStyle">
     <button type="button" :style="recenterButtonStyle" aria-label="Recenter" @click="recenter" v-html="RECENTER_ICON"></button>
