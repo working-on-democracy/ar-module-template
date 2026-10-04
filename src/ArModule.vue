@@ -97,56 +97,66 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #26 Knusperhäuschen (Sonja Yakovleva), ported from the 8th Wall export
+       `yakovleva-knusper` — see augmented-bahnhofsviertel/about/26-knusperhaeuschen/
+       and augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
+         floor at y = 0), placed module-locally by legacy-space. Ported as the
+         original actually RAN: its app.js used imageTargetUi/enableVideo
+         with their imports commented out, so it threw right after
+         registering xr-light and the cubemap components — image-target-ui
+         (planned start/recenter button) and image-target (planned "hidden
+         until start") never existed. The house was visible immediately and
+         only the scene-level xrextras-tap-recenter worked (here:
+         legacy-space's tapRecenter). The `image-target` attribute on the
+         group is dropped (it had no effect).
 
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
-    <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+         Note: the house is ~69 x 40 x 80 old units; the old camera stands
+         inside it, ~13 units in front of its back wall, with the door on the
+         far side facing away.
+
+         Other changes against the original body.html: ids prefixed with
+         "knusperhaeuschen-". The model has no animations, so the original's
+         animation-mixer is a no-op — kept as authored. -->
+    <a-entity id="knusperhaeuschen-legacy-space" legacy-space="tapRecenter: true">
+      <a-entity
+          xr-light
+          light="type: directional;
+             castShadow: true;
+             shadowMapHeight: 2048;
+             shadowMapWidth: 2048;
+             shadowCameraTop: 10;
+             target: #knusperhaeuschen-group;"
+          xrextras-attach="target: knusperhaeuschen-group; offset: 0 15 0;"
+          shadow>
+      </a-entity>
+
+      <a-light
+          xr-light
+          type="ambient">
+      </a-light>
+
+      <a-entity
+          id="knusperhaeuschen-group"
+          scale="3 3 3">
+        <a-entity
+            gltf-model="#knusperhaeuschen-Knusperhauschen2"
+            cubemap-realtime
+            position="0 0 -4"
+            rotation="0 180 0"
+            scale="10 10 10"
+            animation-mixer
+            shadow>
+        </a-entity>
+      </a-entity>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
