@@ -181,9 +181,16 @@ function normalizeRel(p: string): string {
   return p.replace(/^\.\//, "").replace(/^\//, "");
 }
 
+// Asset ids are file names without extension, so two old files that differ
+// only in extension (#22: taxi.mp4 + taxi.mp3) would collide — the second
+// one gets its extension appended to the stem.
+const usedStems = new Map<string, string>();
 function newNameFor(oldPath: string): string {
   const ext = extname(oldPath).toLowerCase();
-  const stem = basename(oldPath, extname(oldPath)).replace(/[^A-Za-z0-9_-]+/g, "-");
+  let stem = basename(oldPath, extname(oldPath)).replace(/[^A-Za-z0-9_-]+/g, "-");
+  const owner = usedStems.get(stem);
+  if (owner !== undefined && owner !== oldPath) stem = `${stem}-${ext.slice(1)}`;
+  else usedStems.set(stem, oldPath);
   return `${work.slug}-${stem}${ext === ".gltf" ? ".glb" : ext}`;
 }
 
@@ -242,7 +249,9 @@ const js = jsFiles.map((f) => readFileSync(f, "utf8"));
 // #posx … implicitly). Declared-but-unused assets (e.g. Die Reisende's
 // cubemap images next to a cubemap-realtime-only scene) would otherwise ship
 // and load for nothing — they're listed in the draft instead.
-const sceneWithoutAssets = scene.loc.source.replace(assetsEl?.loc.source ?? "", "");
+// HTML comments don't count as usage (#22 declared a model only used by
+// commented-out entities).
+const sceneWithoutAssets = scene.loc.source.replace(assetsEl?.loc.source ?? "", "").replace(/<!--[\s\S]*?-->/g, "");
 const usesCubemapStatic = /cubemap-static/.test(sceneWithoutAssets);
 const declaredUnused: { id: string; src: string }[] = [];
 // The old shared env-map/light components carry `#posx …` as schema
