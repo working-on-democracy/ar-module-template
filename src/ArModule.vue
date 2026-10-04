@@ -2,6 +2,9 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { playLegacySounds, pauseSoundsWhileHidden } from './legacy-audio';
+import { PLAY_ICON } from './sprechen-ueber-gefuehle-icons';
 
 interface ArModuleData {
   id: string;
@@ -82,7 +85,22 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #17: the original's UI (image-target-ui with skip-marker, recenter button,
+// enable-audio): once the scene is placed, an audio button in the centre
+// starts both sounds, and a recenter button sits top right. See
+// LegacyOverlay.vue / legacy-audio.ts.
+const rootEntity = ref<HTMLElement | null>(null);
+let stopPauseWhileHidden: (() => void) | null = null;
+const centerControls: LegacyControl[] = [
+  {
+    id: 'audio',
+    html: PLAY_ICON,
+    onClick: () => { if (rootEntity.value) playLegacySounds(rootEntity.value); }
+  }
+];
+
 onMounted(() => {
+  if (rootEntity.value) stopPauseWhileHidden = pauseSoundsWhileHidden(rootEntity.value);
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
     (loaded, total) => { loadProgress.value = loaded / total; },
@@ -92,62 +110,93 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAssetTracking?.();
+  stopPauseWhileHidden?.();
 });
 </script>
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #17 Wann ist das Sprechen über Gefühle ein politischer Akt?
+       (Achim Lengerer), ported from the 8th Wall export `scriptings` — see
+       augmented-bahnhofsviertel/about/17-sprechen-ueber-gefuehle/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
+      ref="rootEntity"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+    <!-- The original's loud copy of the loop sat on <a-camera> (host-owned
+         here); non-positional sounds the same as at the listener. Started,
+         together with the pill's own positional copy below, by the audio
+         button (LegacyOverlay). -->
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        id="sprechen-ueber-gefuehle-sound"
+        sound="src: #sprechen-ueber-gefuehle-achim; loop: true; volume: 10; positional: false">
     </a-entity>
 
-    <a-light type="ambient" intensity="0.7"></a-light>
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
+         floor at y = 0), placed module-locally by legacy-space (which also
+         scales the pill's positional-sound distances to the scene).
+         Changes against the original body.html: ids prefixed with
+         "sprechen-ueber-gefuehle-"; scene-level xrextras-tap-recenter became
+         legacy-space's tapRecenter; the group's `image-target` (hidden until
+         the scene is ready) dropped — the hull itself stays hidden until
+         placed. -->
+    <a-entity id="sprechen-ueber-gefuehle-legacy-space" legacy-space="tapRecenter: true">
+      <a-entity
+          xr-light
+          light="type: directional;
+                 castShadow: true;
+                 shadowMapHeight: 2048;
+                 shadowMapWidth: 2048;
+                 shadowCameraTop: 60;
+                 shadowCameraBottom: -60;
+                 shadowCameraRight: 60;
+                 shadowCameraLeft: -60;
+                 target: #sprechen-ueber-gefuehle-group;"
+          xrextras-attach="target: sprechen-ueber-gefuehle-group; offset: 0 30 0;"
+          shadow>
+      </a-entity>
 
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
+      <a-light
+          xr-light
+          type="ambient">
+      </a-light>
 
+      <a-entity id="sprechen-ueber-gefuehle-group">
+        <!-- Pille -->
+        <a-entity
+            sound="src: #sprechen-ueber-gefuehle-achim; loop: true; volume: 10; maxDistance: 10; distanceModel: linear; rolloffFactor: 50"
+            gltf-model="#sprechen-ueber-gefuehle-Pille_5"
+            cubemap-realtime
+            position="0 0 -25"
+            rotation="0 80 0"
+            scale="12 12 12"
+            shadow>
+        </a-entity>
+      </a-entity>
+
+      <a-plane
+          id="sprechen-ueber-gefuehle-ground"
+          rotation="-90 0 0"
+          width="2048"
+          height="2948"
+          material="shader: shadow"
+          shadow>
+      </a-plane>
+    </a-entity>
   </a-entity>
+
+  <!-- The original's 2D UI: audio button (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="sprechen-ueber-gefuehle-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
