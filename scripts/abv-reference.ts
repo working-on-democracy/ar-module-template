@@ -171,7 +171,18 @@ try {
     if (m.type() === "error") errors.push(`error: ${m.text().slice(0, 300)}`);
   });
   page.on("pageerror", (e) => errors.push(`PAGEERROR: ${e.message}`));
-  await page.goto(url);
+  if (mode === "port") {
+    // A fresh Vite dev server answers the very first load before its
+    // dependency pre-bundling settles, and the module can then evaluate
+    // before 8frame is up ("AFRAME is not defined"). Warm up once, then
+    // capture from a clean reload.
+    await page.goto(url);
+    await page.waitForTimeout(5000);
+    errors.length = 0;
+    await page.reload();
+  } else {
+    await page.goto(url);
+  }
   await page.waitForTimeout(8000);
   await page.screenshot({ path: join(aboutDir, `reference-${mode}-before-tap.jpg`), type: "jpeg", quality: 75 });
   // Old works show a "Start" button (some after an audio/video unlock tap);

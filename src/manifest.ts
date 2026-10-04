@@ -54,6 +54,8 @@ import groundDecal from "./a-frame-components/ground-decal";
 import xrLight from "./a-frame-components/xr-light";
 import cubemapStatic from "./a-frame-components/cubemap-static";
 import cubemapRealtime from "./a-frame-components/cubemap-realtime";
+import legacySpace from "./a-frame-components/legacy-space";
+import holdDrag from "./a-frame-components/hold-drag";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -171,7 +173,13 @@ export const manifest: Manifest = {
     // clone materials before writing envMap, see env-map-shared.ts).
     "xr-light": xrLight,
     "cubemap-static": cubemapStatic,
-    "cubemap-realtime": cubemapRealtime
+    "cubemap-realtime": cubemapRealtime,
+    // Hosts an unchanged old 8th Wall scene and places it module-locally in
+    // front of the camera (replaces the old global recenter); hold-drag is
+    // xrextras-hold-drag made to work inside such transformed parents — see
+    // legacy-space.ts / hold-drag.ts and augmented-bahnhofsviertel/PORTING-GUIDE.md §6.
+    "legacy-space": legacySpace,
+    "hold-drag": holdDrag
   }
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md

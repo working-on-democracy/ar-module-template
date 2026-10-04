@@ -44,14 +44,20 @@ import type { ComponentDefinition } from "aframe";
 // fired" pattern every other model-loaded-driven component on this branch
 // already follows.
 
-declare const AFRAME: any;
-const THREE = (AFRAME as any).THREE;
+// THREE is only read at runtime (inside functions), never while this module
+// is evaluated: in `npm run dev:ar` the 8frame script is injected
+// dynamically and can finish after the module bundle runs, so a top-level
+// `AFRAME.THREE` lookup threw "AFRAME is not defined" and took the whole
+// manifest import (and with it the module) down.
+declare const THREE: any;
 
-const LOOP_MODES: Record<string, number> = {
-  once: THREE.LoopOnce,
-  repeat: THREE.LoopRepeat,
-  pingpong: THREE.LoopPingPong
-};
+function loopModes(): Record<string, number> {
+  return {
+    once: THREE.LoopOnce,
+    repeat: THREE.LoopRepeat,
+    pingpong: THREE.LoopPingPong
+  };
+}
 
 // Shift all tracks so the earliest keyframe is at t=0 and shrink the clip to the
 // keyframed span. Idempotent — a second pass shifts by 0.
@@ -145,7 +151,7 @@ export default {
       ? clips
       : clips.filter((c: any) => c.name === self.data.clip);
 
-    const loopMode = LOOP_MODES[self.data.loop] ?? THREE.LoopPingPong;
+    const loopMode = loopModes()[self.data.loop] ?? THREE.LoopPingPong;
 
     for (const clip of wanted) {
       trimClipLeadIn(clip);

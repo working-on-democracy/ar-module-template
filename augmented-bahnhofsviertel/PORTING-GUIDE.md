@@ -62,6 +62,8 @@ Unter ihren Originalnamen portiert, damit altes Markup unverändert passt:
 | `xr-light` | `xrlight.js` (17 Projekte, identisch) | ohne A-Frame-System (Manifest kann keine Systeme registrieren); Pipeline-Modul wird beim letzten `remove()` entfernt; schreibt Intensität nur bei Änderung |
 | `cubemap-static` | `cubemap-static.js` (15 Projekte) | klont Materialien; `object3dset`; `format` wird ignoriert (`THREE.RGBFormat` existiert in r137+ nicht mehr — war also schon im Export-Build wirkungslos) |
 | `cubemap-realtime` | `cubemap-realtime.js` (15 Projekte, 6 Varianten) | klont Materialien; `object3dset`; eindeutiger Pipeline-Name pro Instanz + Abbau in `remove()`; synchronisierte Kameratextur (`realityTexture`) |
+| `legacy-space` | neu (ersetzt `image-target-ui`/`recenter`) | Hülle um die unveränderte alte Szene, platziert sie modul-lokal vor der Kamera (§6); `legacy-space-place`-Event = modul-lokales Recenter |
+| `hold-drag` | `xrextras-hold-drag` | gleiches Schema/Verhalten, rechnet Boden-Treffer und Höhen in den lokalen Raum des Elternteils um (Original schreibt Weltkoordinaten in die lokale Position, §8) |
 
 Bereits im Template bzw. in der Host-Laufzeit vorhanden: `animation-mixer` und `xrextras-*` (Gesten, `xrextras-hider-material`) über aframe-extras/xrextras; `attach-to` als Ersatz für `xrextras-attach` bei Zielen außerhalb des Moduls, z. B. der Kamera (§8); `no-frustum-cull` für animierte Modelle; `material="shader: shadow"` für Schattenböden; `sound-unlock-audio` als Basis für das Freischalten von Audio.
 
@@ -86,13 +88,15 @@ Eine Hülle mit fest eingerechneten Offsets (`0 1.6 -3`, `0 -2 0`) wäre die „
 
 Kein globales `recenter` (das würde im Host alle gleichzeitig sichtbaren Module und die Host-UI verschieben). Stattdessen setzt das Modul bei „Start“ und bei seinem eigenen Recenter-Button **nur seine eigenen Inhalte** vor die aktuelle Kamera — wie im Original, aber ohne Nebenwirkung auf andere Module.
 
-Geplanter gemeinsamer Baustein (im Pilot zu bauen und auf dem Handy zu prüfen, dann auf die Zwischenbasis): eine **Legacy-Hülle** um die unverändert übernommene alte Szene, die
+Umgesetzt im Pilot (#19 Kleiderberg) als Komponente **`legacy-space`** um die unverändert übernommene alte Szene:
 
-1. bei Start/Recenter die **Welt**-Pose der Kamera liest (`getWorldPosition`/Gier-Winkel aus `getWorldQuaternion`),
-2. daraus die Ziel-Weltpose der Hülle berechnet: alte Kamera `0 8 8` liegt auf der echten Kamera, alter Boden `y = 0` liegt `H` unter ihr, Blickrichtung nur um die Hochachse übernommen, Skalierung `s = H / 8`,
-3. diese Weltpose über `parent.worldToLocal`/die inverse Welt-Matrix des Elternteils in lokale Koordinaten umrechnet (dasselbe Prinzip wie `attach-to`) — damit ist sie unabhängig davon, welche Wrapper Preview oder Host darüberlegen.
+1. Sobald die Kamera eine brauchbare Pose hat, liest sie deren **Welt**-Pose.
+2. Zielpose der Hülle: Skalierung `s = Kamerahöhe / 8`, Drehung nur um die Hochachse in Blickrichtung (beim senkrecht nach unten gehaltenen Handy: Richtung Bildschirm-Oberkante), alte Kamera `0 8 8` liegt auf der echten Kamera, alter Boden `y = 0` auf dem Weltboden `y = 0`.
+3. Diese Weltpose wird über die inverse Welt-Matrix des Elternteils in lokale Koordinaten umgerechnet — unabhängig von Preview- oder Host-Wrappern.
 
-Offen und nur auf dem Handy prüfbar: der Wert für `H` in Host-Einheiten (die Preview-Kamera startet auf `0 0 0`; ob die Szene in Metern rechnet, ist zu bestätigen) und ob die Hülle beim Recenter nur neu platziert oder auch die Werks-Animationen neu startet (Original: Recenter setzte nur die Kamera zurück).
+Gemessen (headless, `dev:ar`): XR8 setzt die Kamera der Preview (Start `0 0 0`, `scale: responsive`) auf **Höhe 2**, der Boden ist Welt-`y = 0` — dieselbe Konvention wie in den alten Projekten (Kamera 8, Boden 0), nur mit anderer Starthöhe. Deshalb braucht die Hülle keinen Meter-Wert: `s = 2 / 8 = 0.25` folgt direkt aus 8th Walls eigener `responsive`-Logik. Für Kleiderberg ergab das Hülle bei Welt `0 0 -2`, Skalierung `0.25` — exakt wie berechnet. **Auf dem Handy noch zu prüfen:** ob der Host dieselbe Konvention nutzt und ob die Platzierung in der Praxis wie im Original wirkt.
+
+Für Werke mit Recenter-Button: der Button schickt `legacy-space-place` an die Hülle.
 
 ### Start-Overlay
 
@@ -111,6 +115,10 @@ Die alten 2D-Overlays (Hinweistext + „Start“, Recenter-Button oben rechts, A
 - **IDs kollidieren** in der gemeinsamen Host-Szene (`model`, `ground`, `group`, `camera` sind in fast allen alten Szenen vergeben).
 - **Kamera-Attribute** (`position="0 8 8"`, `raycaster`, `cursor`) sind host-eigen; Sound an der Kamera muss umziehen.
 - **`xrextras-attach`** (19× in den alten Szenen, meist Lichter) kopiert die **lokale** Position des Ziels plus Offset in die eigene **lokale** Position (geprüft im Quelltext von `@8thwall/xrextras`). Das ist korrekt, solange Ziel und angehängtes Element **denselben Elternteil** haben — z. B. Licht und Modell beide direkt in der Legacy-Hülle (`target: model`/`group`): dann bleibt es unverändert, Offsets in alten Einheiten. Falsch wird es bei Zielen in einem anderen Koordinatenraum, vor allem **`target: camera`** (die Host-Kamera liegt außerhalb des Moduls): dort `attach-to="target: #camera; offset: …"` verwenden (`guides/ATTACH-TO-FEATURE-GUIDE.md`, rechnet über `parent.worldToLocal`; Offset in **Welt**einheiten, also alte Offsets mit `s` skalieren). Das Ziel wird per `getElementById` ohne `#` gesucht — beim ID-Prefixen mitziehen.
+- **`xrextras-hold-drag`** schreibt den Boden-Treffer (Weltkoordinaten) und eine Welt-Höhe direkt in die *lokale* Position und misst die Zugdistanz zwischen lokaler Modell- und Kameraposition (geprüft im Quelltext) — in der Hülle springt das Modell. Ersatz: `hold-drag` mit gleichem Schema; `groundId` auf die geprefixte Boden-ID setzen.
+- **`AFRAME`/`THREE` nie beim Modul-Laden lesen:** In `dev:ar` wird 8frame dynamisch nachgeladen und kann nach dem Modul-Bundle fertig werden. `trim-loop-clip.ts` las `AFRAME.THREE` auf oberster Ebene — der ganze Manifest-Import scheiterte, das Modul wurde nie gemountet (behoben, im Pilot gefunden; betrifft auch `feature_template`). Neue Komponenten: `declare const THREE: any;` und nur zur Laufzeit zugreifen.
+- **Kompression:** `compress-assets` „lossless“ kann Modelle mit JPEG-Texturen **vergrößern** (Kleiderberg: 12,1 → 13,4 MB). Dann das Original behalten (liegt in `uncompressed-assets/`) — verlustbehaftete Kompression oder Verkleinern ändert den Look und ist abzustimmen.
+- **Headless-Kamera:** Ohne Bewegungssensor richtet XR8 (1.5) die Kamera headless senkrecht nach unten; der alte Export (älteres Engine-Build) lässt sie waagerecht. Screenshots von Original und Port sind deshalb headless nicht direkt vergleichbar — Platzierung und Maßstab auf dem Handy prüfen.
 - **Taps:** alte Szenen nutzen `class="cantap"` mit dem Raycaster/Cursor an der Kamera — der gehört im Host dem Host (Preview: `raycaster="objects: .cantap"`). iOS Safari unterdrückt den synthetischen `click` nach `xrextras-gesture-detector` (`guides/SOUND-FEATURE-GUIDE.md` §4) — Werke mit Gesten **und** Tippen auf dem iPhone testen.
 - **Animationen:** animierte Skinned Meshes verschwinden ohne `no-frustum-cull` (sitzt auf dem Wurzel-Entity von `ArModule.vue`, bleibt dort). `animation-mixer` nicht zusammen mit `trim-loop-clip` auf einem Entity.
 - **Audio-Autoplay:** Sounds mit `autoplay`/Loop brauchen eine Nutzergeste — Template-Overlay statt altem `enable-audio`; iPhone-Stummschalter-Workaround steckt in `sound-unlock-audio.ts`.
