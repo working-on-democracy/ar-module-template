@@ -64,9 +64,11 @@ Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
 
 - **Nr. 5 Unwetter am Steg (`abv-05-unwetter-am-steg`):** Mit der Autorin (Parastou Forouhar) klären, wie die Figuren der Wolke aussehen sollen. Der Marker-Screenshot des Originals zeigt sie heller und bläulich ohne schwarze Schatten — das passt zu einer Live-Env-Map aus dem Kamerabild (`cubemap-realtime`, spiegelt den Himmel), der exportierte Code nutzt aber die graue statische Cubemap (`cubemap-static`). Derzeit: statisch, linear gelesen, `envMapIntensity: 2.5`. Alternative: auf `cubemap-realtime` umstellen.
 
+- **Nr. 22/23 Privileged I/II (`abv-22-privileged-i`, `abv-23-privileged-ii`):** Die Webseite widerspricht sich. Die App-Links der Beschreibungsseiten ordnen I = Nepal (`radetz-nepal`) und II = Istanbul (`radetz-istanbul`) zu — so ist portiert. Die Credits derselben Seiten nennen umgekehrt bei I „Istanbul, Türkei“ und bei II „Lalitpur, Nepal“. Mit Autor/Webseite klären; falls die Credits stimmen, Titel/Branches tauschen.
+
 ## Weitere Ordner im Altbestand
 
 | Ordner | Einordnung | Vorgehen |
 |---|---|---|
 | `portaljonathan` | Portal-Prototyp zu Privileged | nur als Referenz für Nr. 7 / Nr. 22 |
-| `madebychildren` | keinem Werk zugeordnet; Assets überschneiden sich mit Williams, Kleiderberg, Radetz | ganz am Schluss prüfen |
+| `madebychildren` | keins der 26 Werke: sechs Nähmaschinen (Live-Env-Map) und eine Fakten-Tafel mit leerer, weißer Textur, kein UI, kein Ton; Thema Kinderarbeit in der Textilproduktion. Ungenutztes älteres „Berg“-Modell mit den Fashion-Revolution-Fakten von Nr. 19 Kleiderberg, Glas identisch mit Nr. 15. Vermutlich Entwurf/Nebenprojekt im Umfeld der Kleiderberg-Aktion | geprüft (2026-10-05): nicht portiert |
