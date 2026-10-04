@@ -26,6 +26,7 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import europaplatzIiDistancePlaceInterval from "./a-frame-components/europaplatz-ii-distance-place-interval";
 import arButtonManager from "./a-frame-components/ar-button-manager";
 import arButton from "./a-frame-components/ar-button";
 import soundController from "./a-frame-components/sound-controller";
@@ -77,6 +78,9 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustum-cull": noFrustumCull,
+    // #4 Europaplatz II: places the slat models one by one in front of the
+    // camera after Start — see europaplatz-ii-distance-place-interval.ts.
+    "europaplatz-ii-distance-place-interval": europaplatzIiDistancePlaceInterval,
     // Generic 3D button/trigger-zone system — see ar-button.ts /
     // ar-button-manager.ts and examples/ar-button-usage.html.
     "ar-button-manager": arButtonManager,
