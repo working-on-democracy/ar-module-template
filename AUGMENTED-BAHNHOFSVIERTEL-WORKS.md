@@ -27,7 +27,7 @@ Komplexität ist eine grobe Ersteinschätzung aus der Oberflächenanalyse (Anzah
 
 | Nr. | Werk | Künstler*in | Alter Ordner | Branch | Basis | Komplexität | Besonderheiten | Status |
 |---|---|---|---|---|---|---|---|---|
-| 1 | [Xenoglossy I](augmented-bahnhofsviertel/about/01-xenoglossy-i/README.md) | Tina Kohlmann | `kohlmann-xenoglossy` | `abv-01-xenoglossy-i` | — | einfach | 1 Modell, Animation, Gesten (ziehen/drehen/skalieren) | offen |
+| 1 | [Xenoglossy I](augmented-bahnhofsviertel/about/01-xenoglossy-i/README.md) | Tina Kohlmann | `kohlmann-xenoglossy` | `abv-01-xenoglossy-i` | — | einfach | Großes animiertes Gesicht, Ziehen/Drehen/Skalieren; Start-Hinweis „Richte die Kamera auf die Euro-Skulptur …“ mit Start-Button (blendet Modell ein), Recenter-Button; Licht folgt der Kamera (`legacy-attach`). Steht auch für Nr. 2/3; Start-Hinweis vorläufig mit Platzhalter `((TARGET))` statt „Euro-Skulptur“ (siehe „Vor dem finalen Export“). Auf dem Handy geprüft (2026-10-04): Größe, Abstand, Start, Gesten, Licht passen. Modell verlustfrei komprimiert 7,2 → 5,1 MB | portiert |
 | 2 | [Xenoglossy II](augmented-bahnhofsviertel/about/02-xenoglossy-ii/README.md) | Tina Kohlmann | — | — | Nr. 1 | — | dieselbe Arbeit wie Nr. 1 an einem anderen Ort — kein eigener Port | entfällt (= Nr. 1) |
 | 3 | [Xenoglossy III](augmented-bahnhofsviertel/about/03-xenoglossy-iii/README.md) | Tina Kohlmann | — | — | Nr. 1 | — | dieselbe Arbeit wie Nr. 1 an einem anderen Ort — kein eigener Port | entfällt (= Nr. 1) |
 | 4 | [Europaplatz (Frankfurt) II](augmented-bahnhofsviertel/about/04-europaplatz-ii/README.md) | Yves Mettler | `mettler-europaplatz2` | `abv-04-europaplatz-ii` | — | komplex | 37 Modelle, eigene Platzierungs-Komponenten (cursor-/distance-/tab-place-*) | offen |
@@ -55,6 +55,12 @@ Komplexität ist eine grobe Ersteinschätzung aus der Oberflächenanalyse (Anzah
 | 26 | [Knusperhäuschen](augmented-bahnhofsviertel/about/26-knusperhaeuschen/README.md) | Sonja Yakovleva | `yakovleva-knusper` | `abv-26-knusperhaeuschen` | — | einfach | 1 Modell (keine Animation), Live-Env-Map, Tap-Recenter. Original lief fehlerhaft (`app.js` brach ab, geplanter Start-/Recenter-Button existierte nie) — portiert wie es tatsächlich lief: Haus sofort sichtbar, Kamera steht **im** Haus (~69×40×80 alte Einheiten). Auf dem Handy geprüft (2026-10-04): Start im Haus, Tap-Recenter und Reflexionen passen so. Modell verlustfrei komprimiert 7,0 → 5,1 MB | portiert |
 
 Privileged I–III sind drei eigenständige alte Apps, keine Reihe im Branch-Sinn (jede hat ihren eigenen Export); sie teilen aber Code, der bei Bedarf auf die Zwischenbasis wandert.
+
+## Vor dem finalen Export
+
+Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
+
+- **Nr. 1 Xenoglossy (`abv-01-xenoglossy-i`):** Der Start-Hinweis enthält den Platzhalter `((TARGET))` statt des Ortsnamens („Richte die Kamera auf die ((TARGET)) und tippe auf ‚Start‘“). Das Original nannte die „Euro-Skulptur“ (Ort von Nr. 1); das Modul steht aber auch für Nr. 2/3 an anderen Orten. Ersetzen, sobald klar ist, wie die Orte im finalen Export abgebildet werden.
 
 ## Weitere Ordner im Altbestand
 

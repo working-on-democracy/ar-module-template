@@ -406,7 +406,7 @@ Im alten Projekt registrierte Komponenten: ${registered.map((c) => `\`${c}\``).j
 ### \`xrextras-attach\` → \`attach-to\`
 ${[...draftMarkup.matchAll(/xrextras-attach="([^"]*)"/g)].map((m) => `- \`xrextras-attach="${m[1]}"\``).join("\n") || "- (keine)"}
 
-\`xrextras-attach\` kopiert die *lokale* Position des Ziels: unverändert lassen, wenn Ziel und Element denselben Elternteil haben (Ziel-ID ohne \`#\` mitprefixen); bei \`target: camera\` (außerhalb des Moduls) durch \`attach-to="target: #camera; offset: …"\` ersetzen, Offset dann in Welteinheiten — PORTING-GUIDE.md §8.
+\`xrextras-attach\` kopiert die *lokale* Position des Ziels: unverändert lassen, wenn Ziel und Element denselben Elternteil haben (Ziel-ID ohne \`#\` mitprefixen); bei \`target: camera\` (außerhalb des Moduls) durch \`legacy-attach\` mit gleichem Schema ersetzen — PORTING-GUIDE.md §8.
 
 ### Element-IDs in der Szene
 ${elementIds.map((id) => `- \`${id}\``).join("\n") || "- (keine)"}
