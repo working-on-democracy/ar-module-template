@@ -54,10 +54,13 @@ declare const THREE: any;
 // the pool and stop a playing sound on every recenter), at placement and
 // whenever a sound finishes loading.
 //
-// `scaleShadows` also scales the shadow-camera bounds of directional lights
-// inside by s: three.js keeps those in world units regardless of the parent's
+// `scaleShadows` also scales the shadow cameras of directional lights inside
+// by s — both the bounds (left/right/top/bottom) and the depth range
+// (near/far): three.js keeps those in world units regardless of the parent's
 // scale, so the old bounds (e.g. ±80 old units) would otherwise cover a far
-// bigger area at a fraction of the shadow-map resolution.
+// bigger area at a fraction of the shadow-map resolution, and the default
+// depth range 0.5–500 would spread the shadow map's depth precision over 1/s
+// times the old range (visible as shadow acne, found on #14).
 const TAP_MAX_MS = 350;
 const TAP_MAX_MOVE_PX = 12;
 
@@ -189,13 +192,17 @@ export default {
       if (!node.isDirectionalLight || !node.shadow?.camera) return;
       const cam = node.shadow.camera;
       if (!self.shadowBase.has(node)) {
-        self.shadowBase.set(node, { left: cam.left, right: cam.right, top: cam.top, bottom: cam.bottom });
+        self.shadowBase.set(node, {
+          left: cam.left, right: cam.right, top: cam.top, bottom: cam.bottom, near: cam.near, far: cam.far
+        });
       }
       const base = self.shadowBase.get(node);
       cam.left = base.left * s;
       cam.right = base.right * s;
       cam.top = base.top * s;
       cam.bottom = base.bottom * s;
+      cam.near = base.near * s;
+      cam.far = base.far * s;
       cam.updateProjectionMatrix();
     });
   },
