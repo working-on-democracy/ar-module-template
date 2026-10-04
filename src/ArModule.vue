@@ -2,6 +2,8 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { playLegacySounds, pauseSoundsWhileHidden } from './legacy-audio';
 
 interface ArModuleData {
   id: string;
@@ -82,7 +84,27 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #22 Privileged I: the original's UI (image-target-ui with skip-marker,
+// recenter button, enable-video with its own label): once the scene is
+// placed, "Tippe auf den Text und GEHE DURCH DAS TAXI" starts the taxi video
+// (muted, as in the original) and its positional sound. See LegacyOverlay.vue
+// / legacy-audio.ts.
+const rootEntity = ref<HTMLElement | null>(null);
+let stopPauseWhileHidden: (() => void) | null = null;
+const centerControls: LegacyControl[] = [
+  {
+    id: 'play',
+    html: 'Tippe auf den Text und GEHE DURCH DAS TAXI',
+    onClick: () => {
+      (document.getElementById('privileged-i-taxi') as HTMLVideoElement | null)
+        ?.play().catch(() => { /* autoplay refused — stays on the first frame */ });
+      if (rootEntity.value) playLegacySounds(rootEntity.value);
+    }
+  }
+];
+
 onMounted(() => {
+  if (rootEntity.value) stopPauseWhileHidden = pauseSoundsWhileHidden(rootEntity.value);
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
     (loaded, total) => { loadProgress.value = loaded / total; },
@@ -92,62 +114,83 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAssetTracking?.();
+  stopPauseWhileHidden?.();
 });
 </script>
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #22 Privileged I (Jonathan Radetz, Nepal), ported from the 8th Wall
+       export `radetz-nepal` — see augmented-bahnhofsviertel/about/22-privileged-i/
+       and augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
+      ref="rootEntity"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+    <!-- The original scene, coordinates unchanged, placed module-locally by
+         legacy-space (old camera at 0 4 5, hence legacyCameraHeight 4 /
+         legacyCameraDistance 5). A walk-through portal: from outside, the
+         hider walls (xrextras-hider-material, depth only) mask the Nepal
+         panorama and the taxi video; stepping through the portal plane
+         (z = 0) shows them all around. Changes against the original
+         body.html: ids prefixed with "privileged-i-"; `portal-camera` on the
+         host-owned camera -> legacy-portal on the old scene origin (converts
+         the camera's world position into the hull); `play-video` dropped
+         (never registered in the original, so no effect — the start button
+         plays video and sound); the commented-out Laufband model not
+         imported. No tap-recenter in the original. -->
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        id="privileged-i-legacy-space"
+        legacy-space="legacyCameraHeight: 4; legacyCameraDistance: 5">
+      <!-- taxi -->
+      <a-entity
+          geometry="primitive: plane; height: 5.4; width: 9.6;"
+          sound="src: #privileged-i-taxi-mp3; loop: true; volume: 4; maxDistance: 6; distanceModel: linear; rolloffFactor: 4"
+          material="src: #privileged-i-taxi; side: double"
+          rotation="0 0 0"
+          position="0 6 -1">
+      </a-entity>
+
+      <a-entity
+          legacy-portal="contents: #privileged-i-portal-contents; walls: #privileged-i-hider-walls; portalWall: #privileged-i-portal-wall">
+        <!-- Hider walls -->
+        <a-entity id="privileged-i-hider-walls">
+          <a-box scale="100 1 100" position="0 -1 49" xrextras-hider-material></a-box>
+          <a-box scale="100 100 1" position="0 50 75" xrextras-hider-material></a-box>
+          <a-box scale="100 1 100" position="0 100 49" xrextras-hider-material></a-box>
+          <a-box scale="1 100 100" position="-30 50 50" xrextras-hider-material></a-box>
+          <a-box scale="1 100 100" position="30 50 50" xrextras-hider-material></a-box>
+          <a-ring id="privileged-i-portalHiderRing" radius-inner="0" radius-outer="100" position="0 7.5 -0.2" xrextras-hider-material></a-ring>
+        </a-entity>
+
+        <a-entity id="privileged-i-portal-wall">
+          <a-circle radius="0" rotation="0 180 0" position="0 7.5 0" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
+          <a-circle radius="0" rotation="0 180 0" position="0 7.5 -0.25" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
+        </a-entity>
+
+        <!-- Lights -->
+        <a-light type="ambient" intensity="0.9" color="#ffffff"></a-light>
+        <a-entity light="type: directional; color: #ffffff; intensity: 4.5" position="-1 1 0"></a-entity>
+
+        <!-- Portal contents -->
+        <a-entity id="privileged-i-portal-contents">
+          <a-videosphere rotation="0 -90 0" src="#privileged-i-nepal_kl"></a-videosphere>
+        </a-entity>
+      </a-entity>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: start text button (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="privileged-i-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
