@@ -2,6 +2,9 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { unlockAudio } from './a-frame-components/sound-unlock-audio';
+import { pauseSoundsWhileHidden } from './legacy-audio';
 
 interface ArModuleData {
   id: string;
@@ -82,7 +85,29 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #6 Birdkin(d): the original's UI (image-target-ui with skip-marker,
+// recenter button, enableAudio): "Start" unlocks audio, recenters the scene
+// and starts the membrane timeline (birdkind-distance-place-sequence). See
+// LegacyOverlay.vue.
+const rootEntity = ref<HTMLElement | null>(null);
+let stopPauseWhileHidden: (() => void) | null = null;
+const centerControls: LegacyControl[] = [
+  {
+    id: 'audio',
+    html: 'Drehe die Lautstärke auf, suche dir einen schönen Platz und tippe auf "Start" '
+      + '<div style="padding: .5em; background: #1d1eff; margin-top: .5em;">Start</div>',
+    onClick: () => {
+      unlockAudio();
+      document.getElementById('birdkind-legacy-space')
+        ?.dispatchEvent(new CustomEvent('legacy-space-place'));
+      const placer = document.getElementById('birdkind-placer') as any;
+      placer?.components['birdkind-distance-place-sequence']?.start();
+    }
+  }
+];
+
 onMounted(() => {
+  if (rootEntity.value) stopPauseWhileHidden = pauseSoundsWhileHidden(rootEntity.value);
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
     (loaded, total) => { loadProgress.value = loaded / total; },
@@ -92,62 +117,103 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAssetTracking?.();
+  stopPauseWhileHidden?.();
 });
 </script>
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #6 Birdkin(d) (Katharina Pelosi), ported from the 8th Wall export
+       `pelosi-birdkind` — see augmented-bahnhofsviertel/about/06-birdkind/
+       and augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
+      ref="rootEntity"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 0,
+         floor at y = 0), placed module-locally by legacy-space. Changes
+         against the original body.html:
+         - ids prefixed with "birdkind-";
+         - the scene-level distance-place-sequence (which used every
+           <a-asset-item> .gltf as model list and every .mp3 as sound list,
+           in document order) -> birdkind-distance-place-sequence inside the
+           hull with the same timeline and lists;
+         - the lights' xrextras-attach to the camera -> legacy-attach (same
+           schema; the camera is host-owned, outside the hull);
+         - the original's reset hook (image-target-ui onDisabled) dropped:
+           only fires on marker loss, and this work skips the marker;
+         - sound falloff: linear, silent beyond 32 units (4 camera heights)
+           instead of the original's gentle inverse curve, where every
+           source sounded about equally loud at any distance (decided after
+           the phone test, 2026-10-05). -->
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        id="birdkind-legacy-space"
+        legacy-space="legacyCameraHeight: 8; legacyCameraDistance: 0">
+      <a-entity
+          id="birdkind-placer"
+          birdkind-distance-place-sequence="sequence: 0, 40, 46, 54, 70, 85, 94, 109, 127, 135, 159, 175;
+              models: #birdkind-Membran_01, #birdkind-Membran_02;
+              sounds: #birdkind-01, #birdkind-02, #birdkind-03, #birdkind-04, #birdkind-05, #birdkind-06, #birdkind-07, #birdkind-08, #birdkind-09, #birdkind-10, #birdkind-11, #birdkind-12;
+              distanceModel: linear; refDistance: 4; maxDistance: 32">
+      </a-entity>
+
+      <a-entity
+          light="
+            type: directional;
+            intensity: 5.0;
+            castShadow: true;
+            shadowMapHeight: 1024;
+            shadowMapWidth: 1024;
+            shadowCameraTop: 20;
+            shadowCameraBottom: -20;
+            shadowCameraRight: 20;
+            shadowCameraLeft: -20;
+            target: #camera"
+          legacy-attach="target: camera; offset: 8 15 4"
+          position="1 4.3 2.5"
+          shadow>
+      </a-entity>
+
+      <a-entity
+          light="
+            type: directional;
+            intensity: 3.0;
+            castShadow: false;
+            shadowMapHeight: 1024;
+            shadowMapWidth: 1024;
+            shadowCameraTop: 20;
+            shadowCameraBottom: -20;
+            shadowCameraRight: 20;
+            shadowCameraLeft: -20;
+            target: #camera"
+          legacy-attach="target: camera; offset: 8 15 -4"
+          position="1 4.3 -2.5"
+          shadow>
+      </a-entity>
+
+      <a-light type="ambient" intensity="2.0" color="#fff"></a-light>
+
+      <a-box
+          id="birdkind-ground"
+          scale="10000 2 10000"
+          position="0 -1 0"
+          material="shader: shadow; transparent: true; opacity: 0.2; color: #fff800"
+          shadow>
+      </a-box>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: hint + Start (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="birdkind-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once

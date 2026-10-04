@@ -26,6 +26,7 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import birdkindDistancePlaceSequence from "./a-frame-components/birdkind-distance-place-sequence";
 import arButtonManager from "./a-frame-components/ar-button-manager";
 import arButton from "./a-frame-components/ar-button";
 import soundController from "./a-frame-components/sound-controller";
@@ -77,6 +78,9 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustum-cull": noFrustumCull,
+    // #6 Birdkin(d): places the membranes with their sounds on a timeline
+    // after Start — see birdkind-distance-place-sequence.ts.
+    "birdkind-distance-place-sequence": birdkindDistancePlaceSequence,
     // Generic 3D button/trigger-zone system — see ar-button.ts /
     // ar-button-manager.ts and examples/ar-button-usage.html.
     "ar-button-manager": arButtonManager,
