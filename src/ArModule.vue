@@ -2,6 +2,8 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { TAP_ON_CURSOR_ICON } from './legacy-ui-icons';
 
 interface ArModuleData {
   id: string;
@@ -82,6 +84,18 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #5 Unwetter am Steg: the original's UI (image-target-ui with skip-marker,
+// recenter button, showCustomTapCursorHint): once the scene is placed, the
+// hint "Gehe auf die Brücke und tippe auf den Cursor" (closes on tap); the
+// placement itself is the cursor component in the scene. See LegacyOverlay.vue.
+const centerControls: LegacyControl[] = [
+  {
+    id: 'tap-cursor',
+    variant: 'hint',
+    html: 'Gehe auf die Brücke und tippe auf den Cursor ' + TAP_ON_CURSOR_ICON
+  }
+];
+
 onMounted(() => {
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
@@ -97,57 +111,92 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #5 Unwetter am Steg (Parastou Forouhar), ported from the 8th Wall
+       export `forouhar-unwetter` — see
+       augmented-bahnhofsviertel/about/05-unwetter-am-steg/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
+         floor at y = 0), placed module-locally by legacy-space. The pink
+         ring follows the screen centre on the ground; every tap places the
+         cloud at the ring (unwetter-am-steg-tap-place-cursor, the original's
+         tap-place-cursor made to work inside the hull and on iOS). Changes
+         against the original body.html: ids prefixed with
+         "unwetter-am-steg-"; cubemap-static's faces point at the work's
+         prefixed images; the `image-target` wrapper kept as a plain entity;
+         the cursor component attached directly (the original attached it
+         when the scene became ready — the hull stays hidden until then).
 
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
-    <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+         Deliberate deviation (2026-10-04, matched by eye to the original's
+         marker screenshot): cubemap-static envMapIntensity 2.5. The figures
+         are black and fully metallic, so only the env map lights them; even
+         with the faces read linearly like the original, they stayed darker
+         than in the screenshot. -->
+    <a-entity id="unwetter-am-steg-legacy-space" legacy-space>
+      <a-entity
+          xr-light
+          light="
+            type: directional;
+            intensity: 0.1;
+            castShadow: true;
+            shadowMapHeight: 1024;
+            shadowMapWidth: 1024;
+            shadowCameraTop: 10;
+            target: #unwetter-am-steg-model;"
+          xrextras-attach="target: unwetter-am-steg-model; offset: 1 15 3;"
+          shadow>
+      </a-entity>
+
+      <a-light
+          xr-light
+          type="ambient"
+          intensity="0.1">
+      </a-light>
+
+      <a-entity>
+        <a-ring
+            id="unwetter-am-steg-cursor"
+            unwetter-am-steg-tap-place-cursor="model: #unwetter-am-steg-model; ground: #unwetter-am-steg-ground"
+            position="0 0 0"
+            rotation="-90 0 0"
+            material="shader: flat; color: #FC046C"
+            radius-inner="0.65" radius-outer="0.8"></a-ring>
+
+        <a-entity
+            id="unwetter-am-steg-model"
+            gltf-model="#unwetter-am-steg-Wolke_v05"
+            scale="90 90 90"
+            position="0 -40 0"
+            shadow="receive: false"
+            animation-mixer="clip: animation_0"
+            cubemap-static="envMapIntensity: 2.5; posx: #unwetter-am-steg-posx; negx: #unwetter-am-steg-negx; posy: #unwetter-am-steg-posy; negy: #unwetter-am-steg-negy; posz: #unwetter-am-steg-posz; negz: #unwetter-am-steg-negz">
+        </a-entity>
+      </a-entity>
+
+      <a-plane
+          id="unwetter-am-steg-ground"
+          rotation="-90 0 0"
+          width="20000"
+          height="20000"
+          material="shader: shadow"
+          shadow>
+      </a-plane>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: tap-cursor hint (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="unwetter-am-steg-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
