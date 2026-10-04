@@ -20,14 +20,14 @@ function materialsOf(node: any): any[] {
 }
 
 /**
- * Sets envMap (and, if given, reflectivity) on every material under `root`
+ * Sets envMap (and, if given, reflectivity / envMapIntensity) on every material under `root`
  * that supports an envMap and passes `filter`. Pass `envMap: null` to remove
  * it again (the clone is kept; it's already private to this entity).
  */
 export function applyEnvMap(
   root: any,
   envMap: any,
-  options: { reflectivity?: number; filter?: MaterialFilter } = {}
+  options: { reflectivity?: number; intensity?: number; filter?: MaterialFilter } = {}
 ): void {
   if (!root) return;
   root.traverse((node: any) => {
@@ -40,6 +40,7 @@ export function applyEnvMap(
       own.userData[CLONED_FLAG] = true;
       own.envMap = envMap;
       if (options.reflectivity !== undefined) own.reflectivity = options.reflectivity;
+      if (options.intensity !== undefined && "envMapIntensity" in own) own.envMapIntensity = options.intensity;
       own.needsUpdate = true;
       return own;
     });
