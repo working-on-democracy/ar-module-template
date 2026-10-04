@@ -81,8 +81,12 @@ export default {
     legacyCameraDistance: { type: "number", default: 8 },
     // Used when no camera height is available (stock-A-Frame `npm run dev`,
     // where nothing moves the camera off y = 0): seconds to wait, then the
-    // scale to use instead.
+    // scale to use instead. With XR8 present the wait is xrFallbackAfter —
+    // the engine can take a while to start (found on #23: with four videos
+    // loading, a 3 s fallback placed the scene at the fallback scale before
+    // XR8 had set the camera height).
     fallbackAfter: { type: "number", default: 3 },
+    xrFallbackAfter: { type: "number", default: 15 },
     fallbackScale: { type: "number", default: 0.2 },
     scaleShadows: { type: "boolean", default: true },
     scaleSounds: { type: "boolean", default: true },
@@ -150,7 +154,8 @@ export default {
     if (!camera) return;
     const pos = new THREE.Vector3();
     camera.getWorldPosition(pos);
-    if (pos.y > 0.01 || self.waited >= self.data.fallbackAfter) self.place();
+    const wait = (window as any).XR8 ? self.data.xrFallbackAfter : self.data.fallbackAfter;
+    if (pos.y > 0.01 || self.waited >= wait) self.place();
   },
 
   place() {
