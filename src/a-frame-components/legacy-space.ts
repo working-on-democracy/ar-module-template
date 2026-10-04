@@ -42,9 +42,9 @@ declare const THREE: any;
 // `click`: iOS Safari suppresses the synthetic click once
 // xrextras-gesture-detector has called preventDefault() on the touch (see
 // guides/SOUND-FEATURE-GUIDE.md §4), so on an iPhone the original's tap did
-// nothing. A tap is detected from pointer events instead: one pointer, up
-// within TAP_MAX_MS, moved less than TAP_MAX_MOVE_PX — pinches and drags
-// don't count.
+// nothing. A tap is detected from pointer events instead: one pointer on
+// the scene canvas, up within TAP_MAX_MS, moved less than TAP_MAX_MOVE_PX —
+// pinches, drags and taps on DOM buttons don't count.
 //
 // `scaleShadows` also scales the shadow-camera bounds of directional lights
 // inside by s: three.js keeps those in world units regardless of the parent's
@@ -80,11 +80,14 @@ export default {
     self.multiTouch = false;
     self.onPointerDown = (e: PointerEvent) => {
       if (self.pointers.size > 0) self.multiTouch = true;
-      // Like the original (a click bubbling up to <a-scene>), only touches
-      // on the scene itself count — not DOM UI (host buttons, overlays).
-      // Still tracked either way, so a second finger elsewhere marks the
-      // gesture as multi-touch.
-      if (!self.el.sceneEl.contains(e.target as Node)) {
+      // Like the original (a click on the canvas bubbling up to <a-scene>),
+      // only touches on the scene's canvas count — not DOM UI. Checking
+      // "inside <a-scene>" isn't enough: a module's own Vue overlay (e.g.
+      // LegacyOverlay's buttons) is rendered inside the scene element,
+      // because the module itself is mounted there, so a button tap would
+      // also re-place. Still tracked either way, so a second finger
+      // elsewhere marks the gesture as multi-touch.
+      if (e.target !== self.el.sceneEl.canvas) {
         self.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: -Infinity });
         return;
       }
