@@ -2,6 +2,7 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
 
 interface ArModuleData {
   id: string;
@@ -82,6 +83,26 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #23 Privileged II: the original's UI (image-target-ui with skip-marker,
+// recenter button, enable-video): once the scene is placed, "P L A Y"
+// starts the four videos. As in the original, only video 1 has sound — the
+// host injects every video muted, so it's unmuted here, inside the tap.
+const VIDEO_IDS = ['privileged-ii-1', 'privileged-ii-2', 'privileged-ii-3', 'privileged-ii-4'];
+const centerControls: LegacyControl[] = [
+  {
+    id: 'play',
+    html: 'P L A Y',
+    onClick: () => {
+      VIDEO_IDS.forEach((id, i) => {
+        const video = document.getElementById(id) as HTMLVideoElement | null;
+        if (!video) return;
+        video.muted = i !== 0;
+        video.play().catch(() => { /* autoplay refused — stays on the first frame */ });
+      });
+    }
+  }
+];
+
 onMounted(() => {
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
@@ -97,57 +118,115 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #23 Privileged II (Jonathan Radetz, Istanbul), ported from the 8th Wall
+       export `radetz-istanbul` — see
+       augmented-bahnhofsviertel/about/23-privileged-ii/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+    <!-- The original scene, coordinates unchanged, placed module-locally by
+         legacy-space. This work's camera started at 0 0.8 0 — in the middle
+         of four 16x9 video screens (8 units away, all four sides) with a
+         "facts" panel on the floor in front of each — hence
+         legacyCameraHeight 0.8 / legacyCameraDistance 0. Changes against the
+         original body.html: ids prefixed with "privileged-ii-"; the
+         scene-level xrextras-tap-recenter became legacy-space's tapRecenter;
+         `play-video` dropped (never registered in the original project, so
+         it had no effect — the PLAY button starts the videos); the group's
+         `image-target` and a stray ">" in the markup dropped; the six
+         declared-but-unused cubemap images not imported. -->
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        id="privileged-ii-legacy-space"
+        legacy-space="legacyCameraHeight: 0.8; legacyCameraDistance: 0; tapRecenter: true">
+      <a-entity
+          xr-light
+          light="type: directional;
+             castShadow: true;
+             shadowMapHeight: 2048;
+             shadowMapWidth: 2048;
+             shadowCameraTop: 10;
+             target: #privileged-ii-group;"
+          xrextras-attach="target: privileged-ii-group; offset: 0 15 0;"
+          shadow>
+      </a-entity>
+
+      <a-light
+          xr-light
+          type="ambient">
+      </a-light>
+
+      <a-entity id="privileged-ii-group">
+        <a-entity
+            geometry="primitive: plane; height: 9; width: 16;"
+            material="src: #privileged-ii-1"
+            rotation="0 180 0"
+            position="0 4.5 8">
+        </a-entity>
+
+        <a-entity
+            gltf-model="#privileged-ii-Fakten1"
+            position="0 0 2"
+            rotation="0 180 0"
+            scale="1.5 1.5 1.5">
+        </a-entity>
+
+        <a-entity
+            geometry="primitive: plane; height: 9; width: 16;"
+            material="src: #privileged-ii-2"
+            rotation="0 -90 0"
+            position="8 4.5 0">
+        </a-entity>
+
+        <a-entity
+            gltf-model="#privileged-ii-Fakten2"
+            position="2 0 0"
+            rotation="0 -90 0"
+            scale="1.5 1.5 1.5">
+        </a-entity>
+
+        <a-entity
+            geometry="primitive: plane; height: 9; width: 16;"
+            material="src: #privileged-ii-3"
+            rotation="0 0 0"
+            position="0 4.5 -8">
+        </a-entity>
+
+        <a-entity
+            gltf-model="#privileged-ii-Fakten3"
+            position="0 0 -2"
+            rotation="0 0 0"
+            scale="1.5 1.5 1.5">
+        </a-entity>
+
+        <a-entity
+            geometry="primitive: plane; height: 9; width: 16;"
+            material="src: #privileged-ii-4"
+            rotation="0 90 0"
+            position="-8 4.5 0">
+        </a-entity>
+
+        <a-entity
+            gltf-model="#privileged-ii-Fakten4"
+            position="-2 0 0"
+            rotation="0 90 0"
+            scale="1.5 1.5 1.5">
+        </a-entity>
+      </a-entity>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: PLAY (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="privileged-ii-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
