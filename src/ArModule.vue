@@ -97,56 +97,50 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #15 Milk Glass (Adrian Williams), ported from the 8th Wall export
+       `williams` — see augmented-bahnhofsviertel/about/15-milk-glass/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+    <!-- The original scene, coordinates unchanged, placed module-locally by
+         legacy-space. Unlike most works this one's camera started at
+         0 1.75 2 (not 0 8 8), hence legacyCameraHeight/-Distance: the glass
+         (~1.7 old units tall, about camera height) stands 2 units in front
+         of the viewer. Changes against the original body.html: ids prefixed
+         with "milk-glass-"; the scene-level xrextras-tap-recenter became
+         legacy-space's tapRecenter; cubemap-static's faces point at the
+         work's prefixed images. The model brings its own baked shadow
+         (material "schatten"); the original had no ground plane. -->
     <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+        id="milk-glass-legacy-space"
+        legacy-space="legacyCameraHeight: 1.75; legacyCameraDistance: 2; tapRecenter: true">
+      <a-entity
+          xr-light
+          light="type: directional;
+             castShadow: true;
+             target: #milk-glass-group;"
+          xrextras-attach="target: milk-glass-group; offset: 0 15 0;">
+      </a-entity>
+
+      <a-light
+          xr-light
+          type="ambient">
+      </a-light>
+
+      <a-entity id="milk-glass-group">
+        <a-entity
+            gltf-model="#milk-glass-Glas_08"
+            cubemap-static="posx: #milk-glass-posx; negx: #milk-glass-negx; posy: #milk-glass-posy; negy: #milk-glass-negy; posz: #milk-glass-posz; negz: #milk-glass-negz"
+            position="0 0 0"
+            scale="15 15 15">
+        </a-entity>
+      </a-entity>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
