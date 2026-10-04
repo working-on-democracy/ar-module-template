@@ -59,6 +59,12 @@ declare const THREE: any;
 // the pool and stop a playing sound on every recenter), at placement and
 // whenever a sound finishes loading.
 //
+// `scaleLights` scales the range (`distance`) of point and spot lights inside
+// by s for the same reason: it's in world units, so an old light that reached
+// 20 old units would otherwise light 1/s times as far relative to the scene
+// (attenuation depends on distance/range, so scaling the range keeps the
+// falloff as authored). Lights with distance 0 (infinite) are unaffected.
+//
 // `scaleShadows` also scales the shadow cameras of directional lights inside
 // by s — both the bounds (left/right/top/bottom) and the depth range
 // (near/far): three.js keeps those in world units regardless of the parent's
@@ -80,6 +86,7 @@ export default {
     fallbackScale: { type: "number", default: 0.2 },
     scaleShadows: { type: "boolean", default: true },
     scaleSounds: { type: "boolean", default: true },
+    scaleLights: { type: "boolean", default: true },
     tapRecenter: { type: "boolean", default: false }
   },
 
@@ -188,6 +195,7 @@ export default {
     self.scale = s;
     if (data.scaleShadows) self.scaleShadowCameras(s);
     if (data.scaleSounds) self.scaleSoundDistances(s);
+    if (data.scaleLights) self.scaleLightRanges(s);
     self.placed = true;
     obj.visible = true;
     self.el.emit("legacy-space-placed", { scale: s }, false);
@@ -211,6 +219,17 @@ export default {
       cam.near = base.near * s;
       cam.far = base.far * s;
       cam.updateProjectionMatrix();
+    });
+  },
+
+  scaleLightRanges(s: number) {
+    const self = this as any;
+    self.lightBase = self.lightBase ?? new Map();
+    self.el.object3D.traverse((node: any) => {
+      if (!(node.isPointLight || node.isSpotLight)) return;
+      if (!self.lightBase.has(node)) self.lightBase.set(node, node.distance);
+      const base = self.lightBase.get(node);
+      if (base > 0) node.distance = base * s;
     });
   },
 
