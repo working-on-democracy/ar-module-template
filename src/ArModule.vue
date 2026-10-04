@@ -144,12 +144,11 @@ onUnmounted(() => {
          another module's #group in the shared host scene); the scene-level
          xrextras-tap-recenter became legacy-space's tapRecenter.
 
-         Deliberate deviation (2026-10-04, after the phone test): the flag's
-         animation-mixer is replaced by crossfade-loop-clip. The flag is a
-         baked cloth simulation (401 morph-target frames) whose end doesn't
-         match its start, so the original jumped at every loop (~28x a normal
-         frame step, measured); now the last 0.5 s blend into the loop start.
-         Same played range as before (keyframes before t = 0 stay unplayed). -->
+         The flag is a baked cloth simulation (401 morph-target frames) whose
+         end doesn't match its start, so it visibly jumps at every loop (~28x
+         a normal frame step, measured) — as in the original. A cross-faded
+         loop (crossfade-loop-clip) was tried and rejected on 2026-10-04: the
+         jump stays, as authored. -->
     <a-entity id="friendly-reminder-legacy-space" legacy-space="tapRecenter: true">
       <a-entity
           xr-light
@@ -168,7 +167,7 @@ onUnmounted(() => {
           position="4 -15 -60"
           rotation="0 0 0"
           scale="27 27 27"
-          crossfade-loop-clip="clip: animation_0; crossfade: 0.5">
+          animation-mixer="clip: animation_0">
       </a-entity>
     </a-entity>
   </a-entity>
