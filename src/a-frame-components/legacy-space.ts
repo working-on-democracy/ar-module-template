@@ -46,6 +46,11 @@ declare const THREE: any;
 // the scene canvas, up within TAP_MAX_MS, moved less than TAP_MAX_MOVE_PX —
 // pinches, drags and taps on DOM buttons don't count.
 //
+// Every detected tap is also emitted as `legacy-space-tap` on the hull
+// (whether or not tapRecenter is on), so work-specific components that
+// reacted to the old scene `click` (e.g. #5's tap-place-cursor) can listen
+// to one iOS-safe tap source instead of re-implementing it.
+//
 // `scaleSounds` scales positional sounds inside the same way: three.js'
 // PannerNode distances (refDistance/maxDistance) are in world units, so an
 // old sound authored as "fades out within 10 old units" would otherwise
@@ -115,9 +120,11 @@ export default {
       self.pointers.delete(e.pointerId);
       const wasMulti = self.multiTouch;
       if (self.pointers.size === 0) self.multiTouch = false;
-      if (!start || wasMulti || !self.data.tapRecenter || !self.placed) return;
+      if (!start || wasMulti || !self.placed) return;
       const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-      if (performance.now() - start.t <= TAP_MAX_MS && moved <= TAP_MAX_MOVE_PX) self.place();
+      if (performance.now() - start.t > TAP_MAX_MS || moved > TAP_MAX_MOVE_PX) return;
+      if (self.data.tapRecenter) self.place();
+      self.el.emit("legacy-space-tap", { clientX: e.clientX, clientY: e.clientY }, false);
     };
     self.onPointerCancel = (e: PointerEvent) => {
       self.pointers.delete(e.pointerId);
