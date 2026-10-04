@@ -56,6 +56,8 @@ import cubemapStatic from "./a-frame-components/cubemap-static";
 import cubemapRealtime from "./a-frame-components/cubemap-realtime";
 import legacySpace from "./a-frame-components/legacy-space";
 import holdDrag from "./a-frame-components/hold-drag";
+import crossfadeLoopClip from "./a-frame-components/crossfade-loop-clip";
+import legacyAttach from "./a-frame-components/legacy-attach";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -179,7 +181,15 @@ export const manifest: Manifest = {
     // xrextras-hold-drag made to work inside such transformed parents — see
     // legacy-space.ts / hold-drag.ts and augmented-bahnhofsviertel/PORTING-GUIDE.md §6.
     "legacy-space": legacySpace,
-    "hold-drag": holdDrag
+    "hold-drag": holdDrag,
+    // Seamless loop for animations that weren't authored to loop: cross-fades
+    // the clip's end into its start — see crossfade-loop-clip.ts. Use instead
+    // of animation-mixer on the same entity.
+    "crossfade-loop-clip": crossfadeLoopClip,
+    // xrextras-attach for targets outside the hull (e.g. a light following
+    // the host camera): offset stays in old scene units/axes — see
+    // legacy-attach.ts.
+    "legacy-attach": legacyAttach
   }
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md
