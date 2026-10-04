@@ -25,6 +25,9 @@ declare const THREE: any;
 //   - Materials are cloned before envMap is written (see env-map-shared.ts).
 //   - Reacts to `object3dset` filtered to type "mesh" (works for primitives
 //     too, and for a model swapped later), as AGENTS.md §5 requires.
+//   - The faces are read as linear data (colorSpace = NoColorSpace), as in
+//     the original's three r137; r152+ would treat them as sRGB and darken
+//     the reflections markedly.
 //   - `format` is accepted but ignored: THREE.RGBFormat no longer exists in
 //     the three.js r158 that 8frame 1.5 bundles, so the original's
 //     `texture.format = THREE[data.format]` would set `undefined`. The
@@ -42,6 +45,10 @@ export default {
     format: { default: "RGBFormat", oneOf: ["RGBFormat", "RGBAFormat"] },
     enableBackground: { default: false },
     reflectivity: { default: 1, min: 0, max: 1 },
+    // Not in the original: envMapIntensity on the materials (default 1 =
+    // unchanged). For deliberate brightness adjustments per work, e.g. #5's
+    // black metallic figures, which only the env map lights.
+    envMapIntensity: { type: "number", default: 1 },
     materials: { type: "array", default: [] }
   },
 
@@ -59,11 +66,20 @@ export default {
       toUrl(data.posy), toUrl(data.negy),
       toUrl(data.posz), toUrl(data.negz)
     ]);
+    // Read the faces as linear data, like the original did: three.js r152+
+    // tags CubeTextureLoader results as sRGB, so the renderer linearises them
+    // before shading (mid-grey 0.5 -> ~0.21). The old export's three r137
+    // left cube textures in LinearEncoding, i.e. used the JPEG values as-is —
+    // reflections there were markedly brighter (found on #5: black metallic
+    // figures lit only by this env map looked far darker than in the
+    // original's photo).
+    self.texture.colorSpace = THREE.NoColorSpace ?? "";
 
     self.apply = () => {
       const names: string[] = self.data.materials;
       applyEnvMap(self.el.getObject3D("mesh"), self.texture, {
         reflectivity: self.data.reflectivity,
+        intensity: self.data.envMapIntensity,
         filter: names.length ? (m: any) => names.includes(m.name) : undefined
       });
     };
