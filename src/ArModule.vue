@@ -2,6 +2,9 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue';
 import { manifest } from './manifest';
 import { trackAssetLoading } from './asset-loading-overlay';
+import LegacyOverlay, { type LegacyControl } from './LegacyOverlay.vue';
+import { playLegacySounds, pauseSoundsWhileHidden } from './legacy-audio';
+import { actionButtonHtml } from './legacy-ui-icons';
 
 interface ArModuleData {
   id: string;
@@ -82,7 +85,26 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
+// #8 Dead can Dance: the original's UI (image-target-ui with skip-marker,
+// recenter button, startExperience): once the scene is placed, a hint with
+// a Start button; Start re-places the scene, shows the stage and starts the
+// loop (the original's order). See LegacyOverlay.vue / legacy-audio.ts.
+const rootEntity = ref<HTMLElement | null>(null);
+let stopPauseWhileHidden: (() => void) | null = null;
+const centerControls: LegacyControl[] = [
+  {
+    id: 'start',
+    html: 'Suche dir einen guten Platz und tippe auf "Start" ' + actionButtonHtml('Start'),
+    onClick: () => {
+      document.getElementById('dead-can-dance-legacy-space')?.dispatchEvent(new CustomEvent('legacy-space-place'));
+      document.getElementById('dead-can-dance-group')?.setAttribute('visible', 'true');
+      if (rootEntity.value) playLegacySounds(rootEntity.value);
+    }
+  }
+];
+
 onMounted(() => {
+  if (rootEntity.value) stopPauseWhileHidden = pauseSoundsWhileHidden(rootEntity.value);
   stopAssetTracking = trackAssetLoading(
     manifest.assets ?? [],
     (loaded, total) => { loadProgress.value = loaded / total; },
@@ -92,62 +114,99 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAssetTracking?.();
+  stopPauseWhileHidden?.();
 });
 </script>
 
 <template>
 
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+  <!-- #8 Dead can Dance (Maiken Laackmann), ported from the 8th Wall export
+       `laackmann-deadcandance` — see
+       augmented-bahnhofsviertel/about/08-dead-can-dance/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
+
+       Assets come from the manifest (src/assets/, id = file name without
+       extension) and are injected by the host — no <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
+      ref="rootEntity"
       no-frustum-cull
       :visible="assetsLoaded"
   >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+    <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
+         floor at y = 0), placed module-locally by legacy-space (which also
+         scales the loop's positional distances). The stage stays hidden
+         until Start (LegacyOverlay below). Changes against the original
+         body.html: ids prefixed with "dead-can-dance-"; cubemap-static's
+         faces point at the work's prefixed images; the `image-target`
+         wrapper kept as a plain entity. No directional light, no ground and
+         no tap-recenter in the original. -->
+    <a-entity id="dead-can-dance-legacy-space" legacy-space>
+      <a-light type="ambient" intensity="1.5"></a-light>
 
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
-    <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
+      <a-entity>
+        <a-entity sound="src: #dead-can-dance-LOOP-1; loop: true; volume: 5"></a-entity>
+
+        <a-entity
+            id="dead-can-dance-group"
+            class="cantap"
+            xrextras-two-finger-rotate
+            xrextras-pinch-scale
+            visible="false"
+            rotation="0 180 0"
+            position="0 0 -6"
+            scale="0.6 0.6 0.6">
+          <a-entity
+              gltf-model="#dead-can-dance-Insel"
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+
+          <a-entity
+              gltf-model="#dead-can-dance-drummer"
+              animation-mixer="clip: animation_0"
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+
+          <a-entity
+              gltf-model="#dead-can-dance-guitarist"
+              animation-mixer
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+
+          <a-entity
+              gltf-model="#dead-can-dance-klatscherin"
+              animation-mixer
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+
+          <a-entity
+              gltf-model="#dead-can-dance-klavier"
+              animation-mixer
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+
+          <a-entity
+              gltf-model="#dead-can-dance-taenzerin"
+              animation-mixer
+              cubemap-static="posx: #dead-can-dance-posx; negx: #dead-can-dance-negx; posy: #dead-can-dance-posy; negy: #dead-can-dance-negy; posz: #dead-can-dance-posz; negz: #dead-can-dance-negz"
+              shadow="receive: false">
+          </a-entity>
+        </a-entity>
+      </a-entity>
     </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
   </a-entity>
+
+  <!-- The original's 2D UI: hint + Start (centre), recenter (top right). -->
+  <LegacyOverlay
+      hull-id="dead-can-dance-legacy-space"
+      :center="centerControls"
+      :recenter-button="true"
+      :ready="assetsLoaded"
+  />
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
        (a second root node, sibling to the <a-entity> above). Fades out once
