@@ -223,10 +223,51 @@ async function importAsset(oldRef: string, rel: string): Promise<ImportedAsset> 
 mkdirSync(ASSETS_DIR, { recursive: true });
 const imported: ImportedAsset[] = [];
 
-// 2a. Everything declared in <a-assets>.
+const jsFiles: string[] = [];
+const walk = (dir: string) => {
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) {
+      if (f !== "assets") walk(p);
+    } else if (/\.(js|ts)$/.test(f)) jsFiles.push(p);
+  }
+};
+walk(legacySrc);
+const js = jsFiles.map((f) => readFileSync(f, "utf8"));
+
+// 2a. Everything declared in <a-assets> that something actually references:
+// `#id` in the scene (outside <a-assets>) or in the project's JS, or a
+// cubemap face while the scene uses cubemap-static (which falls back to
+// #posx … implicitly). Declared-but-unused assets (e.g. Die Reisende's
+// cubemap images next to a cubemap-realtime-only scene) would otherwise ship
+// and load for nothing — they're listed in the draft instead.
+const sceneWithoutAssets = scene.loc.source.replace(assetsEl?.loc.source ?? "", "");
+const usesCubemapStatic = /cubemap-static/.test(sceneWithoutAssets);
+const declaredUnused: { id: string; src: string }[] = [];
+// The old shared env-map/light components carry `#posx …` as schema
+// defaults — that's not usage (whether cubemap-static is used is checked on
+// the scene above), so their files don't count as references.
+const SHARED_COMPONENT_FILES = ["cubemap-static.js", "cubemap-realtime.js", "xrlight.js"];
+const referencingJs = jsFiles
+  .filter((f) => !SHARED_COMPONENT_FILES.includes(basename(f)))
+  .map((f) => readFileSync(f, "utf8"));
+// Some projects pick their models up by tag (e.g. Mettler's place-model.js:
+// every <a-asset-item> with a glTF src) — then every declared asset counts.
+const jsEnumeratesAssets = referencingJs.some((src) => /a-asset-item|a-assets/.test(src));
+// cubemap-static can also be attached from JS (Funkytown's
+// responsive-immersive.js: setAttribute('cubemap-static', '')).
+const cubemapStaticFromJs = referencingJs.some((src) => /setAttribute\(\s*['"]cubemap-static/.test(src));
+const isReferenced = (id: string): boolean => {
+  if (jsEnumeratesAssets) return true;
+  const ref = new RegExp(`#${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+  if (ref.test(sceneWithoutAssets) || referencingJs.some((src) => ref.test(src))) return true;
+  return (usesCubemapStatic || cubemapStaticFromJs) && CUBEMAP_FACES.includes(id);
+};
 for (const el of assetsEl ? elements(assetsEl.children) : []) {
   const a = attrs(el);
-  if (a.id && a.src) imported.push(await importAsset(a.id, a.src));
+  if (!a.id || !a.src) continue;
+  if (isReferenced(a.id)) imported.push(await importAsset(a.id, a.src));
+  else declaredUnused.push({ id: a.id, src: a.src });
 }
 
 // 2b. Inline asset paths elsewhere in the scene (e.g. src="./assets/x.mp4"
@@ -290,17 +331,7 @@ const collectAttrs = (nodes: TemplateChildNode[]) => {
 collectAttrs(sceneChildren);
 const missingComponents = [...usedAttrs].filter((a) => !templateComponents.has(a) && !knownExternal.test(a)).sort();
 
-const jsFiles: string[] = [];
-const walk = (dir: string) => {
-  for (const f of readdirSync(dir)) {
-    const p = join(dir, f);
-    if (statSync(p).isDirectory()) {
-      if (f !== "assets") walk(p);
-    } else if (/\.(js|ts)$/.test(f)) jsFiles.push(p);
-  }
-};
-walk(legacySrc);
-const js = jsFiles.map((f) => readFileSync(f, "utf8"));
+
 const registered = [...new Set(js.flatMap((s) => [...s.matchAll(/registerComponent\(\s*['"]([\w-]+)['"]/g)].map((m) => m[1])))].sort();
 const labels = [...new Set(js.flatMap((s) => [...s.matchAll(/label:\s*[`'"]([^`'"]*)[`'"]/g)].map((m) => m[1])))]
   .filter((l) => l && !l.startsWith("${") && !l.startsWith("<img"));
@@ -348,6 +379,9 @@ Arbeitsgrundlage für \`src/ArModule.vue\` auf \`${work.branch}\` — Ablauf und
 | alt | Datei alt | neu (\`src/assets/\`) | id | Status |
 |---|---|---|---|---|
 ${imported.map((a) => `| \`${a.oldRef}\` | \`${a.oldPath}\` | \`${a.newFile}\` | \`#${a.newId}\` | ${a.status} |`).join("\n")}
+
+In \`<a-assets>\` deklariert, aber nirgends referenziert (nicht importiert):
+${declaredUnused.map((d) => `- \`#${d.id}\` (\`${normalizeRel(d.src)}\`)`).join("\n") || "- (keine)"}
 
 Nicht von der Szene referenziert (nicht importiert, ggf. Varianten/Geschwister-Werke prüfen):
 ${unused.map((u) => `- \`${u}\``).join("\n") || "- (keine)"}

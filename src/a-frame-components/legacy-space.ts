@@ -34,10 +34,25 @@ declare const THREE: any;
 // `scene.emit('recenter')`. Content stays hidden until the first placement,
 // so it doesn't flash at the wrong spot.
 //
+// `tapRecenter` is the module-local version of the old scene-level
+// `xrextras-tap-recenter`: like the original, any tap on the scene re-places
+// — but only this hull, not the whole XR8 world. In the host that includes
+// taps meant for other modules or host UI on the canvas, exactly as the
+// original reacted to every tap. Unlike the original it does NOT listen for
+// `click`: iOS Safari suppresses the synthetic click once
+// xrextras-gesture-detector has called preventDefault() on the touch (see
+// guides/SOUND-FEATURE-GUIDE.md §4), so on an iPhone the original's tap did
+// nothing. A tap is detected from pointer events instead: one pointer, up
+// within TAP_MAX_MS, moved less than TAP_MAX_MOVE_PX — pinches and drags
+// don't count.
+//
 // `scaleShadows` also scales the shadow-camera bounds of directional lights
 // inside by s: three.js keeps those in world units regardless of the parent's
 // scale, so the old bounds (e.g. ±80 old units) would otherwise cover a far
 // bigger area at a fraction of the shadow-map resolution.
+const TAP_MAX_MS = 350;
+const TAP_MAX_MOVE_PX = 12;
+
 export default {
   schema: {
     legacyCameraHeight: { type: "number", default: 8 },
@@ -47,7 +62,8 @@ export default {
     // scale to use instead.
     fallbackAfter: { type: "number", default: 3 },
     fallbackScale: { type: "number", default: 0.2 },
-    scaleShadows: { type: "boolean", default: true }
+    scaleShadows: { type: "boolean", default: true },
+    tapRecenter: { type: "boolean", default: false }
   },
 
   init() {
@@ -58,6 +74,38 @@ export default {
     self.el.object3D.visible = false;
     self.onPlace = () => self.place();
     self.el.addEventListener("legacy-space-place", self.onPlace);
+    // Tap detection for tapRecenter (see header): track every pointer on the
+    // page; a gesture is a tap only if exactly one pointer was involved.
+    self.pointers = new Map();
+    self.multiTouch = false;
+    self.onPointerDown = (e: PointerEvent) => {
+      if (self.pointers.size > 0) self.multiTouch = true;
+      // Like the original (a click bubbling up to <a-scene>), only touches
+      // on the scene itself count — not DOM UI (host buttons, overlays).
+      // Still tracked either way, so a second finger elsewhere marks the
+      // gesture as multi-touch.
+      if (!self.el.sceneEl.contains(e.target as Node)) {
+        self.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: -Infinity });
+        return;
+      }
+      self.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
+    };
+    self.onPointerUp = (e: PointerEvent) => {
+      const start = self.pointers.get(e.pointerId);
+      self.pointers.delete(e.pointerId);
+      const wasMulti = self.multiTouch;
+      if (self.pointers.size === 0) self.multiTouch = false;
+      if (!start || wasMulti || !self.data.tapRecenter || !self.placed) return;
+      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      if (performance.now() - start.t <= TAP_MAX_MS && moved <= TAP_MAX_MOVE_PX) self.place();
+    };
+    self.onPointerCancel = (e: PointerEvent) => {
+      self.pointers.delete(e.pointerId);
+      if (self.pointers.size === 0) self.multiTouch = false;
+    };
+    window.addEventListener("pointerdown", self.onPointerDown, true);
+    window.addEventListener("pointerup", self.onPointerUp, true);
+    window.addEventListener("pointercancel", self.onPointerCancel, true);
   },
 
   tick(_time: number, delta: number) {
@@ -136,5 +184,8 @@ export default {
   remove() {
     const self = this as any;
     self.el.removeEventListener("legacy-space-place", self.onPlace);
+    window.removeEventListener("pointerdown", self.onPointerDown, true);
+    window.removeEventListener("pointerup", self.onPointerUp, true);
+    window.removeEventListener("pointercancel", self.onPointerCancel, true);
   }
 } as ComponentDefinition;
