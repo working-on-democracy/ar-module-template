@@ -51,7 +51,7 @@ Komplexität ist eine grobe Ersteinschätzung aus der Oberflächenanalyse (Anzah
 | 23 | [Privileged II](augmented-bahnhofsviertel/about/23-privileged-ii/README.md) | Jonathan Radetz | `radetz-istanbul` | `abv-23-privileged-ii` | — | mittel | 4 Modelle, 4 Videos, `play-video` | offen |
 | 24 | [Privileged III](augmented-bahnhofsviertel/about/24-privileged-iii/README.md) | Jonathan Radetz | `radetz-lima` | `abv-24-privileged-iii` | — | mittel | 5 Modelle, 4 Videos, 4 Sounds, `play-video` | offen |
 | 25 | [Die Reisende II](augmented-bahnhofsviertel/about/25-die-reisende-ii/README.md) | HazMatLab | — | `abv-25-die-reisende-ii` | Nr. 21 | ? | kein eigener Export — `hazmadlab` enthält ungenutzte Varianten `slime2/3/5.gltf` (Szene nutzt `slime8`): Kandidaten für dieses Werk, prüfen | offen |
-| 26 | [Knusperhäuschen](augmented-bahnhofsviertel/about/26-knusperhaeuschen/README.md) | Sonja Yakovleva | `yakovleva-knusper` | `abv-26-knusperhaeuschen` | — | einfach | 1 animiertes Modell, Env-Map | offen |
+| 26 | [Knusperhäuschen](augmented-bahnhofsviertel/about/26-knusperhaeuschen/README.md) | Sonja Yakovleva | `yakovleva-knusper` | `abv-26-knusperhaeuschen` | — | einfach | 1 Modell (keine Animation), Live-Env-Map, Tap-Recenter. Original lief fehlerhaft (`app.js` brach ab, geplanter Start-/Recenter-Button existierte nie) — portiert wie es tatsächlich lief: Haus sofort sichtbar, Kamera steht **im** Haus (~69×40×80 alte Einheiten). Auf dem Handy geprüft (2026-10-04): Start im Haus, Tap-Recenter und Reflexionen passen so. Modell verlustfrei komprimiert 7,0 → 5,1 MB | portiert |
 
 Privileged I–III sind drei eigenständige alte Apps, keine Reihe im Branch-Sinn (jede hat ihren eigenen Export); sie teilen aber Code, der bei Bedarf auf die Zwischenbasis wandert.
 
