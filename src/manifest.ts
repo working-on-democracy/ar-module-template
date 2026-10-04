@@ -59,6 +59,7 @@ import legacySpace from "./a-frame-components/legacy-space";
 import holdDrag from "./a-frame-components/hold-drag";
 import crossfadeLoopClip from "./a-frame-components/crossfade-loop-clip";
 import legacyAttach from "./a-frame-components/legacy-attach";
+import legacyPortal from "./a-frame-components/legacy-portal";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -194,7 +195,11 @@ export const manifest: Manifest = {
     // xrextras-attach for targets outside the hull (e.g. a light following
     // the host camera): offset stays in old scene units/axes — see
     // legacy-attach.ts.
-    "legacy-attach": legacyAttach
+    "legacy-attach": legacyAttach,
+    // Walk-through portal of the old portal works (#22, #7): the camera's
+    // position, converted into the hull, switches contents/hider walls —
+    // see legacy-portal.ts.
+    "legacy-portal": legacyPortal
   }
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md
