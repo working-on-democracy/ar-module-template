@@ -26,6 +26,7 @@
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
 import noFrustumCull from "./a-frame-components/no-frustum-cull";
+import solidDreamLevelTapAnimation from "./a-frame-components/solid-dream-level-tap-animation";
 import arButtonManager from "./a-frame-components/ar-button-manager";
 import arButton from "./a-frame-components/ar-button";
 import soundController from "./a-frame-components/sound-controller";
@@ -76,6 +77,10 @@ export const manifest: Manifest = {
 
   components: {
     "no-frustum-cull": noFrustumCull,
+    // #20 Solid Dream Level's tap-to-open (work branch only; listed here
+    // rather than at the end so merges from augmented-bahnhofsviertel,
+    // which append there, don't conflict).
+    "solid-dream-level-tap-animation": solidDreamLevelTapAnimation,
     // Generic 3D button/trigger-zone system — see ar-button.ts /
     // ar-button-manager.ts and examples/ar-button-usage.html.
     "ar-button-manager": arButtonManager,
