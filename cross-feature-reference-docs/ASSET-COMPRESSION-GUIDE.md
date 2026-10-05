@@ -32,6 +32,17 @@ nothing renders, with a console error). This template patches every
   the moment the module bundle is evaluated — before any model can load, in
   every context (both local previews and the real host). Idempotent and
   cheap even if a project never compresses a single asset.
+- **If `THREE` isn't there yet, it retries every frame** (for up to 30 s)
+  instead of giving up. In the real host A-Frame is loaded before any module
+  is imported, so the first call patches. But `npm run dev:ar`'s `ar.html`
+  injects 8frame dynamically, and the module bundle can evaluate first
+  (measured: `manifest.ts` at ~65 ms, `THREE` at ~160 ms). The earlier
+  one-shot check then silently skipped the patch, and every compressed
+  `.glb` failed in `dev:ar` with "setMeshoptDecoder must be called before
+  loading compressed files" — while working in `npm run dev` and the host.
+  Models only start loading once the scene and module are up, well after
+  8frame, so a patch on a later frame is still in time. (Found while
+  porting the Augmented Bahnhofsviertel works.)
 
 **This part of the setup was ported directly** from `Gyumin_module`/`Jakob_module`/
 `Madleen_module`/`Rosa_module` — identical across all four, already
