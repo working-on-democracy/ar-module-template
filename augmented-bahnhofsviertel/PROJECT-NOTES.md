@@ -5,6 +5,12 @@ picking up work on the `augmented-bahnhofsviertel` branch family. They
 replace the local, non-synced memory of the session that did the porting.
 State: **2026-10-05**. Keep this file current when the state changes.
 
+> **Temporary file.** Once the release builds have been created (§2), this
+> file can be deleted again — together with its two links (the note at the
+> top of `AGENTS.md` and the line at the top of
+> `AUGMENTED-BAHNHOFSVIERTEL-WORKS.md`). Ask the user before deleting; carry
+> anything still open over into the steering list first.
+
 Read after `AGENTS.md`, before anything else here. Details live in:
 [`AUGMENTED-BAHNHOFSVIERTEL-WORKS.md`](../AUGMENTED-BAHNHOFSVIERTEL-WORKS.md) (steering list),
 [`PORTING-GUIDE.md`](PORTING-GUIDE.md) (process, tools, §9 releases + host),
