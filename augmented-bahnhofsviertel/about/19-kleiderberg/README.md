@@ -15,5 +15,5 @@ Frankfurt Fashion Movement ist Teil der weltweiten Bewegung Fashion Revolution, 
 
 Portiert ist die veröffentlichte Live-App (Stand 2026-10-05 noch online): Szene aus ihrer ausgelieferten `body.html`, Modell `Berg.gltf` (byte-identisch mit `Projektordner_alt/madebychildren/src/assets/Berg.gltf/Berg.gltf`). Der Export `kleiderberg-fuas` ist eine andere, nie veröffentlichte Fassung (Piktogramme, Gesten).
 
-Screenshots des Originals (iPad, 2026-10-05): [Startposition.PNG](Startposition.PNG), [IMG_2371.PNG](IMG_2371.PNG), [IMG_2372.PNG](IMG_2372.PNG), [IMG_2373.PNG](IMG_2373.PNG). `reference-legacy*.jpg` stammen noch aus dem Export `kleiderberg-fuas` und zeigen damit die falsche Fassung.
+Abgeglichen mit Screenshots der Live-App (iPad, 2026-10-05; nicht im Repo). `reference-legacy*.jpg` stammen noch aus dem Export `kleiderberg-fuas` und zeigen damit die falsche Fassung.
 
