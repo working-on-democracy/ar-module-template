@@ -40,6 +40,12 @@ export interface Manifest {
   components: Record<string, ComponentDefinition>;
   /** XR8 image-target descriptors (the JSON exported by the 8th Wall target tool). */
   imageTargets: unknown[];
+  /**
+   * false: the host switches its own scene lights (#host-lights in its
+   * ArScene.vue) off while this module is shown and back on at unmount —
+   * for a module that brings its complete lighting. Default true.
+   */
+  hostLights?: boolean;
 }
 
 export const manifest: Manifest = {
@@ -67,7 +73,11 @@ export const manifest: Manifest = {
   },
 
   // The lightstick module uses SLAM/world tracking only — no image targets.
-  imageTargets: []
+  imageTargets: [],
+
+  // The scene brings its own lights: the host switches its two scene lights
+  // off while this module is shown (ar-demo-backend PR #4).
+  hostLights: false
 };
 
 export default manifest;
