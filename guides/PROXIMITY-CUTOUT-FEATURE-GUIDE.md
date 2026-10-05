@@ -14,7 +14,7 @@ Files:
 
 ```
 src/a-frame-components/proximity-cutout.ts   # the whole feature — one file
-src/manifest.ts                               # registers proximity-cutout
+(registered automatically by file name — nothing to add to src/manifest.ts)
 examples/proximity-cutout-usage.html           # scene wiring + attribute reference
 ```
 
@@ -27,19 +27,12 @@ whatever `gltf-model`s you already have in your scene.
    `src/a-frame-components/`. No path changes; already named per this
    template's convention (nothing to rename).
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import proximityCutout from "./a-frame-components/proximity-cutout";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "proximity-cutout": proximityCutout
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it onto a transform entity** wrapping one or more `gltf-model`
    children — see [2. Entities & attributes](#2-entities--attributes) or
@@ -118,6 +111,13 @@ once for a shared material instance), matching the same guard
 `proximity-fade-shared.ts` already had.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Grain Shimmer chains, doesn't replace
+
+[`grain-shimmer`](GRAIN-SHIMMER-FEATURE-GUIDE.md) clones the material and
+chains an `onBeforeCompile` patch that is already on it. If this component
+patches *after* grain-shimmer (replacing `onBeforeCompile`), the grain is
+lost — set grain-shimmer last.
 
 ### `proximity-cutout` vs. `proximity-fade`/`-dither` on the *same* material
 
