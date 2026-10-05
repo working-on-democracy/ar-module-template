@@ -25,20 +25,26 @@ convention.
 | [Placement & Recenter](#placement--recenter) | Places a scene on the floor in front of the viewer, re-places it on recenter/tap; tap-to-place ground cursor | [`placement`](#tag-placement), [`interaction`](#tag-interaction) | `augmented-bahnhofsviertel` | [PLACEMENT-FEATURE-GUIDE.md](guides/PLACEMENT-FEATURE-GUIDE.md) |
 | [Gestures](#gestures) | Hold-and-drag along the ground, rotate, pinch to scale — in one attribute | [`interaction`](#tag-interaction), [`placement`](#tag-placement) | `augmented-bahnhofsviertel` | [GESTURES-FEATURE-GUIDE.md](guides/GESTURES-FEATURE-GUIDE.md) |
 | [Image Tracking](#image-tracking) | Anchors content to a detected real-world image, via 8th Wall's own image-target engine | [`image-tracking`](#tag-image-tracking), [`interaction`](#tag-interaction) | `main` | [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) |
+| [Video](#video) | Starts/pauses/unmutes video assets from one tap event, pauses in the background | [`video`](#tag-video), [`interaction`](#tag-interaction) | `augmented-bahnhofsviertel` | [VIDEO-FEATURE-GUIDE.md](guides/VIDEO-FEATURE-GUIDE.md) |
+| [Tap Animation](#tap-animation) | Tap a model to play its glTF animation (once or every tap) plus its sound | [`animation`](#tag-animation), [`interaction`](#tag-interaction) | `augmented-bahnhofsviertel` | [TAP-ANIMATION-FEATURE-GUIDE.md](guides/TAP-ANIMATION-FEATURE-GUIDE.md) |
 | [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | [`proximity`](#tag-proximity), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](guides/PROXIMITY-FADE-FEATURE-GUIDE.md) |
 | [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | [`proximity`](#tag-proximity), [`dither`](#tag-dither), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](guides/PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
 | [Proximity Wave](#proximity-wave) | Proximity-triggered wave + idle motion, single entity or a whole group | [`proximity`](#tag-proximity), [`motion`](#tag-motion) | `Gyumin_module` | [PROXIMITY-WAVE-FEATURE-GUIDE.md](guides/PROXIMITY-WAVE-FEATURE-GUIDE.md) |
 | [Wander In Band](#wander-in-band) | Orbits an entity within a band around a center entity | [`motion`](#tag-motion), [`random`](#tag-random) | `Fanyu_module` | [WANDER-IN-BAND-FEATURE-GUIDE.md](guides/WANDER-IN-BAND-FEATURE-GUIDE.md) |
 | [Follow Node](#follow-node) | Tracks a named node inside another entity's animated glTF | [`motion`](#tag-motion), [`utility`](#tag-utility) | `Fanyu_module` | [FOLLOW-NODE-FEATURE-GUIDE.md](guides/FOLLOW-NODE-FEATURE-GUIDE.md) |
-| [Trim Loop Clip](#trim-loop-clip) | Trims a glTF animation's dead lead-in and loops it, syncing multiple clips | [`animation`](#tag-animation), [`utility`](#tag-utility) | `Fanyu_module` | [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](guides/TRIM-LOOP-CLIP-FEATURE-GUIDE.md) |
-| [Attach To](#attach-to) | Makes an entity follow another entity's world position every frame | [`motion`](#tag-motion), [`utility`](#tag-utility) | `Gyumin_module` | [ATTACH-TO-FEATURE-GUIDE.md](guides/ATTACH-TO-FEATURE-GUIDE.md) |
+| [Trim Loop Clip](#trim-loop-clip) | Trims a glTF animation's dead lead-in and loops it, syncing multiple clips; optional loop crossfade | [`animation`](#tag-animation), [`utility`](#tag-utility) | `Fanyu_module` | [TRIM-LOOP-CLIP-FEATURE-GUIDE.md](guides/TRIM-LOOP-CLIP-FEATURE-GUIDE.md) |
+| [Attach To](#attach-to) | Makes an entity follow another entity's world position every frame (offset in world or parent space) | [`motion`](#tag-motion), [`utility`](#tag-utility) | `Gyumin_module` | [ATTACH-TO-FEATURE-GUIDE.md](guides/ATTACH-TO-FEATURE-GUIDE.md) |
 | [Ground Decal](#ground-decal) | Pins a decal flat on the ground under a (possibly tilted) parent, excluded from fog | [`utility`](#tag-utility), [`visual-effect`](#tag-visual-effect) | `Gyumin_module` | [GROUND-DECAL-FEATURE-GUIDE.md](guides/GROUND-DECAL-FEATURE-GUIDE.md) |
 | [Random Field](#random-field) | Scatters clones of referenced entities across an area, spacing/copies configurable | [`random`](#tag-random), [`distribution`](#tag-distribution) | `Gyumin_module` | [RANDOM-FIELD-FEATURE-GUIDE.md](guides/RANDOM-FIELD-FEATURE-GUIDE.md) |
+| [Spawn Sequence](#spawn-sequence) | Models spring up one after another (interval or timeline), in front of the viewer or at random spots, optional sound each | [`distribution`](#tag-distribution), [`random`](#tag-random), [`animation`](#tag-animation) | `augmented-bahnhofsviertel` | [SPAWN-SEQUENCE-FEATURE-GUIDE.md](guides/SPAWN-SEQUENCE-FEATURE-GUIDE.md) |
 | [LOD + Billboard](#lod--billboard) | Cross-fades a detailed model into a flat camera-facing billboard by distance | [`LOD`](#tag-lod), [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Gyumin_module` | [LOD-BILLBOARD-FEATURE-GUIDE.md](guides/LOD-BILLBOARD-FEATURE-GUIDE.md) |
+| [Portal](#portal) | Walk-through door into another world, masked by hider walls, with an opening animation | [`render-order`](#tag-render-order), [`visual-effect`](#tag-visual-effect) | `augmented-bahnhofsviertel` | [PORTAL-FEATURE-GUIDE.md](guides/PORTAL-FEATURE-GUIDE.md) |
 | [Render Order](#render-order) | Sets per-mesh draw order for overlapping transparent surfaces | [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Gyumin_module` | [RENDER-ORDER-FEATURE-GUIDE.md](guides/RENDER-ORDER-FEATURE-GUIDE.md) |
 | [Mesh Render Order](#mesh-render-order) | Sets per-NAMED-submesh draw order within a single glTF asset | [`render-order`](#tag-render-order), [`transparency`](#tag-transparency) | `Rosa_module` | [MESH-RENDER-ORDER-FEATURE-GUIDE.md](guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md) |
+| [Light & Reflections](#light--reflections) | Live camera reflections, static cube-map reflections, lights following the real brightness | [`lighting`](#tag-lighting), [`material-properties`](#tag-material-properties) | `augmented-bahnhofsviertel` | [LIGHT-REFLECTIONS-FEATURE-GUIDE.md](guides/LIGHT-REFLECTIONS-FEATURE-GUIDE.md) |
 | [Material Properties](#material-properties) | Manually tunes roughness/metalness/opacity/emissive on a loaded model | [`material-properties`](#tag-material-properties) | `Gyumin_module` | [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) |
 | [Dither Material](#dither-material) | Manual (non-distance-driven) dithered transparency for a loaded model | [`dither`](#tag-dither), [`transparency`](#tag-transparency), [`material-properties`](#tag-material-properties) | `Fanyu_module` | [DITHER-MATERIAL-FEATURE-GUIDE.md](guides/DITHER-MATERIAL-FEATURE-GUIDE.md) |
+| [Grain Shimmer](#grain-shimmer) | A grainy surface that sparkles with movement: textures without mipmaps, optional shader grain | [`visual-effect`](#tag-visual-effect), [`procedural`](#tag-procedural), [`material-properties`](#tag-material-properties) | `augmented-bahnhofsviertel` (#20 analysis, original) | [GRAIN-SHIMMER-FEATURE-GUIDE.md](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) |
 | [Mirror Shard](#mirror-shard) | A field of 112 glass shards that ripple outward when tapped | [`visual-effect`](#tag-visual-effect), [`interaction`](#tag-interaction), [`procedural`](#tag-procedural) | `Zhichang_module` | [MIRROR-SHARD-FEATURE-GUIDE.md](guides/MIRROR-SHARD-FEATURE-GUIDE.md) |
 | [Liquid Texture](#liquid-texture) | Generic procedural "liquid ink" texture, optionally reveals a target image | [`procedural`](#tag-procedural), [`visual-effect`](#tag-visual-effect) | `Zhichang_module` | [LIQUID-TEXTURE-FEATURE-GUIDE.md](guides/LIQUID-TEXTURE-FEATURE-GUIDE.md) |
 
@@ -81,6 +87,7 @@ building blocks", which is specifically components registered via
 | Item | File(s) | What it does |
 |---|---|---|
 | Loading bar + spinner | [`src/asset-loading-overlay.ts`](src/asset-loading-overlay.ts) + the `<script>`/`<template>` blocks at the top/bottom of [`src/ArModule.vue`](src/ArModule.vue) | A thin top-of-screen progress bar and a centre-screen spinner, shown while this module's manifest assets are still loading; the 3D content stays hidden (`:visible="assetsLoaded"`) until everything's ready, then appears all at once instead of popping in piecemeal. Found identically re-implemented across every `_module` branch, so brought into the template baseline itself. Deliberately **not** an A-Frame component — 2D screen-space UI that has to exist and be visible *before* any 3D entity is ready, driven by Vue's `onMounted`/`onUnmounted` rather than any entity's lifecycle (see the comment at the top of `ArModule.vue`'s `<script>` block for the full reasoning). Works automatically for whatever assets your scene adds — nothing to copy in, nothing to register in `manifest.ts`. Also mentioned in [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md). |
+| Automatic component registration | [`scripts/used-components.ts`](scripts/used-components.ts) + `autoComponents()` in [`vite.config.ts`](vite.config.ts) → `virtual:used-components`, spread into `components` in [`src/manifest.ts`](src/manifest.ts) | Every file in `src/a-frame-components/` with a default export is a component named after its file; exactly the ones the module uses (by name in `ArModule.vue` and the files it imports, plus transitively) are bundled and registered — in `dev`, `dev:ar` (live-updated) and `build`. Nothing to list in `manifest.ts` when copying a feature in; unused components neither ship nor claim names in the shared host scene. See README "Components register automatically". |
 | MeshOpt decoder patch | [`lib/gltf-meshopt-setup.ts`](lib/gltf-meshopt-setup.ts) + vendored [`lib/vendor/meshopt_decoder.module.js`](lib/vendor/meshopt_decoder.module.js), called once from [`src/manifest.ts`](src/manifest.ts) | Patches every `THREE.GLTFLoader` instance so `gltfpack -c`-compressed `.glb` files (produced by [`scripts/compress-assets.ts`](scripts/compress-assets.ts), `npm run compress-assets`) actually load — A-Frame/8th Wall never wire this up themselves, so without it a meshopt-compressed asset fails to load at all. Idempotent, near-zero cost even if a project never compresses anything. Full picture, including the compression tool itself and real pitfalls found producing compressed assets on past projects, in [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md). |
 
 ## Sound
@@ -100,6 +107,7 @@ audio instead of (or alongside) the tap-driven model.
 |---|---|---|
 | `sound-controller` | [`sound-controller.ts`](src/a-frame-components/sound-controller.ts) | One per module; single-active-sound play/pause/stop state machine, drives the 2D GUI |
 | `sound-button` | [`sound-button.ts`](src/a-frame-components/sound-button.ts) | Plays/pauses/stops a `sound` entity on tap (place alongside `ar-button`) |
+| — *(not a component)* | [`sound-scene-audio.ts`](src/a-frame-components/sound-scene-audio.ts) | Optional helpers: start all `sound` entities from one tap, pause them in the background, scale positional distances |
 | — *(not a component)* | [`sound-unlock-audio.ts`](src/a-frame-components/sound-unlock-audio.ts) | Shared iOS/Web Audio unlock helper, imported by `sound-controller.ts` and the tap-to-enable-sound overlay |
 
 Also depends on the shared `ar-button` / `ar-button-manager` (see
@@ -211,6 +219,43 @@ XR8 at all, so this can never be seen working there.
 | [`jellyfish-video.mp4`](src/assets/jellyfish-video.mp4) | `examples/image-tracking-usage.html` | The example's video content, played once the target is detected |
 
 Examples: [`image-tracking-usage.html`](examples/image-tracking-usage.html)
+
+## Video
+
+Guide: [VIDEO-FEATURE-GUIDE.md](guides/VIDEO-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Starts, pauses and unmutes `<video>` assets from events (on the entity or
+the scene), so one tap starts every video — with sound — inside the gesture
+iOS needs; pauses them while the page is hidden. For video on a tracked
+image see [Image Tracking](#image-tracking).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `video-control` | [`video-control.ts`](src/a-frame-components/video-control.ts) | Event-driven play/pause/unmute of a video asset, background pause |
+
+**Assets** — none (videos are project content).
+
+Examples: [`video-usage.html`](examples/video-usage.html)
+
+## Tap Animation
+
+Guide: [TAP-ANIMATION-FEATURE-GUIDE.md](guides/TAP-ANIMATION-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Tap a model to play one of its glTF animations — once (staying at the last
+frame) or on every tap — and (re)start its `sound`; taps can be gated
+(`enabled`) until audio is unlocked. Uses aframe-extras' `animation-mixer`.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `tap-animation` | [`tap-animation.ts`](src/a-frame-components/tap-animation.ts) | Plays a clip + the entity's sound on tap, once or every time |
+
+**Assets** — none.
+
+Examples: [`tap-animation-usage.html`](examples/tap-animation-usage.html)
 
 ## Proximity Fade
 
@@ -403,6 +448,27 @@ reference by id (see [LOD + Billboard](#lod--billboard)).
 Examples: [`random-field-usage.html`](examples/random-field-usage.html),
 [`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
 
+## Spawn Sequence
+
+Guide: [SPAWN-SEQUENCE-FEATURE-GUIDE.md](guides/SPAWN-SEQUENCE-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Models spring up one after another — every `interval` ms or at listed
+`times` — in front of the viewer (along the view direction) or at random
+spots around the entity, turned to the viewer or randomly, with a random
+scale range and an elastic grow; optionally a one-shot positional sound
+each. Merged from #4's interval and #6's timeline spawner. Compare
+[Random Field](#random-field) (all at once, static).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `spawn-sequence` | [`spawn-sequence.ts`](src/a-frame-components/spawn-sequence.ts) | Spawns models over time with bounce, facing, scale range and sound |
+
+**Assets** — none (models/sounds are project content).
+
+Examples: [`spawn-sequence-usage.html`](examples/spawn-sequence-usage.html)
+
 ## LOD + Billboard
 
 Guide: [LOD-BILLBOARD-FEATURE-GUIDE.md](guides/LOD-BILLBOARD-FEATURE-GUIDE.md) · Source: `Gyumin_module`
@@ -432,6 +498,25 @@ two combine). Composes closely with
 
 Examples: [`lod-billboard-usage.html`](examples/lod-billboard-usage.html),
 [`random-field-lod-billboard-proximity-wave-scene.html`](examples/random-field-lod-billboard-proximity-wave-scene.html)
+
+## Portal
+
+Guide: [PORTAL-FEATURE-GUIDE.md](guides/PORTAL-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+A walk-through portal: hider walls mask another world except through a
+doorway; crossing the door plane puts you inside, optionally with a window
+back out and a door ring that springs open on an event. Pins the hiders'
+draw order with renderOrder (stable under three r137 and r158).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `portal` | [`portal.ts`](src/a-frame-components/portal.ts) | Inside/outside switching, renderOrder of hiders/contents, door animation |
+
+**Assets** — none.
+
+Examples: [`portal-usage.html`](examples/portal-usage.html)
 
 ## Render Order
 
@@ -487,6 +572,29 @@ and the guide's own incompatibilities section.
 Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
 [`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
 
+## Light & Reflections
+
+Guide: [LIGHT-REFLECTIONS-FEATURE-GUIDE.md](guides/LIGHT-REFLECTIONS-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Ties virtual objects to the real place: live reflections of the camera
+image, designed reflections from six images, and lights whose intensity
+follows 8th Wall's measured real-world brightness. Three independent
+components sharing the env-map plumbing; schema-compatible with the old
+8th Wall components. Works with three r137 (host) and r158.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `cubemap-realtime` | [`cubemap-realtime.ts`](src/a-frame-components/cubemap-realtime.ts) | Live env map from the camera image, updated every frame |
+| `cubemap-static` | [`cubemap-static.ts`](src/a-frame-components/cubemap-static.ts) | Env map from six face images, per material, linear or sRGB |
+| `xr-light` | [`xr-light.ts`](src/a-frame-components/xr-light.ts) | Light intensity = clamp(1 + measured exposure, min, max) |
+| — *(not a component)* | [`env-map-shared.ts`](src/a-frame-components/env-map-shared.ts) | Clones materials and writes envMap/intensity |
+
+**Assets** — none (a project adds its own six cube images).
+
+Examples: [`light-reflections-usage.html`](examples/light-reflections-usage.html)
+
 ## Material Properties
 
 Guide: [MATERIAL-PROPERTIES-FEATURE-GUIDE.md](guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) · Source: `Gyumin_module`
@@ -535,6 +643,25 @@ cloning them first) — see the guide's §3.
 **Assets:** none.
 
 Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
+
+## Grain Shimmer
+
+Guide: [GRAIN-SHIMMER-FEATURE-GUIDE.md](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel` (#20 analysis, original)
+
+The #20 Solid Dream Level look for any model: its textures sampled without
+mipmaps (fine grain then sparkles with every movement) and optional grain
+added in the shader, fixed to the surface or animated like film grain.
+Clones materials/textures, chains other shader patches.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `grain-shimmer` | [`grain-shimmer.ts`](src/a-frame-components/grain-shimmer.ts) | Mipmap-free texture sampling + object-space shader grain |
+
+**Assets** — none.
+
+Examples: [`grain-shimmer-usage.html`](examples/grain-shimmer-usage.html)
 
 ## Mirror Shard
 
@@ -598,11 +725,14 @@ feature that carries it.
 
 ### Tag: `animation`
 
+- [Tap Animation](#tap-animation)
 - [Trim Loop Clip](#trim-loop-clip)
+- [Spawn Sequence](#spawn-sequence)
 
 ### Tag: `distribution`
 
 - [Random Field](#random-field)
+- [Spawn Sequence](#spawn-sequence)
 
 ### Tag: `dither`
 
@@ -620,7 +750,13 @@ feature that carries it.
 - [Placement & Recenter](#placement--recenter)
 - [Gestures](#gestures)
 - [Image Tracking](#image-tracking)
+- [Video](#video)
+- [Tap Animation](#tap-animation)
 - [Mirror Shard](#mirror-shard)
+
+### Tag: `lighting`
+
+- [Light & Reflections](#light--reflections)
 
 ### Tag: `LOD`
 
@@ -628,8 +764,10 @@ feature that carries it.
 
 ### Tag: `material-properties`
 
+- [Light & Reflections](#light--reflections)
 - [Material Properties](#material-properties)
 - [Dither Material](#dither-material)
+- [Grain Shimmer](#grain-shimmer)
 
 ### Tag: `motion`
 
@@ -645,6 +783,7 @@ feature that carries it.
 
 ### Tag: `procedural`
 
+- [Grain Shimmer](#grain-shimmer)
 - [Mirror Shard](#mirror-shard)
 - [Liquid Texture](#liquid-texture)
 
@@ -658,10 +797,12 @@ feature that carries it.
 
 - [Wander In Band](#wander-in-band)
 - [Random Field](#random-field)
+- [Spawn Sequence](#spawn-sequence)
 
 ### Tag: `render-order`
 
 - [LOD + Billboard](#lod--billboard)
+- [Portal](#portal)
 - [Render Order](#render-order)
 - [Mesh Render Order](#mesh-render-order)
 
@@ -689,8 +830,14 @@ feature that carries it.
 - [Attach To](#attach-to)
 - [Ground Decal](#ground-decal)
 
+### Tag: `video`
+
+- [Video](#video)
+
 ### Tag: `visual-effect`
 
 - [Ground Decal](#ground-decal)
+- [Portal](#portal)
+- [Grain Shimmer](#grain-shimmer)
 - [Mirror Shard](#mirror-shard)
 - [Liquid Texture](#liquid-texture)

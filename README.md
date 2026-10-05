@@ -15,7 +15,7 @@ ar-module-template/
 │   ├── ArModule.vue           # the user-edited component (template syntax)
 │   ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
 │   ├── assets/                 # drop .glb/.png/.mp3/… here — auto-derived into the manifest
-│   ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
+│   ├── a-frame-components/     # custom A-Frame components — registered automatically by file name when used
 │   └── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
 ├── lib/                   # internal plumbing — not meant to be edited by a fork
 │   ├── main.ts                # entry: re-exports the SFC as default + the manifest
@@ -26,7 +26,7 @@ ar-module-template/
 │   ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
 │   ├── gltf-meshopt-setup.ts  # patches THREE.GLTFLoader so meshopt-compressed .glb files load
 │   ├── vendor/                # vendored meshopt decoder (gltf-meshopt-setup.ts's only dependency)
-│   └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
+│   └── virtual-manifest.d.ts  # ambient types for `virtual:ar-manifest` and `virtual:used-components`
 ├── scripts/
 │   └── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
 └── uncompressed-assets/   # gitignored, local-only; pristine originals kept by compress-assets.ts
@@ -131,12 +131,37 @@ export const manifest: Manifest = {
     "look-controls": "enabled: false",
     "wasd-controls": "acceleration: 30"
   },
-  components: {                          // name → AFRAME component definition
-    "no-frustrum-cull": noFrustrumCull
+  components: {                          // automatic, see below
+    ...usedComponents
   },
   imageTargets: [videoTarget],           // 8th Wall image-target JSON
   hostLights: false                      // optional, see below
 };
+```
+
+### Components register automatically
+
+Every file in `src/a-frame-components/` with a default export is an A-Frame
+component **named after its file** (`place-in-front.ts` → `place-in-front`).
+The ones your module actually uses — found by name in `ArModule.vue` and the
+files it imports, plus whatever those components use themselves — are
+bundled and registered automatically (`virtual:used-components`, built by
+`scripts/used-components.ts` in `vite.config.ts`). Same in `npm run dev`,
+`npm run dev:ar` (recomputed when you edit `src/`, the page reloads) and
+`npm run build`. Unused components are neither bundled nor registered, which
+keeps the module small and keeps it from claiming component names in the
+shared host scene (first registration of a name wins there).
+
+So to use a component: copy its file into `src/a-frame-components/` and put
+its name on an entity — nothing to import or list in `manifest.ts`. Files
+without a default export (`*-shared.ts`, `sound-unlock-audio.ts`, …) are
+helpers and are never registered. Only a component that must be registered
+under a different name than its file, or whose name is assembled at runtime
+(`"my-" + kind`, which the scan can't see), needs a manual entry after the
+spread in `manifest.ts`:
+
+```ts
+components: { ...usedComponents, "my-name": myComponent }
 ```
 
 ### Host lights: `hostLights`
@@ -175,7 +200,8 @@ walks the manifest and, in order:
 
 1. **`components`** — registers each `name → definition` via `AFRAME.registerComponent`
    (skipping any already registered). Definitions are **bundled into your module**
-   — author them in `src/a-frame-components/` and import them into `manifest.ts`.
+   — author them in `src/a-frame-components/`; the ones the module uses are
+   added to `components` automatically (see above).
    They no longer need to self-register or be hosted as separate URLs.
 2. **`camera`** — applies each attribute to the scene's `<a-camera>`, remembering
    the previous values.

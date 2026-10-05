@@ -23,18 +23,12 @@ previews load — nothing to copy for them.
 1. **Copy the files** — `gesture-control.ts` and `hold-drag.ts` — into
    `src/a-frame-components/`.
 
-2. **Register** in `src/manifest.ts`:
-
-   ```ts
-   import holdDrag from "./a-frame-components/hold-drag";
-   import gestureControl from "./a-frame-components/gesture-control";
-
-   components: {
-     // ...whatever you already have...
-     "hold-drag": holdDrag,
-     "gesture-control": gestureControl
-   }
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire the scene** — `gesture-control` on the model
    (`examples/gestures-usage.html`). Requirements are met by the host and

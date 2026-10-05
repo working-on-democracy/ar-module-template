@@ -31,18 +31,12 @@ combining with anything else that writes an entity's transform.
    (`scene-tap-shared.ts` is imported by both; copy it even if you only use
    one of them.)
 
-2. **Register** in `src/manifest.ts`:
-
-   ```ts
-   import placeInFront from "./a-frame-components/place-in-front";
-   import tapPlaceCursor from "./a-frame-components/tap-place-cursor";
-
-   components: {
-     // ...whatever you already have...
-     "place-in-front": placeInFront,
-     "tap-place-cursor": tapPlaceCursor
-   }
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire the scene** — put your whole scene in one group entity with
    `place-in-front` (examples 1–2 in `examples/placement-usage.html`), and/or

@@ -28,19 +28,12 @@ main character's sound source).
 1. **Copy the file** — `wander-in-band.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import wanderInBand from "./a-frame-components/wander-in-band";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "wander-in-band": wanderInBand
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
