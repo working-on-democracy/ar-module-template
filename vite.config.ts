@@ -264,11 +264,19 @@ export default defineConfig(async ({ command, mode }) => {
   //    instead of pinned via package.json.
   const copyTargets: { src: string; dest: string }[] = [];
   if (!isLibBuild) {
-    copyTargets.push({ src: "node_modules/@8thwall/xrextras/dist/*", dest: "external/xrextras" });
+    // Augmented Bahnhofsviertel: the host app's own xrextras build (byte-identical
+    // to the one in the old 8th Wall exports), not @8thwall/xrextras — so the
+    // preview and the standalone build run what the host runs. See
+    // augmented-bahnhofsviertel/PORTING-GUIDE.md §9.
+    copyTargets.push({ src: "lib/vendor/xrextras-host/*", dest: "external/xrextras" });
   }
   if (isAr) {
     copyTargets.push({ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" });
-    copyTargets.push({ src: "lib/vendor/8frame-1.5.0.min.js", dest: "external/scripts" });
+    // Augmented Bahnhofsviertel: the host app's 8frame 1.3.0 (three r137) — the
+    // same file the old 8th Wall exports and the host load, and it does pair
+    // with @8thwall/engine-binary (host in production since 2026-05; verified
+    // headless here). 8frame-1.5.0 stays vendored for feature_template merges.
+    copyTargets.push({ src: "lib/vendor/8frame-1.3.0.min.js", dest: "external/scripts" });
   }
   if (copyTargets.length) {
     plugins.push(viteStaticCopy({ targets: copyTargets }));

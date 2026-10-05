@@ -72,6 +72,20 @@ declare const THREE: any;
 // bigger area at a fraction of the shadow-map resolution, and the default
 // depth range 0.5–500 would spread the shadow map's depth precision over 1/s
 // times the old range (visible as shadow acne, found on #14).
+//
+// `hostLightScale` multiplies the intensity of every light OUTSIDE the hull
+// while the hull exists, and restores it on remove(). The host app
+// (ar-demo-backend, ArScene.vue) keeps an ambient (#BBB) and a directional
+// (0.6) light on permanently, on top of which a module's own lights add —
+// so the old scenes, which brought their complete lighting, came out
+// brighter than authored. Decided 2026-10-05: halve them (0.5), not switch
+// them off. Interim solution: cleaner would be a manifest field the host's
+// module loader honours (e.g. `hostLights: 0.5`) — then set this to 1.
+// (three.js can't exclude a light per object: no light linking, and layers
+// disable a light for every object.) lib/preview-ar.ts mirrors the host's two lights so preview and
+// standalone build look like the host. Each light's original intensity is
+// remembered once (shared across hulls), so nested or repeated hulls can't
+// compound the factor.
 const TAP_MAX_MS = 350;
 const TAP_MAX_MOVE_PX = 12;
 
@@ -91,7 +105,8 @@ export default {
     scaleShadows: { type: "boolean", default: true },
     scaleSounds: { type: "boolean", default: true },
     scaleLights: { type: "boolean", default: true },
-    tapRecenter: { type: "boolean", default: false }
+    tapRecenter: { type: "boolean", default: false },
+    hostLightScale: { type: "number", default: 0.5 }
   },
 
   init() {
@@ -144,6 +159,41 @@ export default {
     window.addEventListener("pointerdown", self.onPointerDown, true);
     window.addEventListener("pointerup", self.onPointerUp, true);
     window.addEventListener("pointercancel", self.onPointerCancel, true);
+    self.dimHostLights();
+  },
+
+  dimHostLights() {
+    const self = this as any;
+    const factor = self.data.hostLightScale;
+    if (factor === 1) return;
+    const registry: Map<Element, { intensity: number; users: number }> =
+      ((window as any).__legacySpaceHostLights ??= new Map());
+    self.dimmedLights = [];
+    self.el.sceneEl.querySelectorAll("[light]").forEach((light: any) => {
+      if (self.el.contains(light) || !light.components?.light) return;
+      let entry = registry.get(light);
+      if (!entry) {
+        entry = { intensity: light.getAttribute("light").intensity, users: 0 };
+        registry.set(light, entry);
+      }
+      entry.users++;
+      light.setAttribute("light", "intensity", entry.intensity * factor);
+      self.dimmedLights.push(light);
+    });
+  },
+
+  restoreHostLights() {
+    const self = this as any;
+    const registry: Map<Element, { intensity: number; users: number }> | undefined =
+      (window as any).__legacySpaceHostLights;
+    for (const light of self.dimmedLights ?? []) {
+      const entry = registry?.get(light);
+      if (!entry) continue;
+      if (--entry.users > 0) continue;
+      registry!.delete(light);
+      if (light.isConnected) light.setAttribute("light", "intensity", entry.intensity);
+    }
+    self.dimmedLights = [];
   },
 
   tick(_time: number, delta: number) {
@@ -258,5 +308,6 @@ export default {
     window.removeEventListener("pointerdown", self.onPointerDown, true);
     window.removeEventListener("pointerup", self.onPointerUp, true);
     window.removeEventListener("pointercancel", self.onPointerCancel, true);
+    self.restoreHostLights();
   }
 } as ComponentDefinition;
