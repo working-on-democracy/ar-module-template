@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-platform/
 dist-ar/
+release/
 *.log
 .DS_Store
 
