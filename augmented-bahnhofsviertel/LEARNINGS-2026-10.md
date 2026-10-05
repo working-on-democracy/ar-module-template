@@ -238,6 +238,8 @@ damit sie später nicht als „Bug“ zurückgedreht werden:
 | #10 | Start-Screen verschwindet | Original warf beim Start einen Fehler (nicht vorhandener Sound) und blieb stehen |
 | #14 | `shadowBias: -0.0005` | Schattenartefakte |
 | #21 | Abstand/Pinch nach Handy-Test angepasst | Reisende −35, Pinch aufs Modell |
+| #20 | Neuport nach der Live-App: acht Muscheln, Ton 8/4 bzw. 8/2 | Export war ein älterer Stand (eine Muschel, 50/500) |
+| #22 | Portalwand-Kreise `radius="10.2"` | Live-App; Export hatte 0 (kein Rückfenster) |
 | #19 | Umgebungslicht weggelassen | im Original `type="ambient;  intensity: 1.5"` — ungültiger Typ, 8frame erzeugte kein Licht (wirkungslos). Die frühere Abweichung z = −70 ist mit dem Neuport (§10) entfallen |
 
 Bewusst **nicht** geändert (getestet und verworfen):
@@ -333,6 +335,12 @@ world.decompose(obj.position, obj.quaternion, obj.scale);
   veröffentlichte Fassung. Läuft das Original noch, dessen ausgelieferte
   Szene (`app8("<body.html>"…)` in der Index-Seite, `…bundle.js` mit den
   Komponenten) als Referenz nehmen und Modelle per Hash abgleichen.
+- **Nummerierte Reihen (#2/#3), Annahme „dieselbe Arbeit“:** Galt für
+  Xenoglossy nicht — der Live-Abgleich zeigte drei Farbfassungen mit eigener
+  Platzierung, eigenem Licht und eigenem Start-Text. **Lehre:** Bei
+  Reihen-Werken jede Live-App einzeln abgleichen, bevor sie als identisch
+  gelten. Beim Bundle-Vergleich lange Zeichenketten nicht abschneiden — die
+  UI-Texte stecken in langen HTML-Labels.
 
 ---
 
