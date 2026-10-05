@@ -79,12 +79,14 @@ declare const THREE: any;
 // (0.6) light on permanently, on top of which a module's own lights add —
 // so the old scenes, which brought their complete lighting, came out
 // brighter than authored. Decided 2026-10-05 after comparing 0 / 0.3 /
-// 0.5 / 1 on a phone (#1): dim them to 0.3, not switch them off. Interim
-// solution: cleaner would be a manifest field the host's module loader
-// honours (e.g. `hostLights: 0.3`) — then set this to 1. (three.js can't
-// exclude a light per object: no light linking, and layers disable a light
-// for every object.) lib/preview-ar.ts mirrors the host's two lights so
-// preview and standalone build look like the host. Each light's original intensity is
+// 0.5 / 1 on a phone (#1): dim them to 0.3, not switch them off. The host
+// admin suggested exactly this (module reads the scene lights on init,
+// overrides them, restores them on unmount); the final decision with the
+// host is still open, so this may yet be replaced by a host-side mechanism
+// — then set this to 1. (three.js can't exclude a light per object: no
+// light linking, and layers disable a light for every object.)
+// lib/preview-ar.ts mirrors the host's two lights so preview and standalone
+// build look like the host. Each light's original intensity is
 // remembered once (shared across hulls), so nested or repeated hulls can't
 // compound the factor.
 const TAP_MAX_MS = 350;
