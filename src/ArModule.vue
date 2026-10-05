@@ -90,7 +90,10 @@ const loadSpinnerBackdropStyle = computed(() => ({
 const centerControls: LegacyControl[] = [
   {
     id: 'start',
-    html: 'Richte Kamera auf Europaviertel, tippe auf "Start" und bewege Dich langsam. '
+    // Text from the live app the website links for #4 (mettler-europaplatz,
+    // Willy-Brandt-Platz = Euro-Skulptur); the export mettler-europaplatz2
+    // said "Europaviertel" (decided 2026-10-05).
+    html: 'Richte Kamera auf Euro-Skulptur, tippe auf "Start" und bewege Dich langsam. '
       + '<div style="padding: .5em; background: #1d1eff; margin-top: .5em;">Start</div>',
     onClick: () => {
       document.getElementById('europaplatz-ii-legacy-space')
