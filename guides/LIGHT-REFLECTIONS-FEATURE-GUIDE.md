@@ -1,12 +1,36 @@
 # Light & Reflections feature guide
 
+<!-- overview -->
+## Overview
+
+Helps virtual objects look like they really stand in the room. A shiny
+object mirrors the actual surroundings the phone camera sees — walk past a
+chrome sculpture and you glimpse the street and yourself in it. Alternatively
+an object can reflect a designed, imagined environment made of six
+pictures. And the virtual lights can follow the real brightness: when a
+cloud passes or the visitor steps into a dark doorway, the virtual objects
+dim along with everything else.
+
+<!-- /overview -->
+
+## Technical summary
+
 Makes virtual objects belong to the real place: reflections of the real
 surroundings, live from the camera image (`cubemap-realtime`), or designed
 reflections from six images (`cubemap-static`), and lights whose brightness
 follows the measured brightness of the room (`xr-light`). Applicable to any
-entity with a mesh / a light. Ported from the Augmented Bahnhofsviertel
-8th Wall projects via `augmented-bahnhofsviertel` (same names and schemas,
-so old 8th Wall markup carries over) — see [3. Under the hood](#3-under-the-hood).
+entity with a mesh / a light. Names and schemas match 8th Wall's original
+components of the same names, so existing 8th Wall markup carries over —
+see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from the Augmented Bahnhofsviertel 8th Wall projects via
+`augmented-bahnhofsviertel`, which used these components (in their 8th Wall
+versions) in several works.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -63,7 +87,7 @@ lighting/env-map plumbing and its pitfalls, but each works on its own.
 | `materials` | array | `[]` | Only materials with these names; empty = all with an envMap slot. |
 | `reflectivity` | number | `1` | 0–1, for materials that use it (Phong/Lambert/Basic). |
 | `envMapIntensity` | number | `1` | Reflection strength (standard/physical materials). |
-| `colorSpace` | string | `linear` | `linear` = image values as-is (host's three r137, the old projects); `srgb` = linearised first (darker). |
+| `colorSpace` | string | `linear` | `linear` = image values as-is (host's three r137, 8th Wall-era scenes); `srgb` = linearised first (darker). |
 | `enableBackground` | boolean | `false` | Also show the cube as scene background. |
 | `extension`, `format` | — | — | Accepted for old 8th Wall markup, ignored. |
 
@@ -102,10 +126,10 @@ primitives and for models swapped later, not only for glTF `model-loaded`.
 
 **Colour space.** three r152+ marks `CubeTextureLoader` images as sRGB and
 linearises them before shading (mid-grey 0.5 → ~0.21). three r137 — the
-version the host app's 8frame 1.3 bundles, and what the old projects used —
-reads them as linear. `cubemap-static` defaults to linear so preview and
-host agree and old scenes keep their brightness; `colorSpace: srgb` is the
-r152 behaviour. The live render target is sRGB like the original
+version the host app's 8frame 1.3 bundles, and what 8th Wall-era scenes
+were made with — reads them as linear. `cubemap-static` defaults to linear
+so preview and host agree and existing scenes keep their brightness;
+`colorSpace: srgb` is the r152 behaviour. The live render target is sRGB
 (`encoding: sRGBEncoding`), set through `colorSpace` on r152+ and through
 `encoding` on r137 — with only one of the two, it silently falls back to
 linear on the other.
@@ -117,19 +141,30 @@ can't register A-Frame systems), removed again when the last instance goes,
 so an unmounted module leaves nothing running in the host's XR8 pipeline.
 Intensity is only written when it changed.
 
-Changes against the 8th Wall originals: cloning, `object3dset`, unique and
-removed pipeline modules (the original's shared `cubemap-process` name let a
-second instance replace the first), `needsPMREMUpdate`, `RGBFormat` (gone
-in r137+) ignored, plus the new `envMapIntensity`/`size`/`colorSpace`
-options whose defaults keep the original behaviour.
+Each instance gets its own, uniquely named pipeline module that is removed
+again with the instance (a shared name would let a second instance replace
+the first). `RGBFormat` (gone in r137+) is accepted and ignored; the
+`envMapIntensity`/`size`/`colorSpace` defaults keep the behaviour of 8th
+Wall's original components.
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+Changes against the 8th Wall originals used in the Augmented
+Bahnhofsviertel projects: cloning, `object3dset`, unique and removed
+pipeline modules (the original's shared `cubemap-process` name let a second
+instance replace the first), `needsPMREMUpdate`, `RGBFormat` ignored, plus
+the new `envMapIntensity`/`size`/`colorSpace` options.
+
+<!-- /project-specific -->
 
 ## 4. Incompatibilities, risks & troubleshooting
 
 - **Two different env maps on copies of the same model.** A
   `cubemap-static` on one instance and a `cubemap-realtime` on another
   instance of the same glTF interfere when three r158 prefilters them — the
-  live one ended up showing the static image (found on an Augmented
-  Bahnhofsviertel work). Use one kind of env map per model asset.
+  live one can end up showing the static image. Use one kind of env map per
+  model asset.
 - **Materials replaced later lose the reflection.** [`unlit-material`](LOD-BILLBOARD-FEATURE-GUIDE.md)
   and [Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md) swap in
   new material objects; a reflection applied *before* is carried along by
@@ -140,8 +175,8 @@ options whose defaults keep the original behaviour.
   not the component. Use [Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md)
   to make a model reflective.
 - **Cost.** Each `cubemap-realtime` renders six cube faces every camera
-  frame. A handful is fine on phones (one Augmented Bahnhofsviertel work
-  runs eight); for many objects lower `size` or share one model.
+  frame. A handful is fine on phones (eight have run smoothly in one
+  scene); for many objects lower `size` or share one model.
 - **Host lights.** The host keeps two base lights on; a module that brings
   its complete lighting can switch them off with `hostLights: false` in the
   manifest (see README). Only in a module with lights of its own —
@@ -149,3 +184,12 @@ options whose defaults keep the original behaviour.
   or provide reflections.
 - **No XR8, no live data.** In `npm run dev` `cubemap-realtime` does nothing
   and `xr-light` stays at clamp(1, min, max).
+
+<!-- project-specific -->
+### Project context: Augmented Bahnhofsviertel
+
+The env-map interference between copies of one model was found on an
+Augmented Bahnhofsviertel work; another work of that series runs eight
+`cubemap-realtime` instances on phones.
+
+<!-- /project-specific -->

@@ -1,12 +1,34 @@
 # Portal feature guide
 
+<!-- overview -->
+## Overview
+
+A magic door into another world. From outside, the visitor sees a doorway
+standing in the real street, and through it a glimpse of a different place
+— but walking around it, there is nothing behind the frame. Step through
+the door and the other world is suddenly all around them; looking back, a
+round window may still show the real world they came from. The door can
+start closed and spring open with a bouncy animation when the visitor taps
+Start.
+
+<!-- /overview -->
+
+## Technical summary
+
 A walk-through portal: from outside, another world is visible only through
 a doorway; step through the door plane and you are inside it, all around —
 optionally with a round window back to the real world, and a door that
-springs open on a Start tap. Applicable to any entity. Generalised from the
-Augmented Bahnhofsviertel ports (`augmented-bahnhofsviertel`:
-`legacy-portal`, #22 Privileged I, #7 I can't get no) — see
+springs open on a Start tap. Applicable to any entity — see
 [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Generalised from the Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`: `legacy-portal`, #22 Privileged I, #7 I
+can't get no). The default opening animation is #7's springy 1.5 s door.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -67,21 +89,30 @@ the doorway), walls are switched off and the contents show all around; the
 **Draw order is pinned.** The hiders only work if they draw before the
 contents. three r137 (8frame 1.3 — the host app) sorts opaque objects by
 material id (creation order), r158 (8frame 1.5) by distance only — so
-without explicit order the result flips with every camera move (found on
-an Augmented Bahnhofsviertel work: a video in front of the door invisible,
-the inside world flashing). `portal` sets `renderOrder` on every mesh:
+without explicit order the result flips with every camera move (e.g. a
+video in front of the door turns invisible, the inside world flashes).
+`portal` sets `renderOrder` on every mesh:
 hiders 1, contents 2, everything else stays 0 and draws first. It re-applies
 whenever a mesh appears below it (`object3dset` bubbles), so glTF contents
 that load later are covered.
 
-**Camera in the portal's space.** The original sat on the camera and read
-its local position as scene coordinates; a module never owns the camera,
-and the portal usually sits in a placed/scaled parent. `portal` converts the
+**Camera in the portal's space.** A module never owns the camera, and the
+portal usually sits in a placed/scaled parent, so `portal` converts the
 camera's world position into its own space every tick.
 
 **Door.** A hider `a-ring` with `radius-inner` ≈ 0 covers the doorway;
-`portal-open` animates the inner radius to `openRadius` (the #7 springy
-1.5 s opening), `portal-close` back.
+`portal-open` animates the inner radius to `openRadius` (by default a
+springy 1.5 s opening), `portal-close` back.
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+The draw-order flip was found on an Augmented Bahnhofsviertel work (a video
+in front of the door invisible, the inside world flashing). The original
+portal component sat on the camera and read its local position as scene
+coordinates, which doesn't work for a module.
+
+<!-- /project-specific -->
 
 ## 4. Incompatibilities, risks & troubleshooting
 

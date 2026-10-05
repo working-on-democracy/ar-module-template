@@ -312,6 +312,62 @@ this order, matching `guides/SOUND-FEATURE-GUIDE.md`:
 4. **Incompatibilities, risks & troubleshooting** — see step 12; this
    section's content comes directly out of that check.
 
+### Wiki-ready structure: overview and project context
+
+The guides (and the docs in `cross-feature-reference-docs/`) are read
+automatically by the `an-alle-wiki` build, which shows only the general
+explanations and leaves everything project-specific out. Two markers make
+that possible — use them in every new or edited guide:
+
+- **Overview first.** Directly under the `#` title, a short overview in
+  plain, visual language — what you can do with the feature, what the
+  visitor sees, what the result is; no code, no file names, no project
+  names. Wrapped exactly like this, then the technical intro under
+  `## Technical summary`:
+
+  ```markdown
+  <!-- overview -->
+  ## Overview
+
+  …
+
+  <!-- /overview -->
+
+  ## Technical summary
+  ```
+
+  Cross-feature docs use `## Introduction` (may be longer, still
+  non-technical) followed by `## About this guide`, inside the same
+  `<!-- overview -->` markers.
+
+- **Project context in its own block.** Anything that names or depends on
+  a specific project — source branch, student/client project, Augmented
+  Bahnhofsviertel work number, what a port changed compared to its
+  source, "found on project X", dates of a verification on a project
+  branch — goes into its own paragraph(s) with its own subheading, one
+  level below the surrounding section, in the section it belongs to:
+
+  ```markdown
+  <!-- project-specific -->
+  ### Project context: <project or "origin">
+
+  …
+
+  <!-- /project-specific -->
+  ```
+
+  The origin of a feature goes into a `Project context: origin` block
+  right after the technical intro. Never put such a block inside a list or
+  table — move the project remark out (end of the list/section) and keep
+  the general statement in place.
+
+- **The rest must read without the blocks.** Remove every project block
+  mentally: the general text must still make sense — no "the source",
+  "this port", "as in the original", no references into a project block,
+  no sections that become empty. Rephrase the general statement so it
+  stands on its own (e.g. "the component clones each material" instead of
+  "the port added cloning because the source didn't").
+
 ## 10. Update `FEATURE-CATALOG.md`
 
 `FEATURE-CATALOG.md` is the quick-lookup index across every feature on

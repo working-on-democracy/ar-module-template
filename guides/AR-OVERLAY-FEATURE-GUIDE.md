@@ -1,12 +1,36 @@
 # AR Overlay feature guide
 
+<!-- overview -->
+## Overview
+
+Puts flat, screen-fixed buttons and hints on top of the camera picture —
+the "Tap to start", "Play" or "Look around" messages a visitor sees before
+and while the AR scene runs. They appear only once the scene is loaded and
+standing in the room, vanish when tapped, and run whatever should happen
+next (start the sound, start a video, …). A small round button in the
+corner moves the scene back in front of the visitor if they have wandered
+off or it ended up in an awkward spot.
+
+<!-- /overview -->
+
+## Technical summary
+
 A module's 2D UI over the camera image: a centre column of controls (a
 hint text, a "Start" or "Play" button, an audio/video unlock button, …)
 and an optional recenter button. Waits for the scene's placement if
 wanted. Inline styles only, so it looks the same in the host as in the
-previews. Generalised from the Augmented Bahnhofsviertel ports
-(`augmented-bahnhofsviertel`: `LegacyOverlay.vue`, the old 8th Wall
-projects' `ui.js`/`ui.css` look) — see [3. Under the hood](#3-under-the-hood).
+previews — see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Generalised from the Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`: `LegacyOverlay.vue`), which recreated the old
+8th Wall projects' `ui.js`/`ui.css` look. Those projects waited for 8th
+Wall's `realityready` before showing their UI — the placement wait described
+in §3 takes that role here.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -67,8 +91,8 @@ style object.
 
 **Waiting for placement.** With `placeTarget` the overlay listens for
 `place-in-front-placed` on that entity (and checks `placed` once on mount,
-in case placement already happened) — the stand-in for the old projects'
-`realityready`, so a "Start" hint never shows before the scene exists.
+in case placement already happened), so a "Start" hint never shows before
+the scene exists.
 Recenter dispatches `place-in-front-place` to the same entity, re-placing
 only this module.
 

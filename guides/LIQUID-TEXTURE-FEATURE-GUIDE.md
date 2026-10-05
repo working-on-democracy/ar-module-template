@@ -1,31 +1,49 @@
 # Liquid-texture feature guide
 
+<!-- overview -->
+## Overview
+
+Paints a living, marbled ink pattern that can be put on any surface — like
+drops of coloured ink swirling in water. Every tap stirs it: the ink swirls
+around the touched spot and, little by little, gathers into the shape of a
+chosen picture, as if the image were slowly developing out of the liquid.
+Without a picture it simply stays an ever-changing marble pattern. Three
+colours define its palette, from pale to dark.
+
+<!-- /overview -->
+
+## Technical summary
+
 A generic, reusable procedural "liquid ink" texture generator: fbm-driven
 marbling that optionally reveals a target image (attracted toward its dark
 areas, following its edges) as `pulse()` is called, with a cellular bubble
 decoration and swirl distortion around the last pulse point. Renders once
 per instance to an offscreen texture any material can sample — not tied to
-`mirror-shard` or any other consumer, despite being salvaged alongside it.
+`mirror-shard` or any other consumer. One target + a 3-stop customizable
+palette; see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
 
 Salvaged and substantially simplified from `Zhichang_module`'s
-`dms-mirror-shards.ts` (`DMS_LIQUID_FRAGMENT_SHADER`). See
-[3. Under the hood](#3-under-the-hood) for what changed and why — in short,
-the source computed **two** competing inks (a hardcoded "democratic blue"
-vs. "authoritarian orange" pair, each racing to fill the canvas from its own
-target image, blended through a "conflict zone") as bespoke narrative
-content for one specific art installation. This keeps the actually generic
-technique — marbling, swirl, single-target attraction, cellular decoration —
-and drops the two-target political narrative, exposing one target + a
-3-stop customizable palette instead.
+`dms-mirror-shards.ts` (`DMS_LIQUID_FRAGMENT_SHADER`), alongside
+[Mirror Shard](MIRROR-SHARD-FEATURE-GUIDE.md). The source computed **two**
+competing inks (a hardcoded "democratic blue" vs. "authoritarian orange"
+pair, each racing to fill the canvas from its own target image, blended
+through a "conflict zone") as bespoke narrative content for one specific
+art installation. The template keeps the generic technique and drops the
+two-target political narrative (details in §3).
+`examples/mirror-shard-liquid-texture-scene.html` recreates the original
+`Zhichang_module` scene as closely as the template allows.
+
+<!-- /project-specific -->
 
 Files:
 
 ```
 src/a-frame-components/liquid-texture.ts
 examples/liquid-texture-usage.html   # scene wiring + full attribute reference
-examples/mirror-shard-liquid-texture-scene.html # combined with mirror-shard,
-                                  # recreating the original Zhichang_module
-                                  # scene as closely as this system allows
+examples/mirror-shard-liquid-texture-scene.html # combined with mirror-shard
 ```
 
 No bundled data/assets — the (optional) target image is supplied by
@@ -98,7 +116,20 @@ that specific event (applies identically here).
 
 ## 3. Under the hood
 
-### What changed from the source, and why
+### What the shader does
+
+The generic technique: fbm-based marbling, swirl distortion around a
+pointer/pulse point, attraction toward a target image's dark areas and
+edges, and a cellular bubble decoration. All of it drives a single
+continuous "revealed" amount (`uFinal`), recoloured through a plain 3-stop
+palette (`colorLight`/`colorMid`/`colorDark`). The shader building blocks
+`pigmentBoost`/`hash`/`noise`/`fbm`/`swirl`/`cellRing`/`cellFill` are
+plain, reusable functions.
+
+<!-- project-specific -->
+#### Project context: `Zhichang_module`
+
+##### What changed from the source, and why
 
 The source shader (`DMS_LIQUID_FRAGMENT_SHADER`, ~600 lines) modeled two
 inks simultaneously: a "blue" one attracted to one target image, an
@@ -133,25 +164,33 @@ fallback), and the `conflict`/`orangeWins`/`sharedPigment` blend logic that
 only has meaning with two inks. `pigmentBoost`/`hash`/`noise`/`fbm`/`swirl`/
 `cellRing`/`cellFill` are unchanged (already generic).
 
+<!-- /project-specific -->
+
 ### Bundled example textures
 
 `src/assets/liquid-texture-target-1.webp` and `liquid-texture-target-2.webp`
-(the source's `single-liquid-final-target.webp` and
-`authoritarian-orange-final-target-v1.webp`, renamed to this template's
-`<component>-<name>` convention) are real, working example images, brought
-in specifically so `examples/liquid-texture-usage.html` can demonstrate the
-`target` attribute against an actual photo rather than a placeholder id
-that doesn't resolve to anything. This is a deliberate, narrow exception to
-`ADDING-FEATURES-WORKFLOW.md`'s "don't bring project-specific artistic
-content into the template" guidance from the earlier features' guides — the
-two illustrations themselves are generic enough (abstract silhouette
-scenes, no text or explicit political symbols) to serve as reusable *demo*
-content once separated from the source's "democratic blue vs. authoritarian
-orange" framing and file names, unlike e.g. the sound feature's Wand models
-or mirror-shard's own source narrative shader math, which weren't brought
-over at all. Treat them as placeholder/demo assets a real project replaces
+are real, working example images (abstract silhouette scenes), shipped so
+`examples/liquid-texture-usage.html` can demonstrate the `target` attribute
+against an actual photo rather than a placeholder id that doesn't resolve
+to anything. Treat them as placeholder/demo assets a real project replaces
 with its own imagery, same as any other example content in this template —
 not as this component's permanent default look.
+
+<!-- project-specific -->
+#### Project context: `Zhichang_module`
+
+The two images are the source's `single-liquid-final-target.webp` and
+`authoritarian-orange-final-target-v1.webp`, renamed to the template's
+`<component>-<name>` convention. Bringing them in is a deliberate, narrow
+exception to `ADDING-FEATURES-WORKFLOW.md`'s "don't bring project-specific
+artistic content into the template" guidance — the illustrations are
+generic enough (no text or explicit political symbols) to serve as demo
+content once separated from the source's "democratic blue vs.
+authoritarian orange" framing and file names, unlike e.g. the sound
+feature's Wand models or mirror-shard's narrative shader math, which
+weren't brought over at all.
+
+<!-- /project-specific -->
 
 Both are ~1100-1450px WebP, already reasonably sized for a texture (this
 component's own render target tops out at 1024px even at `quality: high`),
@@ -161,7 +200,7 @@ actually be sampled at, not larger, the same as any texture.
 
 ### Offscreen rendering, throttled
 
-Like the source, this renders to a `THREE.WebGLRenderTarget` via a small
+This renders to a `THREE.WebGLRenderTarget` via a small
 orthographic-camera scene (a fullscreen quad running the fragment shader),
 throttled by the resolved quality profile's fps — not every frame. The
 result (`state.target.texture`) is what `getTexture()` returns; it's a
@@ -173,9 +212,8 @@ texture — imperceptible).
 
 The offscreen render temporarily calls `renderer.setRenderTarget(...)` and,
 if the renderer has WebXR active, sets `renderer.xr.enabled = false` for
-the duration (restoring both immediately after). This is inherited
-unchanged from the source. **This was deliberately not "fixed" or removed**
-— see [4](#4-incompatibilities-risks--troubleshooting) for why it's a real,
+the duration (restoring both immediately after). **This is deliberately
+not "fixed" or removed** — see [4](#4-incompatibilities-risks--troubleshooting) for why it's a real,
 documented risk rather than a solved problem.
 
 ## 4. Incompatibilities, risks & troubleshooting
@@ -201,10 +239,9 @@ render-loop ordering across multiple systems), so:
   run one at a time), but the *cumulative* cost of N separate offscreen
   passes per frame is real and additive.
 - This is the same category of risk flagged (but not resolved) for the
-  sound feature's cross-module interactions: inherited from the source
-  branch's own working code, kept because there's no verified-safe
-  simplification available, not because it's been proven safe in every
-  configuration. Test on-device if a project combines several instances of
+  sound feature's cross-module interactions: kept because it is known to
+  work and there's no verified-safe simplification available, not because
+  it's been proven safe in every configuration. Test on-device if a project combines several instances of
   this feature.
 
 ### Quality/cost knobs, if this needs to be cheaper

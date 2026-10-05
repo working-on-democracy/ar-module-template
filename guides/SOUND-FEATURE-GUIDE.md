@@ -1,5 +1,22 @@
 # Sound feature guide
 
+<!-- overview -->
+## Overview
+
+Turns objects in your AR scene into buttons that make sound. Point your
+phone at a floating sign or a model and it gently pulses to show "you can
+tap me"; tap it and its sound starts, tap again to pause, tap another one
+and the first falls silent while the new one plays — like a jukebox where
+only one record spins at a time. A small play/pause/stop bar at the bottom
+of the screen controls whatever is currently playing. For scenes with a
+background soundscape that should simply run on its own, a friendly
+"tap to enable sound" hint makes sure the phone actually lets the audio
+play.
+
+<!-- /overview -->
+
+## Technical summary
+
 A tappable/gazable 3D button system (`ar-button` + `ar-button-manager`) and a
 sound-playback feature built on top of it (`sound-button` + `sound-controller`
 + a 2D play/pause/stop GUI panel). The button system is generic — reusable by
@@ -30,6 +47,20 @@ examples/
   sound-gui-panel.html        # copy/paste block for the 2D GUI panel
   sound-unlock-overlay-usage.html # copy/paste block for the ambient-audio unlock overlay
 ```
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Jakob_module`. There, three tightly-coupled components
+(`sound-button-manager`/`sound-button-group`/`sound-button`) mixed gaze/tap
+detection with sound playback in the same files; the template split them
+into the two layers described in [3. Under the hood](#3-under-the-hood). The
+lack of cross-module tap arbitration (§4) was already true of that original
+`sound-button-manager`. The ambient-audio unlock overlay came from
+`Fanyu_module`, the scene-audio helpers from the Augmented Bahnhofsviertel
+ports (see §3).
+
+<!-- /project-specific -->
 
 ## 1. Step-by-step: adding this to a new project
 
@@ -195,10 +226,8 @@ all) and the same attribute table with more context.
 
 ### Why two layers
 
-The original implementation (three tightly-coupled components:
-`sound-button-manager`/`sound-button-group`/`sound-button`) mixed "how do I
-detect a gaze/tap on a 3D object" with "how do I play a sound" in the same
-files. This version splits that into:
+"How do I detect a gaze/tap on a 3D object" and "how do I play a sound" are
+two separate questions, so the feature splits them into two layers:
 
 - **Generic layer** — `ar-button` + `ar-button-manager`. Knows nothing about
   audio. Answers exactly one question: which button (if any) is the camera
@@ -324,8 +353,7 @@ deregister the component from the tick loop when called.
 ### `sound-scene-audio.ts` (optional helpers)
 
 For scenes whose plain A-Frame `sound` entities simply start together after
-one "Start/Play" tap (no per-button control) — added from the Augmented
-Bahnhofsviertel ports (`legacy-audio.ts`):
+one "Start/Play" tap (no per-button control):
 
 - `playSounds(root)` — unlocks audio (`sound-unlock-audio.ts`) and starts
   every `sound` under `root`. Call synchronously inside the tap handler
@@ -336,6 +364,15 @@ Bahnhofsviertel ports (`legacy-audio.ts`):
 - `scaleSoundDistances(root, scale)` — multiplies positional sounds'
   refDistance/maxDistance (on the pooled PositionalAudio objects, so a
   playing sound isn't restarted) for scenes scaled by `scale`.
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+These helpers came from the Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`, there named `legacy-audio.ts`), whose works
+start all their sounds together after one Start/Play tap.
+
+<!-- /project-specific -->
 
 Copy `sound-scene-audio.ts` together with `sound-unlock-audio.ts`; nothing
 to register.
@@ -363,28 +400,39 @@ a silent `HTMLAudioElement` play as a fallback for older Safari).
 
 ### The tap-to-enable-sound overlay
 
-Ported from `Fanyu_module`'s ArModule.vue, which had this entangled with
-that project's own specific ambient soundscape — four looping clips, each
-offset into its own timeline by a fixed amount (`0s`/`10s`/`20s`/`30s`) so
-they don't all hit their quiet stretches in sync. That staggering is a
-choreography of *that project's specific audio content* (it assumes 4
-same-length clips exist), not a portable mechanism — per
-`ADDING-FEATURES-WORKFLOW.md`'s step 5 ("artistic / project-specific
-content... doesn't travel"), it was deliberately left behind. What's ported
-is only the generic mechanism: try to unlock eagerly on mount (in case an
-earlier gesture already did), listen for the next real gesture anywhere on
-the page if not, and show a friendly prompt if neither has happened within
-`UNLOCK_OVERLAY_DELAY_MS`.
+The overlay is only the generic unlock mechanism: try to unlock eagerly on
+mount (in case an earlier gesture already did), listen for the next real
+gesture anywhere on the page if not, and show a friendly prompt if neither
+has happened within `UNLOCK_OVERLAY_DELAY_MS`. How the ambient sounds
+themselves are scheduled (e.g. several loops offset against each other) is
+the project's own content, not part of the feature.
 
-**Deliberately decoupled from any specific sound entity.** The source's
-overlay code directly held template refs to its project's own 4 sound
-entities (to look up `.sceneEl.audioListener.context` and to schedule their
-playback). This port doesn't reference any sound entity at all — it calls
+**Deliberately decoupled from any specific sound entity.** The overlay
+doesn't reference any sound entity at all — it calls
 `THREE.AudioContext.getContext()` directly (the same shared, page-wide
 context `sound-unlock-audio.ts` itself resumes) rather than reading it off
 of one. That makes the overlay reusable regardless of how many ambient
 sound entities a project has, or how their playback is scheduled — entirely
 the project's own concern, same as any other `sound` component usage.
+
+<!-- project-specific -->
+#### Project context: `Fanyu_module`
+
+The overlay was ported from `Fanyu_module`'s `ArModule.vue`, which had it
+entangled with that project's own ambient soundscape — four looping clips,
+each offset into its own timeline by a fixed amount (`0s`/`10s`/`20s`/`30s`)
+so they don't all hit their quiet stretches in sync. That staggering is a
+choreography of that project's specific audio content (it assumes four
+same-length clips exist), not a portable mechanism — per
+`ADDING-FEATURES-WORKFLOW.md`'s step 5 ("artistic / project-specific
+content... doesn't travel"), it was deliberately left behind. The source's
+overlay code also held template refs to its four sound entities (to look up
+`.sceneEl.audioListener.context` and to schedule their playback); the
+template version replaced that with the shared context described above.
+The capture-phase listener below matches that source's verified-working
+behavior.
+
+<!-- /project-specific -->
 
 **Why the listener is capture-phase, not bubble-phase.** `pointerdown`/
 `keydown` are added with `{capture: true}`, called synchronously inside the
@@ -396,8 +444,8 @@ stop the event from reaching a bubble-phase listener instead. In practice
 this rarely changes the outcome here — the one case it would matter for
 (tapping `sound-gui-panel.html`'s own buttons, which call `.stop`) already
 independently unlocks audio via `sound-controller`'s own direct
-`unlockAudio()` call — but it costs nothing and matches the verified-working
-source behavior exactly.
+`unlockAudio()` call — but it costs nothing and is the verified-working
+setup.
 
 **Only marks `audioUnlocked` once actually confirmed** (`ctx.state ===
 "running"`), never merely attempted — see the code comment in
@@ -446,8 +494,7 @@ consequences:
 - If two different modules' buttons happen to overlap in screen space, a
   single physical tap can independently satisfy both managers' "was
   something of mine gazed" check and fire `ar-button-tap` in **both**
-  modules — there's no cross-module arbitration by design (this was already
-  true of the original `sound-button-manager`, not a regression here).
+  modules — there's no cross-module arbitration by design.
 - Listener/raycast cost scales with the number of co-mounted modules using
   this feature. Fine at the scale of a handful of modules with a handful of
   buttons each; don't put hundreds of `ar-button`s in one module.
@@ -495,8 +542,8 @@ it from the raycast (can't be gazed/tapped) but does **not** touch
   the same `object3D.scale` that both the visual fade-out and the raycast
   (via `matrixWorld`) depend on, a button faded near-invisible also has a
   near-zero trigger zone, and a pulsing button's zone grows slightly too —
-  this mirrors the original hit-area design (a child mesh that also
-  inherited scale) and is intentional, not a bug.
+  intentional (the zone behaves like a hit-area mesh that inherits the
+  button's scale), not a bug.
 - **Give the camera-facing axis some thickness.** A zero-thickness zone on
   the axis facing the camera is still mathematically raycastable head-on,
   but is much harder to actually hit at oblique/grazing viewing angles.

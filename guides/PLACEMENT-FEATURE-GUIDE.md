@@ -1,14 +1,39 @@
 # Placement & Recenter feature guide
 
+<!-- overview -->
+## Overview
+
+Makes sure a scene shows up in a good spot: as soon as the phone knows
+where the floor is, the scene appears standing on it a few steps in front
+of the visitor, facing them. If they wander off or the scene ends up
+behind them, one tap (or a button) brings it back in front of them. A
+scene can also adapt to the visitor's eye height so it looks the same
+for tall and short people. A second tool works like a pointer on the
+floor: a ring follows the middle of the screen across the ground, and a
+tap drops a model right where the ring is.
+
+<!-- /overview -->
+
+## Technical summary
+
 Puts a scene on the floor in front of the viewer, facing the way the
 camera looks — once the camera has a usable pose, and again whenever the
 viewer recenters (a button, an event, or a tap on the scene). Optionally
 scales the scene to the viewer's height. A second component places a
 model where the viewer taps on the ground, via a cursor that follows the
-centre of the screen. Applicable to any entity. Generalised from the
-Augmented Bahnhofsviertel ports (`augmented-bahnhofsviertel`: `legacy-space`
-for placement/recenter, #5 Unwetter am Steg's `tap-place-cursor`) — see
+centre of the screen. Applicable to any entity — see
 [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Generalised from the Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`: `legacy-space` for placement/recenter, #5
+Unwetter am Steg's `tap-place-cursor`). The old 8th Wall projects of that
+series used a global XR8 `recenter` and the click-based
+`xrextras-tap-recenter`; §3 explains why neither works for a module.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -102,8 +127,7 @@ by `followYaw`, which would tilt a ring rotated on the same entity.
 
 **Why a module places itself.** A module never owns the camera or the 8th
 Wall world origin — the host does (and shows other content and its own UI
-in the same scene). A global XR8 `recenter`, as the old 8th Wall projects
-used, would move everything. `place-in-front` instead moves only its own
+in the same scene). A global XR8 `recenter` would move everything. `place-in-front` instead moves only its own
 entity.
 
 **World pose, converted to local.** The target pose is computed in world
@@ -121,9 +145,7 @@ scale mode keeps the camera's start height as the real device height. A
 scene authored for a camera `referenceHeight` units above the floor
 therefore matches the real world when scaled by
 `cameraHeight / referenceHeight` — independent of which start height the
-host's camera uses. This is how the old Augmented Bahnhofsviertel projects
-(camera at `0 8 8`) are placed (`referenceHeight: 8; distance: 8`).
-Three things live in world units in three.js regardless of the parent's
+host's camera uses. Three things live in world units in three.js regardless of the parent's
 scale and are scaled along so the scene keeps its proportions: directional
 shadow cameras (bounds **and** near/far — unscaled, the shadow map covers a
 huge area at low resolution and the depth precision degrades into shadow
@@ -133,8 +155,8 @@ again when a sound finishes loading), point/spot light `distance`.
 
 **Tap detection (`scene-tap-shared.ts`).** iOS Safari suppresses the
 synthetic `click` once `xrextras-gesture-detector` (on the host's scene)
-called `preventDefault()` on the touch, so a click-based tap — what the old
-projects' `xrextras-tap-recenter` used — never fires on an iPhone. A tap
+called `preventDefault()` on the touch, so a click-based tap (such as
+`xrextras-tap-recenter`) never fires on an iPhone. A tap
 is detected from pointer events instead: exactly one pointer, on the
 scene's canvas (not on DOM UI — a module's Vue overlay is mounted inside
 `<a-scene>` too), released within 350 ms and moved less than 12 px. Window
@@ -143,8 +165,18 @@ capture-phase listeners, so nothing on the canvas can swallow it.
 **Cursor ground.** Without a `ground` entity the cursor intersects the
 parent's own y = 0 plane — inside a placed scene that is the floor, with
 no invisible ground mesh needed. Hit points are converted into the
-parent's space before they're written (the original wrote world
-coordinates into the local position, which only works at the scene root).
+parent's space before they're written (writing world coordinates into the
+local position would only work at the scene root).
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+The old Augmented Bahnhofsviertel projects (camera at `0 8 8`) are placed
+with `referenceHeight: 8; distance: 8`. Their original tap-place cursor
+wrote world coordinates into the local position, which only worked at the
+scene root.
+
+<!-- /project-specific -->
 
 ## 4. Incompatibilities, risks & troubleshooting
 

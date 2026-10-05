@@ -216,5 +216,8 @@ the feature's own `guides/<FEATURE>-FEATURE-GUIDE.md` exists/is updated;
 cross-links in any *other* guide affected by a newly-found incompatibility
 are updated too (not just the new feature's own guide); `QUICK_START_GUIDE.md`
 is touched only if the change affects the template's own structure, not
-per-feature. Treat a feature as incomplete without these, not as
+per-feature. Guides and cross-feature docs follow the wiki-ready structure
+(`<!-- overview -->` block first, project-specific remarks only inside
+`<!-- project-specific -->` blocks, general text coherent without them) —
+`ADDING-FEATURES-WORKFLOW.md` step 9. Treat a feature as incomplete without these, not as
 "documentation debt to do later."

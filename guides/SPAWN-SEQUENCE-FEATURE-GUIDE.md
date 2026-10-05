@@ -1,12 +1,34 @@
 # Spawn Sequence feature guide
 
+<!-- overview -->
+## Overview
+
+Makes things pop up one after another around the visitor, like
+mushrooms after rain. At a steady beat or at chosen moments, a new object
+springs out of the ground with a bouncy little wobble — right in front of
+the visitor, wherever they are looking, or scattered at random spots
+nearby. Each one can bring its own short sound from where it appears. Over
+time, the space fills up around the visitor.
+
+<!-- /overview -->
+
+## Technical summary
+
 Models spring up one after another — at an interval or on a timeline, in
 front of the viewer or at random spots — each growing from nothing with an
 elastic bounce, optionally with its own one-shot positional sound.
-Applicable to any (empty) entity. Merged from two Augmented Bahnhofsviertel
-ports (`augmented-bahnhofsviertel`: #4 Europaplatz II's
-`distance-place-interval`, #6 Birdkin(d)'s `distance-place-sequence`) — see
+Applicable to any (empty) entity — see
 [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Merged from two Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`: #4 Europaplatz II's
+`distance-place-interval`, #6 Birdkin(d)'s `distance-place-sequence`) —
+see §3.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -78,28 +100,37 @@ Events: **in** `spawn-sequence-start`, `spawn-sequence-stop`,
 
 ## 3. Under the hood
 
-**One component for two originals.** #4 placed a slat every second (fixed
-scale, turned to the viewer, `runs` with an off-by-one), #6 placed
-membranes on a timeline of seconds (random heading, random size, one sound
-each). Both computed the same thing: the camera's position and view
-direction converted into the entity's space, a point `distance ±
-variation/2` along that direction, dropped to the floor, then a 750 ms
-elastic scale-up. The differences are exactly the attributes above
-(`interval`/`times`, `facing`, `scaleMin`/`scaleMax`, `sounds`), so one
-component with those options replaces both; `mode: random` and
-`order: random` are new.
+**One spawn routine, many rhythms.** Every spawn computes the same thing:
+the camera's position and view direction converted into the entity's
+space, a point `distance ± variation/2` along that direction (or a random
+point within `radius`), dropped to the floor, then an elastic scale-up
+(750 ms by default). Rhythm (`interval`/`times`), orientation (`facing`),
+size (`scaleMin`/`scaleMax`) and sound (`sounds`) are the options on top.
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+##### One component for two originals
+
+#4 Europaplatz II placed a slat every second (fixed scale, turned to the
+viewer, `runs` with an off-by-one), #6 Birdkin(d) placed membranes on a
+timeline of seconds (random heading, random size, one sound each). Both
+computed the routine above; their differences became the attributes, so
+one component replaces both. `mode: random` and `order: random` are new.
+Both originals also waited for their scene placement and spawned closer
+when looking down, which the clock and positions below keep.
+
+<!-- /project-specific -->
 
 **Clock.** Time is accumulated in `tick` (not `setInterval`), so `times`
 can be fractional, the sequence pauses with the entity, and it waits while
-an enclosing `place-in-front` scene hasn't been placed yet (the originals
-waited for their scene placement). Several spawns that fall into one frame
+an enclosing `place-in-front` scene hasn't been placed yet. Several spawns that fall into one frame
 are all made in that frame.
 
 **Positions are local.** The camera pose is converted into the entity's
 space with its inverse world transform, and models are children of the
 entity — so the sequence works inside any scaled/rotated parent; the view
-direction includes the pitch, so looking down spawns closer (as in the
-originals).
+direction includes the pitch, so looking down spawns closer.
 
 **Bounce after load.** Each model starts at scale 0.001; the grow
 animation (`animation__spawn-grow`) is set when its mesh arrives

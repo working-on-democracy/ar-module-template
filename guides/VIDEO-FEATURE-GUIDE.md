@@ -1,12 +1,33 @@
 # Video feature guide
 
+<!-- overview -->
+## Overview
+
+Brings videos into an AR scene — on a floating screen, wrapped around a
+sphere the visitor stands inside, or on any object — and starts them all
+together, with sound, the moment the visitor taps "Start". Phones only
+allow sound after such a tap, and this feature makes sure the tap really
+counts. When the visitor switches to another app, the videos pause, and
+continue where they stopped when they come back.
+
+<!-- /overview -->
+
+## Technical summary
+
 Starts, pauses and unmutes video assets from events — so one tap can start
 every video of a scene, with sound, inside the gesture iOS requires — and
 pauses them while the page is in the background. Applicable to any entity
-(usually the plane, sphere or model showing the video). Generalised from
-the Augmented Bahnhofsviertel ports (`augmented-bahnhofsviertel`: #7, #22,
-#23, #24 started their videos from a Start/PLAY tap) — see
+(usually the plane, sphere or model showing the video) — see
 [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Generalised from the Augmented Bahnhofsviertel ports
+(`augmented-bahnhofsviertel`: #7, #22, #23, #24 started their videos from a
+Start/PLAY tap).
+
+<!-- /project-specific -->
 
 Files:
 

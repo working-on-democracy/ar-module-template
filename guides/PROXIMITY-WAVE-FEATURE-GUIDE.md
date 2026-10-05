@@ -1,11 +1,32 @@
 # Proximity wave feature guide
 
+<!-- overview -->
+## Overview
+
+Makes objects greet the visitor. While they keep their distance, the
+objects just float gently in place, as if drifting in water; as the
+visitor comes closer, they begin to sway back and forth, more and more
+the nearer the visitor gets — like a field of reeds or glow sticks waving
+at a concert. Each object moves slightly out of step with its neighbours,
+so a whole group looks alive rather than mechanical.
+
+<!-- /overview -->
+
+## Technical summary
+
 Proximity-triggered waving motion: an entity nods forward/back as the
 camera approaches (fading in smoothly over a distance band), plus a
 subtle, always-on idle float. Works standalone on a single entity, or
-applied once to a whole group so every member shares the same parameters.
+applied once to a whole group so every member shares the same parameters —
+two components, see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
 Ported from `Gyumin_module`'s `glowstick-motion`, split into two
-components — see [3. Under the hood](#3-under-the-hood).
+components (see §3).
+
+<!-- /project-specific -->
 
 Files:
 
@@ -15,7 +36,7 @@ src/a-frame-components/
   proximity-wave-group.ts   # broadcasts shared parameters to a group's children
 examples/proximity-wave-usage.html   # scene wiring + full attribute reference
 examples/random-field-lod-billboard-proximity-wave-scene.html # combined with
-                                    # the other three Gyumin_module features
+                                    # Random Field and LOD + Billboard
 ```
 
 No assets. Independent of every other feature on this branch — combines
@@ -84,22 +105,31 @@ coexist. See `examples/proximity-wave-usage.html` for that pattern and the
 
 ## 3. Under the hood
 
-### What changed from the source, and why
+### Two components: per-entity motion and group broadcaster
 
-The source, `glowstick-motion`, was already a fully self-contained
-per-instance component — it read its own base transform and computed wave
-direction from its own tilt, nothing about it assumed it was attached by
-another component rather than authored directly. Renamed to
-`proximity-wave`, otherwise **unchanged**. The one addition is
-`proximity-wave-group`, a new component: the source's group-application
-("every stick gets the same wave settings") used to be baked directly into
-the field-population component itself, setting the `glowstick-motion`
-attribute string on each generated instance as it built them. Splitting
-that out into its own standalone broadcaster is what makes "applicable to
-a group of objects **or** the field" (per the request that produced this
-port) actually true — `proximity-wave-group` doesn't know or care whether
-its children came from `random-field` or were hand-authored; it just
-looks at whatever direct children it has.
+`proximity-wave` is a fully self-contained per-instance component — it
+reads its own base transform and computes wave direction from its own
+tilt. `proximity-wave-group` is a separate, standalone broadcaster that
+sets the same attributes on its direct children. That split is what makes
+the feature applicable to a single object, a hand-authored group, **or**
+a scattered field — `proximity-wave-group` doesn't know or care whether
+its children came from `random-field` or were hand-authored.
+
+<!-- project-specific -->
+#### Project context: `Gyumin_module`
+
+##### What changed from the source, and why
+
+The source, `glowstick-motion`, was already self-contained; it was renamed
+to `proximity-wave`, otherwise **unchanged** (including the wave/idle
+motion below). `proximity-wave-group` is new: the source's group
+application ("every stick gets the same wave settings") was baked directly
+into the field-population component, which set the `glowstick-motion`
+attribute string on each generated instance as it built them. The split
+was made on request, so the wave applies to a group of objects **or** the
+field.
+
+<!-- /project-specific -->
 
 ### Why `proximity-wave-group` scans children lazily, on the first `tick()`
 
@@ -116,7 +146,7 @@ sibling-avoidance scan (see `WANDER-IN-BAND-FEATURE-GUIDE.md`).
 
 ### The wave/idle motion itself
 
-Unchanged from the source. Two composed effects, both written straight to
+Two composed effects, both written straight to
 `object3D` each tick (no attribute re-parsing):
 
 - **Wave** — `sin(time * waveSpeed + phase)`, scaled by a smoothstepped
@@ -179,8 +209,7 @@ or add `proximity-wave` to those specific children directly.
 ### `pivotY` assumes a consistent local +Y "up along the object"
 
 The pivot-compensation math scales `pivotY` by the entity's own Y scale and
-rotates it by the entity's base orientation — this matches the source's
-own assumption (objects modelled with their "base" toward -Y from a
-natural holding/mounting point). If your object's natural pivot axis isn't
+rotates it by the entity's base orientation — it assumes objects modelled
+with their "base" toward -Y from a natural holding/mounting point. If your object's natural pivot axis isn't
 local Y, `pivotY` won't produce the intended "swings from a fixed base"
 look — leave it at `0` (rotate about the origin) rather than fighting it.
