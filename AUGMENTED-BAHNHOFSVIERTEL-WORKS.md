@@ -65,6 +65,10 @@ Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
 - **Nr. 22/23 Privileged I/II (`abv-22-privileged-i`, `abv-23-privileged-ii`):** Die Webseite widerspricht sich. Die App-Links der Beschreibungsseiten ordnen I = Nepal (`radetz-nepal`) und II = Istanbul (`radetz-istanbul`) zu — so ist portiert. Die Credits derselben Seiten nennen umgekehrt bei I „Istanbul, Türkei“ und bei II „Lalitpur, Nepal“. Mit Autor/Webseite klären; falls die Credits stimmen, Titel/Branches tauschen.
 
 
+## Umstellung auf die Host-Laufzeit (2026-10-05)
+
+Vorschau und Standalone laufen seit 2026-10-05 auf der Laufzeit des Hosts (8frame 1.3.0 statt 1.5.0, xrextras des Hosts) mit dessen Basis-Szene (zwei dauerhafte Lichter, die das Werk auf die Hälfte dimmt; Kamera auf `0 0.35 0.8`; Nebel); der Recenter-Button sitzt 64 px von oben. Alle bisherigen Handy-Tests liefen auf 1.5 — **jedes Werk einmal kurz neu auf dem Handy prüfen** (Look/Helligkeit, Spiegelungen, Größe, Start, Gesten). Details: [PORTING-GUIDE.md §9](augmented-bahnhofsviertel/PORTING-GUIDE.md#9-release-builds-modul-und-standalone).
+
 ## Abgleich mit den Live-Apps (2026-10-05)
 
 Die 8th-Wall-Apps unter `digitalekunst.8thwall.app` laufen noch und liefern ihre Szene (`body.html` im `app8(…)`-Aufruf der Index-Seite), ihr JS-Bundle und ihre Assets öffentlich aus. Abgeglichen wurden Szene (normalisiert), alle Assets per Hash und die Bundles (Komponenten, Texte) gegen die Exporte bzw. Ports:
