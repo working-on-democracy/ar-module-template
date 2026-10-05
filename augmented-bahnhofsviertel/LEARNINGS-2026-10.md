@@ -237,7 +237,8 @@ damit sie später nicht als „Bug“ zurückgedreht werden:
 | #6 | Sound-Falloff `linear`, still ab 4 Kamerahöhen | Original klang unabhängig vom Abstand gleich laut |
 | #10 | Start-Screen verschwindet | Original warf beim Start einen Fehler (nicht vorhandener Sound) und blieb stehen |
 | #14 | `shadowBias: -0.0005` | Schattenartefakte |
-| #19/#21 | Abstände/Pinch nach Handy-Test angepasst | Kleiderberg weiter weg (z = −70), Reisende −35, Pinch aufs Modell |
+| #21 | Abstand/Pinch nach Handy-Test angepasst | Reisende −35, Pinch aufs Modell |
+| #19 | Umgebungslicht weggelassen | im Original `type="ambient;  intensity: 1.5"` — ungültiger Typ, 8frame erzeugte kein Licht (wirkungslos). Die frühere Abweichung z = −70 ist mit dem Neuport (§10) entfallen |
 
 Bewusst **nicht** geändert (getestet und verworfen):
 
@@ -320,6 +321,18 @@ world.decompose(obj.position, obj.quaternion, obj.scale);
   die Konfiguration, die Werte wurden danach korrigiert. **Lehre:**
   Kurven vor dem Zeigen mit der Formel nachrechnen (`linear`:
   `vol · (1 − rolloff · (d − ref) / (max − ref))`).
+- **#19, falsche Quelle:** Der Pilot wurde aus dem Export `kleiderberg-fuas`
+  portiert (`Berg-13.glb`: bunte Sprechblasen und ~250 schwebende
+  Piktogramm-Teile, Gesten, Schattenboden). Der Nutzer verglich mit der noch
+  laufenden Original-App und sah nur Stempel-Texte am Boden. Deren Seite
+  (digitalekunst.8thwall.app/fashion-revolution-ffm) liefert ihre
+  `body.html` im Klartext und das Modell öffentlich aus: andere Szene
+  (Position, Maßstab, Live-Env-Map, keine Gesten), Modell byte-identisch mit
+  dem „ungenutzten“ `Berg.gltf` in `madebychildren`. Neu portiert nach der
+  Live-App (2026-10-05). **Lehre:** Ein Export ist nicht automatisch die
+  veröffentlichte Fassung. Läuft das Original noch, dessen ausgelieferte
+  Szene (`app8("<body.html>"…)` in der Index-Seite, `…bundle.js` mit den
+  Komponenten) als Referenz nehmen und Modelle per Hash abgleichen.
 
 ---
 
