@@ -41,25 +41,12 @@ caching) this guide only summarizes.
    `RENDER-ORDER-FEATURE-GUIDE.md`) — you'll want it to control draw order
    among a multi-part detail group's own children.
 
-3. **Register in `src/manifest.ts`**:
-
-   ```ts
-   import lodObject from "./a-frame-components/lod-object";
-   import lodManager from "./a-frame-components/lod-manager";
-   import billboard from "./a-frame-components/billboard";
-   import unlitMaterial from "./a-frame-components/unlit-material";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "lod-object": lodObject,
-       "lod-manager": lodManager,
-       billboard: billboard,
-       "unlit-material": unlitMaterial
-     }
-   };
-   ```
+3. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 4. **Prepare your assets**, per [2](#2-entities--attributes)'s "required
    structure" — a detailed model (one or more parts) *and* a separate flat
@@ -224,6 +211,23 @@ All covered in depth in
 not duplicated here.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Portal overwrites renderOrder in its subtree
+
+[`portal`](PORTAL-FEATURE-GUIDE.md) sets `renderOrder` on every mesh inside
+its `contents`, `walls`, `portalWall` and `door` (hiders 1, contents 2) and
+re-applies it whenever a mesh appears below it. Values set by this
+component inside a portal are overwritten — use it outside portals only
+(found while adding Portal).
+
+### Env maps from Light & Reflections
+
+[`cubemap-static`/`cubemap-realtime`](LIGHT-REFLECTIONS-FEATURE-GUIDE.md) write
+`envMap` onto (cloned) materials. `unlit-material` swaps in new MeshBasicMaterials (an env map then shows
+unlit): an env map applied *before* is carried along by `clone()`, one
+applied after works on the new materials. Re-set the cubemap attribute
+after a swap if the reflection disappears (found while adding Light &
+Reflections).
 
 ### Does not interfere with manually-set `render-order` — verified, see the cross-feature guide
 
