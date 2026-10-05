@@ -151,6 +151,13 @@ uncompressed-assets/            gitignored, local-only; pristine originals kept 
   `onBeforeCompile` (dithering variants) — see
   `cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md`
   before adding another.
+- **`hostLights: false` only in a module with lights of its own.** The
+  manifest field makes the host switch its two scene lights off while the
+  module is shown. Set it only when the scene has lights itself
+  (`<a-light>`, `light`, three.js lights from a component — not
+  `xr-light` alone, it only drives an existing light);
+  otherwise the module turns dark in the host. Remove it when the module's
+  last light goes. See README "Host lights".
 - **The shared `<a-camera>` is host-owned.** `CAMERA_PROPS_FORBIDDEN` in
   `lib/manifest.types.ts` blocks a module from setting `id`/`position`/
   `cursor`/`raycaster` on it at the type level — don't work around this;
