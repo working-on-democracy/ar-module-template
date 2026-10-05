@@ -5,6 +5,10 @@ are an AI agent that has just been pointed at this repository, read this
 file fully before doing anything else, then follow the read-order below
 before making any change.
 
+> **On the `augmented-bahnhofsviertel` branch family** (`augmented-bahnhofsviertel`,
+> `abv-*`): read [`augmented-bahnhofsviertel/PROJECT-NOTES.md`](augmented-bahnhofsviertel/PROJECT-NOTES.md)
+> right after this file — current state, rules the user set, next tasks.
+
 ## 1. What this repo is
 
 `ar-module-template`: a starter project for **ArModule** components — Vue 3
