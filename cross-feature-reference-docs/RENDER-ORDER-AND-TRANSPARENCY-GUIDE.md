@@ -325,3 +325,14 @@ in `el.components` means "ready."
 | [`material-properties`](../guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) or `dither-material` alongside `unlit-material` | Don't put either on the same entity as `unlit-material` (§4.5) — same replace-vs-tune conflict as the proximity features above. |
 | `material-properties` alongside `dither-material` | Both clone-then-mutate (not replace), so combining is supported — but same-element registration order decides who tunes whose output (§5.2). Author `material-properties` first if you want its values to be what gets dithered. |
 | Adding any new material-mutating component | Ask: does it run on the same element as another material-mutating component? If yes, registration order decides who sees whose output (§5.2) — make that explicit in a comment. |
+
+## Portal (added later)
+
+[`portal`](../guides/PORTAL-FEATURE-GUIDE.md) pins its own draw order with
+`renderOrder`: hider walls, portal wall and door 1, contents 2, everything
+else 0. Hider materials (`xrextras-hider-material`, depth only) mask only
+what is drawn after them; three r137 (8frame 1.3, the host) sorts opaque
+objects by material id and r158 (8frame 1.5) by distance, so without the
+pinned order a portal flickers with camera movement. Render Order / Mesh
+Render Order / LOD values inside a portal subtree are overwritten by it.
+
