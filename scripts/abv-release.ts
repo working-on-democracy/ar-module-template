@@ -33,7 +33,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { usedComponents } from "./abv-used-components";
+import { usedComponents } from "./used-components";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BASE_BRANCH = "augmented-bahnhofsviertel";
@@ -124,7 +124,7 @@ for (const work of works) {
     try { run("npx", ["vite", "build", "--mode", "ar", "--outDir", standaloneDir, "--emptyOutDir"], wt); } catch (e: any) {
       r.errors.push(`standalone build failed:\n${e.stderr || e.stdout}`.trim());
     }
-    r.components = usedComponents(join(wt, "src"));
+    r.components = [...usedComponents(join(wt, "src")).keys()];
   } finally {
     try { git("worktree", "remove", "--force", wt); } catch { rmSync(wt, { recursive: true, force: true }); }
   }
