@@ -144,6 +144,8 @@ options whose defaults keep the original behaviour.
   runs eight); for many objects lower `size` or share one model.
 - **Host lights.** The host keeps two base lights on; a module that brings
   its complete lighting can switch them off with `hostLights: false` in the
-  manifest (see README).
+  manifest (see README). Only in a module with lights of its own —
+  `xr-light` and `cubemap-*` don't count: they only drive an existing light
+  or provide reflections.
 - **No XR8, no live data.** In `npm run dev` `cubemap-realtime` does nothing
   and `xr-light` stays at clamp(1, min, max).
