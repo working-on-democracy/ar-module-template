@@ -38,7 +38,8 @@ declare const THREE: any;
 // mini-ball's FUNKY TOWN cube map instead of the camera).
 //   - THREE.RGBFormat no longer exists in three.js r158 (8frame 1.5); the
 //     render target uses the default RGBA. `encoding: sRGBEncoding` is
-//     expressed as `colorSpace: SRGBColorSpace`, its r152+ equivalent.
+//     kept on three versions that still have it (8frame 1.3, the host app)
+//     and expressed as `colorSpace: SRGBColorSpace` on r152+ (8frame 1.5).
 let instanceCounter = 0;
 
 export default {
@@ -56,10 +57,16 @@ export default {
       map: camTexture
     });
 
+    // sRGB like the original's `encoding: sRGBEncoding`, in both three APIs:
+    // `colorSpace` (r152+, 8frame 1.5) and `encoding` (8frame 1.3 / r137 —
+    // the host app's runtime, where SRGBColorSpace doesn't exist and the
+    // option would otherwise silently fall back to linear).
     self.renderTarget = new THREE.WebGLCubeRenderTarget(256, {
       generateMipmaps: true,
       minFilter: THREE.LinearMipmapLinearFilter,
-      colorSpace: THREE.SRGBColorSpace
+      ...(THREE.SRGBColorSpace !== undefined
+        ? { colorSpace: THREE.SRGBColorSpace }
+        : { encoding: THREE.sRGBEncoding })
     });
 
     const cubeMapScene = new THREE.Scene();
