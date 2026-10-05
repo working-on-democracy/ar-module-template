@@ -91,11 +91,9 @@ const loadSpinnerBackdropStyle = computed(() => ({
 const centerControls: LegacyControl[] = [
   {
     id: 'start',
-    // ((TARGET)) is a deliberate placeholder (2026-10-04): the original said
-    // "Euro-Skulptur" (#1's location), but this module also stands for #2/#3
-    // at other locations. Replace before the final export — see
-    // AUGMENTED-BAHNHOFSVIERTEL-WORKS.md "Vor dem finalen Export".
-    html: 'Richte die Kamera auf die ((TARGET)) und tippe auf "Start" ' + actionButtonHtml('Start'),
+    // Text as in the original (Willy-Brandt-Platz). #2/#3 are their own
+    // modules since 2026-10-05, so the former ((TARGET)) placeholder is gone.
+    html: 'Richte die Kamera auf die Euro-Skulptur und tippe auf "Start" ' + actionButtonHtml('Start'),
     onClick: () => {
       document.getElementById('xenoglossy-i-legacy-space')?.dispatchEvent(new CustomEvent('legacy-space-place'));
       document.getElementById('xenoglossy-i-model')?.setAttribute('visible', 'true');
@@ -120,8 +118,8 @@ onUnmounted(() => {
 
   <!-- #1 Xenoglossy I (Tina Kohlmann), ported from the 8th Wall export
        `kohlmann-xenoglossy` — see augmented-bahnhofsviertel/about/01-xenoglossy-i/
-       and augmented-bahnhofsviertel/PORTING-GUIDE.md. Also stands for
-       Xenoglossy II/III (#2/#3: the same work at other locations).
+       and augmented-bahnhofsviertel/PORTING-GUIDE.md. Xenoglossy II/III
+       (#2/#3) are separate colour versions on their own branches.
 
        Assets come from the manifest (src/assets/, id = file name without
        extension) and are injected by the host — no <a-assets> here. -->
