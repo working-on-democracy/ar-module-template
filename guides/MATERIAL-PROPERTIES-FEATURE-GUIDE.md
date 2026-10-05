@@ -39,19 +39,12 @@ not here (see [4](#4-incompatibilities-risks--troubleshooting)).
 1. **Copy the file** — `material-properties.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import materialProperties from "./a-frame-components/material-properties";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "material-properties": materialProperties
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
@@ -168,6 +161,15 @@ the least-surprising default for the broader audience this component is
 meant to serve.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Env maps from Light & Reflections
+
+[`cubemap-static`/`cubemap-realtime`](LIGHT-REFLECTIONS-FEATURE-GUIDE.md) write
+`envMap` onto (cloned) materials. This component swaps in new material
+objects: an env map applied *before* is carried along by `clone()`, one
+applied after works on the new materials. Re-set the cubemap attribute
+after a swap if the reflection disappears (found while adding Light &
+Reflections).
 
 ### Real conflict with `unlit-material` — do not combine on the same entity
 

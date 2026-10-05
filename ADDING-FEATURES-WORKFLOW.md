@@ -203,8 +203,10 @@ The convention adopted:
 
 This means adopting a feature is always a flat file copy into the same
 folders a project already has — never a path change or a move. Document the
-convention itself once (currently in the comment above the `components` map
-in `src/manifest.ts`); each new feature just follows it.
+convention itself once (currently in the header comment of
+`src/manifest.ts`); each new feature just follows it. With automatic
+registration the file name is also the component name — choose it with
+that in mind.
 
 ## 5. Decide which assets are integral to the feature
 
@@ -240,15 +242,19 @@ for every asset (a small icon doesn't need it), but a multi-megabyte
 `.glb` shipped uncompressed adds real load time to every project that
 copies the feature in.
 
-## 6. Implement components, register in `manifest.ts` with a minimal diff
+## 6. Implement components — registration is automatic
 
-Write the components in `src/a-frame-components/`. Register them in
-`src/manifest.ts` **additively** — import the new components, add entries
-to the existing `components` map — without touching whatever else is
-already registered there (image targets, other features' entries, etc.).
-The diff for adding a whole feature's components to the manifest should be
-small and obviously additive, easy to review in isolation from everything
-else in the file.
+Write the components in `src/a-frame-components/`, **one component per
+file, with a default export, the file named exactly like the component**
+(`place-in-front.ts` → `place-in-front`). That's all: the build scans which
+components the module uses and registers exactly those
+(`virtual:used-components`, see `scripts/used-components.ts` and README
+"Components register automatically") — no `manifest.ts` edit. Helper files
+shared between components must **not** have a default export (that's what
+marks them as helpers). Make sure a component that uses another one names
+it literally in its source (e.g. `setAttribute("hold-drag", …)`), so the
+transitive scan finds it. Only touch `src/manifest.ts` for things that
+aren't components (camera settings, image targets), additively.
 
 ## 7. Demonstrate usage with example files — don't touch `ArModule.vue`
 
@@ -291,8 +297,8 @@ One `<FEATURE>-FEATURE-GUIDE.md` per feature, in `guides/`, covering — in
 this order, matching `guides/SOUND-FEATURE-GUIDE.md`:
 
 1. **Step-by-step setup** — a literal checklist for copying the feature
-   into a fresh project: which files to copy, how to register them in
-   `manifest.ts`, how to wire the scene, how to integrate any GUI pieces,
+   into a fresh project: which files to copy (registration is automatic —
+   say so), how to wire the scene, how to integrate any GUI pieces,
    how to verify it worked. Written for someone who's never seen the
    internals.
 2. **Entities & attributes** — every custom element/attribute the feature
@@ -330,7 +336,8 @@ Add the new feature's entry following the existing ones as a template:
   very end of the file) for the current full list — currently `sound`,
   `proximity`, `motion`, `animation`, `random`, `distribution`, `utility`,
   `visual-effect`, `procedural`, `material-properties`, `transparency`,
-  `dither`, `render-order`, `LOD`, `interaction`, `image-tracking`, but
+  `dither`, `render-order`, `LOD`, `interaction`, `image-tracking`,
+  `placement`, `ui`, `lighting`, `video`, but
   that list only grows, so treat it as a starting point, not the full set.
   Reuse an existing tag whenever the feature genuinely shares that theme
   with something already tagged that way — the whole point is that
@@ -399,8 +406,8 @@ detail belongs.
 Unlike `FEATURE-CATALOG.md`, this is **not** an every-feature update —
 `QUICK_START_GUIDE.md` deliberately never names or lists individual
 features (it points to `FEATURE-CATALOG.md` for that), so adding a routine
-feature that fits the existing pattern (copy files, add lines to
-`manifest.ts`, paste example markup into `ArModule.vue`) usually needs no
+feature that fits the existing pattern (copy files into
+`src/a-frame-components/`, paste example markup into `ArModule.vue`) usually needs no
 change there at all. Only revisit it if this feature (or the work around
 it) changed something the guide asserts about the *template itself* —
 e.g. a new top-level doc other artists should know about, a changed/added
@@ -420,7 +427,8 @@ example from the sound feature's guide is exactly this: `main` had that
 before any feature work started, and it turned out to matter). Concretely
 check:
 
-- **A-Frame component name collisions.** The host (and
+- **A-Frame component name collisions.** Component names are file names
+  (automatic registration). The host (and
   `lib/host-runtime.ts`, which mirrors it) registers manifest components by
   name and **skips duplicates** — if two features (or two forks both using
   this template) register the same component name with *different*
