@@ -386,6 +386,14 @@ Add the new feature's entry following the existing ones as a template:
   project fork).
 - A "Guide: ... · Source: `<branch>`" line at the top of the feature's own
   section, matching the Index row.
+- **Keep the section's prose project-free**, as in the guides (step 9):
+  the description says what the feature does; anything about its origin
+  (source branch, what a port changed, a project's work number) goes into
+  a `<!-- project-specific -->` block with a `### Project context: origin`
+  heading after the description. In table cells, leave project remarks
+  out and put them in such a block below the table. The wiki build drops
+  these blocks, the "Source branch"/"Introduced by" columns and the
+  "· Source:" note.
 - **Assign 1–3 tags** — short, poignant labels more general than the
   one-line description, meant for at-a-glance scanning. Check
   `FEATURE-CATALOG.md`'s [Tags](FEATURE-CATALOG.md#tags) section (at the
