@@ -1,26 +1,27 @@
 # Quick start guide
 
 This is a short, plain-language starting point for **artists and other
-non-programmers** building an AR project on top of `feature_template`. It
+non-programmers** building an AR project on top of `ar-module-template`. It
 does **not** explain any individual feature or how any component works —
 for that, see [FEATURE-CATALOG.md](FEATURE-CATALOG.md) (what's available)
 and the matching `<FEATURE>-FEATURE-GUIDE.md` (how to use it). This page is
 only about: what kind of file to open, what to do with it, and which
 command to run.
 
-## What is `feature_template`?
+## What is `ar-module-template`?
 
-A collection of ready-made AR effects (sound buttons, fade effects, a
+A starting point to create your own AR experiences for integration into the an-alle.net platform 
+plus a collection of ready-made AR effects (sound buttons, fade effects, a
 shard-shatter effect, ...) that any project built from this template can
 pick and choose from. It isn't a finished artwork by itself — it's a
 starting point you copy pieces out of into your own scene.
 
 ## Starting your own project, or just trying something out
 
-Don't build directly on the `feature_template` branch itself — it's the
+Don't build directly on the `ar-module-template` branch itself — it's the
 shared library every project starts from, and it needs to stay generic and
 uncluttered for the next person too. Create your **own branch (or fork)
-from `feature_template`**, and do all your project-specific work there:
+from `ar-module-template`**, and do all your project-specific work there:
 your own scene content, your own assets, any testing or experimenting.
 That's true whether you're starting a real project or just trying a
 feature out to see what it looks like.
@@ -41,7 +42,7 @@ rules before it touches anything, the same way this page gets you oriented.
 | `src/ArModule.vue` | **Your scene.** Everything the visitor sees and hears — 3D objects, lights, and any feature you add — goes in here, inside the `<template>` section. |
 | `examples/*.html` | Copy-paste reference snippets, one (or a few) per feature. These are never run or edited directly — open one, copy the parts you need, paste them into `ArModule.vue`. Each file's own comments explain exactly what to copy and where it goes. |
 | `src/assets/` | Drop your images, sounds, and 3D models (`.glb`, `.png`, `.mp3`, ...) here. Every file becomes usable in your scene automatically, by its file name (a picture named `logo.png` becomes usable as `#logo`) — no extra setup. |
-| `src/manifest.ts` | The "switchboard" that turns a feature on for your project — a short list of one import + one line per feature you've copied in. A feature's own guide tells you exactly what to add here; you don't need to understand the file beyond that. |
+| `src/manifest.ts` | The module's settings the host reads (assets, camera, image targets). Features switch themselves on: a component file you copied into `src/a-frame-components/` works as soon as your scene uses its name — nothing to add here. You rarely need to touch this file. |
 
 Everything else in the project (the `lib/` folder especially) is shared
 internal plumbing — you shouldn't need to open or edit it. One exception
@@ -61,9 +62,9 @@ original files safe in a local `uncompressed-assets/` folder first.
 1. Open [FEATURE-CATALOG.md](FEATURE-CATALOG.md), find the feature you
    want, and click through to its guide.
 2. Follow that guide's first section (always called "step-by-step") — it's
-   a short checklist: which files to copy into `src/a-frame-components/`,
-   what to add to `src/manifest.ts`, and which images/sounds (if any) to
-   drop into `src/assets/`.
+   a short checklist: which files to copy into `src/a-frame-components/`
+   and which images/sounds (if any) to drop into `src/assets/`. Nothing to
+   register — copied components work as soon as your scene uses them.
 3. Open that feature's example file in `examples/` and copy the markup
    into `ArModule.vue`'s `<template>` section. Some features (like Sound)
    also have a second on-screen-button snippet to paste in the same way —
@@ -90,11 +91,11 @@ together is written down.
 You don't need to understand how these commands work internally — just run
 them and look at the result.
 
-## Contributing a feature back to `feature_template`
+## Contributing a feature back to `ar-module-template`
 
 If something you built on your own project turns out generic and useful
 enough that future projects should have it too, you can propose adding it
-to `feature_template` itself with a pull request. Before opening one,
+to `ar-module-template` itself with a pull request. Before opening one,
 make sure it's ready:
 
 - **It's a finished feature, not a work-in-progress experiment.** Half-done

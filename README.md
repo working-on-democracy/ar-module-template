@@ -15,7 +15,7 @@ ar-module-template/
 │   ├── ArModule.vue           # the user-edited component (template syntax)
 │   ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
 │   ├── assets/                 # drop .glb/.png/.mp3/… here — auto-derived into the manifest
-│   ├── a-frame-components/     # custom A-Frame components, referenced from manifest.ts
+│   ├── a-frame-components/     # custom A-Frame components — registered automatically by file name when used
 │   └── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
 ├── lib/                   # internal plumbing — not meant to be edited by a fork
 │   ├── main.ts                # entry: re-exports the SFC as default + the manifest
@@ -26,7 +26,7 @@ ar-module-template/
 │   ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
 │   ├── gltf-meshopt-setup.ts  # patches THREE.GLTFLoader so meshopt-compressed .glb files load
 │   ├── vendor/                # vendored meshopt decoder (gltf-meshopt-setup.ts's only dependency)
-│   └── virtual-manifest.d.ts  # ambient types for the auto-generated `virtual:ar-manifest`
+│   └── virtual-manifest.d.ts  # ambient types for `virtual:ar-manifest` and `virtual:used-components`
 ├── scripts/
 │   └── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
 └── uncompressed-assets/   # gitignored, local-only; pristine originals kept by compress-assets.ts
@@ -58,6 +58,7 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 - `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `lib/preview-ar.ts`.
 - The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
 - **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
+- Without a phone (e.g. an AI agent checking its own work): headless Chromium with an emulated iPhone and a generated video of the image target as the camera verifies target detection and scene rendering, not device motion or real-GPU performance — see [`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md).
 
 ### Builds
 
@@ -130,12 +131,50 @@ export const manifest: Manifest = {
     "look-controls": "enabled: false",
     "wasd-controls": "acceleration: 30"
   },
-  components: {                          // name → AFRAME component definition
-    "no-frustrum-cull": noFrustrumCull
+  components: {                          // automatic, see below
+    ...usedComponents
   },
-  imageTargets: [videoTarget]            // 8th Wall image-target JSON
+  imageTargets: [videoTarget],           // 8th Wall image-target JSON
+  hostLights: false                      // optional, see below
 };
 ```
+
+### Components register automatically
+
+Every file in `src/a-frame-components/` with a default export is an A-Frame
+component **named after its file** (`place-in-front.ts` → `place-in-front`).
+The ones your module actually uses — found by name in `ArModule.vue` and the
+files it imports, plus whatever those components use themselves — are
+bundled and registered automatically (`virtual:used-components`, built by
+`scripts/used-components.ts` in `vite.config.ts`). Same in `npm run dev`,
+`npm run dev:ar` (recomputed when you edit `src/`, the page reloads) and
+`npm run build`. Unused components are neither bundled nor registered, which
+keeps the module small and keeps it from claiming component names in the
+shared host scene (first registration of a name wins there).
+
+So to use a component: copy its file into `src/a-frame-components/` and put
+its name on an entity — nothing to import or list in `manifest.ts`. Files
+without a default export (`*-shared.ts`, `sound-unlock-audio.ts`, …) are
+helpers and are never registered. Only a component that must be registered
+under a different name than its file, or whose name is assembled at runtime
+(`"my-" + kind`, which the scan can't see), needs a manual entry after the
+spread in `manifest.ts`:
+
+```ts
+components: { ...usedComponents, "my-name": myComponent }
+```
+
+### Host lights: `hostLights`
+
+The host keeps two lights on in its scene (ambient `#BBB` and a directional
+light at 0.6, grouped as `#host-lights` in `ArScene.vue`), and every light a
+module brings adds on top of them. A module that brings its complete lighting
+sets `hostLights: false`: the host then switches its own lights off while the
+module is shown (the group is hidden — three.js skips invisible lights,
+shadows included) and back on at unmount. Default `true` = host lights stay
+on, which a module without lights of its own needs. The module contains no
+code for this; both previews have the same `#host-lights` group and apply the
+field the same way (`applyHostLights` in `lib/host-runtime.ts`).
 
 ### Camera keys are restricted
 
@@ -161,7 +200,8 @@ walks the manifest and, in order:
 
 1. **`components`** — registers each `name → definition` via `AFRAME.registerComponent`
    (skipping any already registered). Definitions are **bundled into your module**
-   — author them in `src/a-frame-components/` and import them into `manifest.ts`.
+   — author them in `src/a-frame-components/`; the ones the module uses are
+   added to `components` automatically (see above).
    They no longer need to self-register or be hosted as separate URLs.
 2. **`camera`** — applies each attribute to the scene's `<a-camera>`, remembering
    the previous values.
