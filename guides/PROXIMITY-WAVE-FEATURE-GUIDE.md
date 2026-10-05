@@ -30,21 +30,12 @@ entity with no other feature involved at all.
    broadcaster, `proximity-wave-group.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register in `src/manifest.ts`**:
-
-   ```ts
-   import proximityWave from "./a-frame-components/proximity-wave";
-   import proximityWaveGroup from "./a-frame-components/proximity-wave-group"; // optional
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "proximity-wave": proximityWave,
-       "proximity-wave-group": proximityWaveGroup // optional
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
@@ -143,6 +134,13 @@ object if the intent was "swing from a lower point," not just rotate it in
 place.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Shares the entity transform with Placement & Gestures — don't combine on one entity
+
+[`place-in-front`](PLACEMENT-FEATURE-GUIDE.md) writes position/rotation/scale
+on every placement, and [`gesture-control`/`hold-drag`](GESTURES-FEATURE-GUIDE.md)
+write them while a gesture runs. Put this component on a parent or child of
+such an entity, never on the same one (found while adding those features).
 
 ### Real conflict with `attach-to` (and `ground-decal` with `live: true`) — do not combine on the same entity
 

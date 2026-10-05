@@ -27,7 +27,7 @@ Files:
 src/a-frame-components/
   mirror-shard.ts             # the shard field
   mirror-shard-data/shards.json  # bundled shard geometry (112 triangles)
-src/manifest.ts                 # registers mirror-shard (+ liquid-texture, see below)
+(registered automatically by file name — nothing to add to src/manifest.ts)
 examples/mirror-shard-usage.html # scene wiring + full attribute reference
 examples/mirror-shard-liquid-texture-scene.html # both components combined,
                                   # recreating the original Zhichang_module
@@ -52,21 +52,12 @@ selector attribute); it has no idea how that texture is produced.
    without a custom target image). Purely optional: `mirror-shard` works
    without it, falling back to a flat tint.
 
-3. **Register in `src/manifest.ts`**:
-
-   ```ts
-   import mirrorShard from "./a-frame-components/mirror-shard";
-   import liquidTexture from "./a-frame-components/liquid-texture"; // optional
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "mirror-shard": mirrorShard,
-       "liquid-texture": liquidTexture // optional
-     }
-   };
-   ```
+3. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 4. **Wire it into the scene** — see [2. Entities & attributes](#2-entities--attributes)
    or copy directly from `examples/mirror-shard-usage.html` (attribute-by-
