@@ -97,9 +97,14 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- #19 Kleiderberg (Frankfurt Fashion Movement), ported from the 8th Wall
-       export `kleiderberg-fuas` — see augmented-bahnhofsviertel/about/19-kleiderberg/
-       and augmented-bahnhofsviertel/PORTING-GUIDE.md.
+  <!-- #19 Kleiderberg (Frankfurt Fashion Movement), ported from the LIVE
+       8th Wall app digitalekunst.8thwall.app/fashion-revolution-ffm (scene
+       read from its served body.html on 2026-10-05; model byte-identical to
+       Projektordner_alt/madebychildren/src/assets/Berg.gltf). The export
+       `kleiderberg-fuas` (Berg-13.glb with floating pictograms, gestures and a
+       shadow floor) was a different, unpublished version — see
+       augmented-bahnhofsviertel/about/19-kleiderberg/ (screenshots of the
+       live original) and augmented-bahnhofsviertel/PORTING-GUIDE.md.
 
        Assets come from the manifest (src/assets/, id = file name without
        extension) and are injected by the host — no <a-assets> here. -->
@@ -109,60 +114,39 @@ onUnmounted(() => {
   >
     <!-- The original scene, coordinates unchanged (old camera at 0 8 8,
          floor at y = 0). legacy-space places it module-locally in front of
-         the camera at the right scale. Changes against the original body.html:
-         ids prefixed with "kleiderberg-" (shared host scene), xrextras-hold-drag
-         replaced by hold-drag (works inside the transformed hull). The
-         original had no start button and no recenter — neither has this.
-
-         Deliberate deviation (requested 2026-10-04): the model sits at
-         z = -70 instead of the original -30. The flat graphic elements lie in
-         a ring of radius ~59 old units around the mountain, so at -30 the
-         viewer started inside that ring with the mountain filling the view;
-         at -70 the nearest elements are ~19 units ahead of the camera and the
-         whole arrangement is in front of it. -->
-    <a-entity id="kleiderberg-legacy-space" legacy-space>
+         the camera at the right scale; tapRecenter replaces the scene-level
+         xrextras-tap-recenter. Changes against the live body.html:
+         - ids prefixed with "kleiderberg-" (shared host scene);
+         - the ambient light is dropped: it was written
+           type="ambient;  intensity: 1.5", which 8frame rejects as an invalid
+           light type and creates no light at all;
+         - responsive-immersive is dropped: on realityready it first calls
+           setAttribute on #static-ball, which doesn't exist in this scene, so
+           it threw before touching the model and never had an effect — the
+           model keeps the cubemap-realtime from the markup, and the declared
+           but unused cubemap images aren't imported;
+         - no landing-page/loading components (host-owned).
+         No gestures, no start button, no recenter button — the original had
+         none. -->
+    <a-entity id="kleiderberg-legacy-space" legacy-space="tapRecenter: true">
       <a-entity
-          light="
-            type: directional;
-            intensity: 2;
-            castShadow: true;
-            shadowMapHeight: 2048;
-            shadowMapWidth: 2048;
-            shadowCameraTop: 80;
-            shadowCameraBottom: -80;
-            shadowCameraRight: 80;
-            shadowCameraLeft: -80;
-            target: #kleiderberg-model;
-            shadowRadius: 12"
-          xrextras-attach="target: kleiderberg-model; offset: 1 150 -15;"
-          shadow>
-      </a-entity>
-
-      <a-light
           xr-light
-          type="ambient">
-      </a-light>
-
-      <a-entity
-          id="kleiderberg-model"
-          gltf-model="#kleiderberg-Berg-13"
-          class="cantap"
-          hold-drag="groundId: kleiderberg-ground"
-          xrextras-two-finger-rotate
-          xrextras-pinch-scale
-          position="0 0 -70"
-          scale="6.5 6.5 6.5"
-          shadow="receive: false">
+          light="type: directional; intensity: 2;
+             target: #kleiderberg-group"
+          xrextras-attach="target: kleiderberg-group; offset: 0 50 10;"
+          shadow>
       </a-entity>
 
-      <a-plane
-          id="kleiderberg-ground"
-          rotation="-90 0 0"
-          width="1000"
-          height="1000"
-          material="shader: shadow"
-          shadow>
-      </a-plane>
+      <a-entity id="kleiderberg-group">
+        <a-entity
+            id="kleiderberg-realtime-ball"
+            cubemap-realtime
+            gltf-model="#kleiderberg-Berg"
+            position="0 0 -90"
+            rotation="0 70 0"
+            scale="1.12 1.12 1.12">
+        </a-entity>
+      </a-entity>
     </a-entity>
   </a-entity>
 
