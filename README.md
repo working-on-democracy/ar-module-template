@@ -13,22 +13,26 @@ ar-module-template/
 ├── ar.html               # 8th Wall AR preview page (npm run dev:ar / build:ar)
 ├── src/                   # everything a fork is expected to edit
 │   ├── ArModule.vue           # the user-edited component (template syntax)
-│   ├── manifest.ts            # the authored manifest: assets + camera + components + imageTargets
+│   ├── manifest.ts            # the authored manifest: assets + components (both automatic) + camera + imageTargets + hostLights
 │   ├── assets/                 # drop .glb/.png/.mp3/… here — auto-derived into the manifest
 │   ├── a-frame-components/     # custom A-Frame components — registered automatically by file name when used
-│   └── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
+│   ├── image-targets/          # 8th Wall image-target JSON + images, referenced from manifest.ts
+│   ├── asset-loading-overlay.ts # loading bar + spinner used by ArModule.vue (template baseline)
+│   ├── ArOverlay.vue           # AR Overlay feature: 2D controls/hint over the AR view (FEATURE-CATALOG)
+│   └── ar-overlay-icons.ts     # inline SVG icons for ArOverlay.vue
 ├── lib/                   # internal plumbing — not meant to be edited by a fork
 │   ├── main.ts                # entry: re-exports the SFC as default + the manifest
 │   ├── manifest.types.ts      # Manifest/CameraProps/CameraSettings/ManifestAsset types
 │   ├── preview.ts             # VR/desktop preview harness (stock A-Frame)
 │   ├── preview-ar.ts          # 8th Wall AR preview harness (8frame + engine + xrweb)
-│   ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets)
+│   ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets / host lights)
 │   ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
 │   ├── gltf-meshopt-setup.ts  # patches THREE.GLTFLoader so meshopt-compressed .glb files load
-│   ├── vendor/                # vendored meshopt decoder (gltf-meshopt-setup.ts's only dependency)
+│   ├── vendor/                # meshopt decoder + 8frame 1.3.0 and the host's xrextras (Augmented Bahnhofsviertel: dev:ar / build:ar); 8frame 1.5.0 kept for feature_template merges
 │   └── virtual-manifest.d.ts  # ambient types for `virtual:ar-manifest` and `virtual:used-components`
 ├── scripts/
-│   └── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
+│   ├── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
+│   └── used-components.ts     # finds the components the module uses (automatic registration)
 └── uncompressed-assets/   # gitignored, local-only; pristine originals kept by compress-assets.ts
 ```
 
@@ -55,10 +59,39 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 
 ### 8th Wall AR preview (camera + world tracking)
 
-- `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR, identical to production. Mock prop data lives in `lib/preview-ar.ts`.
+- `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR. Mock prop data lives in `lib/preview-ar.ts`.
+- **One version difference to the host:** this preview (and `build:ar`) loads **8frame 1.5.0** (three.js r158) from `lib/vendor/`, while the host app runs **8frame 1.3.0** (three.js r137). Most scenes behave the same, but three.js APIs that changed in between (e.g. `colorSpace` vs. `encoding`, sorting of opaque objects, PMREM updates) can differ — check such details in the host. Aligning the preview with 8frame 1.3 is planned.
+  **Augmented Bahnhofsviertel:** on this branch family the difference no longer exists — `dev:ar` and `build:ar` load the host's **8frame 1.3.0** and its xrextras (`lib/vendor/8frame-1.3.0.min.js`, `lib/vendor/xrextras-host/`) plus the host's base scene; see `augmented-bahnhofsviertel/PORTING-GUIDE.md` §9.
 - The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
 - **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
 - Without a phone (e.g. an AI agent checking its own work): headless Chromium with an emulated iPhone and a generated video of the image target as the camera verifies target detection and scene rendering, not device motion or real-GPU performance — see [`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md).
+
+
+### Keeping up with the host
+
+Everything this template assumes about the host app — its runtime versions
+(8frame, aframe-extras, xrextras, engine), its base scene (lights, camera,
+raycaster, fog), its UI and its module loader — can change on the host side
+at any time. The host is
+[`TobiasStill/ar-demo-backend`](https://github.com/TobiasStill/ar-demo-backend)
+(private; readable with the `gh` CLI). **Check it for changes regularly**:
+before a release, before relying on a host fact in new work, and whenever
+something behaves differently in the host than in the preview. Look at the
+commits since the last check, and at least these files:
+
+| File (host repo) | What it decides for a module |
+|---|---|
+| `frontend/index.html` | runtime versions (`external/scripts/8frame-*.min.js`, aframe-extras, xrextras, engine) |
+| `frontend/package.json` | `@8thwall/engine-binary`, `@8thwall/xrextras` versions |
+| `frontend/src/components/ArScene.vue` | base scene: `#host-lights`, camera, raycaster, fog, gesture detector |
+| `frontend/src/components/ArModule.vue` | module loader: manifest fields, registration, mount root, unmount |
+
+If something changed, update the previews (`lib/preview*.ts`, `ar.html`,
+`index.html`, `lib/vendor/`), the docs and the line below.
+
+**Last checked:** 2026-10-05, host `master` at `ff575f9` — 8frame 1.3.0,
+aframe-extras 6.1.1, `@8thwall/engine-binary` 1.0.0, `@8thwall/xrextras`
+1.0.0, `hostLights` supported (PR #4).
 
 ### Builds
 
