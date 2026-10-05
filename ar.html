@@ -39,7 +39,9 @@
         s.async = false;
         document.head.appendChild(s);
       }
-      load("external/scripts/8frame-1.5.0.min.js");
+      // Augmented Bahnhofsviertel: the host app's 8frame 1.3.0 instead of 1.5.0
+      // (see vite.config.ts / augmented-bahnhofsviertel/PORTING-GUIDE.md §9).
+      load("external/scripts/8frame-1.3.0.min.js");
       load("https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js");
       load("external/xrextras/xrextras.js");
       load("external/xr/xr.js", { "data-preload-chunks": "slam" });
