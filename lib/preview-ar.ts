@@ -1,5 +1,7 @@
 import { createApp, h, ref, nextTick } from "vue";
-import ArModule from "../src/ArModule.vue";
+// The module root the host mounts (src/ArModule.vue + the template's global
+// per-module setup, e.g. hostLightScale) — not ArModule.vue directly.
+import ArModule from "./main";
 import { manifest } from "../src/manifest";
 import {
   registerManifestComponents,
@@ -70,11 +72,13 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
-      // Augmented Bahnhofsviertel: the host app's base scene (ar-demo-backend,
-      // frontend/src/components/ArScene.vue, checked 2026-10-05) — its two
-      // always-on lights, camera start position and raycaster interval — so
-      // the preview and the standalone build light and place a module the
-      // way the host does. See augmented-bahnhofsviertel/PORTING-GUIDE.md §9.
+      // The host's two always-on scene lights (frontend/src/components/
+      // ArScene.vue in ar-demo-backend), so the module previews under the
+      // light it gets in the app — and `hostLightScale` has something to scale.
+      // Augmented Bahnhofsviertel additionally mirrors the host's camera start
+      // position and raycaster interval (and fog/renderer on the scene below),
+      // so preview and standalone build place a module the way the host does.
+      // See augmented-bahnhofsviertel/PORTING-GUIDE.md §9.
       h("a-light", { type: "ambient", color: "#BBB" }),
       h("a-light", { type: "directional", color: "#FFF", intensity: "0.6", "cast-shadow": "true", position: "-0.5 1 1" }),
       h("a-camera", {
