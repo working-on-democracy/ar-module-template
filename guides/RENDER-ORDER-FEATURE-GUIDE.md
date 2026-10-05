@@ -29,19 +29,12 @@ branch) that this guide only summarizes.
 1. **Copy the file** — `render-order.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import renderOrder from "./a-frame-components/render-order";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "render-order": renderOrder
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
@@ -112,6 +105,14 @@ queues, dithering vs. real alpha, material cloning) is in
 not duplicated here.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Portal overwrites renderOrder in its subtree
+
+[`portal`](PORTAL-FEATURE-GUIDE.md) sets `renderOrder` on every mesh inside
+its `contents`, `walls`, `portalWall` and `door` (hiders 1, contents 2) and
+re-applies it whenever a mesh appears below it. Values set by this
+component inside a portal are overwritten — use it outside portals only
+(found while adding Portal).
 
 ### Can't fix everything — see the cross-feature guide
 

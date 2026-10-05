@@ -4,6 +4,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import { fileURLToPath, URL } from "node:url";
 import { readdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
 import { join, parse, extname, sep } from "node:path";
+import { usedComponents } from "./scripts/used-components";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
 // Image-target files (the JSON + its *_luminance/_cropped/… images) produced by
@@ -107,6 +108,54 @@ function serveDir(server: any, prefix: string, root: string) {
  * - serves `/assets/*` from `src/assets` during `vite dev` (preview)
  * - on build, copies each asset into `dist/assets/` and writes `dist/manifest.json`
  */
+/**
+ * Automatic A-Frame component registration: `virtual:used-components` imports
+ * exactly the components in src/a-frame-components/ that the module uses
+ * (file name = component name; see scripts/used-components.ts) and exports
+ * them as { name: definition } — src/manifest.ts spreads that into
+ * `components`. Unused components are neither bundled nor registered.
+ * The dev server recomputes the list when a file in src/ is added, removed
+ * or changed, and reloads the page if it changed.
+ */
+const USED_COMPONENTS_ID = "virtual:used-components";
+const RESOLVED_USED_COMPONENTS_ID = "\0" + USED_COMPONENTS_ID;
+function autoComponents() {
+  const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+  const listKey = () => [...usedComponents(srcDir).keys()].join(",");
+  let lastKey = "";
+  return {
+    name: "used-components",
+    resolveId(id: string) {
+      if (id === USED_COMPONENTS_ID) return RESOLVED_USED_COMPONENTS_ID;
+    },
+    load(id: string) {
+      if (id !== RESOLVED_USED_COMPONENTS_ID) return;
+      const used = usedComponents(srcDir);
+      lastKey = [...used.keys()].join(",");
+      const entries = [...used];
+      return [
+        ...entries.map(([, file], i) => `import c${i} from ${JSON.stringify(file)};`),
+        `export const usedComponents = {`,
+        ...entries.map(([name], i) => `  ${JSON.stringify(name)}: c${i},`),
+        `};`,
+        `export default usedComponents;`
+      ].join("\n");
+    },
+    configureServer(server: any) {
+      const onChange = (file: string) => {
+        if (!file.startsWith(srcDir) || !/\.(vue|ts)$/.test(file)) return;
+        if (listKey() === lastKey) return;
+        const mod = server.moduleGraph.getModuleById(RESOLVED_USED_COMPONENTS_ID);
+        if (mod) server.moduleGraph.invalidateModule(mod);
+        server.ws.send({ type: "full-reload" });
+      };
+      server.watcher.on("add", onChange);
+      server.watcher.on("unlink", onChange);
+      server.watcher.on("change", onChange);
+    }
+  };
+}
+
 function arModuleAssets() {
   return {
     name: "ar-module-assets",
@@ -175,7 +224,8 @@ export default defineConfig(async ({ command, mode }) => {
         }
       }
     }),
-    arModuleAssets()
+    arModuleAssets(),
+    autoComponents()
   ];
 
   if (isAr) {
