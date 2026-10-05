@@ -38,19 +38,12 @@ like any other `src/assets/`-sourced `<img>`.
    `src/a-frame-components/`. No path changes, no data files to bring
    along.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import liquidTexture from "./a-frame-components/liquid-texture";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "liquid-texture": liquidTexture
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Use it standalone or as a texture source** — see
    [2. Entities & attributes](#2-entities--attributes) or

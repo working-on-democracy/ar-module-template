@@ -67,7 +67,7 @@ Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
 
 ## Umstellung auf die Host-Laufzeit (2026-10-05)
 
-Vorschau und Standalone laufen seit 2026-10-05 auf der Laufzeit des Hosts (8frame 1.3.0 statt 1.5.0, xrextras des Hosts) mit dessen Basis-Szene (zwei dauerhafte Lichter, die das Werk auf 30 % dimmt; Kamera auf `0 0.35 0.8`; Nebel); der Recenter-Button sitzt 64 px von oben. Die Handy-Tests der Werke liefen bis dahin auf 1.5. Entschieden 2026-10-05: alle Werke bleiben `portiert`, ein vollständiger Neutest auf der Host-Laufzeit ist nicht nötig — Stichproben: Nr. 1 neu geprüft (passt), Nr. 19 Lichtvergleich (kaum Unterschied, metallisches Material). Das Dimmen der Host-Lichter liegt seit 2026-10-05 auf Vorschlag des Host-Admins in der globalen Initialisierung des Templates (Manifest-Feld `hostLightScale`, `lib/main.ts`/`lib/host-lights.ts`; auf der Zwischenbasis `hostLightScale: 0.3`), nicht mehr in `legacy-space`.
+Vorschau und Standalone laufen seit 2026-10-05 auf der Laufzeit des Hosts (8frame 1.3.0 statt 1.5.0, xrextras des Hosts) mit dessen Basis-Szene (zwei dauerhafte Lichter, die bei unseren Werken ausgeschaltet sind; Kamera auf `0 0.35 0.8`; Nebel); der Recenter-Button sitzt 64 px von oben. Die Handy-Tests der Werke liefen bis dahin auf 1.5. Entschieden 2026-10-05: alle Werke bleiben `portiert`, ein vollständiger Neutest auf der Host-Laufzeit ist nicht nötig — Stichproben: Nr. 1 neu geprüft (passt), Nr. 19 Lichtvergleich (kaum Unterschied, metallisches Material). Die Host-Lichter schaltet seit 2026-10-05 der Host selbst ab (`hostLights: false` im Manifest, Host-PR #4 / Template-PR #6 gemergt) — zuvor dimmte das Modul sie auf 30 %.
 
 ## Abgleich mit den Live-Apps (2026-10-05)
 
