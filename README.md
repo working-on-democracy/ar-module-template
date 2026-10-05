@@ -176,6 +176,14 @@ on, which a module without lights of its own needs. The module contains no
 code for this; both previews have the same `#host-lights` group and apply the
 field the same way (`applyHostLights` in `lib/host-runtime.ts`).
 
+**Convention: `hostLights: false` only in a module with lights of its own.**
+Set it only when the scene itself contains lights (`<a-light>`, a `light`
+component, or three.js lights created by a component — `xr-light` only
+drives an existing light, it isn't one). A module
+without lights would turn dark in the host — unlit materials and the camera
+image aside — so it keeps the default and the host lights. When a module
+loses its last light, remove `hostLights: false` too.
+
 ### Camera keys are restricted
 
 `camera` is typed as `CameraSettings`, not the full set of `<a-camera>` attributes:
