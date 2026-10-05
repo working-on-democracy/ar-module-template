@@ -87,8 +87,8 @@ const loadSpinnerBackdropStyle = computed(() => ({
 
 // #20 Solid Dream Level: the original's UI (image-target-ui with
 // skip-marker, recenter button, enable-video): once the scene is placed, a
-// "P L A Y" button unlocks audio; after that, tapping the shell opens it and
-// plays its sound (solid-dream-level-tap-animation). See LegacyOverlay.vue.
+// "P L A Y" button unlocks audio; after that, tapping a shell opens it and
+// plays its sound (solid-dream-level-tap-animation) — eight shells. See LegacyOverlay.vue.
 const rootEntity = ref<HTMLElement | null>(null);
 let stopPauseWhileHidden: (() => void) | null = null;
 const centerControls: LegacyControl[] = [
@@ -97,8 +97,8 @@ const centerControls: LegacyControl[] = [
     html: 'P L A Y',
     onClick: () => {
       unlockAudio();
-      document.getElementById('solid-dream-level-model')
-        ?.setAttribute('solid-dream-level-tap-animation', 'unlocked: true');
+      rootEntity.value?.querySelectorAll('[solid-dream-level-tap-animation]')
+        .forEach((el) => el.setAttribute('solid-dream-level-tap-animation', 'unlocked: true'));
     }
   }
 ];
@@ -120,8 +120,12 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- #20 Solid Dream Level (Anna Hofmann), ported from the 8th Wall export
-       `anna-hofmann` — see augmented-bahnhofsviertel/about/20-solid-dream-level/
+  <!-- #20 Solid Dream Level (Anna Hofmann), ported from the LIVE 8th Wall app
+       digitalekunst.8thwall.app/anna-hofmann (scene read from its served
+       body.html on 2026-10-05). The export `anna-hofmann` is an earlier state:
+       one shell (volume 50, rolloffFactor 500) instead of the live app's
+       eight; components, assets and the rest of the scene are identical. See
+       augmented-bahnhofsviertel/about/20-solid-dream-level/
        and augmented-bahnhofsviertel/PORTING-GUIDE.md.
 
        Assets come from the manifest (src/assets/, id = file name without
@@ -138,7 +142,9 @@ onUnmounted(() => {
          tap-animation -> solid-dream-level-tap-animation (gated by the PLAY
          button instead of a global flag); the group's `image-target`
          dropped (the hull stays hidden until placed). No tap-recenter in the
-         original. -->
+         original. Eight shells as in the live app, each tappable once
+         (opens, plays its own copy of the sound); each has its own
+         cubemap-realtime like the original. -->
     <a-entity id="solid-dream-level-legacy-space" legacy-space>
       <a-entity
           xr-light
@@ -164,15 +170,91 @@ onUnmounted(() => {
           id="solid-dream-level-group"
           scale="3 3 3">
         <a-entity
-            id="solid-dream-level-model"
             class="cantap"
             solid-dream-level-tap-animation
-            sound="src: #solid-dream-level-sound; loop: false; volume: 50; rolloffFactor: 500;"
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 4;"
             gltf-model="#solid-dream-level-Muschel3"
             cubemap-realtime
             position="0 0 -2"
             rotation="0 0 0"
             scale="1 1 1"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="-5 0 -4"
+            rotation="0 40 0"
+            scale="0.5 0.5 0.5"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="10 0 -8"
+            rotation="0 150 0"
+            scale="1 1 1"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="3 0 -12"
+            rotation="0 200 0"
+            scale="0.6 0.6 0.6"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="2 0 1"
+            rotation="0 170 0"
+            scale="1 1 1"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="-6 0 2"
+            rotation="0 70 0"
+            scale="1 1 1"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="-7 0 -7"
+            rotation="0 20 0"
+            scale="0.5 0.5 0.5"
+            shadow>
+        </a-entity>
+        <a-entity
+            class="cantap"
+            solid-dream-level-tap-animation
+            sound="src: #solid-dream-level-sound; loop: false; volume: 8; rolloffFactor: 2;"
+            gltf-model="#solid-dream-level-Muschel3"
+            cubemap-realtime
+            position="4 0 4"
+            rotation="0 300 0"
+            scale="0.7 0.7 0.7"
             shadow>
         </a-entity>
       </a-entity>
