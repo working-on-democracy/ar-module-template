@@ -141,6 +141,20 @@ no console warning, no crash, just nothing plays. Check the model's actual
 clip names (e.g. log `model.animations.map(c => c.name)`) if nothing
 animates.
 
+### Module failed to mount in `npm run dev:ar` ("AFRAME is not defined") — fixed
+
+Earlier versions read `AFRAME.THREE` at the top level of
+`trim-loop-clip.ts` (for the `LOOP_MODES` table), i.e. while the module
+bundle was being evaluated. In the real host and `npm run dev`, A-Frame is
+already loaded by then. `npm run dev:ar`'s `ar.html` injects 8frame
+dynamically, though, and the bundle can evaluate first — the lookup threw,
+took the whole `manifest.ts` import down with it, and the module never
+mounted, even in projects that didn't use `trim-loop-clip` in their scene
+(registering it in the manifest was enough). `THREE` is now only read at
+runtime, inside functions (`loopModes()`). Keep it that way: no
+component may touch `AFRAME`/`THREE` at module top level. (Found while
+porting the Augmented Bahnhofsviertel works.)
+
 ### No interaction found with any other feature on this branch
 
 Only ever touches this entity's animation mixer/actions — no `document`
