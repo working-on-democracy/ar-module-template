@@ -78,12 +78,13 @@ declare const THREE: any;
 // (ar-demo-backend, ArScene.vue) keeps an ambient (#BBB) and a directional
 // (0.6) light on permanently, on top of which a module's own lights add —
 // so the old scenes, which brought their complete lighting, came out
-// brighter than authored. Decided 2026-10-05: halve them (0.5), not switch
-// them off. Interim solution: cleaner would be a manifest field the host's
-// module loader honours (e.g. `hostLights: 0.5`) — then set this to 1.
-// (three.js can't exclude a light per object: no light linking, and layers
-// disable a light for every object.) lib/preview-ar.ts mirrors the host's two lights so preview and
-// standalone build look like the host. Each light's original intensity is
+// brighter than authored. Decided 2026-10-05 after comparing 0 / 0.3 /
+// 0.5 / 1 on a phone (#1): dim them to 0.3, not switch them off. Interim
+// solution: cleaner would be a manifest field the host's module loader
+// honours (e.g. `hostLights: 0.3`) — then set this to 1. (three.js can't
+// exclude a light per object: no light linking, and layers disable a light
+// for every object.) lib/preview-ar.ts mirrors the host's two lights so
+// preview and standalone build look like the host. Each light's original intensity is
 // remembered once (shared across hulls), so nested or repeated hulls can't
 // compound the factor.
 const TAP_MAX_MS = 350;
@@ -106,7 +107,7 @@ export default {
     scaleSounds: { type: "boolean", default: true },
     scaleLights: { type: "boolean", default: true },
     tapRecenter: { type: "boolean", default: false },
-    hostLightScale: { type: "number", default: 0.5 }
+    hostLightScale: { type: "number", default: 0.3 }
   },
 
   init() {
