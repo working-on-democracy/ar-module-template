@@ -97,7 +97,8 @@ guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, interna
 cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
                                dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
-                               verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
+                               verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host.
+                               Augmented Bahnhofsviertel branches: previews already run the host's 8frame 1.3.0 + xrextras (PORTING-GUIDE §9)
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
 scripts/used-components.ts     scan behind automatic component registration (virtual:used-components in vite.config.ts)
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts

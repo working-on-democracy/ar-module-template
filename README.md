@@ -28,7 +28,7 @@ ar-module-template/
 │   ├── host-runtime.ts        # shared preview wiring (register components / camera / image targets / host lights)
 │   ├── frustum-culling.ts     # helper used by src/a-frame-components/no-frustum-cull.ts
 │   ├── gltf-meshopt-setup.ts  # patches THREE.GLTFLoader so meshopt-compressed .glb files load
-│   ├── vendor/                # meshopt decoder (for gltf-meshopt-setup.ts) + 8frame 1.5.0 (dev:ar / build:ar)
+│   ├── vendor/                # meshopt decoder + 8frame 1.3.0 and the host's xrextras (Augmented Bahnhofsviertel: dev:ar / build:ar); 8frame 1.5.0 kept for feature_template merges
 │   └── virtual-manifest.d.ts  # ambient types for `virtual:ar-manifest` and `virtual:used-components`
 ├── scripts/
 │   ├── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
@@ -61,6 +61,7 @@ Note this mode uses **stock A-Frame, not `8frame`**: 8frame's render loop is dri
 
 - `npm run dev:ar` runs the preview against the **full host runtime** — `8frame` + `aframe-extras` + `xrextras` + the 8th Wall engine (`xrweb`) — so the module renders in real camera AR. Mock prop data lives in `lib/preview-ar.ts`.
 - **One version difference to the host:** this preview (and `build:ar`) loads **8frame 1.5.0** (three.js r158) from `lib/vendor/`, while the host app runs **8frame 1.3.0** (three.js r137). Most scenes behave the same, but three.js APIs that changed in between (e.g. `colorSpace` vs. `encoding`, sorting of opaque objects, PMREM updates) can differ — check such details in the host. Aligning the preview with 8frame 1.3 is planned.
+  **Augmented Bahnhofsviertel:** on this branch family the difference no longer exists — `dev:ar` and `build:ar` load the host's **8frame 1.3.0** and its xrextras (`lib/vendor/8frame-1.3.0.min.js`, `lib/vendor/xrextras-host/`) plus the host's base scene; see `augmented-bahnhofsviertel/PORTING-GUIDE.md` §9.
 - The engine itself isn't on a public CDN: it's installed via the `@8thwall/engine-binary` dev-dependency and copied into `/external/xr/` by `vite-plugin-static-copy` (exactly as the host does). `npm install` puts it in place.
 - **HTTPS is required for the camera** on any non-`localhost` origin. `dev:ar` serves over https (`@vitejs/plugin-basic-ssl`) and binds all interfaces (`--host`), so you can open the printed LAN URL on a phone (accept the self-signed cert). 8th Wall's SLAM/world-tracking needs a phone's rear camera + IMU — a laptop webcam works for a quick sanity check but won't track.
 - Without a phone (e.g. an AI agent checking its own work): headless Chromium with an emulated iPhone and a generated video of the image target as the camera verifies target detection and scene rendering, not device motion or real-GPU performance — see [`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md).
