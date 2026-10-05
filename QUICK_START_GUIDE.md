@@ -42,7 +42,7 @@ rules before it touches anything, the same way this page gets you oriented.
 | `src/ArModule.vue` | **Your scene.** Everything the visitor sees and hears — 3D objects, lights, and any feature you add — goes in here, inside the `<template>` section. |
 | `examples/*.html` | Copy-paste reference snippets, one (or a few) per feature. These are never run or edited directly — open one, copy the parts you need, paste them into `ArModule.vue`. Each file's own comments explain exactly what to copy and where it goes. |
 | `src/assets/` | Drop your images, sounds, and 3D models (`.glb`, `.png`, `.mp3`, ...) here. Every file becomes usable in your scene automatically, by its file name (a picture named `logo.png` becomes usable as `#logo`) — no extra setup. |
-| `src/manifest.ts` | The "switchboard" that turns a feature on for your project — a short list of one import + one line per feature you've copied in. A feature's own guide tells you exactly what to add here; you don't need to understand the file beyond that. |
+| `src/manifest.ts` | The module's settings the host reads (assets, camera, image targets). Features switch themselves on: a component file you copied into `src/a-frame-components/` works as soon as your scene uses its name — nothing to add here. You rarely need to touch this file. |
 
 Everything else in the project (the `lib/` folder especially) is shared
 internal plumbing — you shouldn't need to open or edit it. One exception
@@ -62,9 +62,9 @@ original files safe in a local `uncompressed-assets/` folder first.
 1. Open [FEATURE-CATALOG.md](FEATURE-CATALOG.md), find the feature you
    want, and click through to its guide.
 2. Follow that guide's first section (always called "step-by-step") — it's
-   a short checklist: which files to copy into `src/a-frame-components/`,
-   what to add to `src/manifest.ts`, and which images/sounds (if any) to
-   drop into `src/assets/`.
+   a short checklist: which files to copy into `src/a-frame-components/`
+   and which images/sounds (if any) to drop into `src/assets/`. Nothing to
+   register — copied components work as soon as your scene uses them.
 3. Open that feature's example file in `examples/` and copy the markup
    into `ArModule.vue`'s `<template>` section. Some features (like Sound)
    also have a second on-screen-button snippet to paste in the same way —
