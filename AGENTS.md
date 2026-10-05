@@ -91,11 +91,15 @@ src/a-frame-components/*.ts    every A-Frame component, flat folder, non-recursi
 src/assets/                    binary assets (.glb/.png/.mp3/...), flat folder, non-recursive scan
 src/image-targets/             8th Wall image-target JSON + images, flat, non-recursive scan
 src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not a component)
+src/ArOverlay.vue              AR Overlay feature (Vue, not an A-Frame component) + src/ar-overlay-icons.ts
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
 cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing)
-lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts
+lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
+                               dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
+                               verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
+scripts/used-components.ts     scan behind automatic component registration (virtual:used-components in vite.config.ts)
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts
 *.md (repo root)                general, not-feature-specific docs (this file, workflow, catalog, README, quick-start)
 ```
@@ -158,6 +162,14 @@ uncompressed-assets/            gitignored, local-only; pristine originals kept 
   `xr-light` alone, it only drives an existing light);
   otherwise the module turns dark in the host. Remove it when the module's
   last light goes. See README "Host lights".
+- **Check the host repo for changes regularly** (`TobiasStill/ar-demo-backend`,
+  private, read via `gh api`; read-only unless the user asks for a PR).
+  Before a release, before relying on a host fact (runtime versions, base
+  scene/lights, UI, module loader), and whenever host and preview behave
+  differently: look at the commits since the "Last checked" line in README
+  "Keeping up with the host" and at the files listed there. If anything
+  changed, tell the user, align previews/docs, and update that line. The
+  host may upgrade 8frame (currently 1.3.0) at any time.
 - **The shared `<a-camera>` is host-owned.** `CAMERA_PROPS_FORBIDDEN` in
   `lib/manifest.types.ts` blocks a module from setting `id`/`position`/
   `cursor`/`raycaster` on it at the type level — don't work around this;
