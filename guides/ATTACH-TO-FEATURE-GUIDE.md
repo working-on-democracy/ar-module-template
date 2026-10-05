@@ -22,19 +22,12 @@ putting this on the same entity as `wander-in-band` or `proximity-wave`.
 1. **Copy the file** — `attach-to.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import attachTo from "./a-frame-components/attach-to";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "attach-to": attachTo
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
@@ -50,6 +43,7 @@ putting this on the same entity as `wander-in-band` or `proximity-wave`.
 |---|---|---|---|
 | `target` | selector | — | The entity to follow. Resolved on every tick, not cached — works even if the target mounts *after* this entity does. |
 | `offset` | vec3 | `{x:0, y:0, z:0}` | Added to the target's world position, in world-space units, before converting into this entity's own parent space. |
+| `space` | string | `world` | `world`: `offset` in world units/axes (as above). `parent`: `offset` added *after* converting into the parent's space, so it scales and turns with the parent — what `xrextras-attach` effectively did for elements sharing a parent, and what a scaled scene ([Placement](PLACEMENT-FEATURE-GUIDE.md) with `referenceHeight`) needs. Added from the Augmented Bahnhofsviertel ports' `legacy-attach`. |
 
 ```html
 <a-entity
@@ -87,6 +81,13 @@ deliberate, generic design choice in the source, not something added by
 this port.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Shares the entity transform with Placement & Gestures — don't combine on one entity
+
+[`place-in-front`](PLACEMENT-FEATURE-GUIDE.md) writes position/rotation/scale
+on every placement, and [`gesture-control`/`hold-drag`](GESTURES-FEATURE-GUIDE.md)
+write them while a gesture runs. Put this component on a parent or child of
+such an entity, never on the same one (found while adding those features).
 
 ### Real conflict with anything else that writes `position` every tick
 

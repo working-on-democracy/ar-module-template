@@ -48,7 +48,9 @@ adding it back to `manifest.ts` is an explicit step — see [1](#1-step-by-step-
    [3](#3-under-the-hood)), no manifest entry needed for the files
    themselves.
 
-2. **Register the target's JSON** in your project's `src/manifest.ts`:
+2. **Register the target's JSON** in your project's `src/manifest.ts`
+   (image targets are still listed by hand — only components register
+   automatically):
 
    ```ts
    import videoTarget from "./image-targets/video-target.json";
@@ -56,7 +58,7 @@ adding it back to `manifest.ts` is an explicit step — see [1](#1-step-by-step-
 
    export const manifest: Manifest = {
      assets: assetManifest.assets,
-     components: { /* ...whatever you already have... */ },
+     components: { ...usedComponents },
      imageTargets: [videoTarget]
      // multiple targets: imageTargets: [videoTarget, anotherTarget]
    };
@@ -300,6 +302,18 @@ couldn't have worked. Re-verify after any 8Frame/engine-binary/xrweb
 config change.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### xrextras-play-video vs. Video's video-control
+
+[`video-control`](VIDEO-FEATURE-GUIDE.md) starts/pauses a video on events;
+`xrextras-play-video` starts its own on target found and toggles on click.
+Don't put both on the same video element.
+
+### Don't place image-anchored content with Placement
+
+[`place-in-front`](PLACEMENT-FEATURE-GUIDE.md) moves its entity to the floor
+in front of the camera — inside an image target it would fight the tracked
+pose. Use it only for content that isn't anchored to an image.
 
 ### Uses the host's shared cursor/raycaster `click`, not this template's own tap systems
 
