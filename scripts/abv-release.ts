@@ -151,7 +151,7 @@ for (const work of works) {
   }
 
   // Standalone output: required runtime files + page cleanup.
-  for (const f of ["index.html", "external/xr/xr.js", "external/scripts/8frame-1.5.0.min.js", "external/xrextras/xrextras.js"]) {
+  for (const f of ["index.html", "external/xr/xr.js", "external/scripts/8frame-1.3.0.min.js", "external/xrextras/xrextras.js"]) {
     if (!existsSync(join(standaloneDir, f))) r.errors.push(`standalone: ${f} missing`);
   }
   const indexPath = join(standaloneDir, "index.html");
