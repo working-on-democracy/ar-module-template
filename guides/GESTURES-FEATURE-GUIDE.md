@@ -1,11 +1,31 @@
 # Gestures feature guide
 
+<!-- overview -->
+## Overview
+
+Lets visitors handle a virtual object with their fingers, the way they
+would push a real one around a table: press and hold it for a moment, and
+it lifts up and follows the finger across the floor; let go, and it settles
+down where they dropped it. Twisting with two fingers turns it, pinching
+makes it bigger or smaller (within sensible limits). One attribute switches
+each of these on or off.
+
+<!-- /overview -->
+
+## Technical summary
+
 Touch gestures for a model: hold and drag it along the ground, rotate it,
-pinch to scale — configured in one attribute. Applicable to any entity.
+pinch to scale — configured in one attribute. Applicable to any entity —
+see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
 Generalised from the Augmented Bahnhofsviertel ports
 (`augmented-bahnhofsviertel`: `hold-drag`, plus the xrextras rotate/pinch
-gestures the works #1–3, #8–10, #14, #21 use) — see
-[3. Under the hood](#3-under-the-hood).
+gestures the works #1–3, #8–10, #14, #21 use).
+
+<!-- /project-specific -->
 
 Files:
 
@@ -106,7 +126,7 @@ written for `xrextras-hold-drag` carries over.
 - **Pinch on the model, not a far-away group.** Pinch scales around the
   entity's own origin. On a group whose origin lies far from the model,
   the model drifts away while scaling and the size barely follows the
-  fingers (found on an Augmented Bahnhofsviertel work).
+  fingers.
 - **Transform writers.** All three gestures write the entity's
   position/rotation/scale. Don't combine with `place-in-front`,
   `attach-to`, `wander-in-band` or `proximity-wave` on the same entity —
@@ -124,3 +144,12 @@ written for `xrextras-hold-drag` carries over.
   `two-finger` (default) or `drag: false`.
 - **Draw/other host modes.** The host switches its raycaster off in its
   drawing mode (`.__none__`) — dragging pauses then, rotate/pinch don't.
+
+<!-- project-specific -->
+### Project context: Augmented Bahnhofsviertel
+
+The "pinch on the model, not a far-away group" pitfall above was found on
+an Augmented Bahnhofsviertel work, whose pinch target was a group with its
+origin far from the visible model.
+
+<!-- /project-specific -->

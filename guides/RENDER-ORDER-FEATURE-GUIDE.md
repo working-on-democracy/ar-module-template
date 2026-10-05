@@ -1,12 +1,32 @@
 # Render order feature guide
 
+<!-- overview -->
+## Overview
+
+Settles arguments between see-through objects. When a glass pane, a
+coloured veil and a glowing shape overlap, the phone has to decide which
+one to draw on top — and sometimes it gets it wrong, so things flicker or
+seem to jump in front of each other as the visitor moves. With this
+feature you give each object a number, and the objects are layered in that
+order, like stacking coloured slides on a light table.
+
+<!-- /overview -->
+
+## Technical summary
+
 Sets three.js `renderOrder` on every mesh of a loaded model, so overlapping
 transparent surfaces draw in a controlled order. Applicable to any entity —
 including a plain A-Frame primitive (`a-box`, `a-plane`, ...), not just a
-`gltf-model`. Ported from `Gyumin_module`; the schema and behavior are
-unchanged, but see [3. Under the hood](#3-under-the-hood) for a real gap
-this port found and fixed (the source only worked on `gltf-model`, despite
-"applicable to any entity" being the point of this feature).
+`gltf-model` — see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Gyumin_module`; schema and behavior are unchanged, but the
+source only worked on `gltf-model` — primitive support was added during the
+port (see §3).
+
+<!-- /project-specific -->
 
 Files:
 
@@ -14,7 +34,8 @@ Files:
 src/a-frame-components/render-order.ts
 examples/render-order-usage.html   # scene wiring + full attribute reference
 examples/random-field-lod-billboard-proximity-wave-scene.html # combined with
-                                    # the other three Gyumin_module features
+                                    # Random Field, LOD + Billboard and
+                                    # Proximity Wave
 ```
 
 No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
@@ -70,18 +91,24 @@ component's own `init()` runs. Once the mesh exists, traverses its object3D
 graph and sets `node.renderOrder = data` on every mesh node found. That's
 the entire component.
 
-**Fixed during this port:** the source listened for gltf-model's own
-`model-loaded` event specifically, which never fires for a plain A-Frame
-primitive (`a-box`, `a-plane`, `a-sphere`, ...) — since "applicable to any
-entity" was the explicit requirement for this feature, that was a real gap,
-not a style choice, and primitives needed the immediate-check path added
-too (a primitive's mesh is typically already built by the time this
-component initializes, since A-Frame loads children before parents and a
-primitive's geometry/material setup is synchronous — unlike a glTF fetch,
-which is still genuinely pending at that point, so the listener path is
-what actually matters for that case). `object3dset` fires for both, so one
-mechanism now covers both asset types with no behavior change for existing
-glTF-based usage.
+**Why `object3dset` and the immediate check.** gltf-model's own
+`model-loaded` event never fires for a plain A-Frame primitive (`a-box`,
+`a-plane`, `a-sphere`, ...). A primitive's mesh is typically already built
+by the time this component initializes (A-Frame loads children before
+parents and a primitive's geometry/material setup is synchronous), so the
+immediate check covers it; a glTF fetch is still pending at that point, so
+the listener path covers that case. `object3dset` fires for both, so one
+mechanism covers both asset types.
+
+<!-- project-specific -->
+#### Project context: `Gyumin_module`
+
+The source listened for `model-loaded` only. Since "applicable to any
+entity" was the explicit requirement for this feature, that was a real gap
+fixed during the port — the first time this gap was found; the same fix
+was later applied to every other material-touching component.
+
+<!-- /project-specific -->
 
 The one piece of nuance is entirely about *composition* with other
 features, not this component's own code:

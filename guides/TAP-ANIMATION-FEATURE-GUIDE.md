@@ -1,11 +1,32 @@
 # Tap Animation feature guide
 
+<!-- overview -->
+## Overview
+
+Brings a model to life with a touch. Tap a closed seashell and it opens;
+tap a music box and its figure starts to dance — the model plays the
+movement that was built into it, together with its sound. It can be a
+one-time surprise that stays in its final pose, or something that plays
+again on every tap. Until the visitor has allowed sound, taps can be
+ignored, so nobody sees the movement without hearing it.
+
+<!-- /overview -->
+
+## Technical summary
+
 Tap a model to play one of its glTF animations — once (it stays at the last
 frame, e.g. a shell opening) or on every tap — and start its sound with it;
 taps can be gated until audio is unlocked. Applicable to any entity with a
-`gltf-model`. Generalised from #20 Solid Dream Level
-(`augmented-bahnhofsviertel`: eight shells that open once on tap and play
-their sound) — see [3. Under the hood](#3-under-the-hood).
+`gltf-model` — see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Generalised from #20 Solid Dream Level (`augmented-bahnhofsviertel`: eight
+shells that open once on tap and play their sound). `enabled` replaces
+that work's global `window.soundUnlocked` flag.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -53,9 +74,8 @@ The tap is the host's cursor `click` on `.cantap` (the class is added; the
 host's and both previews' raycaster target `.cantap`). On a tap it removes
 and re-sets `animation-mixer` with the configured clip/loop/clamp — setting
 it fresh restarts the clip from the first frame — and stops/starts the
-entity's `sound`. `enabled` replaces #20's global `window.soundUnlocked`
-flag: set it from the button that unlocks audio, so the first tap doesn't
-play a silent animation.
+entity's `sound`. `enabled` gates the taps: set it from the button that
+unlocks audio, so the first tap doesn't play a silent animation.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
@@ -64,11 +84,18 @@ play a silent animation.
   (or [Trim Loop Clip](TRIM-LOOP-CLIP-FEATURE-GUIDE.md)) there.
 - **iOS click.** Relies on the host cursor's `click`, which iOS Safari can
   suppress after `xrextras-gesture-detector` handled the touch (see
-  [Sound](SOUND-FEATURE-GUIDE.md) §4). On the Augmented Bahnhofsviertel
-  work it tapped fine on iPhone; test tap targets on a phone, and avoid
-  [Gestures](GESTURES-FEATURE-GUIDE.md) on the same model.
+  [Sound](SOUND-FEATURE-GUIDE.md) §4). Test tap targets on a phone, and
+  avoid [Gestures](GESTURES-FEATURE-GUIDE.md) on the same model.
 - **Tap also recenters.** With [Placement](PLACEMENT-FEATURE-GUIDE.md)'s
   `tapRecenter`, a tap on the model also re-places the scene — use a
   recenter button instead.
 - **Animated skinned meshes** need `no-frustum-cull` (on the module root,
   template baseline) or they vanish while animating.
+
+<!-- project-specific -->
+### Project context: Augmented Bahnhofsviertel
+
+On #20 Solid Dream Level the tap worked fine on iPhone despite the iOS
+click caveat above.
+
+<!-- /project-specific -->

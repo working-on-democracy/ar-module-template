@@ -1,5 +1,26 @@
 # Headless AR testing (fake camera + emulated phone)
 
+<!-- overview -->
+## Introduction
+
+AR scenes are normally tested by walking around with a phone in hand. That
+isn't always possible — for instance when an AI assistant, which has no
+phone and no hands, is supposed to check whether a scene works. This guide
+describes a stand-in: a computer pretends to be an iPhone, and instead of a
+real camera it is shown a short, generated video in which the scene's
+target picture drifts gently back and forth, as if a hand were holding the
+phone. The AR engine sees that "camera image", recognises the picture and
+places the scene on it, and a screenshot plus the error log show whether
+everything appeared as it should.
+
+It's a quick health check, not a replacement for the real thing: walking
+around, real phone speed and how a scene feels in the hand can only be
+judged on an actual device.
+
+<!-- /overview -->
+
+## About this guide
+
 How to check a scene in a real 8th Wall AR session (`dev:ar`) without a
 phone: headless Chromium via Playwright, an emulated iPhone, and a
 generated video of the image target fed in as the camera. Mainly meant
@@ -7,9 +28,15 @@ for AI agents, which can't hold a phone but can read screenshots and
 console output. Not tied to one feature, so it lives here rather than in
 a feature guide.
 
+<!-- project-specific -->
+### Project context: `animationssystem-wanderer`
+
 Verified 29.09.2026 on `animationssystem-wanderer`: the `an-alle-target`
 image target was detected, the scene anchored on it and rendered
-(wanderers, rings, tutorial overlay), console free of real errors.
+(wanderers, rings, tutorial overlay), console free of real errors. That
+branch is a good test candidate (target in `src/image-targets/`).
+
+<!-- /project-specific -->
 
 ## What this can and cannot verify
 
@@ -29,8 +56,7 @@ URL, see README.md).
 
 `feature_template` has no scene content of its own, so it shows the
 camera feed and nothing else. Test on a branch with an actual scene and
-image target (e.g. `animationssystem-wanderer`, target in
-`src/image-targets/`).
+an image target in `src/image-targets/`.
 
 ## Prerequisites (once per machine)
 

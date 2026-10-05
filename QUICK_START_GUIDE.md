@@ -1,5 +1,32 @@
 # Quick start guide
 
+## What you're working on
+
+[AN ALLE!](https://an-alle.net/) is a browser-based augmented reality
+platform: visitors open it on their phone and see artworks placed in the
+real space around them through the camera. Each artwork is a **module** — a
+3D scene with its own models, images and sounds that the platform loads and
+shows.
+
+Modules are built from **`ar-module-template`**, a project on GitHub:
+[github.com/working-on-democracy/ar-module-template](https://github.com/working-on-democracy/ar-module-template).
+It has several branches; the one to start from is **`feature_template`** —
+it holds the starter scene, every ready-made AR effect and all the guides.
+On GitHub, pick it in the branch menu above the file list.
+
+To start your own project, get a copy of the `feature_template` branch onto
+your computer and work on it in an **IDE** (a code editor such as
+[Visual Studio Code](https://code.visualstudio.com/) or
+[WebStorm / IntelliJ IDEA](https://www.jetbrains.com/webstorm/)): there you
+open and edit your scene, and run the preview commands described below, all
+in one window. Most IDEs can download the project for you ("Clone
+repository" with the GitHub link above); on the command line it's
+`git clone --branch feature_template https://github.com/working-on-democracy/ar-module-template.git`.
+You'll also need [Node.js](https://nodejs.org/), which runs those preview
+commands.
+
+## About this guide
+
 This is a short, plain-language starting point for **artists and other
 non-programmers** building an AR project on top of `ar-module-template`. It
 does **not** explain any individual feature or how any component works —
@@ -18,10 +45,10 @@ starting point you copy pieces out of into your own scene.
 
 ## Starting your own project, or just trying something out
 
-Don't build directly on the `ar-module-template` branch itself — it's the
+Don't build directly on the `feature_template` branch itself — it's the
 shared library every project starts from, and it needs to stay generic and
 uncluttered for the next person too. Create your **own branch (or fork)
-from `ar-module-template`**, and do all your project-specific work there:
+from `feature_template`**, and do all your project-specific work there:
 your own scene content, your own assets, any testing or experimenting.
 That's true whether you're starting a real project or just trying a
 feature out to see what it looks like.

@@ -1,16 +1,39 @@
 # LOD + Billboard feature guide
 
+<!-- overview -->
+## Overview
+
+Saves the phone's strength in scenes with many objects. Up close, a visitor
+sees the full, detailed 3D model; as they walk away, it softly blends into
+a flat picture of itself that always turns to face them — like a cardboard
+cut-out at the back of a theatre stage. From a distance nobody can tell the
+difference, but the phone only has to draw a single flat image instead of
+a complex model. Walk back, and the detailed version fades in again.
+Individual parts, such as a glow, can be set to appear only when the
+visitor comes really close.
+
+<!-- /overview -->
+
+## Technical summary
+
 Cross-fades a detailed 3D model into a flat, always-camera-facing billboard
 image as the camera moves away, and back again as it approaches — a classic
 level-of-detail technique for AR/VR scenes with many similar objects, where
 rendering full detail on everything far from the viewer would be wasteful.
 Applicable to any object — a `gltf-model` or a plain A-Frame primitive —
-optionally split into multiple parts. Ported from `Gyumin_module` — the
-`.lod-mesh`/`.lod-mesh-group`/`.lod-billboard` structure the components read
-already had no naming-convention or asset-specific logic in it; what
-changed is *how* that structure gets built, plus a real primitive-support
-gap this port found and fixed — see
+optionally split into multiple parts. The components read a
+`.lod-mesh`/`.lod-mesh-group`/`.lod-billboard` structure you author in
+markup — no naming convention or asset-specific logic involved — see
 [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Gyumin_module`. The structure the components read was already
+generic there; what changed is *how* that structure gets built, plus a
+real primitive-support gap the port found and fixed (see §3).
+
+<!-- /project-specific -->
 
 Files:
 
@@ -22,7 +45,7 @@ src/a-frame-components/
   unlit-material.ts      # flat/shadeless material technique, typically for the billboard
 examples/lod-billboard-usage.html   # required structure + full attribute reference
 examples/random-field-lod-billboard-proximity-wave-scene.html # combined with
-                                    # the other three Gyumin_module features
+                                    # Random Field and Proximity Wave
 ```
 
 No assets. **Read [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
@@ -153,32 +176,40 @@ standalone (non-LOD) `alphaTest`/`keepShadowBehavior` case.
 
 ## 3. Under the hood
 
-### What changed from the source
+### Structure authored in markup, primitives supported
+
+You author the `.lod-mesh-group`/`.lod-mesh`/`.lod-billboard` structure
+directly in markup (per [2](#2-entities--attributes)); nothing assembles it
+programmatically or discovers parts by asset names.
+[`random-field`](RANDOM-FIELD-FEATURE-GUIDE.md) (if you use it) just clones
+whatever structure you've already built, LOD included, since it's plain DOM.
+
+`lod-object.ts` (like `unlit-material.ts` and `render-order.ts`) listens for
+`object3dset` (A-Frame's generic "a mesh object3D was just set" event) plus
+an immediate check for an already-present mesh, rather than only
+`gltf-model`'s own `model-loaded` — which never fires for a primitive
+(`a-box`, `a-plane`, ...). So parts can be glTF models or primitives.
+
+<!-- project-specific -->
+#### Project context: `Gyumin_module`
+
+##### What changed from the source
 
 The source branch's field-population component (see
-`RANDOM-FIELD-FEATURE-GUIDE.md`) used to *build* this whole
-`.lod-mesh-group`/`.lod-mesh`/`.lod-billboard` structure programmatically
-via `document.createElement`, discovering which assets belonged together
-by a `PREFIX_01`/`PREFIX_LICHT`/`PREFIX_PNG` naming convention. This port
-removes the programmatic assembly entirely — you author the structure
-directly in markup instead (per [2](#2-entities--attributes)), and
-`random-field` (if you use it) just clones whatever structure you've
-already built, LOD included, since it's plain DOM. Comments referencing
-the source project's specific glow-part naming were generalized; nothing
-about their meaning changed.
+`RANDOM-FIELD-FEATURE-GUIDE.md`) used to *build* this whole structure
+programmatically via `document.createElement`, discovering which assets
+belonged together by a `PREFIX_01`/`PREFIX_LICHT`/`PREFIX_PNG` naming
+convention. The port removed the programmatic assembly entirely. Comments
+referencing the source project's specific glow-part naming were
+generalized; nothing about their meaning changed.
 
-One real functional gap was found and fixed while testing this against
-plain A-Frame primitives (not just `gltf-model`): `lod-object.ts` (and
-`unlit-material.ts`, `render-order.ts`) originally only listened for
-gltf-model's own `model-loaded` event to know when a mesh was ready to
-gather materials from — which never fires for a primitive (`a-box`,
-`a-plane`, ...), since primitives have no glTF-specific loading event at
-all. All three now listen for `object3dset` (A-Frame's generic "a mesh
-object3D was just set" event, which fires for both) plus an immediate
-check for the case where the mesh is already present — see each
-component's own guide for the detail. No behavior change for existing
-glTF-based usage; this only adds primitive support that was silently
-missing before.
+The primitive gap was found while testing against plain A-Frame
+primitives: `lod-object.ts`, `unlit-material.ts` and `render-order.ts`
+originally only listened for `model-loaded`. No behavior change for
+existing glTF-based usage; the fix only added the missing primitive
+support.
+
+<!-- /project-specific -->
 
 ### The two independent fades
 
@@ -231,8 +262,7 @@ Reflections).
 
 ### Does not interfere with manually-set `render-order` — verified, see the cross-feature guide
 
-This was the specific concern raised before this feature was ported: does
-tagging an entity with `render-order` conflict with LOD's own render-order
+A natural concern: does tagging an entity with `render-order` conflict with LOD's own render-order
 management? Checked directly — no. Full explanation in
 [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §2](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#2-how-render-order--lod-objectlod-manager-compose).
 Short version: inside an `lod-object` group, `render-order`'s value is read
@@ -262,7 +292,7 @@ If a project nests an LOD instance's dithered part (`data-lod-dither`)
 `material.onBeforeCompile` and neither composes with the other, whichever
 attaches last wins. See
 [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §4.4](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#44-onbeforecompile--program-caching).
-Not a new risk introduced by this port — the same category of collision
+Not a new kind of risk — the same category of collision
 already exists between `proximity-fade` and `proximity-cutout` themselves
 (see their own guides) — just now with a third component that can also be
 one side of it.

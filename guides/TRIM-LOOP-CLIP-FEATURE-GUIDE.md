@@ -1,11 +1,34 @@
 # Trim-loop-clip feature guide
 
+<!-- overview -->
+## Overview
+
+Makes animated models move smoothly from the very first moment and loop
+without hiccups. Animations exported from 3D programs often begin with a
+long, frozen pause, and a model with several animations (say, a body and
+a waving flag) slowly drifts out of step when they loop. This feature cuts
+away the dead time, keeps all animations of a model in step forever, and
+can even blend the end of an animation softly back into its start, so a
+movement that was never meant to repeat still loops without a visible
+jump.
+
+<!-- /overview -->
+
+## Technical summary
+
 Trims a glTF animation's dead lead-in (and tail) and plays it on a loop,
 keeping multiple clips on one model in sync so they don't gradually drift
 out of phase with each other. Applicable to any `gltf-model` that carries
-one or more animation clips. Ported from `Fanyu_module`, essentially
-unchanged — see [3. Under the hood](#3-under-the-hood) for the one addition
-made and why nothing else needed to change.
+one or more animation clips — see [3. Under the hood](#3-under-the-hood).
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Fanyu_module`, essentially unchanged (see §3). The `crossfade`
+option came later from the Augmented Bahnhofsviertel ports'
+`crossfade-loop-clip`.
+
+<!-- /project-specific -->
 
 Files:
 
@@ -47,7 +70,7 @@ same entity — the two would fight over driving the same model's pose (see
 | `timeScale` | number | `1` | Playback speed multiplier, same meaning as `animation-mixer`'s `timeScale`. |
 | `loop` | string | `"pingpong"` | `"once"` \| `"repeat"` \| `"pingpong"`. Ping-pong plays forward then reverse, back and forth. |
 | `clampWhenFinished` | boolean | `false` | Hold the final frame when a non-looping (`"once"`) clip finishes, instead of snapping back. |
-| `crossfade` | number | `0` | Seconds (repeat only; 0 = off). Rebuilds each track so the clip's last `crossfade` seconds blend linearly into the pose `crossfade` seconds in, and the loop restarts there — no jump for animations never authored to loop (any track type; quaternions re-normalised). Applied after the lead-in trim. Added from the Augmented Bahnhofsviertel ports' `crossfade-loop-clip` (a baked 401-frame cloth simulation whose loop jumped ~28× a normal frame step). Changes the motion near the loop point. |
+| `crossfade` | number | `0` | Seconds (repeat only; 0 = off). Rebuilds each track so the clip's last `crossfade` seconds blend linearly into the pose `crossfade` seconds in, and the loop restarts there — no jump for animations never authored to loop (any track type; quaternions re-normalised). Applied after the lead-in trim — e.g. for a baked cloth simulation whose loop would otherwise jump many times a normal frame step. Changes the motion near the loop point. |
 
 ```html
 <a-entity gltf-model="#AnimatedCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
@@ -102,19 +125,30 @@ slower than 1:1, which reads as "lagging behind" for the whole cycle). A
 clip that finishes early just holds its final pose until the shared clock
 (and the master with it) also completes and reflects.
 
-### What changed from the source
+### Already-loaded models
 
-One addition: an immediate check, in `init()`, for a model that finished
-loading *before* this component's own `init()` ran — the source only
-listened for a future `model-loaded` event, which misses a model that's
-already cached/preloaded by the time this component mounts. This is the
-same "don't miss an event that already fired" pattern every other
-`model-loaded`/`object3dset`-driven component on this branch already
-follows (see
-[RENDER-ORDER-FEATURE-GUIDE.md §3](RENDER-ORDER-FEATURE-GUIDE.md#3-under-the-hood)
-for the original finding). Nothing else needed to change — every
-tunable (clip selection, speed, loop mode, clamping) was already a freely-set
-schema attribute with no naming-convention or asset-specific assumptions.
+Besides listening for `model-loaded`, `init()` checks immediately for a
+model that finished loading *before* this component mounted (e.g.
+cached/preloaded) — the same "don't miss an event that already fired"
+pattern every other `model-loaded`/`object3dset`-driven component in the
+template follows (see
+[RENDER-ORDER-FEATURE-GUIDE.md §3](RENDER-ORDER-FEATURE-GUIDE.md#3-under-the-hood)).
+Every tunable (clip selection, speed, loop mode, clamping, crossfade) is a
+freely-set schema attribute with no naming-convention or asset-specific
+assumptions.
+
+<!-- project-specific -->
+#### Project context: `Fanyu_module` / Augmented Bahnhofsviertel
+
+##### What changed from the source
+
+The immediate check was the one addition when porting from `Fanyu_module`
+— the source only listened for a future `model-loaded` event. Nothing else
+needed to change. `crossfade` was added from the Augmented Bahnhofsviertel
+ports' `crossfade-loop-clip`, made for a baked 401-frame cloth simulation
+whose loop jumped ~28× a normal frame step.
+
+<!-- /project-specific -->
 
 ## 4. Incompatibilities, risks & troubleshooting
 
@@ -152,8 +186,15 @@ took the whole `manifest.ts` import down with it, and the module never
 mounted, even in projects that didn't use `trim-loop-clip` in their scene
 (registering it in the manifest was enough). `THREE` is now only read at
 runtime, inside functions (`loopModes()`). Keep it that way: no
-component may touch `AFRAME`/`THREE` at module top level. (Found while
-porting the Augmented Bahnhofsviertel works.)
+component may touch `AFRAME`/`THREE` at module top level.
+
+<!-- project-specific -->
+#### Project context: Augmented Bahnhofsviertel
+
+This mount failure was found while porting the Augmented Bahnhofsviertel
+works.
+
+<!-- /project-specific -->
 
 ### No interaction found with any other feature on this branch
 

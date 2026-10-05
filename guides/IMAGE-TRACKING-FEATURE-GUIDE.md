@@ -1,10 +1,24 @@
 # Image tracking feature guide
 
+<!-- overview -->
+## Overview
+
+Makes a printed picture come alive. Point the phone at a specific poster,
+postcard or photo, and the app recognises it and places 3D content right
+on top of it — a video starts playing on its surface, a model grows out of
+it, objects hover above it. When the picture moves, the content moves
+along; when it leaves the camera view, the content disappears. The picture
+works like a stage floor: everything is laid out on and above it, scaled to
+its size.
+
+<!-- /overview -->
+
+## Technical summary
+
 Anchors content to a specific real-world printed/displayed image — detects
 a target image in the live camera feed and shows/hides/positions content
-to track it, entirely via 8th Wall's own image-target engine. This was
-`main`'s own baseline demo content (not ported from a `_module` branch —
-see [3. Under the hood](#3-under-the-hood)), previously wired directly into
+to track it, entirely via 8th Wall's own image-target engine. It started as
+the template's own baseline demo content, previously wired directly into
 `ArModule.vue`; moved here to keep the baseline scene free of example
 content, matching how every other feature in this template works.
 
@@ -111,8 +125,7 @@ camera. Two hard rules follow:
   fixed units — so a scene keeps its proportions when a placeholder
   target is swapped for the real, differently-sized one.
 
-In code (from `sound-player`'s `ArModule.vue`, the first scene built and
-verified against this convention):
+In code:
 
 ```ts
 // FOOTPRINT_DEPTH is always 1 — the engine normalizes the target's local Y
@@ -147,6 +160,14 @@ spinner, etc.) should rotate around **Z**, not Y — Z is this convention's
 up-axis, so `animation="property: rotation; to: 0 0 360; ..."` orbits
 horizontally above the image; `to: 0 360 0` (the Y-up default one would
 normally reach for) tips the orbit into the image instead.
+
+<!-- project-specific -->
+#### Project context: `sound-player`
+
+The code above comes from the `sound-player` branch's `ArModule.vue`, the
+first scene built and verified against this convention.
+
+<!-- /project-specific -->
 
 ## 2. Entities & attributes
 
@@ -243,9 +264,7 @@ you to set up.
 ### Required runtime setup — get this wrong and it fails silently or crashes
 
 Three things outside `manifest.ts`/the scene markup have to be correct
-for any of the above to actually run, all found the hard way (2026-08-30,
-`sound-player` branch — first real on-device end-to-end verification of
-this feature, see below):
+for any of the above to actually run:
 
 1. **The 8Frame build must be the one that pairs with
    `@8thwall/engine-binary`, not the one on `cdn.8thwall.com`.** They can
@@ -290,16 +309,24 @@ this feature, see below):
    [1a](#1a-the-footprint-convention-the-image-is-the-floor) for how
    content should be positioned instead.
 
-### Verified end-to-end on a real device (2026-08-30, `sound-player` branch)
+Re-verify image tracking on a real device after any
+8Frame/engine-binary/xrweb config change — each of the three points above
+breaks it silently.
 
-Point-camera-at-target → content tracks and is tappable, confirmed on
-iPad. This was **not** working before the three fixes above — the
-original "pre-existing, working baseline feature" assumption in this
-guide's prior revision was wrong; it had never actually been tested
-end-to-end on-device against the current `@8thwall/engine-binary`
-dependency, and the runtime-setup issues above meant it silently
-couldn't have worked. Re-verify after any 8Frame/engine-binary/xrweb
-config change.
+<!-- project-specific -->
+#### Project context: `sound-player`
+
+##### Verified end-to-end on a real device (2026-08-30)
+
+The three runtime-setup points above were found on the `sound-player`
+branch, during the first real on-device end-to-end verification of this
+feature. Point-camera-at-target → content tracks and is tappable,
+confirmed on iPad. It was **not** working before those three fixes — the
+earlier assumption that this was a pre-existing, working baseline feature
+was wrong; it had never been tested end-to-end on-device against the
+current `@8thwall/engine-binary` dependency.
+
+<!-- /project-specific -->
 
 ## 4. Incompatibilities, risks & troubleshooting
 

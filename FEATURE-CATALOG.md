@@ -86,9 +86,18 @@ building blocks", which is specifically components registered via
 
 | Item | File(s) | What it does |
 |---|---|---|
-| Loading bar + spinner | [`src/asset-loading-overlay.ts`](src/asset-loading-overlay.ts) + the `<script>`/`<template>` blocks at the top/bottom of [`src/ArModule.vue`](src/ArModule.vue) | A thin top-of-screen progress bar and a centre-screen spinner, shown while this module's manifest assets are still loading; the 3D content stays hidden (`:visible="assetsLoaded"`) until everything's ready, then appears all at once instead of popping in piecemeal. Found identically re-implemented across every `_module` branch, so brought into the template baseline itself. Deliberately **not** an A-Frame component — 2D screen-space UI that has to exist and be visible *before* any 3D entity is ready, driven by Vue's `onMounted`/`onUnmounted` rather than any entity's lifecycle (see the comment at the top of `ArModule.vue`'s `<script>` block for the full reasoning). Works automatically for whatever assets your scene adds — nothing to copy in, nothing to register in `manifest.ts`. Also mentioned in [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md). |
+| Loading bar + spinner | [`src/asset-loading-overlay.ts`](src/asset-loading-overlay.ts) + the `<script>`/`<template>` blocks at the top/bottom of [`src/ArModule.vue`](src/ArModule.vue) | A thin top-of-screen progress bar and a centre-screen spinner, shown while this module's manifest assets are still loading; the 3D content stays hidden (`:visible="assetsLoaded"`) until everything's ready, then appears all at once instead of popping in piecemeal. Part of the template baseline because practically every module needs it. Deliberately **not** an A-Frame component — 2D screen-space UI that has to exist and be visible *before* any 3D entity is ready, driven by Vue's `onMounted`/`onUnmounted` rather than any entity's lifecycle (see the comment at the top of `ArModule.vue`'s `<script>` block for the full reasoning). Works automatically for whatever assets your scene adds — nothing to copy in, nothing to register in `manifest.ts`. Also mentioned in [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md). |
 | Automatic component registration | [`scripts/used-components.ts`](scripts/used-components.ts) + `autoComponents()` in [`vite.config.ts`](vite.config.ts) → `virtual:used-components`, spread into `components` in [`src/manifest.ts`](src/manifest.ts) | Every file in `src/a-frame-components/` with a default export is a component named after its file; exactly the ones the module uses (by name in `ArModule.vue` and the files it imports, plus transitively) are bundled and registered — in `dev`, `dev:ar` (live-updated) and `build`. Nothing to list in `manifest.ts` when copying a feature in; unused components neither ship nor claim names in the shared host scene. See README "Components register automatically". |
-| MeshOpt decoder patch | [`lib/gltf-meshopt-setup.ts`](lib/gltf-meshopt-setup.ts) + vendored [`lib/vendor/meshopt_decoder.module.js`](lib/vendor/meshopt_decoder.module.js), called once from [`src/manifest.ts`](src/manifest.ts) | Patches every `THREE.GLTFLoader` instance so `gltfpack -c`-compressed `.glb` files (produced by [`scripts/compress-assets.ts`](scripts/compress-assets.ts), `npm run compress-assets`) actually load — A-Frame/8th Wall never wire this up themselves, so without it a meshopt-compressed asset fails to load at all. Idempotent, near-zero cost even if a project never compresses anything. Full picture, including the compression tool itself and real pitfalls found producing compressed assets on past projects, in [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md). |
+| MeshOpt decoder patch | [`lib/gltf-meshopt-setup.ts`](lib/gltf-meshopt-setup.ts) + vendored [`lib/vendor/meshopt_decoder.module.js`](lib/vendor/meshopt_decoder.module.js), called once from [`src/manifest.ts`](src/manifest.ts) | Patches every `THREE.GLTFLoader` instance so `gltfpack -c`-compressed `.glb` files (produced by [`scripts/compress-assets.ts`](scripts/compress-assets.ts), `npm run compress-assets`) actually load — A-Frame/8th Wall never wire this up themselves, so without it a meshopt-compressed asset fails to load at all. Idempotent, near-zero cost even if a project never compresses anything. Full picture, including the compression tool itself and real pitfalls of producing compressed assets, in [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md). |
+
+<!-- project-specific -->
+### Project context: origin
+
+The loading bar + spinner was found identically re-implemented across
+every `_module` branch, so it was brought into the template baseline
+itself.
+
+<!-- /project-specific -->
 
 ## Sound
 
@@ -324,10 +333,17 @@ Guide: [WANDER-IN-BAND-FEATURE-GUIDE.md](guides/WANDER-IN-BAND-FEATURE-GUIDE.md)
 Makes an entity continuously orbit within an annulus ("band") around a
 center entity — steady baseline orbit, a chaos-driven angular deviation,
 subtle floating, soft edge spiral-back, and gentle mutual avoidance of
-sibling `wander-in-band` entities sharing the same DOM parent. Ported
-essentially unchanged (only a cosmetic THREE-access normalization) —
-already fully generic in the source. Independent of Follow Node despite
-both being ported from the same source branch in the same batch.
+sibling `wander-in-band` entities sharing the same DOM parent. Independent
+of [Follow Node](#follow-node).
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Fanyu_module` essentially unchanged (only a cosmetic
+THREE-access normalization) — already fully generic in the source. Ported
+in the same batch as Follow Node.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -346,8 +362,15 @@ Guide: [FOLLOW-NODE-FEATURE-GUIDE.md](guides/FOLLOW-NODE-FEATURE-GUIDE.md) · So
 Makes an entity's position continuously track a named node (mesh, empty, or
 bone) inside another entity's loaded glTF — e.g. attaching a positional
 `sound` to a specific animated part of a model rather than its overall
-static transform. Ported essentially unchanged (only a cosmetic THREE-access
-normalization) — already fully generic in the source.
+static transform.
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Fanyu_module` essentially unchanged (only a cosmetic
+THREE-access normalization) — already fully generic in the source.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -367,9 +390,16 @@ Trims a glTF animation's dead lead-in (from a Blender export whose preview
 range didn't start at frame 0) and loops it; when a model has multiple
 clips, keeps them all driven off one shared clock so they don't gradually
 drift out of phase with each other. Use instead of A-Frame's stock
-`animation-mixer` on the same entity. Ported essentially unchanged — only
-an added immediate-check for a model that finished loading before this
-component's own `init()` ran.
+`animation-mixer` on the same entity.
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Fanyu_module` essentially unchanged — only an added
+immediate-check for a model that finished loading before this component's
+own `init()` ran.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -387,11 +417,18 @@ Guide: [ATTACH-TO-FEATURE-GUIDE.md](guides/ATTACH-TO-FEATURE-GUIDE.md) · Source
 
 Makes an entity follow another entity's world position (plus a fixed
 world-space offset) every frame, even if it isn't that entity's DOM child —
-e.g. a light tracking the host-provided camera. Position only. Ported
-unchanged — already fully generic in the source. Writes `position` every
-tick with no composition — don't combine with `wander-in-band`/
-`proximity-wave` on the same entity, see the guide's incompatibilities
-section.
+e.g. a light tracking the host-provided camera. Position only. Writes
+`position` every tick with no composition — don't combine with
+`wander-in-band`/`proximity-wave` on the same entity, see the guide's
+incompatibilities section.
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Gyumin_module` unchanged — already fully generic in the
+source.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -409,11 +446,18 @@ Guide: [GROUND-DECAL-FEATURE-GUIDE.md](guides/GROUND-DECAL-FEATURE-GUIDE.md) · 
 
 Keeps a decal plane flat on the ground directly under its parent entity's
 pivot, regardless of how the parent is rotated/tilted, and excludes it from
-scene fog. Requires a parent entity. Two fixes made during the port:
+scene fog. Requires a parent entity. Works on primitives too, and clones
+materials before excluding them from fog — see the guide's §3.
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Gyumin_module`, with two fixes made during the port:
 primitive support (`object3dset` instead of `model-loaded`) for the fog
 exclusion, and a previously-latent shared-material bug (the source set
-`fog = false` on each material in place rather than cloning first) — see
-the guide's §3.
+`fog = false` on each material in place rather than cloning first).
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -456,8 +500,15 @@ Models spring up one after another — every `interval` ms or at listed
 `times` — in front of the viewer (along the view direction) or at random
 spots around the entity, turned to the viewer or randomly, with a random
 scale range and an elastic grow; optionally a one-shot positional sound
-each. Merged from #4's interval and #6's timeline spawner. Compare
-[Random Field](#random-field) (all at once, static).
+each. Compare [Random Field](#random-field) (all at once, static).
+
+<!-- project-specific -->
+### Project context: origin
+
+Merged from two Augmented Bahnhofsviertel works: #4 Europaplatz II's
+interval spawner and #6 Birdkin(d)'s timeline spawner.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -524,7 +575,7 @@ Guide: [RENDER-ORDER-FEATURE-GUIDE.md](guides/RENDER-ORDER-FEATURE-GUIDE.md) · 
 
 Sets three.js `renderOrder` on every mesh of a loaded model, for
 controlling draw order among overlapping transparent surfaces. Applicable
-to any entity. Ported unchanged — see
+to any entity. See
 [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md](cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md)
 for how this composes with [LOD + Billboard](#lod--billboard) (inside an
 `lod-object` group, this value means local order within that one group,
@@ -567,7 +618,18 @@ and the guide's own incompatibilities section.
 
 | Asset | Used by | Function |
 |---|---|---|
-| [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | `Rosa_module`'s character model, pulled from the plain `Rosa` branch's own uncompressed copy instead (real node names intact — see the guide's §3 for why `Rosa_module`'s own compressed copy couldn't be used), so the example recreating `Rosa_module`'s scene actually renders |
+| [`mesh-render-order-rosa.glb`](src/assets/mesh-render-order-rosa.glb) | `examples/mesh-render-order-unlit-material-rosa-scene.html` | Example character with seven named meshes (flames and figure), uncompressed so the node names are intact |
+
+<!-- project-specific -->
+### Project context: `Rosa_module` / `Rosa`
+
+`mesh-render-order` was ported from `Rosa_module`. The example asset is
+`Rosa_module`'s character model, pulled from the plain `Rosa` branch's own
+uncompressed copy (see the guide's §3 for why `Rosa_module`'s own
+compressed copy couldn't be used); the combined example recreates
+`Rosa_module`'s scene.
+
+<!-- /project-specific -->
 
 Examples: [`mesh-render-order-usage.html`](examples/mesh-render-order-usage.html),
 [`mesh-render-order-unlit-material-rosa-scene.html`](examples/mesh-render-order-unlit-material-rosa-scene.html)
@@ -603,11 +665,18 @@ Manually tunes a loaded model's PBR material properties — roughness,
 metalness, opacity, and emissive intensity/tint — directly on whatever
 material is already there, without discarding it the way
 [LOD + Billboard](#lod--billboard)'s `unlit-material` does. Combines two
-needs into one component: manual roughness/metalness/opacity control (no
-equivalent existed in any source branch) and `Gyumin_module`'s
-`emissive-material` (emissive glow tuning). See the guide for why these
-were merged rather than kept separate, and why `disableShadow` defaults to
-off unlike the source it was ported from.
+needs into one component: manual roughness/metalness/opacity control and
+emissive glow tuning. See the guide for why these were merged rather than
+kept separate, and why `disableShadow` defaults to off.
+
+<!-- project-specific -->
+### Project context: origin
+
+Manual roughness/metalness/opacity control had no equivalent in any source
+branch; emissive tuning comes from `Gyumin_module`'s `emissive-material`,
+which always switched shadows off.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -626,13 +695,20 @@ Guide: [DITHER-MATERIAL-FEATURE-GUIDE.md](guides/DITHER-MATERIAL-FEATURE-GUIDE.m
 Ordered-dithering ("screen-door") transparency for a loaded model — a
 **manual, fixed-opacity** dither, unlike the two distance-driven dither
 variants already in this template ([Proximity Cutout](#proximity-cutout),
-[Proximity Fade](#proximity-fade)'s dither variant). Ported from
-`Fanyu_module`'s `dither-transparency.ts` (found registered but unused in
-that branch's own scene) and renamed to fit this project's `[x]-material`
-naming. Two real fixes made during the port: primitive support
-(`object3dset` instead of `model-loaded`) and a previously-latent
-shared-material bug (the source mutated materials in place rather than
-cloning them first) — see the guide's §3.
+[Proximity Fade](#proximity-fade)'s dither variant). Named to fit the
+template's `[x]-material` naming. Works on primitives too and clones
+materials before patching them — see the guide's §3.
+
+<!-- project-specific -->
+### Project context: origin
+
+Ported from `Fanyu_module`'s `dither-transparency.ts` (found registered but
+unused in that branch's own scene) and renamed. Two real fixes made during
+the port: primitive support (`object3dset` instead of `model-loaded`) and a
+previously-latent shared-material bug (the source mutated materials in
+place rather than cloning them first).
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -648,10 +724,18 @@ Examples: [`dither-material-usage.html`](examples/dither-material-usage.html)
 
 Guide: [GRAIN-SHIMMER-FEATURE-GUIDE.md](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel` (#20 analysis, original)
 
-The #20 Solid Dream Level look for any model: its textures sampled without
+A grainy, sparkling surface for any model: its textures sampled without
 mipmaps (fine grain then sparkles with every movement) and optional grain
 added in the shader, fixed to the surface or animated like film grain.
 Clones materials/textures, chains other shader patches.
+
+<!-- project-specific -->
+### Project context: origin
+
+An original feature built from an analysis of #20 Solid Dream Level
+(`augmented-bahnhofsviertel`), whose look it reproduces.
+
+<!-- /project-specific -->
 
 **Components**
 
@@ -696,8 +780,15 @@ Guide: [LIQUID-TEXTURE-FEATURE-GUIDE.md](guides/LIQUID-TEXTURE-FEATURE-GUIDE.md)
 Generic, reusable procedural "liquid ink" texture generator — fbm marbling
 that optionally reveals a target image, with a swirl/cellular-bubble look.
 Renders to an offscreen texture any material can sample; not specific to
-Mirror Shard despite being salvaged from the same source branch (no
-feature prefix — see the naming-convention comment in `src/manifest.ts`).
+Mirror Shard (no feature prefix — see the naming-convention comment in
+`src/manifest.ts`).
+
+<!-- project-specific -->
+### Project context: origin
+
+Salvaged from `Zhichang_module`, the same source branch as Mirror Shard.
+
+<!-- /project-specific -->
 
 **Components**
 
