@@ -74,7 +74,8 @@ declare const THREE: any;
 // times the old range (visible as shadow acne, found on #14).
 //
 // The host's own scene lights are scaled per module by the template itself
-// (manifest `hostLightScale`, lib/host-lights.ts) — not by this component.
+// (manifest `hostLights: false` — the host hides its #host-lights group) —
+// not by this component.
 const TAP_MAX_MS = 350;
 const TAP_MAX_MOVE_PX = 12;
 
