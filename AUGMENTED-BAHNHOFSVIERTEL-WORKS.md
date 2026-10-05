@@ -1,5 +1,7 @@
 # Augmented Bahnhofsviertel — Werkliste und Portierungsstand
 
+> Für KI-Agenten/neue Rechner: zuerst [augmented-bahnhofsviertel/PROJECT-NOTES.md](augmented-bahnhofsviertel/PROJECT-NOTES.md) lesen (Stand, Regeln, nächste Schritte).
+
 Steuerliste des Branches `augmented-bahnhofsviertel`: Zwischenbasis für die Portierung der ursprünglich auf 8th Wall gehosteten AR-Arbeiten in dieses Framework. Ablauf, Werkzeuge und Regeln: [augmented-bahnhofsviertel/PORTING-GUIDE.md](augmented-bahnhofsviertel/PORTING-GUIDE.md).
 
 > **Wichtig — keine Rückführung nach `feature_template`:** Änderungen auf diesem Branch (und den Werk-Branches `abv-*`) werden **niemals** automatisch nach `feature_template` gemergt, gepusht, gerebased oder gecherry-pickt. `feature_template` ist immer die Vorlage und wird nur kontrolliert geändert. Entsteht hier ein verallgemeinerbares Feature, wird es separat über `ADDING-FEATURES-WORKFLOW.md` nach `feature_template` portiert — nur nach ausdrücklicher Freigabe. Erlaubt ist nur die umgekehrte Richtung: `feature_template` → `augmented-bahnhofsviertel`.
