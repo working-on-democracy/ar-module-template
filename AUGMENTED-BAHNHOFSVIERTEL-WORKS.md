@@ -1,7 +1,5 @@
 # Augmented Bahnhofsviertel — Werkliste und Portierungsstand
 
-> Für KI-Agenten/neue Rechner: zuerst [augmented-bahnhofsviertel/PROJECT-NOTES.md](augmented-bahnhofsviertel/PROJECT-NOTES.md) lesen (Stand, Regeln, nächste Schritte).
-
 Steuerliste des Branches `augmented-bahnhofsviertel`: Zwischenbasis für die Portierung der ursprünglich auf 8th Wall gehosteten AR-Arbeiten in dieses Framework. Ablauf, Werkzeuge und Regeln: [augmented-bahnhofsviertel/PORTING-GUIDE.md](augmented-bahnhofsviertel/PORTING-GUIDE.md).
 
 > **Wichtig — keine Rückführung nach `feature_template`:** Änderungen auf diesem Branch (und den Werk-Branches `abv-*`) werden **niemals** automatisch nach `feature_template` gemergt, gepusht, gerebased oder gecherry-pickt. `feature_template` ist immer die Vorlage und wird nur kontrolliert geändert. Entsteht hier ein verallgemeinerbares Feature, wird es separat über `ADDING-FEATURES-WORKFLOW.md` nach `feature_template` portiert — nur nach ausdrücklicher Freigabe. Erlaubt ist nur die umgekehrte Richtung: `feature_template` → `augmented-bahnhofsviertel`.
@@ -66,6 +64,19 @@ Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
 
 - **Nr. 22/23 Privileged I/II (`abv-22-privileged-i`, `abv-23-privileged-ii`):** Die Webseite widerspricht sich. Die App-Links der Beschreibungsseiten ordnen I = Nepal (`radetz-nepal`) und II = Istanbul (`radetz-istanbul`) zu — so ist portiert. Die Credits derselben Seiten nennen umgekehrt bei I „Istanbul, Türkei“ und bei II „Lalitpur, Nepal“. Mit Autor/Webseite klären; falls die Credits stimmen, Titel/Branches tauschen.
 
+- **Host-Lichter phonechecken:** Seit 2026-10-05 schaltet der Host seine Lichter für Werke mit `hostLights: false` komplett aus (vorher auf 30 % gedimmt). Die Release-Builds (§ Release- und Deploy-Stand) sind jetzt fertig und live — auf dem Handy prüfen, ob ein Werk dadurch zu dunkel wirkt; falls ja, bekommt dieses Werk ein eigenes Zusatzlicht (Abweichung, siehe Regeln zu „Look-Entscheidungen“ oben).
+
+## Release- und Deploy-Stand (2026-10-05)
+
+Alle 22 `portiert`-Werke sind gebaut (`npm run abv:release`, Bericht: `release/REPORT.md`) und auf den AN-ALLE!-Produktionsserver deployed (`npm run abv:deploy`, Script: `scripts/abv-deploy.ts`) — gleicher Uberspace-Server wie das AN-ALLE!-Projekt, `abv-`-Präfix zur Unterscheidung. Vollständige Link-Liste (Standalone + Modul, Künstler*in, Koordinaten): [`augmented-bahnhofsviertel/STANDALONE-LINKS.md`](augmented-bahnhofsviertel/STANDALONE-LINKS.md). Hochladen selbst nur noch bei neuen/geänderten Builds nötig.
+
+## Offene Punkte auf `feature_template` (nicht Teil dieser Werkliste)
+
+Nicht Bahnhofsviertel-spezifisch, aber bei Gelegenheit zu klären — nur wenn der User sie anstößt:
+
+- Neue Features auf `feature_template` sind noch nicht am Handy getestet.
+- Grain Shimmer braucht eine Nutzer-Entscheidung: statisches vs. animiertes Grain, `linear` vs. `nearest`-Filter — dafür eine temporäre Testszene anbieten (nie `feature_template`s `ArModule.vue` dafür committen).
+- Geplant (erst wenn der User es anstößt): `feature_template`s Vorschau/Laufzeit an den Host angleichen (8frame 1.3 + Host-Basisszene — Image-Tracking danach unter 1.3 neu testen); die Release-Build-Tooling (wie `abv:release`/`abv:deploy`) in einer generischen Form auch für `feature_template` bereitstellen.
 
 ## Umstellung auf die Host-Laufzeit (2026-10-05)
 
