@@ -42,7 +42,8 @@ rules before it touches anything, the same way this page gets you oriented.
 | `src/ArModule.vue` | **Your scene.** Everything the visitor sees and hears — 3D objects, lights, and any feature you add — goes in here, inside the `<template>` section. |
 | `examples/*.html` | Copy-paste reference snippets, one (or a few) per feature. These are never run or edited directly — open one, copy the parts you need, paste them into `ArModule.vue`. Each file's own comments explain exactly what to copy and where it goes. |
 | `src/assets/` | Drop your images, sounds, and 3D models (`.glb`, `.png`, `.mp3`, ...) here. Every file becomes usable in your scene automatically, by its file name (a picture named `logo.png` becomes usable as `#logo`) — no extra setup. |
-| `src/manifest.ts` | The module's settings the host reads (assets, camera, image targets). Features switch themselves on: a component file you copied into `src/a-frame-components/` works as soon as your scene uses its name — nothing to add here. You rarely need to touch this file. |
+| `src/a-frame-components/` | Where the feature files you copy in go (one file per effect). Just copy them in — your scene can use them by name right away. |
+| `src/manifest.ts` | The module's settings the host reads (assets, camera, image targets). Features switch themselves on: a component file you copied into `src/a-frame-components/` works as soon as your scene uses its name — nothing to add here. You rarely need to touch this file — one exception: if your scene has its own lights, you can switch the platform's default lights off here (`hostLights: false`; see README, "Host lights"). Don't do this if your scene has no lights of its own, or it will turn dark. |
 
 Everything else in the project (the `lib/` folder especially) is shared
 internal plumbing — you shouldn't need to open or edit it. One exception
