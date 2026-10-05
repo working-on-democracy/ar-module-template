@@ -31,6 +31,7 @@ Hinweis zur Laufzeit: Die Projekte nennen in `head.html` die A-Frame-Versionen 1
 | `npm run abv:port -- <Nr> --dry-run` | dasselbe ohne Git und ohne Projektdateien (Ausgabe in einen Temp-Ordner) — zum Vorab-Ansehen |
 | `npm run abv:port -- <Nr> --no-branch [--force-assets]` | auf dem bereits bestehenden Werk-Branch erneut importieren |
 | `npm run abv:reference -- <Nr> [legacy\|port]` | Headless-Screenshot des Originals (`legacy`, baut den Export aus einer gepatchten Kopie) bzw. des Ports (`port`, startet `dev:ar` auf dem aktuellen Branch) nach `about/<Nr>-<slug>/reference-*.jpg` |
+| `npm run abv:release [-- --only 1,19]` | baut alle (bzw. die genannten) Werk-Branches aus ihrem committeten Stand als Modul und als Standalone nach `release/<Nr>-<slug>/{module,standalone}/` (gitignored), prüft beide Ausgaben und schreibt `release/REPORT.md` — siehe §9 |
 | `npm run compress-assets` | Mesh-/Textur-Kompression der importierten GLBs (siehe `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`) |
 
 Einmalig pro Rechner für `abv:reference`: `ffmpeg` und `npx playwright install chromium`; der erste Legacy-Lauf führt ein `npm install` in `Projektordner_alt/` aus (alle 22 Exporte haben identische Build-Konfiguration, ein gemeinsames `node_modules` reicht).
@@ -111,7 +112,7 @@ Die alten 2D-Overlays (Hinweistext + „Start“, Recenter-Button oben rechts, A
 ## 7. Entschiedene Grundsatzfragen (2026-10-04)
 
 1. **Start/Recenter:** modul-lokal (§6), kein globales XR8-Recenter.
-2. **Template-Beispiel-Assets:** auf der Zwischenbasis entfernt — `jellyfish-video.mp4`, `liquid-texture-target-1/2.webp`, `mesh-render-order-rosa.glb` (zusammen ~5,5 MB) sowie das Beispiel-Image-Target `src/image-targets/video-target.*` (wird ebenfalls ausgeliefert und injiziert). Behalten: die vier Sound-Icons `sound-*.webp` (~600 Byte, Teil des Sound-Features). Die `examples/*.html` verweisen weiterhin auf die entfernten Dateien — sie werden nicht gebaut und dienen hier nur als Doku. **Bei jedem Merge von `feature_template` in die Zwischenbasis prüfen, ob neue Beispiel-Assets mitkommen.**
+2. **Template-Beispiel-Assets:** auf der Zwischenbasis entfernt — `jellyfish-video.mp4`, `liquid-texture-target-1/2.webp`, `mesh-render-order-rosa.glb` (zusammen ~5,5 MB) sowie das Beispiel-Image-Target `src/image-targets/video-target.*` (wird ebenfalls ausgeliefert und injiziert). Die vier Sound-Icons `sound-*.webp` wurden zunächst behalten und am 2026-10-05 ebenfalls entfernt: Kein Werk nutzt sie, und jedes Modul hätte sie unter denselben IDs (`sound-start` …) ausgeliefert — mehrere Module gleichzeitig im Host hätten doppelte IDs in `<a-assets>` erzeugt. Die `examples/*.html` verweisen weiterhin auf die entfernten Dateien — sie werden nicht gebaut und dienen hier nur als Doku. **Bei jedem Merge von `feature_template` in die Zwischenbasis prüfen, ob neue Beispiel-Assets mitkommen.**
 3. **Legacy-Hülle:** ja, als modul-lokale Platzierung nach §6, Bestätigung von Maßstab/Höhe im Pilot auf dem Handy.
 
 ## 8. Bekannte Fallstricke
@@ -146,3 +147,26 @@ Die alten 2D-Overlays (Hinweistext + „Start“, Recenter-Button oben rechts, A
 - **Analytics:** alte Projekte laden umami-Tracking (`head.html`) — nicht mitportieren.
 - **HTML-Fehler** in alten `body.html` (z. B. Nr. 10) — im Port-Entwurf unter „HTML-Fehler“ gemeldet.
 - **Headless-Referenzen** zeigen, ob eine Szene lädt und rendert, nicht SLAM-Verhalten, echte GPU-Darstellung oder Maßstab. Die Fake-Kamera ist bewusst neutrales Rauschen, weil die Marker-Bilder Fotos der AR-Werke selbst sind.
+
+## 9. Release-Builds: Modul und Standalone
+
+`npm run abv:release` (scripts/abv-release.ts) baut jeden Werk-Branch in einem temporären Worktree — also den **committeten** Stand, nicht deine Arbeitskopie — auf zwei Wegen:
+
+- `module/` — `vite build`, die Bibliothek, die der Host per `import(url)` lädt (`ar-module.js`, `manifest.json`, `assets/`). Den Ordner als Ganzes hosten.
+- `standalone/` — `vite build --mode ar`, dieselbe Seite und Laufzeit wie `dev:ar` (8frame 1.5.0, aframe-extras 6.1.1 von jsDelivr, xrextras, Engine). Das Skript entfernt den Entwickler-Hinweis „AR Module Preview · 8th Wall …“ und setzt den Seitentitel auf „Werk – Künstler*in“; `ar.html` selbst bleibt unverändert. Hosting: https, Range-Requests für Video/Audio (iOS), beliebiger Unterordner.
+
+Das Skript bricht ab bzw. meldet Fehler, wenn ein Branch den aktuellen Stand von `augmented-bahnhofsviertel` nicht enthält (alle Module müssen dieselben gemeinsamen Komponenten mitbringen — im Host gewinnt die erste Registrierung eines Namens), `vue-tsc` oder ein Build scheitert, ein Manifest-Asset fehlt, eine Asset-ID in zwei Modulen vorkommt (gemeinsames `<a-assets>` im Host) oder der Hinweis im Standalone stehen bleibt. Pro Werk entsteht `BUILD-INFO.json` (Branch, Commits, registrierte Komponenten, Assets).
+
+**Nur genutzte Komponenten (seit 2026-10-05):** `src/manifest.ts` registriert nur die Komponenten, die das Modul verwendet. `scripts/abv-used-components.ts` sucht die registrierten Namen (außerhalb von Kommentaren) in `src/*.vue`/`src/*.ts` und transitiv in den Quellen bereits genutzter Komponenten; `vite.config.ts` stellt das Ergebnis als `virtual:abv-used-components` bereit. `dev:ar` nutzt dasselbe gefilterte Manifest — eine übersehene Komponente fiele also schon in der Vorschau auf.
+
+**Warum Standalone und Host abweichen können** (am 2026-10-05 aus Code und Doku zusammengetragen; der Host-Code liegt nicht in diesem Repo — vor dem ersten Modul-Deploy mit dem Host klären):
+
+1. 8frame-Version des Hosts — alle Look-Korrekturen der Ports sind auf 8frame 1.5 / three r158 abgestimmt; der README nennt für den Host an einer Stelle A-Frame 1.3.0.
+2. Element-Typen beim Einhängen der Assets — die Vorschau nutzt `<video muted loop>`/`<audio>`/`<img>` (`lib/host-runtime.ts`), der README beschreibt `<a-asset-item>` für alles. Betrifft Videos, Sounds, Cubemap- und Panorama-Bilder.
+3. Auflösung der relativen Asset-Pfade (`assets/…`) — relativ zur Modul-URL oder zur Host-Seite?
+4. Szenen-Attribute der Vorschau: `renderer="colorManagement: true"` (Farben aller Werke), `xrextras-gesture-detector` (Gesten), Kamera-Raycaster auf `.cantap` mit `rayOrigin: mouse` (Tippen bei #20, `hold-drag`).
+5. Kameraposition/XR8-Maßstab — `legacy-space` setzt Boden bei y = 0 und die 8th-Wall-Höhenkonvention voraus.
+6. Ein- und Aushängen sowie mehrere Module gleichzeitig gibt es nur im Host; die Bausteine räumen laut Code auf, getestet ist das nicht. Ein Szenen-Tap platziert alle offenen Werke mit Tap-Recenter neu.
+7. Lage der Host-UI oben rechts (Recenter-Button der Werke).
+
+Unabhängig vom Build: Die Lade-Anzeige blendet die Szene nach spätestens 10 s ein, auch wenn große Modelle (bis 16 MB) noch laden.
