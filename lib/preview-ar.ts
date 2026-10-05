@@ -70,10 +70,17 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
+      // Augmented Bahnhofsviertel: the host app's base scene (ar-demo-backend,
+      // frontend/src/components/ArScene.vue, checked 2026-10-05) — its two
+      // always-on lights, camera start position and raycaster interval — so
+      // the preview and the standalone build light and place a module the
+      // way the host does. See augmented-bahnhofsviertel/PORTING-GUIDE.md §9.
+      h("a-light", { type: "ambient", color: "#BBB" }),
+      h("a-light", { type: "directional", color: "#FFF", intensity: "0.6", "cast-shadow": "true", position: "-0.5 1 1" }),
       h("a-camera", {
         id: "camera",
-        position: "0 0 0",
-        raycaster: "objects: .cantap",
+        position: "0 0.35 0.8",
+        raycaster: "objects: .cantap; interval: 100",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
     ];
@@ -108,7 +115,9 @@ const ArPreviewApp = {
         // tracking depends on, which matches our own failed test with `true`.
         xrweb: "allowedDevices: any",
         "xr-mode-ui": "enabled: false",
-        renderer: "colorManagement: true"
+        // As in the host app (see the lights above).
+        fog: "type: linear; density: 0.3",
+        renderer: "colorManagement: true; maxCanvasWidth: 1280; maxCanvasHeight: 1280; preserveDrawingBuffer: true"
       },
       children
     );

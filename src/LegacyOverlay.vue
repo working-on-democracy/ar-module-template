@@ -99,10 +99,12 @@ const hintCloseStyle = {
   right: "0.5em",
   lineHeight: "0"
 };
-// ui.css: #topright-controls, .marker-recenter
+// ui.css: #topright-controls, .marker-recenter. Deviation: 64px from the
+// top instead of 15px — the host app's own recalibrate-north button sits at
+// top/right 16px (ArScene.vue in ar-demo-backend) and would be covered.
 const topRightStyle = {
   position: "fixed" as const,
-  top: "15px",
+  top: "64px",
   right: "15px",
   zIndex: "1000"
 };
