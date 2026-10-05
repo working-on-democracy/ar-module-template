@@ -201,7 +201,13 @@ export const manifest: Manifest = {
     // position, converted into the hull, switches contents/hider walls —
     // see legacy-portal.ts.
     "legacy-portal": legacyPortal
-  }
+  },
+
+  // Augmented Bahnhofsviertel: the old scenes bring their complete lighting,
+  // so the host's two always-on lights are dimmed to 30 % while a work is
+  // shown (chosen 2026-10-05 after a phone comparison on #1; applied by the
+  // template's module root, lib/main.ts → lib/host-lights.ts).
+  hostLightScale: 0.3
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md
   // for how to add one (an `imageTargets: [yourTarget]` entry here, importing
