@@ -35,8 +35,12 @@ const PreviewApp = {
         })
       ),
       h("a-sky", { color: "#1e293b" }),
-      h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
-      h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" }),
+      // Stand-in for the host's scene lights — left out when the module sets
+      // `hostLights: false`, as the host switches its own lights off then.
+      ...(manifest.hostLights === false ? [] : [
+        h("a-light", { type: "ambient", color: "#ffffff", intensity: "0.6" }),
+        h("a-light", { type: "directional", position: "1 1 1", intensity: "0.8" })
+      ]),
       h("a-camera", {
         position: "0 1.6 3",
         "wasd-controls": "acceleration: 30",
