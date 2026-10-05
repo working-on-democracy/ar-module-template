@@ -301,6 +301,12 @@ config change.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+### Don't place image-anchored content with Placement
+
+[`place-in-front`](PLACEMENT-FEATURE-GUIDE.md) moves its entity to the floor
+in front of the camera — inside an image target it would fight the tracked
+pose. Use it only for content that isn't anchored to an image.
+
 ### Uses the host's shared cursor/raycaster `click`, not this template's own tap systems
 
 `xrextras-play-video` (confirmed by reading the vendored source) tags

@@ -395,6 +395,14 @@ regardless would strand the page permanently silent with no further retry).
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+### One tap can also recenter or place
+
+[Placement & Recenter](PLACEMENT-FEATURE-GUIDE.md)'s tap detection
+(`tapRecenter`, `tap-place-cursor`) reacts to every tap on the canvas — a
+tap on an `ar-button` therefore also re-places the scene / moves the
+cursor target. Use a recenter button ([AR Overlay](AR-OVERLAY-FEATURE-GUIDE.md))
+instead of `tapRecenter` in scenes with tappable buttons.
+
 ### Component name collisions across co-mounted modules
 
 The host (and the local preview harness, `lib/host-runtime.ts`) registers

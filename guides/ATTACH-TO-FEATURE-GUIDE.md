@@ -88,6 +88,13 @@ this port.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+### Shares the entity transform with Placement & Gestures — don't combine on one entity
+
+[`place-in-front`](PLACEMENT-FEATURE-GUIDE.md) writes position/rotation/scale
+on every placement, and [`gesture-control`/`hold-drag`](GESTURES-FEATURE-GUIDE.md)
+write them while a gesture runs. Put this component on a parent or child of
+such an entity, never on the same one (found while adding those features).
+
 ### Real conflict with anything else that writes `position` every tick
 
 This component sets `object3D.position` directly, every tick, with no

@@ -21,6 +21,9 @@ convention.
 | Feature | What it does | Tags | Source branch | Guide |
 |---|---|---|---|---|
 | [Sound](#sound) | Tap a 3D button to play/pause/stop a sound; optional 2D GUI panel and ambient-audio unlock overlay | [`sound`](#tag-sound), [`interaction`](#tag-interaction) | `Jakob_module` | [SOUND-FEATURE-GUIDE.md](guides/SOUND-FEATURE-GUIDE.md) |
+| [AR Overlay](#ar-overlay) | 2D UI over the camera image: hint/Start/Play controls and a recenter button, waits for placement | [`ui`](#tag-ui), [`interaction`](#tag-interaction) | `augmented-bahnhofsviertel` | [AR-OVERLAY-FEATURE-GUIDE.md](guides/AR-OVERLAY-FEATURE-GUIDE.md) |
+| [Placement & Recenter](#placement--recenter) | Places a scene on the floor in front of the viewer, re-places it on recenter/tap; tap-to-place ground cursor | [`placement`](#tag-placement), [`interaction`](#tag-interaction) | `augmented-bahnhofsviertel` | [PLACEMENT-FEATURE-GUIDE.md](guides/PLACEMENT-FEATURE-GUIDE.md) |
+| [Gestures](#gestures) | Hold-and-drag along the ground, rotate, pinch to scale — in one attribute | [`interaction`](#tag-interaction), [`placement`](#tag-placement) | `augmented-bahnhofsviertel` | [GESTURES-FEATURE-GUIDE.md](guides/GESTURES-FEATURE-GUIDE.md) |
 | [Image Tracking](#image-tracking) | Anchors content to a detected real-world image, via 8th Wall's own image-target engine | [`image-tracking`](#tag-image-tracking), [`interaction`](#tag-interaction) | `main` | [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) |
 | [Proximity Fade](#proximity-fade) | Fades a model's opacity in/out by camera distance to a target point | [`proximity`](#tag-proximity), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-FADE-FEATURE-GUIDE.md](guides/PROXIMITY-FADE-FEATURE-GUIDE.md) |
 | [Proximity Cutout](#proximity-cutout) | Dithers away a hole in a model centred on the camera as it approaches | [`proximity`](#tag-proximity), [`dither`](#tag-dither), [`transparency`](#tag-transparency) | `Madleen_module` | [PROXIMITY-CUTOUT-FEATURE-GUIDE.md](guides/PROXIMITY-CUTOUT-FEATURE-GUIDE.md) |
@@ -114,6 +117,70 @@ Also depends on the shared `ar-button` / `ar-button-manager` (see
 Examples: [`ar-button-usage.html`](examples/ar-button-usage.html),
 [`sound-gui-panel.html`](examples/sound-gui-panel.html),
 [`sound-unlock-overlay-usage.html`](examples/sound-unlock-overlay-usage.html)
+
+## AR Overlay
+
+Guide: [AR-OVERLAY-FEATURE-GUIDE.md](guides/AR-OVERLAY-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+A Vue component for a module's 2D UI over the camera image: a centre
+column of controls (hint text, Start/Play/unlock buttons, dismissed on tap)
+and an optional recenter button below the host's own UI. With
+`placeTarget` it waits for a [Placement & Recenter](#placement--recenter)
+scene and re-places it. Inline styles only (works in the host).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| — *(Vue component, not registered)* | [`ArOverlay.vue`](src/ArOverlay.vue) | The overlay: controls, recenter button, waits for placement |
+| — *(not a component)* | [`ar-overlay-icons.ts`](src/ar-overlay-icons.ts) | Inline SVG icons (recenter, close, tap-on-cursor) and `actionButtonHtml()` |
+
+**Assets** — none (icons are inline SVG strings).
+
+Examples: [`ar-overlay-usage.html`](examples/ar-overlay-usage.html)
+
+## Placement & Recenter
+
+Guide: [PLACEMENT-FEATURE-GUIDE.md](guides/PLACEMENT-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Puts a scene on the floor in front of the viewer, facing the camera's
+heading, module-locally (never the shared camera/XR8 origin) — again on a
+recenter event or a tap; optionally scaled to the viewer's height. Plus a
+ground cursor that places a model where you tap. iOS-safe tap detection.
+Recenter button: [AR Overlay](#ar-overlay); gestures on the placed model:
+[Gestures](#gestures).
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `place-in-front` | [`place-in-front.ts`](src/a-frame-components/place-in-front.ts) | Places/re-places its entity in front of the camera; optional scale to viewer height, tap-recenter |
+| `tap-place-cursor` | [`tap-place-cursor.ts`](src/a-frame-components/tap-place-cursor.ts) | Ground cursor following the screen centre; a tap moves its target there |
+| — *(not a component)* | [`scene-tap-shared.ts`](src/a-frame-components/scene-tap-shared.ts) | iOS-safe tap-on-the-scene detection (pointer events), used by both |
+
+**Assets** — none.
+
+Examples: [`placement-usage.html`](examples/placement-usage.html)
+
+## Gestures
+
+Guide: [GESTURES-FEATURE-GUIDE.md](guides/GESTURES-FEATURE-GUIDE.md) · Source: `augmented-bahnhofsviertel`
+
+Hold-and-drag along the ground, rotate (one or two fingers), pinch to scale
+— configured in one attribute. Drag works inside transformed parents
+(unlike `xrextras-hold-drag`); rotate/pinch are xrextras' own. Usually on
+the model inside a [Placement & Recenter](#placement--recenter) scene.
+
+**Components**
+
+| Component | File | What it does |
+|---|---|---|
+| `gesture-control` | [`gesture-control.ts`](src/a-frame-components/gesture-control.ts) | Sets/removes hold-drag + xrextras rotate/pinch on its entity from one attribute |
+| `hold-drag` | [`hold-drag.ts`](src/a-frame-components/hold-drag.ts) | Hold, then drag along the ground; parent-space aware, xrextras-hold-drag schema compatible |
+
+**Assets** — none.
+
+Examples: [`gestures-usage.html`](examples/gestures-usage.html)
 
 ## Image Tracking
 
@@ -549,6 +616,9 @@ feature that carries it.
 ### Tag: `interaction`
 
 - [Sound](#sound)
+- [AR Overlay](#ar-overlay)
+- [Placement & Recenter](#placement--recenter)
+- [Gestures](#gestures)
 - [Image Tracking](#image-tracking)
 - [Mirror Shard](#mirror-shard)
 
@@ -567,6 +637,11 @@ feature that carries it.
 - [Wander In Band](#wander-in-band)
 - [Follow Node](#follow-node)
 - [Attach To](#attach-to)
+
+### Tag: `placement`
+
+- [Placement & Recenter](#placement--recenter)
+- [Gestures](#gestures)
 
 ### Tag: `procedural`
 
@@ -602,6 +677,10 @@ feature that carries it.
 - [Render Order](#render-order)
 - [Mesh Render Order](#mesh-render-order)
 - [Dither Material](#dither-material)
+
+### Tag: `ui`
+
+- [AR Overlay](#ar-overlay)
 
 ### Tag: `utility`
 

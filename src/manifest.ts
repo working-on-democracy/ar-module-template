@@ -51,6 +51,10 @@ import ditherMaterial from "./a-frame-components/dither-material";
 import trimLoopClip from "./a-frame-components/trim-loop-clip";
 import attachTo from "./a-frame-components/attach-to";
 import groundDecal from "./a-frame-components/ground-decal";
+import placeInFront from "./a-frame-components/place-in-front";
+import tapPlaceCursor from "./a-frame-components/tap-place-cursor";
+import holdDrag from "./a-frame-components/hold-drag";
+import gestureControl from "./a-frame-components/gesture-control";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -159,7 +163,20 @@ export const manifest: Manifest = {
     // Pins a decal plane flat on the ground under its parent's pivot and
     // excludes it from scene fog — see ground-decal.ts,
     // examples/ground-decal-usage.html, and guides/GROUND-DECAL-FEATURE-GUIDE.md.
-    "ground-decal": groundDecal
+    "ground-decal": groundDecal,
+    // Placement & Recenter: puts a scene on the floor in front of the camera
+    // (optionally scaled to the viewer) and re-places it on demand / on tap;
+    // a ground cursor that places a model where you tap — see
+    // place-in-front.ts, tap-place-cursor.ts, examples/placement-usage.html,
+    // and guides/PLACEMENT-FEATURE-GUIDE.md.
+    "place-in-front": placeInFront,
+    "tap-place-cursor": tapPlaceCursor,
+    // Gestures: drag along the ground, rotate, pinch to scale in one
+    // attribute (gesture-control sets hold-drag + xrextras rotate/pinch) —
+    // see gesture-control.ts, hold-drag.ts, examples/gestures-usage.html,
+    // and guides/GESTURES-FEATURE-GUIDE.md.
+    "hold-drag": holdDrag,
+    "gesture-control": gestureControl
   }
 
   // No image targets registered by default — see guides/IMAGE-TRACKING-FEATURE-GUIDE.md

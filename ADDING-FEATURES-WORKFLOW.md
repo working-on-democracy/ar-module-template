@@ -330,7 +330,8 @@ Add the new feature's entry following the existing ones as a template:
   very end of the file) for the current full list — currently `sound`,
   `proximity`, `motion`, `animation`, `random`, `distribution`, `utility`,
   `visual-effect`, `procedural`, `material-properties`, `transparency`,
-  `dither`, `render-order`, `LOD`, `interaction`, `image-tracking`, but
+  `dither`, `render-order`, `LOD`, `interaction`, `image-tracking`,
+  `placement`, `ui`, but
   that list only grows, so treat it as a starting point, not the full set.
   Reuse an existing tag whenever the feature genuinely shares that theme
   with something already tagged that way — the whole point is that
