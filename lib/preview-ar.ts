@@ -1,11 +1,10 @@
 import { createApp, h, ref, nextTick } from "vue";
-// The module root the host mounts (src/ArModule.vue + the template's global
-// per-module setup, e.g. hostLightScale) — not ArModule.vue directly.
-import ArModule from "./main";
+import ArModule from "../src/ArModule.vue";
 import { manifest } from "../src/manifest";
 import {
   registerManifestComponents,
   applyCameraSettings,
+  applyHostLights,
   configureImageTargets,
   assetElement
 } from "./host-runtime";
@@ -72,15 +71,17 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
-      // The host's two always-on scene lights (frontend/src/components/
-      // ArScene.vue in ar-demo-backend), so the module previews under the
-      // light it gets in the app — and `hostLightScale` has something to scale.
+      // The host's two scene lights, grouped as in the host (ArScene.vue in
+      // ar-demo-backend), so the module previews under the light it gets in
+      // the app — and `hostLights: false` (applyHostLights) can switch them off.
       // Augmented Bahnhofsviertel additionally mirrors the host's camera start
       // position and raycaster interval (and fog/renderer on the scene below),
       // so preview and standalone build place a module the way the host does.
       // See augmented-bahnhofsviertel/PORTING-GUIDE.md §9.
-      h("a-light", { type: "ambient", color: "#BBB" }),
-      h("a-light", { type: "directional", color: "#FFF", intensity: "0.6", "cast-shadow": "true", position: "-0.5 1 1" }),
+      h("a-entity", { id: "host-lights" }, [
+        h("a-light", { type: "ambient", color: "#BBB" }),
+        h("a-light", { type: "directional", color: "#FFF", intensity: "0.6", "cast-shadow": "true", position: "-0.5 1 1" })
+      ]),
       h("a-camera", {
         id: "camera",
         position: "0 0.35 0.8",
@@ -155,6 +156,7 @@ nextTick(() => {
       // camera settings, and feed its image targets to XR8 before mounting.
       registerManifestComponents(manifest);
       applyCameraSettings(document.querySelector("a-camera"), manifest.camera || {});
+      applyHostLights(manifest);
       configureImageTargets((window as any).XR8, manifest.imageTargets || []);
       assetsReady.value = true;
     };
