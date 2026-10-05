@@ -4,6 +4,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import { fileURLToPath, URL } from "node:url";
 import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
 import { join, parse, extname, sep } from "node:path";
+import { usedComponents } from "./scripts/abv-used-components";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
 // Image-target files (the JSON + its *_luminance/_cropped/… images) produced by
@@ -152,6 +153,28 @@ function arModuleAssets() {
 }
 
 /**
+ * Augmented Bahnhofsviertel: `virtual:abv-used-components` lists the A-Frame
+ * components the module actually uses, so src/manifest.ts registers only
+ * those in the host (see scripts/abv-used-components.ts). Computed once per
+ * build / dev-server start.
+ */
+const ABV_USED_ID = "virtual:abv-used-components";
+function abvUsedComponents() {
+  return {
+    name: "abv-used-components",
+    resolveId(id: string) {
+      if (id === ABV_USED_ID) return "\0" + ABV_USED_ID;
+    },
+    load(id: string) {
+      if (id === "\0" + ABV_USED_ID) {
+        const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+        return `export const usedComponents = ${JSON.stringify(usedComponents(srcDir))};\nexport default usedComponents;`;
+      }
+    }
+  };
+}
+
+/**
  * Three flavours, selected by command + `--mode ar`:
  *  - `vite`              → VR/desktop preview (stock A-Frame via CDN, index.html)
  *  - `vite --mode ar`    → 8th Wall AR preview (8frame + engine, ar.html, https)
@@ -175,7 +198,8 @@ export default defineConfig(async ({ command, mode }) => {
         }
       }
     }),
-    arModuleAssets()
+    arModuleAssets(),
+    abvUsedComponents()
   ];
 
   if (isAr) {

@@ -14,3 +14,10 @@ declare module "virtual:ar-manifest" {
   export const manifest: AssetManifest;
   export default manifest;
 }
+
+// Augmented Bahnhofsviertel: names of the A-Frame components the module uses
+// (see `abvUsedComponents()` in vite.config.ts / scripts/abv-used-components.ts).
+declare module "virtual:abv-used-components" {
+  export const usedComponents: string[];
+  export default usedComponents;
+}
