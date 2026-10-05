@@ -30,20 +30,27 @@ declare const THREE: any;
 //     module (and frees its render target) on remove().
 //   - The render target is flagged needsPMREMUpdate after every cube update
 //     (three r158 re-prefilters render-target env maps only when flagged).
-//
-// Known incompatibility: don't combine with a cubemap-static on another
-// instance of the same model in the same scene. In three r158 the two
-// prefiltered env maps interfere and the live one ends up showing the
-// static image (found on #18: the visible ball reflected the invisible
-// mini-ball's FUNKY TOWN cube map instead of the camera).
 //   - THREE.RGBFormat no longer exists in three.js r158 (8frame 1.5); the
 //     render target uses the default RGBA. `encoding: sRGBEncoding` is
 //     kept on three versions that still have it (8frame 1.3, the host app)
 //     and expressed as `colorSpace: SRGBColorSpace` on r152+ (8frame 1.5).
+//
+// Known incompatibility: don't combine with a cubemap-static on another
+// instance of the same model in the same scene. In three r158 the two
+// prefiltered env maps interfere and the live one ends up showing the
+// static image (found on an Augmented Bahnhofsviertel work: the visible
+// ball reflected an invisible copy's static cube map instead of the camera).
+//
+// Ported via the augmented-bahnhofsviertel branch.
 let instanceCounter = 0;
 
 export default {
-  schema: {},
+  schema: {
+    // Not in the original (defaults = the original's behaviour):
+    // envMapIntensity on the materials, and the cube render target's size.
+    envMapIntensity: { type: "number", default: 1 },
+    size: { type: "int", default: 256 }
+  },
 
   init() {
     const self = this as any;
@@ -61,7 +68,7 @@ export default {
     // `colorSpace` (r152+, 8frame 1.5) and `encoding` (8frame 1.3 / r137 —
     // the host app's runtime, where SRGBColorSpace doesn't exist and the
     // option would otherwise silently fall back to linear).
-    self.renderTarget = new THREE.WebGLCubeRenderTarget(256, {
+    self.renderTarget = new THREE.WebGLCubeRenderTarget(self.data.size, {
       generateMipmaps: true,
       minFilter: THREE.LinearMipmapLinearFilter,
       ...(THREE.SRGBColorSpace !== undefined
@@ -77,7 +84,8 @@ export default {
     cubeMapScene.add(sphereMesh);
     self.disposables = [camTexture, sphereMaterial, sphereMesh.geometry];
 
-    self.apply = () => applyEnvMap(self.el.getObject3D("mesh"), self.renderTarget.texture);
+    self.apply = () =>
+      applyEnvMap(self.el.getObject3D("mesh"), self.renderTarget.texture, { intensity: self.data.envMapIntensity });
     self.onObject3DSet = (e: any) => {
       if (e.detail?.type === "mesh") self.apply();
     };

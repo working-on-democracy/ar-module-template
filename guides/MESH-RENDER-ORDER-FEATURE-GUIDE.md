@@ -43,19 +43,12 @@ too, just at named-submesh granularity instead of whole-model granularity.
 1. **Copy the file** — `mesh-render-order.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import meshRenderOrder from "./a-frame-components/mesh-render-order";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "mesh-render-order": meshRenderOrder
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Find your mesh names** — open the glTF in a viewer/inspector (or your
    DCC tool's outliner) and note the exact mesh names as authored. These
@@ -164,6 +157,14 @@ during development) rather than assuming a name scheme.
 this component against the asset's real names, working end-to-end.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Portal overwrites renderOrder in its subtree
+
+[`portal`](PORTAL-FEATURE-GUIDE.md) sets `renderOrder` on every mesh inside
+its `contents`, `walls`, `portalWall` and `door` (hiders 1, contents 2) and
+re-applies it whenever a mesh appears below it. Values set by this
+component inside a portal are overwritten — use it outside portals only
+(found while adding Portal).
 
 ### Can't fix everything — see the cross-feature guide
 
