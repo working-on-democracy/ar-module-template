@@ -12,7 +12,8 @@
     "compress-assets": "tsx scripts/compress-assets.ts",
     "abv:port": "tsx scripts/abv-port.ts",
     "abv:reference": "tsx scripts/abv-reference.ts",
-    "abv:release": "tsx scripts/abv-release.ts"
+    "abv:release": "tsx scripts/abv-release.ts",
+    "abv:deploy": "tsx scripts/abv-deploy.ts"
   },
   "devDependencies": {
     "@8thwall/engine-binary": "1.0.0",
