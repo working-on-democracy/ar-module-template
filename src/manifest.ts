@@ -60,6 +60,7 @@ import crossfadeLoopClip from "./a-frame-components/crossfade-loop-clip";
 import legacyAttach from "./a-frame-components/legacy-attach";
 import legacyPortal from "./a-frame-components/legacy-portal";
 import type { Manifest } from "../lib/manifest.types";
+import { usedComponents } from "virtual:abv-used-components";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
 // Runs as soon as this module is imported — by the local previews AND by the
@@ -201,5 +202,13 @@ export const manifest: Manifest = {
   // for how to add one (an `imageTargets: [yourTarget]` entry here, importing
   // your own src/image-targets/*.json).
 };
+
+// Augmented Bahnhofsviertel: register only the components this module
+// actually uses (found by scanning the module's files at build time — see
+// scripts/abv-used-components.ts). Every extra name would compete with other
+// modules in the shared host scene, where the first registration wins.
+manifest.components = Object.fromEntries(
+  Object.entries(manifest.components ?? {}).filter(([name]) => usedComponents.includes(name))
+);
 
 export default manifest;
