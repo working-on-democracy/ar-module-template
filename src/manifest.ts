@@ -58,7 +58,11 @@ export const manifest: Manifest = {
     "glowstick-motion": glowstickMotion
   },
 
-  imageTargets: [videoTarget]
+  imageTargets: [videoTarget],
+
+  // The scene brings its own lights: the host switches its two scene lights
+  // off while this module is shown (ar-demo-backend PR #4).
+  hostLights: false
 };
 
 export default manifest;
