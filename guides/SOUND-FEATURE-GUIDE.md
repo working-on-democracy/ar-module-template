@@ -21,9 +21,10 @@ src/a-frame-components/
   sound-controller.ts       # sound: one per module, play/pause/stop state machine
   sound-button.ts            # sound: plays/pauses/stops a `sound` entity on tap
   sound-unlock-audio.ts      # sound: shared iOS/Web Audio unlock helper
+  sound-scene-audio.ts       # sound: optional helpers for plain `sound` entities (see below)
 src/assets/
   sound-start.webp, sound-stop.webp, sound-play.webp, sound-pause.webp
-src/manifest.ts             # registers all 5 components above
+(components register automatically by file name — nothing to add to src/manifest.ts)
 examples/
   ar-button-usage.html       # 3D scene wiring + full attribute reference
   sound-gui-panel.html        # copy/paste block for the 2D GUI panel
@@ -49,29 +50,12 @@ i.e. it already has `src/manifest.ts`, `src/a-frame-components/`,
    art later if you want, keeping the same 4 file names (or update
    `iconSrc()` calls in step 5 if you rename them).
 
-3. **Register the components** — in your project's `src/manifest.ts`, import
-   the 5 components and add them to the `components` map, e.g.:
-
-   ```ts
-   import arButtonManager from "./a-frame-components/ar-button-manager";
-   import arButton from "./a-frame-components/ar-button";
-   import soundController from "./a-frame-components/sound-controller";
-   import soundButton from "./a-frame-components/sound-button";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "ar-button-manager": arButtonManager,
-       "ar-button": arButton,
-       "sound-controller": soundController,
-       "sound-button": soundButton
-     }
-   };
-   ```
-
-   (`sound-unlock-audio.ts` is imported by `sound-controller.ts` directly —
-   it's not an A-Frame component and isn't registered in the manifest.)
+3. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 4. **Add the sound assets you actually want to play** — drop your own
    `.mp3`/`.wav`/etc. into `src/assets/`; each becomes an asset id
@@ -337,6 +321,34 @@ named `pauseAudio`, not `pause` — assigning to `pause`/`play` collides with
 A-Frame's own reserved component lifecycle method names and would silently
 deregister the component from the tick loop when called.
 
+### `sound-scene-audio.ts` (optional helpers)
+
+For scenes whose plain A-Frame `sound` entities simply start together after
+one "Start/Play" tap (no per-button control) — added from the Augmented
+Bahnhofsviertel ports (`legacy-audio.ts`):
+
+- `playSounds(root)` — unlocks audio (`sound-unlock-audio.ts`) and starts
+  every `sound` under `root`. Call synchronously inside the tap handler
+  (e.g. an [AR Overlay](AR-OVERLAY-FEATURE-GUIDE.md) control's `onClick`).
+- `pauseSoundsWhileHidden(root)` — pauses the sounds that are actually
+  playing while the page is hidden, resumes exactly those afterwards;
+  returns a teardown for `onUnmounted`.
+- `scaleSoundDistances(root, scale)` — multiplies positional sounds'
+  refDistance/maxDistance (on the pooled PositionalAudio objects, so a
+  playing sound isn't restarted) for scenes scaled by `scale`.
+
+Copy `sound-scene-audio.ts` together with `sound-unlock-audio.ts`; nothing
+to register.
+
+```ts
+import { playSounds, pauseSoundsWhileHidden } from "./a-frame-components/sound-scene-audio";
+const root = ref<HTMLElement | null>(null);   // ref="root" on the module's root <a-entity>
+let stop = () => {};
+onMounted(() => { if (root.value) stop = pauseSoundsWhileHidden(root.value); });
+onUnmounted(() => stop());
+// control: { id: "play", html: "PLAY", onClick: () => root.value && playSounds(root.value) }
+```
+
 ### `sound-unlock-audio.ts`
 
 A plain exported function, not a component. Web Audio requires a real user
@@ -395,6 +407,14 @@ regardless would strand the page permanently silent with no further retry).
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+### One tap can also recenter or place
+
+[Placement & Recenter](PLACEMENT-FEATURE-GUIDE.md)'s tap detection
+(`tapRecenter`, `tap-place-cursor`) reacts to every tap on the canvas — a
+tap on an `ar-button` therefore also re-places the scene / moves the
+cursor target. Use a recenter button ([AR Overlay](AR-OVERLAY-FEATURE-GUIDE.md))
+instead of `tapRecenter` in scenes with tappable buttons.
+
 ### Component name collisions across co-mounted modules
 
 The host (and the local preview harness, `lib/host-runtime.ts`) registers
@@ -412,7 +432,8 @@ that changes their public contract (schema fields, event names) for just one
 project, while keeping the same component names — that change would leak
 into every other simultaneously-mounted module that also happens to use
 those names. If a project needs genuinely different behavior, rename the
-component (and update `manifest.ts` and the scene markup accordingly).
+component file (the file name is the registered name) and the scene markup
+accordingly.
 
 ### Multiple modules ⇒ multiple independent `ar-button-manager`s
 
