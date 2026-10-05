@@ -10,3 +10,7 @@
 ## Beschreibung
 
 In der Arbeit *Solid Dreamlevel“ setzt sich die Künstlerin Anna Hofmann mit Stadien des Träumens auseinander. Hierbei tauchen ihre Protagonistinnen, bestehend aus zwei Clowns, aus einer Muschel auf, die beim Öffnen ihr Innenleben preisgibt. „Solid Dreamlevel“ handelt von einem angenehmen eskapistischen Traum, der sich mit Zukunftsfragen beschäftigt.
+
+## Fassung und Referenz
+
+Portiert nach der Live-App (`digitalekunst.8thwall.app/anna-hofmann`, Szene 2026-10-05 gelesen): acht Muscheln. Der Export `anna-hofmann` ist ein älterer Stand mit einer Muschel und anderen Tonwerten; Komponenten und Assets sind identisch. `reference-legacy*.jpg` zeigen noch den Export.
