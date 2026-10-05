@@ -142,7 +142,11 @@ onUnmounted(() => {
          the camera's world position into the hull); `play-video` dropped
          (never registered in the original, so no effect — the start button
          plays video and sound); the commented-out Laufband model not
-         imported. No tap-recenter in the original. -->
+         imported. No tap-recenter in the original.
+         Portal-wall circles: radius 10.2 as in the live app
+         (digitalekunst.8thwall.app/radetz-nepal, checked 2026-10-05) — the
+         export had radius 0, i.e. no round window back to the real world when
+         looking back from inside the panorama. -->
     <a-entity
         id="privileged-i-legacy-space"
         legacy-space="legacyCameraHeight: 4; legacyCameraDistance: 5">
@@ -168,8 +172,8 @@ onUnmounted(() => {
         </a-entity>
 
         <a-entity id="privileged-i-portal-wall">
-          <a-circle radius="0" rotation="0 180 0" position="0 7.5 0" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
-          <a-circle radius="0" rotation="0 180 0" position="0 7.5 -0.25" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
+          <a-circle radius="10.2" rotation="0 180 0" position="0 7.5 0" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
+          <a-circle radius="10.2" rotation="0 180 0" position="0 7.5 -0.25" scale="0.8 0.8 0" xrextras-hider-material></a-circle>
         </a-entity>
 
         <!-- Lights -->
