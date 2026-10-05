@@ -1,6 +1,6 @@
 # 19. Kleiderberg
 
-- **Künstler\*in:** Frankurt Fashion Movement
+- **Künstler\*in:** Frankfurt Fashion Movement
 - **Ort:** Rathenauplatz (50.113894, 8.676693)
 - **Verfügbar seit:** 2022-07-02
 - **Beschreibungsseite:** https://broadcastsfromthekitchen.de/ar#/augmented-bahnhofsviertel/kleiderberg
