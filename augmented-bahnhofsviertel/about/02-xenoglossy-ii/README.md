@@ -10,3 +10,7 @@
 ## Beschreibung
 
 Die Frankfurter Künstlerin Tina Kohlmann setzt ihre Skulptur Xenoglossy bereits existierenden Skulpturen im öffentlichen Raum gegenüber und lässt diese miteinander kommunizieren/interagieren. Der Titel Xenoglossy (altgriechisch xénos, fremd und glō̃ssa, Zunge/Sprache) wurde Anfang des 20. Jahrhunderts geprägt von dem französischen Mediziner und Physiologen Charles Richet und beschreibt die paranormale Fähigkeit einer Person eine Sprache zu sprechen, ohne sie jemals erlernt zu haben.
+
+## Fassung und Referenz
+
+Eigener Port seit 2026-10-05 (Branch `abv-02-xenoglossy-ii`), aus der Live-App `kohlmann-xenoglossy2` — dafür gibt es keinen Export. Eigene Farbfassung des Gesichts, eigene Platzierung, eigenes Licht und eigener Start-Text; Komponenten und UI wie Nr. 1.
