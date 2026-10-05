@@ -16,7 +16,7 @@ src/a-frame-components/
   proximity-fade-shared.ts   # not a component: the shared schema/ramp/target logic
   proximity-fade.ts           # real alpha-blended transparency variant
   proximity-fade-dither.ts     # dithered opaque-pass transparency variant
-src/manifest.ts               # registers proximity-fade + proximity-fade-dither
+(registered automatically by file name — nothing to add to src/manifest.ts)
 examples/
   proximity-fade-usage.html    # scene wiring + full attribute reference
 ```
@@ -32,26 +32,12 @@ on whatever `gltf-model`s you already have in your scene.
    already follow this template's `proximity-fade*` naming convention (see
    `src/manifest.ts`'s naming-convention comment) — nothing to rename.
 
-2. **Register the two real components** in your project's `src/manifest.ts`:
-
-   ```ts
-   import proximityFade from "./a-frame-components/proximity-fade";
-   import proximityFadeDither from "./a-frame-components/proximity-fade-dither";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "proximity-fade": proximityFade,
-       "proximity-fade-dither": proximityFadeDither
-     }
-   };
-   ```
-
-   `proximity-fade-shared.ts` is **not** registered — it has no default
-   export; it's imported directly by the other two (`import {
-   createProximityFadeComponent, MaterialPatcher } from
-   "./proximity-fade-shared"`), not by `manifest.ts`.
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it onto a transform entity** wrapping one or more `gltf-model`
    children — see [2. Entities & attributes](#2-entities--attributes) or
@@ -231,6 +217,13 @@ same map, so dynamically removing a `proximity-fade` entity (or toggling a
 scene) doesn't leave materials permanently altered.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Grain Shimmer chains, doesn't replace
+
+[`grain-shimmer`](GRAIN-SHIMMER-FEATURE-GUIDE.md) clones the material and
+chains an `onBeforeCompile` patch that is already on it. If this component
+patches *after* grain-shimmer (replacing `onBeforeCompile`), the grain is
+lost — set grain-shimmer last.
 
 ### `proximity-fade-dither` vs. `proximity-cutout` on the *same* material
 
