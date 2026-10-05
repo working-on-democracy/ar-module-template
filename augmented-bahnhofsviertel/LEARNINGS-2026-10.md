@@ -90,6 +90,19 @@ geändert?**
 
 ---
 
+### Nachtrag 2026-10-05: Der Host läuft auf 8frame 1.3
+
+Der Abgleich mit dem Host-Repo (`ar-demo-backend`) zeigte: Der Host lädt
+**8frame 1.3.0 und xrextras byte-gleich mit den alten Exporten** — also die
+Laufzeit der Originale, nicht die 1.5 der Vorschau. Alle Handy-Tests bis
+dahin liefen auf 1.5. Seitdem nutzen Vorschau und Standalone die Dateien des
+Hosts. Die oben beschriebenen 1.5-Korrekturen schaden unter 1.3 nicht
+(Cubemap ohnehin linear, explizite Zeichenreihenfolge, `needsPMREMUpdate`
+existiert); `cubemap-realtime` musste dagegen `encoding: sRGBEncoding`
+zusätzlich setzen, weil `SRGBColorSpace` in r137 fehlt. **Lehre:** Die
+Laufzeit des Ziel-Hosts am Code prüfen, bevor man auf einer anderen
+Laufzeit kalibriert — der Template-README widersprach sich hier.
+
 ## 2. Lade-Reihenfolge in `dev:ar`
 
 `ar.html` lädt 8frame **dynamisch**; das Modul-Bundle kann davor fertig sein
