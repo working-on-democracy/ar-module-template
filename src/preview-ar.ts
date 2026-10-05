@@ -70,8 +70,12 @@ const ArPreviewApp = {
           return h(el.tag, el.attrs);
         })
       ),
-      h("a-light", { type: "ambient", intensity: "0.8" }),
-      h("a-light", { type: "directional", position: "1 2 1", intensity: "0.9", light: "castShadow: true" }),
+      // Stand-in for the host's scene lights — left out when the module sets
+      // `hostLights: false`, as the host switches its own lights off then.
+      ...(manifest.hostLights === false ? [] : [
+        h("a-light", { type: "ambient", intensity: "0.8" }),
+        h("a-light", { type: "directional", position: "1 2 1", intensity: "0.9", light: "castShadow: true" })
+      ]),
       // Matches the real platform host's <a-camera> defaults exactly (confirmed
       // from the deployed bundle at oplooi.uber.space/an-alle/), since
       // manifest.camera no longer overrides any of this (see manifest.ts).
