@@ -31,19 +31,12 @@ three combined into one scene.
 1. **Copy the file** — `random-field.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import randomField from "./a-frame-components/random-field";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "random-field": randomField
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Author the entities you want scattered**, anywhere in your scene,
    each with its own `id`. A referenced entity can be a single mesh or a
@@ -168,6 +161,13 @@ narrower than `minDistance`), a safety net keeps placing straight back at
 `maxDistance` spacing rather than silently placing fewer points than asked.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Related: Spawn Sequence
+
+Random Field scatters all copies at once, statically. For copies that appear
+over time (interval/timeline, with a bounce and optional sound) use
+[Spawn Sequence](SPAWN-SEQUENCE-FEATURE-GUIDE.md) instead — the two don't
+interact.
 
 ### Combining with LOD + Billboard
 
