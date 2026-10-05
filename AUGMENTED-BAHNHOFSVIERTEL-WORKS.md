@@ -67,7 +67,7 @@ Punkte, die vor der Veröffentlichung der Module noch geändert werden müssen:
 
 ## Umstellung auf die Host-Laufzeit (2026-10-05)
 
-Vorschau und Standalone laufen seit 2026-10-05 auf der Laufzeit des Hosts (8frame 1.3.0 statt 1.5.0, xrextras des Hosts) mit dessen Basis-Szene (zwei dauerhafte Lichter, die das Werk auf die Hälfte dimmt; Kamera auf `0 0.35 0.8`; Nebel); der Recenter-Button sitzt 64 px von oben. Alle bisherigen Handy-Tests liefen auf 1.5 — **jedes Werk einmal kurz neu auf dem Handy prüfen** (Look/Helligkeit, Spiegelungen, Größe, Start, Gesten). Details: [PORTING-GUIDE.md §9](augmented-bahnhofsviertel/PORTING-GUIDE.md#9-release-builds-modul-und-standalone).
+Vorschau und Standalone laufen seit 2026-10-05 auf der Laufzeit des Hosts (8frame 1.3.0 statt 1.5.0, xrextras des Hosts) mit dessen Basis-Szene (zwei dauerhafte Lichter, die das Werk auf 30 % dimmt; Kamera auf `0 0.35 0.8`; Nebel); der Recenter-Button sitzt 64 px von oben. Alle bisherigen Handy-Tests liefen auf 1.5 — **jedes Werk einmal kurz neu auf dem Handy prüfen** (Look/Helligkeit, Spiegelungen, Größe, Start, Gesten). Details: [PORTING-GUIDE.md §9](augmented-bahnhofsviertel/PORTING-GUIDE.md#9-release-builds-modul-und-standalone).
 
 ## Abgleich mit den Live-Apps (2026-10-05)
 
