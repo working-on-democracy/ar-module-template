@@ -19,7 +19,7 @@ Wie ein Werk aus dem alten 8th-Wall-Export (`augmented-bahnhofsviertel/Projektor
 | Assets | `<a-assets>` in body.html, Unterordner, glTF als Ordner-Bundles | flach in `src/assets/`, Dateiname = Asset-ID, vom Host injiziert; keine eigenen `<a-assets>` |
 | Komponenten | `AFRAME.registerComponent` in `app.js` (+ Systeme) | `src/a-frame-components/*.ts`, registriert über `src/manifest.ts` (nur Komponenten, keine Systeme) |
 | UI | DOM-Overlays aus `ui.js` (Start, Hinweise, Recenter, Audio/Video freischalten), CSS aus `ui.css` | Vue-Template im Modul (2D-DOM, inline-Styles — `<style>`-Blöcke erreichen den Host nicht, siehe README „Caveats“) |
-| Laufzeit | 8frame **1.3.0** (three r137) im Export-Build, aframe-extras 6.1.1, xrextras | 8frame **1.5.0** (three r158) in `dev:ar`, aframe-extras 6.1.1, xrextras |
+| Laufzeit | 8frame **1.3.0** (three r137) im Export-Build, aframe-extras 6.1.1, xrextras | seit 2026-10-05 dieselbe wie im Host: 8frame **1.3.0** (three r137) und die xrextras-Datei des Hosts (beide byte-gleich mit den Exporten), aframe-extras 6.1.1 — in `dev:ar` und im Standalone-Build; vorher 8frame 1.5.0 (three r158), siehe §9 |
 
 Hinweis zur Laufzeit: Die Projekte nennen in `head.html` die A-Frame-Versionen 1.1/1.2/1.3, der Export-Build lädt aber für alle 8frame 1.3.0 — das ist die Referenz, gegen die verglichen wird.
 
@@ -153,20 +153,25 @@ Die alten 2D-Overlays (Hinweistext + „Start“, Recenter-Button oben rechts, A
 `npm run abv:release` (scripts/abv-release.ts) baut jeden Werk-Branch in einem temporären Worktree — also den **committeten** Stand, nicht deine Arbeitskopie — auf zwei Wegen:
 
 - `module/` — `vite build`, die Bibliothek, die der Host per `import(url)` lädt (`ar-module.js`, `manifest.json`, `assets/`). Den Ordner als Ganzes hosten.
-- `standalone/` — `vite build --mode ar`, dieselbe Seite und Laufzeit wie `dev:ar` (8frame 1.5.0, aframe-extras 6.1.1 von jsDelivr, xrextras, Engine). Das Skript entfernt den Entwickler-Hinweis „AR Module Preview · 8th Wall …“ und setzt den Seitentitel auf „Werk – Künstler*in“; `ar.html` selbst bleibt unverändert. Hosting: https, Range-Requests für Video/Audio (iOS), beliebiger Unterordner.
+- `standalone/` — `vite build --mode ar`, dieselbe Seite und Laufzeit wie `dev:ar` (8frame 1.3.0 und xrextras des Hosts, aframe-extras 6.1.1 von jsDelivr, Engine). Das Skript entfernt den Entwickler-Hinweis „AR Module Preview · 8th Wall …“ und setzt den Seitentitel auf „Werk – Künstler*in“; `ar.html` selbst bleibt unverändert. Hosting: https, Range-Requests für Video/Audio (iOS), beliebiger Unterordner.
 
 Das Skript bricht ab bzw. meldet Fehler, wenn ein Branch den aktuellen Stand von `augmented-bahnhofsviertel` nicht enthält (alle Module müssen dieselben gemeinsamen Komponenten mitbringen — im Host gewinnt die erste Registrierung eines Namens), `vue-tsc` oder ein Build scheitert, ein Manifest-Asset fehlt, eine Asset-ID in zwei Modulen vorkommt (gemeinsames `<a-assets>` im Host) oder der Hinweis im Standalone stehen bleibt. Pro Werk entsteht `BUILD-INFO.json` (Branch, Commits, registrierte Komponenten, Assets).
 
 **Nur genutzte Komponenten (seit 2026-10-05):** `src/manifest.ts` registriert nur die Komponenten, die das Modul verwendet. `scripts/abv-used-components.ts` sucht die registrierten Namen (außerhalb von Kommentaren) in `src/*.vue`/`src/*.ts` und transitiv in den Quellen bereits genutzter Komponenten; `vite.config.ts` stellt das Ergebnis als `virtual:abv-used-components` bereit. `dev:ar` nutzt dasselbe gefilterte Manifest — eine übersehene Komponente fiele also schon in der Vorschau auf.
 
-**Warum Standalone und Host abweichen können** (am 2026-10-05 aus Code und Doku zusammengetragen; der Host-Code liegt nicht in diesem Repo — vor dem ersten Modul-Deploy mit dem Host klären):
+**Host-Abgleich (2026-10-05, Host-Repo `TobiasStill/ar-demo-backend` @ f05740d, `frontend/index.html`, `frontend/src/components/ArScene.vue` und `ArModule.vue`):**
 
-1. 8frame-Version des Hosts — alle Look-Korrekturen der Ports sind auf 8frame 1.5 / three r158 abgestimmt; der README nennt für den Host an einer Stelle A-Frame 1.3.0.
-2. Element-Typen beim Einhängen der Assets — die Vorschau nutzt `<video muted loop>`/`<audio>`/`<img>` (`lib/host-runtime.ts`), der README beschreibt `<a-asset-item>` für alles. Betrifft Videos, Sounds, Cubemap- und Panorama-Bilder.
-3. Auflösung der relativen Asset-Pfade (`assets/…`) — relativ zur Modul-URL oder zur Host-Seite?
-4. Szenen-Attribute der Vorschau: `renderer="colorManagement: true"` (Farben aller Werke), `xrextras-gesture-detector` (Gesten), Kamera-Raycaster auf `.cantap` mit `rayOrigin: mouse` (Tippen bei #20, `hold-drag`).
-5. Kameraposition/XR8-Maßstab — `legacy-space` setzt Boden bei y = 0 und die 8th-Wall-Höhenkonvention voraus.
-6. Ein- und Aushängen sowie mehrere Module gleichzeitig gibt es nur im Host; die Bausteine räumen laut Code auf, getestet ist das nicht. Ein Szenen-Tap platziert alle offenen Werke mit Tap-Recenter neu.
-7. Lage der Host-UI oben rechts (Recenter-Button der Werke).
+| Thema | Host | Folge für die Werke |
+|---|---|---|
+| Laufzeit | 8frame **1.3.0** (three r137), xrextras — beide byte-gleich mit den alten Exporten; aframe-extras 6.1.1; `@8thwall/engine-binary` 1.0.0 | Vorschau und Standalone nutzen seitdem dieselben Dateien (`lib/vendor/8frame-1.3.0.min.js`, `lib/vendor/xrextras-host/`). Die Behauptung im Template-README, dieses 8frame vertrage sich nicht mit `engine-binary`, trifft hier nicht zu (Host produktiv, headless geprüft). Die 1.5-Anpassungen (§8: `cubemap-static` linear, `legacy-portal`-Reihenfolge, `needsPMREMUpdate`) sind unter 1.3 neutral |
+| Assets | `<video muted loop playsinline>`, `<audio>`, `<img>`, sonst `<a-asset-item>`; `src` gegen die **Modul-URL** aufgelöst; Asset übersprungen, wenn die ID schon existiert | wie die Vorschau |
+| Szene | `xrextras-gesture-detector`, `renderer="colorManagement: true; maxCanvasWidth/Height: 1280; preserveDrawingBuffer: true"`, `fog="type: linear"` (Standard 1–1000, bei Modulgröße vernachlässigbar), XR8 `responsive` | Vorschau übernimmt Nebel und Renderer-Einstellungen |
+| Licht | dauerhaft Umgebungslicht `#BBB` + Richtungslicht 0,6, zusätzlich zum Licht des Moduls | `legacy-space` halbiert alle Lichter außerhalb der Hülle, solange das Werk aktiv ist (`hostLightScale`, Standard 0,5 — entschieden 2026-10-05), und stellt sie beim Aushängen wieder her. Die Vorschau hat dieselben zwei Lichter. **Übergangslösung** (entschieden 2026-10-05): sauberer wäre ein optionales Manifest-Feld (z. B. `hostLights: 0.5`), das der Host-Loader auswertet — dann `hostLightScale` auf 1 setzen. Licht pro Objekt ausschließen geht in three.js nicht (keine Light-Linking-Funktion; Layers schalten ein Licht für alle Objekte ab) |
+| Kamera | `id=camera`, `position="0 0.35 0.8"`, Raycaster `.cantap` (im Zeichenmodus aus), Intervall 100 ms, Cursor `rayOrigin: mouse` | Vorschau übernimmt Position und Intervall. `legacy-space` rechnet relativ zur Kamerahöhe — reale Größe unverändert (Hülle bei Kamerahöhe 0,35: Maßstab 0,044) |
+| Module | immer nur **eins** (`selectedModule`), Hülle bei `0 1.6 -3`, beim Wechsel ausgehängt (Assets und Wrapper entfernt) | kein Mehr-Modul-Fall; Aushängen räumt laut Code auf (Lichter: headless geprüft) |
+| UI | Kompass-Button oben rechts (16 px, z 100), Modulmenü oben links, GPS-Hinweis oben mittig | Recenter-Button von `LegacyOverlay` auf 64 px von oben verlegt |
+| Zeichenmodus | Raycaster aus, `ar-draw-tool` fängt Pointer am Canvas ab | Ziehen ruht; Zwei-Finger-Drehen/-Pinch und Tap-Recenter reagieren weiter (klein, offen) |
+
+`cubemap-realtime` setzt die sRGB-Codierung des Originals jetzt in beiden three-APIs (`colorSpace` ab r152, `encoding` in r137) — vorher fiel sie im Host weg.
 
 Unabhängig vom Build: Die Lade-Anzeige blendet die Szene nach spätestens 10 s ein, auch wenn große Modelle (bis 16 MB) noch laden.
