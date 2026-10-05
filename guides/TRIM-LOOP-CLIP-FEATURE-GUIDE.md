@@ -23,19 +23,12 @@ same entity — the two would fight over driving the same model's pose (see
 1. **Copy the file** — `trim-loop-clip.ts` — into your project's own
    `src/a-frame-components/`. No path changes, no data files.
 
-2. **Register it** in your project's `src/manifest.ts`:
-
-   ```ts
-   import trimLoopClip from "./a-frame-components/trim-loop-clip";
-
-   export const manifest: Manifest = {
-     assets: assetManifest.assets,
-     components: {
-       // ...whatever you already have...
-       "trim-loop-clip": trimLoopClip
-     }
-   };
-   ```
+2. **Nothing to register** — every component file in
+   `src/a-frame-components/` is registered automatically under its file
+   name as soon as the scene uses it (README, "The manifest"); unused ones
+   aren't even bundled. Only a component registered under a different name,
+   or one whose name is built at runtime, needs a manual entry in
+   `src/manifest.ts`.
 
 3. **Wire it into the scene** — see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
@@ -54,6 +47,7 @@ same entity — the two would fight over driving the same model's pose (see
 | `timeScale` | number | `1` | Playback speed multiplier, same meaning as `animation-mixer`'s `timeScale`. |
 | `loop` | string | `"pingpong"` | `"once"` \| `"repeat"` \| `"pingpong"`. Ping-pong plays forward then reverse, back and forth. |
 | `clampWhenFinished` | boolean | `false` | Hold the final frame when a non-looping (`"once"`) clip finishes, instead of snapping back. |
+| `crossfade` | number | `0` | Seconds (repeat only; 0 = off). Rebuilds each track so the clip's last `crossfade` seconds blend linearly into the pose `crossfade` seconds in, and the loop restarts there — no jump for animations never authored to loop (any track type; quaternions re-normalised). Applied after the lead-in trim. Added from the Augmented Bahnhofsviertel ports' `crossfade-loop-clip` (a baked 401-frame cloth simulation whose loop jumped ~28× a normal frame step). Changes the motion near the loop point. |
 
 ```html
 <a-entity gltf-model="#AnimatedCharacter" trim-loop-clip="timeScale: 0.4"></a-entity>
@@ -123,6 +117,12 @@ tunable (clip selection, speed, loop mode, clamping) was already a freely-set
 schema attribute with no naming-convention or asset-specific assumptions.
 
 ## 4. Incompatibilities, risks & troubleshooting
+
+### Tap Animation sets animation-mixer itself
+
+[`tap-animation`](TAP-ANIMATION-FEATURE-GUIDE.md) removes and re-sets
+`animation-mixer` on its entity on every tap — don't put `trim-loop-clip` on
+the same entity.
 
 ### Don't combine with `animation-mixer` on the same entity
 
