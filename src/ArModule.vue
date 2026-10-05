@@ -84,21 +84,18 @@ const loadSpinnerBackdropStyle = computed(() => ({
   transition: 'opacity 0.4s ease-out'
 }));
 
-// #1 Xenoglossy I: the original's UI (image-target-ui with skip-marker,
+// #2 Xenoglossy II: the original's UI (image-target-ui with skip-marker,
 // recenter button, startExperience): once the scene is placed, a hint with
 // a Start button; Start re-places the scene and shows the model (the
 // original's order). See LegacyOverlay.vue.
 const centerControls: LegacyControl[] = [
   {
     id: 'start',
-    // ((TARGET)) is a deliberate placeholder (2026-10-04): the original said
-    // "Euro-Skulptur" (#1's location), but this module also stands for #2/#3
-    // at other locations. Replace before the final export — see
-    // AUGMENTED-BAHNHOFSVIERTEL-WORKS.md "Vor dem finalen Export".
-    html: 'Richte die Kamera auf die ((TARGET)) und tippe auf "Start" ' + actionButtonHtml('Start'),
+    // Text as in the live app digitalekunst.8thwall.app/kohlmann-xenoglossy2 (Taunustor 1-3).
+    html: 'Gehe zur Skulptur von Franz West und tippe auf "Start" ' + actionButtonHtml('Start'),
     onClick: () => {
-      document.getElementById('xenoglossy-i-legacy-space')?.dispatchEvent(new CustomEvent('legacy-space-place'));
-      document.getElementById('xenoglossy-i-model')?.setAttribute('visible', 'true');
+      document.getElementById('xenoglossy-ii-legacy-space')?.dispatchEvent(new CustomEvent('legacy-space-place'));
+      document.getElementById('xenoglossy-ii-model')?.setAttribute('visible', 'true');
     }
   }
 ];
@@ -118,10 +115,13 @@ onUnmounted(() => {
 
 <template>
 
-  <!-- #1 Xenoglossy I (Tina Kohlmann), ported from the 8th Wall export
-       `kohlmann-xenoglossy` — see augmented-bahnhofsviertel/about/01-xenoglossy-i/
-       and augmented-bahnhofsviertel/PORTING-GUIDE.md. Also stands for
-       Xenoglossy II/III (#2/#3: the same work at other locations).
+  <!-- #2 Xenoglossy II (Tina Kohlmann), ported from the LIVE 8th Wall app
+       digitalekunst.8thwall.app/kohlmann-xenoglossy2 (scene and texts read
+       from what it serves, 2026-10-05; no export exists).
+       Sibling of #1 (branch abv-01-xenoglossy-i): same components and UI,
+       own colour version of the face, own placement, scale and light — see
+       augmented-bahnhofsviertel/about/02-xenoglossy-ii/ and
+       augmented-bahnhofsviertel/PORTING-GUIDE.md.
 
        Assets come from the manifest (src/assets/, id = file name without
        extension) and are injected by the host — no <a-assets> here. -->
@@ -133,7 +133,7 @@ onUnmounted(() => {
          floor at y = 0), placed module-locally by legacy-space. The model
          stays hidden until Start (LegacyOverlay below). Changes against the
          original body.html:
-         - ids prefixed with "xenoglossy-i-";
+         - ids prefixed with "xenoglossy-ii-";
          - xrextras-hold-drag -> hold-drag (works inside the hull; groundId
            points at the prefixed ground box);
          - the light's xrextras-attach to the camera -> legacy-attach (same
@@ -144,16 +144,16 @@ onUnmounted(() => {
            offset matters; its "hidden until ready" role is the hull's);
          - `shadow="recieve: false"` kept as authored — the typo means the
            model did receive shadows in the original. -->
-    <a-entity id="xenoglossy-i-legacy-space" legacy-space>
+    <a-entity id="xenoglossy-ii-legacy-space" legacy-space>
       <a-entity position="0 0 -10">
         <a-entity
-            id="xenoglossy-i-model"
+            id="xenoglossy-ii-model"
             visible="false"
-            gltf-model="#xenoglossy-i-Gesicht_v31-1"
-            position="5 0 -4"
-            rotation="0 -70 0"
-            scale="25 25 25"
-            hold-drag="groundId: xenoglossy-i-ground"
+            gltf-model="#xenoglossy-ii-Gesicht_v31"
+            position="12 0 -10"
+            rotation="0 -150 0"
+            scale="12 12 12"
+            hold-drag="groundId: xenoglossy-ii-ground"
             xrextras-two-finger-rotate
             xrextras-pinch-scale
             class="cantap"
@@ -165,24 +165,24 @@ onUnmounted(() => {
       <a-entity
           light="
             type: directional;
-            intensity: 1.3;
+            intensity: 1.8;
             castShadow: true;
             shadowMapHeight: 2048;
             shadowMapWidth: 2048;
-            shadowCameraTop: 40;
-            shadowCameraBottom: -40;
-            shadowCameraRight: 40;
-            shadowCameraLeft: -40;
+            shadowCameraTop: 20;
+            shadowCameraBottom: -20;
+            shadowCameraRight: 20;
+            shadowCameraLeft: -20;
             target: #camera"
           legacy-attach="target: camera; offset: 20 30 14"
           position="1 4.3 2.5"
           shadow>
       </a-entity>
-      <a-light type="ambient" intensity="0.8"></a-light>
+      <a-light type="ambient" intensity="5.5"></a-light>
       <a-box
-          id="xenoglossy-i-ground"
+          id="xenoglossy-ii-ground"
           scale="10000 2 10000"
-          position="0 -1 0"
+          position="12 -1 -10"
           material="shader: shadow; transparent: true; opacity: 0.4"
           shadow>
       </a-box>
@@ -191,7 +191,7 @@ onUnmounted(() => {
 
   <!-- The original's 2D UI: hint + Start (centre), recenter (top right). -->
   <LegacyOverlay
-      hull-id="xenoglossy-i-legacy-space"
+      hull-id="xenoglossy-ii-legacy-space"
       :center="centerControls"
       :recenter-button="true"
       :ready="assetsLoaded"
