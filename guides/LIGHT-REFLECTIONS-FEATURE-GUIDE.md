@@ -174,6 +174,12 @@ the new `envMapIntensity`/`size`/`colorSpace` options.
   typical of many exports — reflect almost nothing; that's the material,
   not the component. Use [Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md)
   to make a model reflective.
+- **Metallic materials without an env map look dark.** The opposite case:
+  with metalness near 1 a material has almost no colour of its own and
+  shows mostly what it reflects. Without an env map there is nothing to
+  reflect, so the object reads as dark or black apart from a few
+  highlights. Give it a `cubemap-static`/`cubemap-realtime`, or lower its
+  metalness with [Material Properties](MATERIAL-PROPERTIES-FEATURE-GUIDE.md).
 - **Cost.** Each `cubemap-realtime` renders six cube faces every camera
   frame. A handful is fine on phones (eight have run smoothly in one
   scene); for many objects lower `size` or share one model.

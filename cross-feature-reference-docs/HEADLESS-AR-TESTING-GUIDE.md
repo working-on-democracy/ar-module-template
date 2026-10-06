@@ -55,8 +55,11 @@ URL, see README.md).
 ## Branch
 
 `feature_template` has no scene content of its own, so it shows the
-camera feed and nothing else. Test on a branch with an actual scene and
-an image target in `src/image-targets/`.
+camera feed and nothing else. Test on a branch with an actual scene.
+With an image target in `src/image-targets/`, the check also covers
+detection and anchoring (the procedure below). Without one it can still
+check rendering, layout and the console, but not placement in space
+(no SLAM, see above) — that case has not been tried.
 
 ## Prerequisites (once per machine)
 
