@@ -222,6 +222,8 @@ documented risk rather than a solved problem.
 
 Every module mounted in this template's host shares **one** `WebGLRenderer`
 (the same reason `CAMERA_PROPS_FORBIDDEN` exists for the shared camera).
+The current host shows one module at a time, so the multi-module case below
+doesn't occur today; several instances inside one module still add up.
 This component's `tick()` briefly toggles that shared renderer's active
 render target and (if WebXR is active) `renderer.xr.enabled`, then restores
 both synchronously before returning. In isolation this is safe — the

@@ -61,7 +61,14 @@ Mesh Render Order, LOD + Billboard, Material Properties, Dither Material,
 Proximity Fade, and Proximity Cutout — read before combining any of those)
 and [ASSET-COMPRESSION-GUIDE.md](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md)
 (mesh/texture compression tooling and the MeshOpt decoder patch above —
-read before compressing anything in `src/assets/`).
+read before compressing anything in `src/assets/`),
+[SCENE-PLACEMENT-GUIDE.md](cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md)
+(where content ends up: the host's camera and module root, 8th Wall's floor
+and units, `place-in-front` and `world-origin` — read before positioning
+anything), [BUILD-AND-EXPORT-GUIDE.md](cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md)
+(the four builds, what the host does with a module, uploading and
+registering it) and [HEADLESS-AR-TESTING-GUIDE.md](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md)
+(checking `dev:ar` without a phone).
 
 ## Shared building blocks
 
@@ -74,6 +81,7 @@ here rather than repeated under every feature that uses them.
 | `no-frustum-cull` | [`src/a-frame-components/no-frustum-cull.ts`](src/a-frame-components/no-frustum-cull.ts) | Keeps an animated glTF mesh from being frustum-culled once it moves outside its bind-pose bounding sphere | `main` template baseline | Template baseline (`main`); any feature with animated models |
 | `ar-button` | [`src/a-frame-components/ar-button.ts`](src/a-frame-components/ar-button.ts) | Declares an entity as a tappable/gazable button with a bounding-box trigger zone, gaze pulse, and optional distance fade | Written fresh while porting [Sound](#sound) from `Jakob_module` — generalized out of that source's tap/gaze code, not copied verbatim | [Sound](#sound) |
 | `ar-button-manager` | [`src/a-frame-components/ar-button-manager.ts`](src/a-frame-components/ar-button-manager.ts) | One per module; owns the gaze raycast and tap routing for every `ar-button` | Same as `ar-button` | [Sound](#sound) |
+| `world-origin` | [`src/a-frame-components/world-origin.ts`](src/a-frame-components/world-origin.ts) | Puts its entity at the scene's world origin by inverting its parents' transform — cancels the host's `0 1.6 -3` module-root offset for content whose pose 8th Wall writes directly | Written for [Image Tracking](#image-tracking), replacing the fixed `0 -1.6 3` counter-offset of `animationssystem-wanderer`/`material-shader-showcase`/`zufallsverteilung-lod` | [Image Tracking](#image-tracking) |
 | `unlit-material` | [`src/a-frame-components/unlit-material.ts`](src/a-frame-components/unlit-material.ts) | Replaces a loaded model's PBR materials with flat, fully-lit MeshBasicMaterials — typically the LOD billboard's flat/shadeless look, but also usable standalone on a full model (`examples/unlit-material-usage.html`) | Written while porting [LOD + Billboard](#lod--billboard) from `Gyumin_module`; extended (`alphaTest`, `keepShadowBehavior` attributes) while comparing against `Rosa_module`'s own, separate `unlit-materials` component — confirmed this shared one already covers that use case once extended, so no duplicate was created | [LOD + Billboard](#lod--billboard); usable standalone by any feature |
 
 ## Template infrastructure
@@ -165,7 +173,10 @@ heading, module-locally (never the shared camera/XR8 origin) — again on a
 recenter event or a tap; optionally scaled to the viewer's height. Plus a
 ground cursor that places a model where you tap. iOS-safe tap detection.
 Recenter button: [AR Overlay](#ar-overlay); gestures on the placed model:
-[Gestures](#gestures).
+[Gestures](#gestures). The template's start scene (`src/ArModule.vue`)
+already uses it: its content sits in `<a-entity id="scene-root"
+place-in-front>`, which stands it on the real floor (README "Where a
+module sits").
 
 **Components**
 
@@ -204,9 +215,10 @@ Examples: [`gestures-usage.html`](examples/gestures-usage.html)
 Guide: [IMAGE-TRACKING-FEATURE-GUIDE.md](guides/IMAGE-TRACKING-FEATURE-GUIDE.md) · Source: `main` (template baseline)
 
 Anchors content to a detected real-world printed/displayed image, via 8th
-Wall's own image-target engine. Unlike every other feature here, there's
-**no `src/a-frame-components/*.ts` file** — the two components involved are
-provided by the 8th Wall `xrextras` library itself, not this project.
+Wall's own image-target engine. The two tracking components are provided by
+the 8th Wall `xrextras` library itself, not this project; the one file of
+ours is the shared [`world-origin`](#shared-building-blocks), which wraps
+each target so the host's module-root offset doesn't shift it off the image.
 Previously wired directly into `ArModule.vue`; moved out into an example +
 guide, matching how every other feature works, and no longer registered in
 `manifest.ts` by default. Only works in the real AR preview (`npm run
@@ -219,6 +231,7 @@ XR8 at all, so this can never be seen working there.
 |---|---|---|
 | `xrextras-named-image-target` | 8th Wall `xrextras` library | Shows/hides/positions its children to track one named detected target |
 | `xrextras-play-video` | 8th Wall `xrextras` library | Tap-to-play/stop a video texture, with a poster-frame `thumb` |
+| `world-origin` | ours — [`world-origin.ts`](src/a-frame-components/world-origin.ts) (shared building block) | Wraps each `xrextras-named-image-target`; cancels the host's module-root offset |
 
 **Assets**
 

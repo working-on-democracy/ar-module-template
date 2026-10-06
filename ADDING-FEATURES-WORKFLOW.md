@@ -125,7 +125,9 @@ Ask, for every piece of the feature:
   invisible-hit-area-child-plane pattern became a `zoneSize`/`zoneOffset`
   attribute pair directly on the button entity. A hardcoded camera offset
   stays out of anything universalized — that's specific to one project's
-  scene, not the feature. For an original feature, this means: don't
+  scene, not the feature (where content ends up is handled by
+  `place-in-front`/`world-origin`, see
+  `cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md`). For an original feature, this means: don't
   hardcode anything that only makes sense for whatever scene you happened
   to prototype it in.
 - **Define the public surface deliberately**: schema attributes (with
@@ -511,6 +513,13 @@ check:
   relocating or hijacking input for the shared camera), but a feature can
   still *read* camera state in ways that assume it's the only one doing so
   — check for that.
+- **Where things end up.** The module is mounted at `0 1.6 -3` in the
+  host and in `dev:ar`, at `0 1.5 0` in `dev`; 8th Wall's floor is world
+  y = 0. A feature that positions anything relative to the floor, the
+  camera or a tracked image must compute in world space and convert through
+  the parent's matrix (as `place-in-front`, `world-origin`, `attach-to`
+  do), never assume the module root is the world origin. See
+  `cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md`.
 - **Visual/interaction overlap.** Two features' interactive trigger zones
   (or a feature's zone and `main`'s existing tappable content) occupying
   the same screen space in a real scene — even without any code conflict,

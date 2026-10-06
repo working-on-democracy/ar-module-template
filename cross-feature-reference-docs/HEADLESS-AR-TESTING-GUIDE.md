@@ -54,12 +54,18 @@ URL, see README.md).
 
 ## Branch
 
-`feature_template` has no scene content of its own, so it shows the
-camera feed and nothing else. Test on a branch with an actual scene.
-With an image target in `src/image-targets/`, the check also covers
-detection and anchoring (the procedure below). Without one it can still
-check rendering, layout and the console, but not placement in space
-(no SLAM, see above) — that case has not been tried.
+`feature_template` has no visible scene content of its own (its start
+scene is a light and a shadow-only floor), so it shows the camera feed and
+nothing else. Test on a branch with an actual scene. With an image target
+in `src/image-targets/`, the check also covers detection and anchoring
+(the procedure below; keep the target inside `world-origin`). Without one,
+world-tracked content usually stays out of the screenshot (no device
+motion, the camera never looks down at the floor), but the console works
+and placement can still be checked by numbers: read world positions in a
+`page.evaluate` (e.g. `el.object3D.getWorldPosition(...)` for the camera,
+`#module-root`, `#scene-root` and your content). That's how the
+measurements in [SCENE-PLACEMENT-GUIDE.md](SCENE-PLACEMENT-GUIDE.md#6-measurements)
+were taken.
 
 ## Prerequisites (once per machine)
 

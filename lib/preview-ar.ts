@@ -92,16 +92,14 @@ const ArPreviewApp = {
     ];
 
     if (assetsReady.value) {
-      // Placed like the host (AR_MODULE_POSITION) so the module previews where it
-      // would actually appear in the app — EXCEPT for image-target-anchored
-      // modules: their content's position is entirely driven by the tracked
-      // image's live pose (composed as a child of this entity), so adding a
-      // fixed placement offset on top just shifts the tracked content away
-      // from the actual image instead of leaving it anchored to it. (The host
-      // currently does NOT skip it — see README "Where a module sits".)
-      const moduleRootPosition = manifest.imageTargets?.length ? "0 0 0" : "0 1.6 -3";
+      // Placed like the host (AR_MODULE_POSITION), for every module — image-
+      // target modules included, since the host doesn't skip it for them
+      // either. Their tracked content cancels it with `world-origin`; one
+      // that forgets to is shifted here exactly as in the app, so it shows
+      // up in the preview instead of only after export. See README "Where a
+      // module sits".
       children.push(
-        h("a-entity", { id: "module-root", position: moduleRootPosition }, [
+        h("a-entity", { id: "module-root", position: "0 1.6 -3" }, [
           h(ArModule, { arModule: mockArModule })
         ])
       );

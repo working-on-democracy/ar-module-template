@@ -42,8 +42,8 @@ ar-module-template/
 2. `npm install`
 3. Edit `src/ArModule.vue` — full SFC with `<template>`, `<script setup>`, `<style>`. The `arModule` prop matches the data shape the host injects.
 4. `npm run build` → produces `dist-platform/ar-module.js`, a single ES module that default-exports your component.
-5. Host that JS somewhere reachable by the AR app (e.g. `frontend/public/ar-modules/your-module.js`, or any CORS-enabled URL).
-6. Insert an `ArModule` record in Mongo whose `url` field points at that JS file.
+5. Host the whole `dist-platform/` folder somewhere reachable by the AR app (on the AN ALLE! server: `html/ar-modules/<name>/` → `https://an-alle.net/ar-modules/<name>/`; any CORS-enabled URL works).
+6. Add the module in the host's admin panel (`/admin/`, stored as an `ArModule` record): its `url` points at that folder (or directly at `ar-module.js`), plus title, author and location. Details: [cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md](cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md).
 
 ### Local VR preview during development
 
@@ -51,6 +51,7 @@ ar-module-template/
 - The scene shows A-Frame's built-in **"Enter VR"** button (bottom-right). Any WebXR-compatible HMD (Quest browser, SteamVR, etc.) can enter immersive mode.
 - Desktop fallback: WASD to move, mouse drag to look around.
 - Mock prop data lives in `lib/preview.ts` — edit it to test different inputs.
+- Placement isn't the host's here (camera at `0 0 0`, module at `0 1.5 0`, no 8th Wall floor) — check where things stand in `npm run dev:ar`.
 - For LAN access (e.g. from a standalone HMD on the same network): `npm run dev -- --host`.
 
 The VR preview loads the host's component runtime from CDN, pinned to the host's versions: **A-Frame 1.3.0** (the version 8thwall's `8frame` is built on), `aframe-extras` (`animation-mixer`, …) and `xrextras` (`xrextras-*`).
@@ -94,6 +95,10 @@ aframe-extras 6.1.1, `@8thwall/engine-binary` 1.0.0, `@8thwall/xrextras`
 modules mounted at `0 1.6 -3` (see "Where a module sits").
 
 ### Builds
+
+What each build is for, what the host does with a module and how to
+upload and register it:
+[cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md](cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md).
 
 - `npm run build` → **library** build → `dist-platform/ar-module.js` (`vue` is external, so the module shares the host's Vue runtime via the import map). This is the artifact the host loads. `npm run build:watch` rebuilds it on every save.
 - `npm run build:ar` → **standalone AR app** → `dist-ar/` (`index.html` + bundled module + the engine copied into `external/xr/`). A self-contained, deployable page for testing the module in AR on a device — serve `dist-ar/` over https and open it on a phone.
@@ -238,6 +243,10 @@ there's only ever one) if a component needs to reach it directly.
 
 ### Where a module sits: host camera and module root
 
+Summary below; the full picture — spaces, units, every environment, the
+history of the offset, measurements, checklist — is in
+[cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md](cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md).
+
 The host starts the shared `<a-camera>` at `0 0.35 0.8` and mounts every
 module inside an entity at `0 1.6 -3` (`AR_MODULE_POSITION` in
 `ArScene.vue`). Positions in `ArModule.vue` are therefore relative to that
@@ -253,19 +262,36 @@ camera at the same `0 0.35 0.8` and wraps the module in a `module-root` at
 `npm run dev` (VR/desktop, no 8th Wall) is not matched: camera at `0 0 0`,
 module at `0 1.5 0`. Check placement in `dev:ar`.
 
-- **Don't compensate with fixed offsets** tuned to one preview — they'll
-  be wrong elsewhere. For content standing on the floor in front of the
-  viewer, use [`place-in-front`](guides/PLACEMENT-FEATURE-GUIDE.md), which
-  converts its world pose through the parent's matrix and so works under
-  any root offset.
-- **Image-target modules:** `dev:ar` mounts them at `0 0 0`, because their
-  pose comes entirely from the tracked image and any extra offset moves the
-  content off it ([Image Tracking §3](guides/IMAGE-TRACKING-FEATURE-GUIDE.md#required-runtime-setup--get-this-wrong-and-it-fails-silently-or-crashes)).
-  **The host currently doesn't skip the offset** — it mounts every module
-  at `AR_MODULE_POSITION`. Simulating that in a headless `dev:ar` session,
-  a test box on the target left the image entirely. Until the host skips
-  the offset for modules with `imageTargets`, image-target content will be
-  shifted in the app; re-test there after any host change.
+8th Wall's floor is world `y = 0`, so local `y = 0` in `ArModule.vue`
+floats 1.6 units above it — above the viewer's head. And scene units aren't
+metres: with 8th Wall's `responsive` scale, the camera's start height (0.35)
+stands for the phone's real height.
+
+- **Content on the floor: `place-in-front`.** The template's start scene
+  already wraps its content in `<a-entity id="scene-root" place-in-front>`
+  ([Placement](guides/PLACEMENT-FEATURE-GUIDE.md)): it puts its entity on
+  the world floor in front of the viewer and converts that pose through the
+  parents' matrices, so children's `y = 0` is the floor under any root
+  offset (headless check: `scene-root` and the ground plane at world
+  `y = 0` in `dev:ar` and `dev`). Put your scene inside it. Don't
+  compensate with fixed offsets (`position="0 -1.6 0"`) — they're right for
+  one root only (`npm run dev` already differs).
+- **Image-target content: `world-origin`.** `xrextras-named-image-target`
+  sets its own local pose from the tracked image, so any offset above it
+  moves the content off the image. Wrap it in
+  `<a-entity world-origin>` (`src/a-frame-components/world-origin.ts`),
+  which sets its transform to the inverse of its parents' and so sits at the
+  world origin whatever the root is. Checked headless in `dev:ar` with the
+  host's offset, without it (as if the host dropped it), and without the
+  component (content off the image — which is why `dev:ar` applies the
+  offset to every module, like the host, instead of skipping it for
+  image-target modules as it did before). Details:
+  [Image Tracking](guides/IMAGE-TRACKING-FEATURE-GUIDE.md#required-runtime-setup--get-this-wrong-and-it-fails-silently-or-crashes).
+  Earlier project branches (`animationssystem-wanderer`,
+  `material-shader-showcase`, `zufallsverteilung-lod`) use a fixed
+  counter-offset `<a-entity position="0 -1.6 3">` instead — right for the
+  current host, wrong if it ever drops the offset; replace it with
+  `world-origin` when such a branch is touched again.
 
 Before mounting your component, the host (`frontend/src/components/ArModule.vue`)
 walks the manifest and, in order:
@@ -288,8 +314,10 @@ On unmount the host tears all of this back down: it removes the injected assets,
 deregister — which is why registration is guarded against duplicates.
 
 The two local previews (`npm run dev` / `npm run dev:ar`) mirror this exact wiring
-via `lib/host-runtime.ts`, so components, camera, and image targets behave the
-same in preview as in the host.
+via `lib/host-runtime.ts`, so components, camera settings, image targets,
+host lights and assets behave the same in preview as in the host. Where the
+module is mounted and where the camera starts is mirrored by `dev:ar` only
+(see "Where a module sits").
 
 ## Caveats
 

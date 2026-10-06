@@ -22,12 +22,14 @@ the template's own baseline demo content, previously wired directly into
 `ArModule.vue`; moved here to keep the baseline scene free of example
 content, matching how every other feature in this template works.
 
-Unlike every other guide in this catalog, this feature has **no
-`src/a-frame-components/*.ts` file to copy** — the two components involved
-(`xrextras-named-image-target`, `xrextras-play-video`) are provided by the
-8th Wall `xrextras` library itself, already loaded in every preview flavour
-and by the real host. What's project-specific is the target image data and
-the content you anchor to it — see [1](#1-step-by-step-adding-this-to-a-new-project).
+The two tracking components (`xrextras-named-image-target`,
+`xrextras-play-video`) are provided by the 8th Wall `xrextras` library
+itself, already loaded in every preview flavour and by the real host. The
+one file of ours to copy is `world-origin.ts`: the host mounts every module
+`0 1.6 -3` away from the scene origin, which would shift tracked content off
+the image, and `world-origin` cancels that (see [3](#3-under-the-hood)).
+What's project-specific is the target image data and the content you anchor
+to it — see [1](#1-step-by-step-adding-this-to-a-new-project).
 
 Files:
 
@@ -37,6 +39,7 @@ src/image-targets/video-target_original.jpg   # \
 src/image-targets/video-target_cropped.jpg     #  the 4 images the descriptor
 src/image-targets/video-target_thumbnail.jpg   #  references, all from the
 src/image-targets/video-target_luminance.jpg  # /  same compiler-tool export
+src/a-frame-components/world-origin.ts   # cancels the host's module-root offset (shared building block)
 examples/image-tracking-usage.html   # scene wiring + full attribute reference
 ```
 
@@ -82,7 +85,11 @@ adding it back to `manifest.ts` is an explicit step — see [1](#1-step-by-step-
    video asset this example uses (`src/assets/jellyfish-video.mp4`, or your
    own `.mp4`/`.glb`/image) — into `src/assets/` as usual.
 
-4. **Wire it into the scene** — see
+4. **Wire it into the scene** — copy `src/a-frame-components/world-origin.ts`
+   into your project and wrap every `xrextras-named-image-target` in
+   `<a-entity world-origin>` (a direct child of it, nothing in between).
+   Without that wrapper the content sits `0 1.6 -3` away from the image in
+   the host and in `npm run dev:ar` — see [3](#3-under-the-hood). Then see
    [2. Entities & attributes](#2-entities--attributes) or copy directly
    from `examples/image-tracking-usage.html`.
 
@@ -139,6 +146,7 @@ const CONTENT_HEIGHT = FOOTPRINT_DEPTH * 0.2; // how high above the image conten
 ```
 
 ```html
+<a-entity world-origin> <!-- cancels the host's module-root offset, see §3 -->
 <xrextras-named-image-target name="video-target">
   <a-entity> <!-- no position — sits exactly at the target's own anchor -->
     <!-- content positioned as fractions of FOOTPRINT_WIDTH/FOOTPRINT_DEPTH,
@@ -153,6 +161,7 @@ const CONTENT_HEIGHT = FOOTPRINT_DEPTH * 0.2; // how high above the image conten
         material="color: #3b82f6; opacity: 0.35; side: double" shadow></a-plane>
   </a-entity>
 </xrextras-named-image-target>
+</a-entity>
 ```
 
 Rotating content in a circle *above* the image (a "wandering" object, a
@@ -184,6 +193,16 @@ own (see [3](#3-under-the-hood)).
 
 Its children are shown/hidden and positioned to track the detected target
 automatically — you don't drive their position yourself.
+
+### `world-origin` (ours)
+
+No attributes. Sets its entity's position/rotation/scale to the inverse of
+its parents' world transform (re-checked every tick, written only when the
+parents moved), so the entity sits exactly at the scene's world origin —
+whatever offset the host or a preview applies above the module. Wrap each
+`xrextras-named-image-target` in one. Because it computes the offset
+instead of hard-coding it, it stays correct if the host ever stops applying
+it, and with `npm run dev`'s different module root.
 
 ### `xrextras-play-video`
 
@@ -257,9 +276,13 @@ starts its session), and again inside `mount()` via the same
 only because XR8 rejects image targets passed after a session has already
 started ("Image Targets are not supported in the current session") — image
 targets are a session capability that must be present in the *first*
-`configure()` call. The real host's own bootstrapping presumably already
-handles this itself; it isn't part of what this guide's step-by-step asks
-you to set up.
+`configure()` call. The host doesn't do this: it calls
+`XR8.XrController.configure({})` at startup and passes `imageTargetData`
+only when a module mounts (`ArScene.vue`/`ArModule.vue` at `0651352`) — and
+image tracking works there (the exported example modules track live). So
+the restriction was hit with the preview's setup (8frame 1.5.0) and
+apparently doesn't apply to the host's (1.3.0); either way it isn't part of
+what this guide's step-by-step asks you to set up.
 
 ### Required runtime setup — get this wrong and it fails silently or crashes
 
@@ -296,21 +319,25 @@ for any of the above to actually run:
    starts — nothing ever loads, nothing ever tracks, and there is no
    error anywhere to point at why.
 
-3. **Don't wrap image-target-anchored content in a manual placement
-   offset.** `lib/preview-ar.ts`'s `module-root` wrapper exists to
-   preview a module "where it would appear in the app" for ordinary,
-   non-tracked content — for image-target content, whose position is
-   entirely driven by the tracked image's live pose, that additional
-   offset just shifts the rendered content away from the actual image
-   instead of leaving it anchored to it (this template's preview now
-   skips the offset whenever `manifest.imageTargets?.length`). **The host
-   currently doesn't** — it mounts every module at `0 1.6 -3`; with that
-   offset simulated in a headless `dev:ar` session, a test box on the
-   target left the image entirely. Expect image-target content to be
-   shifted in the app until the host skips the offset for such modules
-   (README "Where a module sits"). 8th
-   Wall's own reference examples never nest `xrextras-named-image-target`
-   under anything but `<a-scene>` directly — see
+3. **Cancel the module-root offset with `world-origin`.** The host
+   mounts every module inside an entity at `0 1.6 -3`
+   (`AR_MODULE_POSITION`), image-target modules included, and
+   `xrextras-named-image-target` sets its own *local* pose from the tracked
+   image — so that offset moves the content off the image. Live debugging
+   on an-alle.net (02.09.2026) found exactly this shift, and the project
+   branches compensated with a fixed `<a-entity position="0 -1.6 3">`.
+   `world-origin` does the same without hard-coding the value. `npm run
+   dev:ar` applies the host's offset to every module (it used to skip it
+   for image-target modules, which made a missing compensation invisible
+   until export). Checked headless in `dev:ar` with the `video-target`
+   example and a test box: with `world-origin` the box sits on the image
+   both with the host's offset and with none; without it the box is off
+   the image. Full background, history and the branches still using a
+   fixed counter-offset:
+   [SCENE-PLACEMENT-GUIDE.md](../cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md).
+   Don't wrap the target in any *other* offset entity —
+   8th Wall's own examples nest `xrextras-named-image-target` directly
+   under `<a-scene>`; see
    [1a](#1a-the-footprint-convention-the-image-is-the-floor) for how
    content should be positioned instead.
 
@@ -340,6 +367,14 @@ current `@8thwall/engine-binary` dependency.
 [`video-control`](VIDEO-FEATURE-GUIDE.md) starts/pauses a video on events;
 `xrextras-play-video` starts its own on target found and toggles on click.
 Don't put both on the same video element.
+
+### `world-origin` is a transform writer
+
+It sets its own entity's position/rotation/scale. Don't put
+`place-in-front`, `gesture-control`, `attach-to` or another transform
+writer on the same entity, and don't nest the image target inside a placed
+group (`place-in-front`'s `scene-root` in the start scene) — keep the
+`world-origin` wrapper a sibling of it, directly under the module root.
 
 ### Don't place image-anchored content with Placement
 
@@ -434,7 +469,7 @@ below it are fine.
    far, tracking itself is not the problem; anything still wrong is
    rendering/positioning (steps 6–7).
 6. **A test box with zero position offset, direct child of
-   `xrextras-named-image-target`** (`<a-box color="red" scale="0.3 0.3 0.3"
+   `xrextras-named-image-target`** (itself inside `world-origin`) (`<a-box color="red" scale="0.3 0.3 0.3"
    position="0 0 0.1"></a-box>`) renders exactly on the target → rendering
    and anchoring both work; any other content not appearing is a
    positioning bug in *that* content, not the tracking pipeline. This is
@@ -443,8 +478,10 @@ below it are fine.
    renders correctly.
 7. **Still nothing where you expect it, but the test box in step 6 works?**
    Check the [footprint convention](#1a-the-footprint-convention-the-image-is-the-floor)
-   and the `module-root` offset (point 3 above) — by far the most common
-   cause once the pipeline itself is confirmed working.
+   and the `world-origin` wrapper (point 3 above) — by far the most common
+   causes once the pipeline itself is confirmed working. A test box that
+   shows up offset by roughly `0 1.6 -3` (often off-screen) means the
+   wrapper is missing or something else sits between it and the target.
 
 Two dead ends, noted so nobody re-walks them: the eruda mobile-console
 Network tab reliably misses files loaded via dynamic `import()` (the

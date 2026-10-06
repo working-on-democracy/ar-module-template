@@ -49,6 +49,15 @@ feature (`placeTarget`). Read
 [4. Incompatibilities](#4-incompatibilities-risks--troubleshooting) before
 combining with anything else that writes an entity's transform.
 
+**Already in the start scene.** The template's `src/ArModule.vue` wraps
+its content in `<a-entity id="scene-root" place-in-front>`, because a fixed
+position can't put anything on the floor: the host mounts the module 1.6
+units above 8th Wall's floor (README "Where a module sits"). A project
+built on the template has the files already; steps 1–2 below are only for
+projects that don't. Why fixed positions fail, units vs. metres, and how
+this relates to image targets:
+[SCENE-PLACEMENT-GUIDE.md](../cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md).
+
 ## 1. Step-by-step: adding this to a new project
 
 1. **Copy the files** — `place-in-front.ts`, `tap-place-cursor.ts` and
@@ -195,7 +204,8 @@ scene root.
   or use a recenter button instead.
 - **Image tracking.** Don't use `place-in-front` on content anchored to an
   [image target](IMAGE-TRACKING-FEATURE-GUIDE.md) — the target drives that
-  pose.
+  pose. Keep the image target (in its `world-origin` wrapper) outside the
+  placed `scene-root`, as a sibling under the module root.
 - **Camera not ready.** Placement waits for the camera to leave the floor
   (XR8 sets its height). If nothing appears for 15 s in `dev:ar`, the
   engine didn't start — check the console; the fallback then places at

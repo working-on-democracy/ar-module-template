@@ -80,6 +80,15 @@ scene's assets are still downloading — you don't need to touch this either
 (it works automatically for any assets you add), just don't delete it when
 editing the rest of the file.
 
+**Where to put your objects:** inside the entity `scene-root` in
+`ArModule.vue`. It stands everything in it on the real floor, a few steps
+in front of the visitor — height `0` inside it is the floor. Don't move
+things into place with large fixed numbers (like `position="0 -2 0"`):
+the platform puts your module somewhere you can't see from inside the
+file, so they'd end up floating or underground. Content on a recognised
+picture (image tracking) works differently — its guide says how. The
+background: [SCENE-PLACEMENT-GUIDE.md](cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md).
+
 If your `.glb` files or images end up large enough to slow down loading,
 run `npm run compress-assets` — it walks you through compressing them
 (step by step, nothing to configure by hand) and always keeps your
@@ -115,6 +124,8 @@ together is written down.
 - `npm run build` — packages the whole project into the one file that gets
   published for the real installation. Run this once you're ready to hand
   a piece off — if it finishes without red error text, it worked.
+  How the finished module gets onto the platform:
+  [BUILD-AND-EXPORT-GUIDE.md](cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md).
 
 You don't need to understand how these commands work internally — just run
 them and look at the result.

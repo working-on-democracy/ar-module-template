@@ -76,9 +76,17 @@ are doing what this repo calls **universalizing** — see §3.
    without a phone: how to run `dev:ar` in headless Chromium with an
    emulated iPhone and a generated video of the image target as the
    camera, what that does and does not verify.
-8. **`README.md`** — technical project layout/build details, only if you
+8. **`cross-feature-reference-docs/SCENE-PLACEMENT-GUIDE.md`** — read
+   before positioning anything in `ArModule.vue` or "fixing" a scene that
+   sits in the wrong place: host camera/module root, 8th Wall floor and
+   units, `place-in-front` (`scene-root`) and `world-origin`.
+9. **`cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md`** — read
+   before an export or when a module behaves differently in the host than
+   in a preview: the four builds, the host's loading steps, upload and
+   registration.
+10. **`README.md`** — technical project layout/build details, only if you
    need build-system specifics not covered above.
-9. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
+11. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
    artist/end-user of the template, not another engineer. Deliberately
    shallow; don't treat it as a technical reference.
 
@@ -94,7 +102,7 @@ src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not
 src/ArOverlay.vue              AR Overlay feature (Vue, not an A-Frame component) + src/ar-overlay-icons.ts
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing)
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, scene placement, build & export)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
                                dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
                                verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
@@ -170,6 +178,13 @@ uncompressed-assets/            gitignored, local-only; pristine originals kept 
   "Keeping up with the host" and at the files listed there. If anything
   changed, tell the user, align previews/docs, and update that line. The
   host may upgrade 8frame (currently 1.3.0) at any time.
+- **The host mounts every module at `0 1.6 -3`; its camera starts at
+  `0 0.35 0.8`; 8th Wall's floor is world y = 0.** `dev:ar` mirrors all
+  three (`lib/preview-ar.ts`). So a fixed local position never lands on the
+  floor: floor content goes inside the start scene's `scene-root`
+  (`place-in-front`), and every `xrextras-named-image-target` goes inside
+  `<a-entity world-origin>` — never a hard-coded counter-offset. See README
+  "Where a module sits".
 - **The shared `<a-camera>` is host-owned.** `CAMERA_PROPS_FORBIDDEN` in
   `lib/manifest.types.ts` blocks a module from setting `id`/`position`/
   `cursor`/`raycaster` on it at the type level — don't work around this;

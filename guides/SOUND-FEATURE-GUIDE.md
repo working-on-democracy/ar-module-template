@@ -463,29 +463,33 @@ tap on an `ar-button` therefore also re-places the scene / moves the
 cursor target. Use a recenter button ([AR Overlay](AR-OVERLAY-FEATURE-GUIDE.md))
 instead of `tapRecenter` in scenes with tappable buttons.
 
-### Component name collisions across co-mounted modules
+### Component name collisions across modules
 
 The host (and the local preview harness, `lib/host-runtime.ts`) registers
 manifest components via `AFRAME.registerComponent(name, def)`, **skipping
-any name already registered**. If this project's host mounts multiple
-`ArModule`s side by side (the README's camera-sharing language implies it
-does), and two different modules both register a component under the exact
-same name (e.g. two different forks both shipping their own `ar-button`),
-**only the first one to mount wins** — every other module using that name
-silently runs the *first* module's code, not its own.
+any name already registered** — and A-Frame can't unregister, so a name
+stays taken for the rest of the session. The host shows one module at a
+time (`selectedModule` in `ArScene.vue`, checked at `0651352`), but a
+visitor opens several one after another: if two different modules register
+a component under the exact same name (e.g. two different forks both
+shipping their own `ar-button`), **the first one opened in that session
+wins** — every module opened later silently runs the *first* module's
+code, not its own.
 
 **Practical implication:** don't modify the behavior of `ar-button.ts` /
 `ar-button-manager.ts` / `sound-button.ts` / `sound-controller.ts` in a way
 that changes their public contract (schema fields, event names) for just one
 project, while keeping the same component names — that change would leak
-into every other simultaneously-mounted module that also happens to use
-those names. If a project needs genuinely different behavior, rename the
+into every other module opened in the same session that also happens to
+use those names. If a project needs genuinely different behavior, rename the
 component file (the file name is the registered name) and the scene markup
 accordingly.
 
 ### Multiple modules ⇒ multiple independent `ar-button-manager`s
 
-Each mounted module that uses this feature gets its **own**
+Only relevant if several modules are mounted at once — the current host
+shows one at a time (see above), so today this doesn't occur. Each mounted
+module that uses this feature gets its **own**
 `ar-button-manager` instance, each adding its own `document` `pointerdown`/
 `pointerup` listeners and each raycasting only against **its own**
 registered buttons — it has no visibility into other modules' buttons. Two
@@ -566,9 +570,9 @@ page. A positive side effect: once any module's tap unlocks it (via
 `sound-unlock-audio.ts`), it stays unlocked for **every** module's audio,
 not just the one that triggered it. The flip side:
 `sound-controller`'s "only one sound plays" guarantee is scoped to buttons
-**within its own module** — if two different co-mounted modules both use
-this sound feature, their audio can play concurrently and overlap; neither
-controller can see or stop the other.
+**within its own module** — if two different modules were mounted at once
+(the current host shows one at a time), their audio could play
+concurrently and overlap; neither controller can see or stop the other.
 
 ### The unlock overlay's own document-level listeners
 
@@ -622,9 +626,10 @@ That feature's example uses `xrextras-play-video` (the tap-to-play/stop
 video on an image target). Reading its bundled source
 (`node_modules/@8thwall/xrextras/dist/xrextras.js`): it tags itself with
 `class="cantap"` and listens for a plain `click` event on its own element —
-i.e. it relies on **A-Frame's own cursor/raycaster system**, presumably
-configured by the host on the shared `<a-camera>` to hit `.cantap` elements
-(see the `raycaster` example in `lib/manifest.types.ts`), not on anything in
+i.e. it relies on **A-Frame's own cursor/raycaster system**, configured by
+the host on the shared `<a-camera>` (`raycaster="objects: .cantap;
+interval: 100"`, `cursor="fuse: false; rayOrigin: mouse"`, raycaster off in
+the host's drawing mode — `ArScene.vue` at `0651352`), not on anything in
 this feature.
 
 Two things worth testing if a project combines a tappable image-target video

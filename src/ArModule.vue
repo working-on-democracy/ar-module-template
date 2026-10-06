@@ -102,10 +102,20 @@ onUnmounted(() => {
        them here by id (file name without extension): `jellyfish-video.mp4` → id
        "jellyfish-video". Do NOT declare your own <a-assets> here. -->
   <a-entity
-      position="0 -2 0"
       no-frustum-cull
       :visible="assetsLoaded"
   >
+  <!-- Stands the scene on the real floor, `distance` units in front of the
+       viewer. A fixed position can't do that: the host mounts the module
+       1.6 units above the scene origin and 8th Wall's floor is world y = 0,
+       so local y = 0 floats above the viewer's head (README "Where a module
+       sits"). place-in-front converts its floor pose through the parents'
+       matrices; children's y = 0 is the floor. Scene units are not metres
+       (8th Wall `responsive`: the camera's start height = the phone's real
+       height) — see guides/PLACEMENT-FEATURE-GUIDE.md for `referenceHeight`,
+       recentering and the other options. Image-target content doesn't go in
+       here: wrap it in `world-origin` instead (guides/IMAGE-TRACKING-FEATURE-GUIDE.md). -->
+  <a-entity id="scene-root" place-in-front>
     <!-- What the directional light below aims at — move this entity to
          redirect the light (and the shadows it casts) instead of having to
          re-aim the light itself. -->
@@ -147,6 +157,7 @@ onUnmounted(() => {
         shadow
     ></a-plane>
 
+  </a-entity>
   </a-entity>
 
   <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
