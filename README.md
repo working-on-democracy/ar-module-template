@@ -2,6 +2,8 @@
 
 A starter project for building **ArModule** components — Vue 3 SFCs that are compiled to a single ES module, hosted at any URL, and dynamically loaded into the AR scene at runtime.
 
+New to the tools? Start with the introductions in `cross-feature-reference-docs/`: [A-Frame](cross-feature-reference-docs/AFRAME-INTRODUCTION.md), [8th Wall](cross-feature-reference-docs/8THWALL-INTRODUCTION.md), [Vue](cross-feature-reference-docs/VUE-INTRODUCTION.md), [writing a component](cross-feature-reference-docs/WRITING-A-COMPONENT-GUIDE.md), and the [architecture overview](cross-feature-reference-docs/ARCHITECTURE-GUIDE.md) (layers, formats, languages, conventions).
+
 ## Layout
 
 ```

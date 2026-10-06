@@ -162,6 +162,7 @@ make sure it's ready:
 
 | Document | When to read it |
 |---|---|
+| Introductions in `cross-feature-reference-docs/`: [A-Frame](cross-feature-reference-docs/AFRAME-INTRODUCTION.md), [8th Wall](cross-feature-reference-docs/8THWALL-INTRODUCTION.md), [Vue](cross-feature-reference-docs/VUE-INTRODUCTION.md), [writing your own component](cross-feature-reference-docs/WRITING-A-COMPONENT-GUIDE.md), [architecture](cross-feature-reference-docs/ARCHITECTURE-GUIDE.md) | When you want to understand the tools behind the template — what a scene, an entity, the AR engine or a `.vue` file actually is — or write a behaviour of your own. Short, focused on what this project uses, with links to the official documentation. Start with A-Frame. |
 | [README.md](README.md) | The full technical documentation — build details, project structure, how the module talks to the host app. Read this if you need more depth than this page or hit something technical this page doesn't cover. |
 | [FEATURE-CATALOG.md](FEATURE-CATALOG.md) | The index of every available feature, with links to each one's guide. Start here when looking for a specific effect. |
 | `guides/<FEATURE>-FEATURE-GUIDE.md` (one per feature) | How to use one specific feature: setup steps, every attribute you can set, and anything to watch out for. All per-feature guides live in the `guides/` folder — reach them via the link in `FEATURE-CATALOG.md` rather than guessing the filename. |

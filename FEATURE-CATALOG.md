@@ -68,7 +68,14 @@ and units, `place-in-front` and `world-origin` — read before positioning
 anything), [BUILD-AND-EXPORT-GUIDE.md](cross-feature-reference-docs/BUILD-AND-EXPORT-GUIDE.md)
 (the four builds, what the host does with a module, uploading and
 registering it) and [HEADLESS-AR-TESTING-GUIDE.md](cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md)
-(checking `dev:ar` without a phone).
+(checking `dev:ar` without a phone). Introductions to the tools
+themselves, matched to what this project uses:
+[ARCHITECTURE-GUIDE.md](cross-feature-reference-docs/ARCHITECTURE-GUIDE.md)
+(layers, formats, languages, conventions),
+[AFRAME-INTRODUCTION.md](cross-feature-reference-docs/AFRAME-INTRODUCTION.md),
+[8THWALL-INTRODUCTION.md](cross-feature-reference-docs/8THWALL-INTRODUCTION.md),
+[VUE-INTRODUCTION.md](cross-feature-reference-docs/VUE-INTRODUCTION.md) and
+[WRITING-A-COMPONENT-GUIDE.md](cross-feature-reference-docs/WRITING-A-COMPONENT-GUIDE.md).
 
 ## Shared building blocks
 

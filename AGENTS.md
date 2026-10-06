@@ -86,6 +86,10 @@ are doing what this repo calls **universalizing** — see §3.
    registration.
 10. **`README.md`** — technical project layout/build details, only if you
    need build-system specifics not covered above.
+   `cross-feature-reference-docs/ARCHITECTURE-GUIDE.md` has the layer/format/
+   convention overview; the A-Frame, 8th Wall, Vue and writing-a-component
+   introductions next to it are written for humans new to the stack — point
+   users there rather than re-explaining basics.
 11. **`QUICK_START_GUIDE.md`** — only relevant if the user is a non-technical
    artist/end-user of the template, not another engineer. Deliberately
    shallow; don't treat it as a technical reference.
@@ -102,7 +106,7 @@ src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not
 src/ArOverlay.vue              AR Overlay feature (Vue, not an A-Frame component) + src/ar-overlay-icons.ts
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, scene placement, build & export)
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, scene placement, build & export, architecture, tool introductions)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
                                dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
                                verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
