@@ -1,0 +1,35 @@
+<!--
+  SHADOW-SIDE — usage examples
+  =============================
+  Not compiled or served by anything in this project — reference markup to
+  copy from (into ArModule.vue's <template>).
+
+  Component:
+    shadow-side   (src/a-frame-components/shadow-side.ts)
+                  Which faces of a model are drawn into shadow maps. "back"
+                  (default) removes shadow acne — the fine striped/moiré
+                  self-shadow — on closed, self-shadowing models, without
+                  changing the light. Set by `npm run image-to-entity` on
+                  every generated entity.
+
+  Works on closed meshes. An open single-sided surface (plane, leaf) casts no
+  shadow from its front with "back" — use "double" or "front" there.
+  A coarse shadow map (light shadowCamera covering far more than the scene)
+  still blurs back-face shadow onto thin parts: fit the shadow camera to the
+  scene too (see cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md).
+-->
+
+<!-- Example 1 — a model that shadows itself and the floor -->
+<a-entity gltf-model="#figur" shadow="cast: true; receive: true" shadow-side="back"></a-entity>
+
+<!-- Example 2 — together with grain-shimmer (any attribute order) -->
+<a-entity gltf-model="#figur"
+          shadow="cast: true; receive: true"
+          shadow-side="back"
+          grain-shimmer="filter: nearest; grain: 0.15; grainScale: 20000"></a-entity>
+
+<!--
+  ATTRIBUTE REFERENCE
+  ====================
+  shadow-side   string   back   back | front | double | auto (= material default)
+-->

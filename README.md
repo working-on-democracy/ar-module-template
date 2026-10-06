@@ -34,7 +34,12 @@ ar-module-template/
 │   └── virtual-manifest.d.ts  # ambient types for `virtual:ar-manifest` and `virtual:used-components`
 ├── scripts/
 │   ├── compress-assets.ts     # `npm run compress-assets` — interactive mesh/texture compression
+│   ├── sloyd-generate.ts      # `npm run sloyd` — generate a .glb from text/image with the Sloyd API
+│   ├── stylize-glb.ts         # `npm run stylize` — low-poly, pixelated, saturated version of any .glb
+│   ├── glb-compression.ts     # shared .glb compression step (compress-assets + stylize)
+│   ├── image-to-entity.ts     # `npm run image-to-entity` — picture → stylized model → entity in the scene
 │   └── used-components.ts     # finds the components the module uses (automatic registration)
+├── generated-assets/      # gitignored, local-only; raw downloads of sloyd-generate.ts
 └── uncompressed-assets/   # gitignored, local-only; pristine originals kept by compress-assets.ts
 ```
 
@@ -157,6 +162,17 @@ for the full picture, including two non-obvious pitfalls it exists to
 avoid (silent geometry corruption from re-compressing an already-compressed
 `.glb`, and `gltfpack` relocating mesh names to a different node than
 where existing code expects to find them).
+
+### Generating and stylizing models
+
+`npm run image-to-entity -- picture.jpg` does the whole chain in one go:
+generate, stylize, size the grain, and insert a ready entity into
+`src/ArModule.vue`. The steps also exist on their own: `npm run sloyd` generates a `.glb` from text or images with the Sloyd API
+into `generated-assets/`; `npm run stylize` turns any `.glb` into a
+hard-edged low-poly model with visibly pixelated, more saturated textures
+and writes it to `src/assets/`, already compressed (original kept in
+`uncompressed-assets/`). See
+[cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md).
 
 ## The manifest: components, camera & image targets
 

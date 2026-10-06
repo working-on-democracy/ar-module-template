@@ -6,8 +6,9 @@
 //
 //   - Mesh-compresses .glb files with gltfpack -c -kn -km, then reattaches
 //     mesh names gltfpack relocates during that step (see
-//     reattachNamesToMeshNodes below) — without both parts, anything
-//     referencing a mesh by name (e.g. mesh-render-order) breaks.
+//     reattachNamesToMeshNodes in glb-compression.ts, shared with
+//     stylize-glb.ts) — without both parts, anything referencing a mesh by
+//     name (e.g. mesh-render-order) breaks.
 //   - Re-encodes embedded + standalone textures as WebP (lossless or ~90%
 //     quality), with an optional "halve anything at/above a size threshold"
 //     resize rule.
@@ -19,21 +20,15 @@
 //     meshopt data) that skipping it caused on a past project.
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, unlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, unlinkSync } from "node:fs";
 import { join, extname, basename } from "node:path";
-import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { NodeIO, type Document, type Texture } from "@gltf-transform/core";
-import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { compressTexture } from "@gltf-transform/functions";
-import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import sharp from "sharp";
+import { compressGlbFile } from "./glb-compression";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const ASSETS_DIR = join(ROOT, "src/assets");
 const UNCOMPRESSED_DIR = join(ROOT, "uncompressed-assets");
-const GLTFPACK_BIN = join(ROOT, "node_modules/.bin/gltfpack");
 
 const GLB_EXT = ".glb";
 const IMAGE_EXTS = [".png", ".jpg", ".jpeg"]; // NOT .webp — nothing to convert
@@ -148,92 +143,16 @@ function ensurePristine(filename: string): string {
 async function compressGlb(filename: string, quality: QualityChoice, resize: ResizeChoice): Promise<void> {
   const pristinePath = ensurePristine(filename);
   const finalPath = join(ASSETS_DIR, filename);
-  const meshCompressedTmp = join(tmpdir(), `compress-assets-${Date.now()}-${filename}`);
-
-  try {
-    // Mesh compression — gltfpack -c is the same tool (and same -c flag)
-    // this template's projects have always used for this step. Without
-    // -kn/-km, gltfpack strips node/mesh/material names entirely by
-    // default (verified directly: Rosa_module's shipped, compressed
-    // Rosa.glb has zero node names left at all) — plausibly the root cause
-    // of mesh-render-order's original hardcoded "Mesh_1".."Mesh_8" map
-    // never matching anything real, documented as an open question in
-    // guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md at the time. -km keeps named
-    // materials outright. -kn keeps names too, but NOT on the mesh node
-    // itself — see reattachNamesToMeshNodes below for what it actually
-    // does and why that still isn't enough on its own.
-    execFileSync(GLTFPACK_BIN, ["-i", pristinePath, "-o", meshCompressedTmp, "-c", "-kn", "-km"], {
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-
-    // Texture pass — deliberately NOT another gltfpack invocation. Running
-    // gltfpack's own texture conversion on a file gltfpack JUST mesh-
-    // compressed would re-parse and re-quantize the geometry a second time;
-    // quantization is lossy, so a second pass compounds precision loss on
-    // top of the first. Reading via NodeIO with the meshopt decoder/encoder
-    // registered instead round-trips the already-compressed mesh data
-    // unchanged — only the textures are touched.
-    await MeshoptDecoder.ready;
-    await MeshoptEncoder.ready;
-    const io = new NodeIO()
-      .registerExtensions(ALL_EXTENSIONS)
-      .registerDependencies({ "meshopt.decoder": MeshoptDecoder, "meshopt.encoder": MeshoptEncoder });
-
-    const document = await io.read(meshCompressedTmp);
-    reattachNamesToMeshNodes(document);
-    const textures = document.getRoot().listTextures();
-    for (const texture of textures) {
-      await compressTextureWithResizeRule(texture, quality, resize);
-    }
-    await io.write(finalPath, document);
-
-    const before = statSync(pristinePath).size;
-    const after = statSync(finalPath).size;
-    console.log(`  ✓ ${filename}: ${formatBytes(before)} -> ${formatBytes(after)}`);
-  } finally {
-    if (existsSync(meshCompressedTmp)) rmSync(meshCompressedTmp);
-  }
-}
-
-/**
- * gltfpack's -kn ("keep named nodes") does NOT keep the name on the
- * mesh-bearing node itself — verified directly, not assumed. Instead it
- * wraps each named mesh node in a NEW, unnamed-mesh parent that carries the
- * name, and leaves the original mesh node unnamed as that parent's only
- * child (so the name can still be found and used to transform the group
- * externally, per gltfpack's own stated intent — just not where a component
- * written against the pre-compression convention (a name directly on the
- * mesh node, e.g. mesh-render-order.ts) would look for it). This walks the
- * document and copies each such wrapper's name back down onto its one
- * mesh-bearing child, restoring the original "name lives on the mesh node"
- * convention — so nothing that referenced mesh names before compression
- * needs to change after it.
- */
-function reattachNamesToMeshNodes(document: Document): void {
-  for (const node of document.getRoot().listNodes()) {
-    const name = node.getName();
-    if (!name || node.getMesh()) continue;
-    const children = node.listChildren();
-    if (children.length !== 1) continue;
-    const [child] = children;
-    if (child.getMesh() && !child.getName()) child.setName(name);
-  }
-}
-
-async function compressTextureWithResizeRule(
-  texture: Texture,
-  quality: QualityChoice,
-  resize: ResizeChoice
-): Promise<void> {
-  const size = texture.getSize();
-  const resizeTarget = size ? computeResizeTarget(size[0], size[1], resize) : undefined;
-  await compressTexture(texture, {
-    encoder: sharp,
-    targetFormat: "webp",
-    resize: resizeTarget,
+  // gltfpack mesh compression + WebP textures — scripts/glb-compression.ts,
+  // shared with scripts/stylize-glb.ts.
+  await compressGlbFile(pristinePath, finalPath, {
     lossless: quality.lossless,
-    quality: quality.quality ?? undefined
+    quality: quality.quality ?? undefined,
+    resizeTarget: (width, height) => computeResizeTarget(width, height, resize)
   });
+  const before = statSync(pristinePath).size;
+  const after = statSync(finalPath).size;
+  console.log(`  ✓ ${filename}: ${formatBytes(before)} -> ${formatBytes(after)}`);
 }
 
 async function compressStandaloneImage(

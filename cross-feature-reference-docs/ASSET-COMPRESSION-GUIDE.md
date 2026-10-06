@@ -221,6 +221,8 @@ compounds with a previous run's result.
 - It doesn't decimate/simplify mesh geometry (fewer triangles) — only
   quantizes and compresses the geometry gltfpack already has. Simplification
   is a separate, lossier decision this tool deliberately doesn't make for
-  you.
+  you — `npm run stylize` does it, and then compresses its output with
+  this tool's own code (`scripts/glb-compression.ts`, shared by both;
+  [AI-ASSET-GENERATION-GUIDE.md](AI-ASSET-GENERATION-GUIDE.md)).
 - It doesn't run a headless-browser or automated visual regression check —
   see §4 for what to do manually instead.

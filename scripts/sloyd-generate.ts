@@ -4,8 +4,9 @@
 //
 //   - Sends a text prompt, one image, or up to four views of one subject to
 //     Sloyd, polls the job until it finishes, downloads the GLB into
-//     src/assets/ (raw, uncompressed — run `npm run compress-assets` after,
-//     which keeps this download as the pristine original).
+//     generated-assets/ (gitignored, local) — NOT src/assets/: every file
+//     there is bundled and preloaded by the host. Next step is
+//     `npm run stylize` (scripts/stylize-glb.ts), which writes src/assets/.
 //   - Reads SLOYD_CLIENT_ID / SLOYD_CLIENT_SECRET from .env.local
 //     (gitignored). Never put them in a VITE_ variable or anything under
 //     src/ — the module is hosted publicly.
@@ -13,14 +14,11 @@
 //     before sending (--yes skips the question). Every jobId is appended to
 //     .sloyd-jobs.jsonl (gitignored): Sloyd has no "list my jobs" endpoint,
 //     and `resume <jobId>` can fetch a job whose polling was interrupted.
-//   - Refuses to overwrite an existing src/assets/ or uncompressed-assets/
-//     file: compress-assets treats an existing uncompressed-assets/ copy as
-//     the source of truth, so a same-named new model would be silently
-//     replaced by the old original on the next compression run.
+//   - Never overwrites a file in generated-assets/ — each one cost credits.
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { parseArgs } from "node:util";
-import { appendFileSync, existsSync, openAsBlob, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, openAsBlob, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeIO } from "@gltf-transform/core";
@@ -28,8 +26,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const ASSETS_DIR = join(ROOT, "src/assets");
-const UNCOMPRESSED_DIR = join(ROOT, "uncompressed-assets");
+const GENERATED_DIR = join(ROOT, "generated-assets");
 const ENV_FILE = join(ROOT, ".env.local");
 const JOB_LOG = join(ROOT, ".sloyd-jobs.jsonl");
 
@@ -48,7 +45,7 @@ const USAGE = `Usage:
   npm run sloyd -- resume <jobId> --name <name>
 
 Options:
-  --name <name>        file name in src/assets/ (without .glb); default from prompt/image
+  --name <name>        file name in generated-assets/ (without .glb); default from prompt/image
   --faces <n>          target face count, 0 = Sloyd decides (max 500000)
   --texture <res>      ${TEXTURES.join(" | ")}  (multi: anything but "none" = PBR texture)
   --topology <t>       ${TOPOLOGIES.join(" | ")}  (text/image only)
@@ -104,13 +101,9 @@ function slug(text: string): string {
 }
 
 function targetFile(name: string): string {
-  const filename = `${name}.glb`;
-  for (const dir of [ASSETS_DIR, UNCOMPRESSED_DIR]) {
-    if (existsSync(join(dir, filename))) {
-      fail(`${join(basename(dir), filename)} already exists — choose another --name.`);
-    }
-  }
-  return join(ASSETS_DIR, filename);
+  const path = join(GENERATED_DIR, `${name}.glb`);
+  if (existsSync(path)) fail(`generated-assets/${name}.glb already exists — choose another --name.`);
+  return path;
 }
 
 function imageBlob(path: string): Promise<Blob> {
@@ -164,6 +157,7 @@ async function download(jobId: string, outPath: string): Promise<void> {
   if (!res.ok) fail(`Download failed (${res.status}) — try: npm run sloyd -- resume ${jobId} --name <name>`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (new TextDecoder().decode(bytes.slice(0, 4)) !== "glTF") fail("Download is not a .glb file.");
+  mkdirSync(GENERATED_DIR, { recursive: true });
   writeFileSync(outPath, bytes);
   console.log(`\nSaved ${outPath.slice(ROOT.length)} (${(bytes.length / (1024 * 1024)).toFixed(2)} MB)`);
 }
@@ -282,7 +276,7 @@ async function main(): Promise<void> {
   const outPath = targetFile(name);
   const topology = command === "multi" ? "auto" : values.topology;
   const credits = estimateCredits(command, textured, faces, topology);
-  console.log(`\n${command}-to-3d → src/assets/${name}.glb`);
+  console.log(`\n${command}-to-3d → generated-assets/${name}.glb`);
   console.log(`  faces ${faces || "auto"}, texture ${command === "multi" ? (textured ? "PBR" : "none") : values.texture}, topology ${topology}`);
   await confirm(`Costs about ${credits} credits. Send?`, values.yes);
 
@@ -292,7 +286,7 @@ async function main(): Promise<void> {
   await waitForJob(jobId);
   await download(jobId, outPath);
   await summarize(outPath);
-  console.log("\nNext: look at it, then `npm run compress-assets`.");
+  console.log(`\nNext: npm run stylize -- generated-assets/${name}.glb`);
 }
 
 main();

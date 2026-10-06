@@ -122,11 +122,21 @@ onUnmounted(() => {
   <a-entity id="scene-root" place-in-front="referenceHeight: 1.5; distance: 2">
     <!-- What the directional light below aims at — move this entity to
          redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
+         re-aim the light itself. At the origin, where scene content (and
+         the entities `npm run image-to-entity` inserts) stands, so the
+         shadow area below is centred on it. -->
+    <a-entity id="lightTarget" position="0 0 0"></a-entity>
 
     <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
+         Positioned above the scene, aimed at #lightTarget above.
+         The shadow camera covers ±5 m around the target: with a 2048 map
+         that's ~5 mm per shadow-map texel — crisp on metre-sized objects.
+         (It used to cover ±80 m with shadowRadius 12, ~8 cm per texel:
+         blurry shadows and blotchy self-shadow "acne" on models.) Scene
+         bigger than 10 × 10 m? Widen the four shadowCamera values — and
+         expect softer shadows. shadowBias and self-shadowing models'
+         shadow-side="back" keep acne away
+         (cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md). -->
     <a-entity
         position="1 20 10"
         light="
@@ -134,13 +144,16 @@ onUnmounted(() => {
                     intensity: 1;
                     target: #lightTarget;
                     castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
+                    shadowMapHeight: 2048;
+                    shadowMapWidth: 2048;
+                    shadowCameraTop: 5;
+                    shadowCameraBottom: -5;
+                    shadowCameraRight: 5;
+                    shadowCameraLeft: -5;
+                    shadowCameraNear: 1;
+                    shadowCameraFar: 50;
+                    shadowBias: -0.0005;
+                    shadowRadius: 2"
         shadow>
     </a-entity>
 

@@ -17,5 +17,7 @@ dist-ar/
 # cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
 uncompressed-assets/
 
-# Sloyd job log written by scripts/sloyd-generate.ts
+# Raw downloads + job log of scripts/sloyd-generate.ts — local-only, never
+# shipped; scripts/stylize-glb.ts turns them into src/assets/ files.
+generated-assets/
 .sloyd-jobs.jsonl

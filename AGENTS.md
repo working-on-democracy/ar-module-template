@@ -70,7 +70,10 @@ are doing what this repo calls **universalizing** — see §3.
    name-dependent behavior. Covers `scripts/compress-assets.ts`, the
    MeshOpt decoder patch, and two real, previously-found pitfalls (silent
    geometry corruption from double-compressing, `gltfpack` relocating mesh
-   names off the mesh node).
+   names off the mesh node). Before generating a model with an external
+   service or reducing a model's triangles/texture size, also read
+   **`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`**
+   (`npm run sloyd`, `npm run stylize`, credits, public uploads).
 7. **`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`** — read
    before claiming anything camera/image-target/XR8-dependent works
    without a phone: how to run `dev:ar` in headless Chromium with an
@@ -106,13 +109,18 @@ src/asset-loading-overlay.ts   template-baseline loading bar/spinner helper (not
 src/ArOverlay.vue              AR Overlay feature (Vue, not an A-Frame component) + src/ar-overlay-icons.ts
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, scene placement, build & export, architecture, tool introductions)
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, AI asset generation, headless AR testing, scene placement, build & export, architecture, tool introductions)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
                                dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
                                verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
+scripts/sloyd-generate.ts      `npm run sloyd` — Sloyd API text/image → .glb into generated-assets/ (credentials in .env.local)
+scripts/stylize-glb.ts         `npm run stylize` — low-poly + pixelated (NEAREST) + saturated .glb into src/assets/, compressed
+scripts/glb-compression.ts     shared gltfpack + WebP step used by compress-assets.ts and stylize-glb.ts
+scripts/image-to-entity.ts     `npm run image-to-entity` — image → Sloyd → stylize → entity inserted into ArModule.vue (marked block)
 scripts/used-components.ts     scan behind automatic component registration (virtual:used-components in vite.config.ts)
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts
+generated-assets/               gitignored, local-only; raw AI-generated models — never put these in src/assets/ (all of it ships)
 *.md (repo root)                general, not-feature-specific docs (this file, workflow, catalog, README, quick-start)
 ```
 
