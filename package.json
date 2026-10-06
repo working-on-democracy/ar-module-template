@@ -9,7 +9,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "build:ar": "vite build --mode ar",
     "build:watch": "vite build --watch",
-    "compress-assets": "tsx scripts/compress-assets.ts"
+    "compress-assets": "tsx scripts/compress-assets.ts",
+    "sloyd": "tsx scripts/sloyd-generate.ts"
   },
   "devDependencies": {
     "@8thwall/engine-binary": "1.0.0",

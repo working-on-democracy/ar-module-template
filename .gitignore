@@ -5,6 +5,10 @@ dist-ar/
 *.log
 .DS_Store
 
+# Local secrets (API keys for asset-generation scripts) — never committed
+.env.local
+.env.*.local
+
 # IDE / editor config
 .idea/
 
@@ -12,3 +16,6 @@ dist-ar/
 # local-only, never shipped, never scanned by the Vite build (see
 # cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
 uncompressed-assets/
+
+# Sloyd job log written by scripts/sloyd-generate.ts
+.sloyd-jobs.jsonl
