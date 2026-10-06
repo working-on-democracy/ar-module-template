@@ -67,6 +67,9 @@ With world tracking (`xrweb`), 8th Wall:
   the scene stands for the phone's real height above the floor. The host
   starts the camera at `0 0.35 0.8`, so 0.35 units ≈ the phone's real
   height — units are not metres ([xrweb](https://8thwall.org/docs/api/engine/aframe/xrweb)).
+  The start scene's `scene-root` rescales this with
+  `place-in-front="referenceHeight: 1.5"`, so units inside are roughly
+  metres.
 
 Tracking needs a phone (rear camera, motion sensors) and a short movement
 before the floor is found; a laptop webcam shows the picture but doesn't

@@ -182,8 +182,9 @@ ground cursor that places a model where you tap. iOS-safe tap detection.
 Recenter button: [AR Overlay](#ar-overlay); gestures on the placed model:
 [Gestures](#gestures). The template's start scene (`src/ArModule.vue`)
 already uses it: its content sits in `<a-entity id="scene-root"
-place-in-front>`, which stands it on the real floor (README "Where a
-module sits").
+place-in-front="referenceHeight: 1.5; distance: 2">`, which stands it on
+the real floor about 2 m in front of the viewer, with units roughly metres
+(README "Where a module sits").
 
 **Components**
 

@@ -49,7 +49,9 @@ phone's real height above the floor. With a start height of 0.35 and a
 phone held at about 1.4 m, one unit is about 4 m. (Derived from 8th Wall's
 scale mode and [Placement §3](../guides/PLACEMENT-FEATURE-GUIDE.md#3-under-the-hood),
 not measured on a device.) `place-in-front`'s `referenceHeight` scales a
-scene to the viewer for exactly this reason.
+scene to the viewer for exactly this reason — the start scene's
+`scene-root` uses `referenceHeight: 1.5`, so inside it units are roughly
+metres.
 
 **The camera's start position matters.** 8th Wall keeps a non-zero start
 position as the camera's starting pose (`0 0.35 0.8` stays `0 0.35 0.8`).
@@ -79,8 +81,8 @@ right in the preview and wrong in the app — see §5.
 The template's start scene wraps its content in
 
 ```html
-<a-entity id="scene-root" place-in-front>
-  … your scene; y = 0 is the floor …
+<a-entity id="scene-root" place-in-front="referenceHeight: 1.5; distance: 2">
+  … your scene; y = 0 is the floor, units ≈ metres …
 </a-entity>
 ```
 
@@ -92,10 +94,13 @@ is, the entity ends up on the real floor, and its children's `y = 0` is
 the floor. It waits for a usable camera pose first (and falls back after
 `xrFallbackAfter`/`fallbackAfter` seconds), can re-place on a button or tap
 (recenter), and with `referenceHeight` scales the scene to the viewer's
-height.
+height: the scale is camera height ÷ `referenceHeight`, so with `1.5` a
+unit inside is what a metre is for a phone held at 1.5 m, and
+`distance: 2` is about 2 m. Without it, raw units apply (~4 m each).
 
 Measured: `scene-root` and the start scene's ground plane at world
-`y = 0`, 2 units in front of the camera, in `dev:ar` and in `dev`.
+`y = 0`, 0.47 units in front of the camera (2 × 0.35 / 1.5) in `dev:ar`;
+in `dev` (no camera height) it uses `fallbackScale`.
 
 Other components that already convert between world and local space —
 `tap-place-cursor`, `spawn-sequence`, `portal`, `attach-to`, `billboard`
@@ -177,7 +182,7 @@ a red test box at `0 0 0.1` inside the target.
 |---|---|
 | Camera start `0 0 0` (old preview) | camera at ≈ `0 2.0 0`; module root relative to camera `0 -0.4 -3` |
 | Camera start `0 0.35 0.8` | camera stays at `0 0.35 0.8`; module root relative to camera `0 1.25 -3.8` — as in the host |
-| Start scene with `place-in-front` (`dev:ar`, `dev`) | `scene-root` and ground plane at world `y = 0`, 2 units in front of the camera |
+| Start scene, `place-in-front="referenceHeight: 1.5; distance: 2"` (`dev:ar`) | `scene-root` and ground plane at world `y = 0`, 0.47 units in front of the camera — 2 m-equivalent at a 1.5 m phone height |
 | Image target, root `0 0 0`, no wrapper (old preview) | box on the image |
 | Image target, root `0 1.6 -3` (host), no wrapper | box off the image |
 | Image target, root `0 1.6 -3`, `world-origin` | box on the image; `world-origin` at world `0 0 0` |

@@ -50,7 +50,8 @@ feature (`placeTarget`). Read
 combining with anything else that writes an entity's transform.
 
 **Already in the start scene.** The template's `src/ArModule.vue` wraps
-its content in `<a-entity id="scene-root" place-in-front>`, because a fixed
+its content in `<a-entity id="scene-root" place-in-front="referenceHeight: 1.5; distance: 2">` — units inside
+roughly metres, about 2 m in front of the viewer — because a fixed
 position can't put anything on the floor: the host mounts the module 1.6
 units above 8th Wall's floor (README "Where a module sits"). A project
 built on the template has the files already; steps 1–2 below are only for

@@ -105,17 +105,21 @@ onUnmounted(() => {
       no-frustum-cull
       :visible="assetsLoaded"
   >
-  <!-- Stands the scene on the real floor, `distance` units in front of the
-       viewer. A fixed position can't do that: the host mounts the module
-       1.6 units above the scene origin and 8th Wall's floor is world y = 0,
-       so local y = 0 floats above the viewer's head (README "Where a module
-       sits"). place-in-front converts its floor pose through the parents'
-       matrices; children's y = 0 is the floor. Scene units are not metres
-       (8th Wall `responsive`: the camera's start height = the phone's real
-       height) — see guides/PLACEMENT-FEATURE-GUIDE.md for `referenceHeight`,
-       recentering and the other options. Image-target content doesn't go in
-       here: wrap it in `world-origin` instead (guides/IMAGE-TRACKING-FEATURE-GUIDE.md). -->
-  <a-entity id="scene-root" place-in-front>
+  <!-- Stands the scene on the real floor in front of the viewer. A fixed
+       position can't do that: the host mounts the module 1.6 units above the
+       scene origin and 8th Wall's floor is world y = 0, so local y = 0 floats
+       above the viewer's head (README "Where a module sits"). place-in-front
+       converts its floor pose through the parents' matrices; children's
+       y = 0 is the floor.
+       referenceHeight: 1.5 makes units inside roughly metres: the scene is
+       scaled as if authored for a camera 1.5 above the floor (8th Wall's
+       `responsive` scale makes the camera's start height stand for the
+       phone's real height, so one raw unit would be ~4 m). distance: 2 →
+       about 2 m in front. See guides/PLACEMENT-FEATURE-GUIDE.md for
+       recentering and the other options. Image-target content doesn't go
+       in here: wrap it in `world-origin` instead
+       (guides/IMAGE-TRACKING-FEATURE-GUIDE.md). -->
+  <a-entity id="scene-root" place-in-front="referenceHeight: 1.5; distance: 2">
     <!-- What the directional light below aims at — move this entity to
          redirect the light (and the shadows it casts) instead of having to
          re-aim the light itself. -->

@@ -64,9 +64,9 @@ parent, so moving a group moves everything in it.
 - **Vectors** are spaces, not commas: `position="0 1.5 -2"` (x y z).
 - **Axes:** y is up, −z is "forward" (away from the default camera),
   x is right. Rotation is in **degrees**.
-- **Units** are scene units, not metres — see
-  [SCENE-PLACEMENT-GUIDE.md](SCENE-PLACEMENT-GUIDE.md) for what one unit is
-  in the app.
+- **Units** are scene units, not metres. Inside the start scene's
+  `scene-root` they're scaled to roughly metres; outside it one unit is
+  about 4 m in the app — see [SCENE-PLACEMENT-GUIDE.md](SCENE-PLACEMENT-GUIDE.md).
 - **References** to other elements are selectors: `#id`.
 - **Several of the same component** on one entity: double underscore,
   `animation__spin`, `animation__bob`.

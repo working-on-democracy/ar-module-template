@@ -270,12 +270,15 @@ metres: with 8th Wall's `responsive` scale, the camera's start height (0.35)
 stands for the phone's real height.
 
 - **Content on the floor: `place-in-front`.** The template's start scene
-  already wraps its content in `<a-entity id="scene-root" place-in-front>`
+  already wraps its content in
+  `<a-entity id="scene-root" place-in-front="referenceHeight: 1.5; distance: 2">`
   ([Placement](guides/PLACEMENT-FEATURE-GUIDE.md)): it puts its entity on
   the world floor in front of the viewer and converts that pose through the
   parents' matrices, so children's `y = 0` is the floor under any root
   offset (headless check: `scene-root` and the ground plane at world
-  `y = 0` in `dev:ar` and `dev`). Put your scene inside it. Don't
+  `y = 0` in `dev:ar` and `dev`). `referenceHeight: 1.5` scales it as if
+  authored for a camera 1.5 above the floor, so units inside are roughly
+  metres and `distance: 2` is about 2 m. Put your scene inside it. Don't
   compensate with fixed offsets (`position="0 -1.6 0"`) — they're right for
   one root only (`npm run dev` already differs).
 - **Image-target content: `world-origin`.** `xrextras-named-image-target`
