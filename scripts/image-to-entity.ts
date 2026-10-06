@@ -24,10 +24,18 @@
 // gesture-control lets visitors turn (two fingers) and pinch-scale it —
 // scene-wide gestures, so all generated entities turn together
 // (--no-gestures leaves it out).
-// Placement is not decided here: the entity sits at the scene-root origin
-// (on the floor) unless --position is given; --height scales it to a
-// target height via a wrapper (so gesture/pinch components that read the
-// model's own scale stay at 1).
+// Placement: a NEW entity always appears at the scene-root origin (on the
+// floor, in front of the viewer) unless --position is given, and every
+// entity already in the block moves 1 m (--push) further from the viewer
+// first: in a random direction within the half circle facing away from
+// them. place-in-front turns #scene-root so its local -z points along the
+// viewer's gaze (viewer on the +z side), so "away" is an angle θ in
+// [-90°, 90°] around -z: (sin θ, 0, -cos θ). Each entity's θ comes from
+// its own seed (its name + the new entity's name) — different per entity,
+// reproducible per run. Replacing an existing name moves nothing and keeps
+// that entity's position. --height scales the entity to a target height
+// via a wrapper (so gesture/pinch components that read the model's own
+// scale stay at 1); position always sits on the outermost element.
 //
 // Each step's script can also be run on its own — see
 // cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md.
@@ -62,7 +70,10 @@ Options:
   --saturation <x>       stylize: saturation (default 1.3)
   --grain <x>            grain-shimmer strength (default 0.15, 0 = no grain)
   --height <m>           scale the entity to this height (default: model's own size)
-  --position "x y z"     position inside #scene-root (default "0 0 0")
+  --position "x y z"     position inside #scene-root (default "0 0 0"; on --replace
+                         the entity's current position is kept unless this is given)
+  --push <m>             how far existing entities move away from the viewer
+                         when a new one is added (default 1, 0 = not at all)
   --sloyd-faces <n>      generation detail (default 20000)
   --sloyd-texture <res>  generation texture (default 2k)
   --replace              overwrite an existing stylized src/assets/<name>.glb
@@ -148,10 +159,43 @@ function closingTagIndex(source: string, openAt: number): number {
   return -1;
 }
 
-/** Inserts or replaces the entity for `name` in the managed block of ArModule.vue. */
-function insertIntoScene(name: string, markup: string): "inserted" | "replaced" {
+/** First `position="x y z"` in an entry (its outermost element), or "0 0 0". */
+function entryPosition(entry: string): string {
+  return /\bposition="([^"]*)"/.exec(entry)?.[1].trim() ?? "0 0 0";
+}
+
+/** Sets the outermost element's position in an entry (adds the attribute if missing). */
+function withPosition(entry: string, position: string): string {
+  if (/\bposition="[^"]*"/.test(entry)) return entry.replace(/\bposition="[^"]*"/, `position="${position}"`);
+  return entry.replace(/<a-entity\b/, `<a-entity position="${position}"`);
+}
+
+/** FNV-1a string hash → mulberry32: a small seeded PRNG, one value in [0, 1). */
+function seededRandom(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  let t = (h + 0x6d2b79f5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+const fmt = (n: number) => String(+n.toFixed(3));
+
+interface Moved { name: string; angle: number; from: string; to: string }
+
+/**
+ * Inserts or replaces the entity for `name` in the managed block of
+ * ArModule.vue. On insert, every entity already in the block first moves
+ * `push` units away from the viewer (see header).
+ */
+function insertIntoScene(
+  name: string,
+  markup: string,
+  push: number,
+  keepPositionOnReplace: boolean
+): { result: "inserted" | "replaced"; moved: Moved[]; markup: string } {
   let source = readFileSync(SCENE_FILE, "utf8");
-  const entry = `    <!-- ${name} -->\n${markup}\n    <!-- /${name} -->`;
 
   if (!source.includes(BLOCK_START)) {
     const open = source.search(/<a-entity\b[^>]*\bid="scene-root"/);
@@ -165,20 +209,33 @@ function insertIntoScene(name: string, markup: string): "inserted" | "replaced" 
 
   const startAt = source.indexOf(BLOCK_START) + BLOCK_START.length;
   const endAt = source.indexOf(BLOCK_END, startAt);
-  const block = source.slice(startAt, endAt);
-  const existing = new RegExp(`    <!-- ${name} -->[\\s\\S]*?<!-- /${name} -->`);
+  let block = source.slice(startAt, endAt);
+  const entryPattern = (n: string) => new RegExp(`    <!-- ${n} -->[\\s\\S]*?<!-- /${n} -->`);
+  const moved: Moved[] = [];
   let result: "inserted" | "replaced";
-  let newBlock: string;
-  if (existing.test(block)) {
-    newBlock = block.replace(existing, entry.trimStart().replace(/^/, "    "));
+
+  const existing = entryPattern(name).exec(block);
+  if (existing) {
+    if (keepPositionOnReplace) markup = withPosition(markup, entryPosition(existing[0]));
+    block = block.replace(existing[0], `    <!-- ${name} -->\n${markup}\n    <!-- /${name} -->`);
     result = "replaced";
   } else {
-    newBlock = block.replace(/\n\s*$/, "") + `\n${entry}\n    `;
+    if (push > 0) {
+      for (const m of block.matchAll(/    <!-- ([a-z0-9-]+) -->[\s\S]*?<!-- \/\1 -->/g)) {
+        const [entry, other] = m;
+        const theta = (seededRandom(`${other}|${name}`) - 0.5) * Math.PI; // −90° … +90° around −z
+        const [x, y, z] = entryPosition(entry).split(/\s+/).map(Number);
+        const to = `${fmt(x + push * Math.sin(theta))} ${fmt(y)} ${fmt(z - push * Math.cos(theta))}`;
+        moved.push({ name: other, angle: Math.round((theta * 180) / Math.PI), from: `${x} ${y} ${z}`, to });
+        block = block.replace(entry, withPosition(entry, to));
+      }
+    }
+    block = block.replace(/\n\s*$/, "") + `\n    <!-- ${name} -->\n${markup}\n    <!-- /${name} -->\n    `;
     result = "inserted";
   }
-  source = source.slice(0, startAt) + newBlock + source.slice(endAt);
+  source = source.slice(0, startAt) + block + source.slice(endAt);
   writeFileSync(SCENE_FILE, source);
-  return result;
+  return { result, moved, markup };
 }
 
 async function main(): Promise<void> {
@@ -192,7 +249,8 @@ async function main(): Promise<void> {
       saturation: { type: "string", default: "1.3" },
       grain: { type: "string", default: "0.15" },
       height: { type: "string" },
-      position: { type: "string", default: "0 0 0" },
+      position: { type: "string" },
+      push: { type: "string", default: "1" },
       "sloyd-faces": { type: "string", default: "20000" },
       "sloyd-texture": { type: "string", default: "2k" },
       replace: { type: "boolean", default: false },
@@ -214,7 +272,10 @@ async function main(): Promise<void> {
   if (!(grain >= 0)) fail("--grain must be 0 or more.");
   const height = values.height !== undefined ? parseFloat(values.height) : null;
   if (height !== null && !(height > 0)) fail("--height must be a positive number.");
-  if (!/^-?[\d.]+ -?[\d.]+ -?[\d.]+$/.test(values.position)) fail('--position must look like "x y z".');
+  const position = values.position ?? "0 0 0";
+  if (!/^-?[\d.]+ -?[\d.]+ -?[\d.]+$/.test(position)) fail('--position must look like "x y z".');
+  const push = parseFloat(values.push);
+  if (!(push >= 0)) fail("--push must be 0 or more.");
 
   // 1. generate
   let raw = values.glb;
@@ -261,15 +322,18 @@ async function main(): Promise<void> {
   );
 
   // 4. insert
-  const markup = entityMarkup(name, grain, grainScale, values.position, scale, !values["no-gestures"]);
+  const markup = entityMarkup(name, grain, grainScale, position, scale, !values["no-gestures"]);
   if (values["no-insert"]) {
     step(4, "entity (not inserted, --no-insert)");
     console.log(`\n${markup}\n`);
     return;
   }
   step(4, "insert into src/ArModule.vue");
-  const result = insertIntoScene(name, markup);
-  console.log(`   ${result} entity #${name}:\n\n${markup}\n`);
+  const { result, moved, markup: written } = insertIntoScene(name, markup, push, values.position === undefined);
+  for (const m of moved) {
+    console.log(`   moved #${m.name} ${push} m away from the viewer (${m.angle}°): ${m.from} → ${m.to}`);
+  }
+  console.log(`   ${result} entity #${name}:\n\n${written}\n`);
   console.log("Done. Check it with npm run dev:ar (phone) before committing.");
 }
 

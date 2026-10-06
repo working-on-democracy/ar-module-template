@@ -76,8 +76,19 @@ pinch-scale; [GESTURES-FEATURE-GUIDE.md](../guides/GESTURES-FEATURE-GUIDE.md))
 sits on the model, the `--height` scale on a wrapper — pinch-scale reads
 its base scale once at init. Two-finger gestures are scene-wide: all
 generated entities turn and scale together.
-Placement is deliberately not decided: the entity sits at the
-`#scene-root` origin, on the floor. On `feature_template` itself don't
+**Placement when adding:** a new entity always appears at the
+`#scene-root` origin (on the floor, in front of the viewer), and every
+entity already in the block first moves 1 m further from the viewer
+(`--push`, 0 = off) — in a random direction within the half circle facing
+away from them. `place-in-front` turns `#scene-root` so local −z points
+along the viewer's gaze, so the direction is an angle θ ∈ [−90°, 90°]
+around −z: (sin θ, 0, −cos θ). θ is seeded per entity (its name + the new
+entity's name): different for every entity, the same when the run is
+repeated; uniform over the half circle. The script prints every move.
+Replacing an existing name (`--replace`) moves nothing and keeps that
+entity's position unless `--position` is given. The ±5 m shadow camera of
+the start scene covers about five additions before the farthest entities
+leave it. On `feature_template` itself don't
 commit the inserted entity — `ArModule.vue` stays generic there
 (AGENTS.md §5); the command is meant for project forks.
 
