@@ -124,5 +124,12 @@ onto A-Frame's own material object; the component re-applies on
 - **Aliasing is the point.** Without mipmaps distant textures also flicker
   strongly; on big, far-away surfaces that can look noisy rather than
   sparkly — use `filter: mipmap` with shader grain there.
+- **Mesh-compressed models** (`compress-assets`, `npm run stylize`;
+  `KHR_mesh_quantization`) store positions as integers (e.g. 0–16383) with
+  the dequantization scale on the node. Grain cells counted in those raw
+  units came out ~100 000× too fine — per-pixel static instead of grain.
+  Fixed (2026-10-06): for integer positions the mesh's scale relative to
+  the entity is applied back, so `grainScale` means the same before and
+  after compression; float (uncompressed) models are unchanged.
 - **Performance.** The shader patch adds a few instructions per pixel; no
   extra textures or render passes.

@@ -85,12 +85,12 @@ export default {
       if (!node.isMesh || self.originals.has(node)) return;
       self.originals.set(node, node.material);
       const mats = Array.isArray(node.material) ? node.material : [node.material];
-      const patched = mats.map((m: any) => (m ? self.patchMaterial(m) : m));
+      const patched = mats.map((m: any) => (m ? self.patchMaterial(m, node) : m));
       node.material = Array.isArray(node.material) ? patched : patched[0];
     });
   },
 
-  patchMaterial(original: any) {
+  patchMaterial(original: any, mesh: any) {
     const self = this as any;
     const d = self.data;
     const material = original.clone();
@@ -124,12 +124,31 @@ export default {
       const ownKey = Object.prototype.hasOwnProperty.call(original, "customProgramCacheKey")
         ? original.customProgramCacheKey.bind(original)
         : null;
+      // Mesh-compressed glTF (gltfpack -c / compress-assets, KHR_mesh_quantization)
+      // stores positions as integers (e.g. 0–16383) and puts the
+      // dequantization scale on the mesh's node (or, for a multi-primitive
+      // node, on the group above it). Grain cells counted in those raw units
+      // would be ~100 000× too fine (per-pixel static), so for integer
+      // positions the mesh's scale relative to this entity is applied back;
+      // float positions stay as they are (scale 1), so uncompressed models
+      // are unchanged.
+      const positions = mesh?.geometry?.attributes?.position?.array;
+      const quantized = positions && !(positions instanceof Float32Array);
+      const grainPosScale = new THREE.Vector3(1, 1, 1);
+      if (quantized) {
+        self.el.object3D.updateMatrixWorld(true);
+        new THREE.Matrix4()
+          .copy(self.el.object3D.matrixWorld)
+          .invert()
+          .multiply(mesh.matrixWorld)
+          .decompose(new THREE.Vector3(), new THREE.Quaternion(), grainPosScale);
+      }
       material.onBeforeCompile = (shader: any, renderer: any) => {
         if (prev) prev.call(material, shader, renderer);
-        Object.assign(shader.uniforms, self.uniforms);
+        Object.assign(shader.uniforms, self.uniforms, { grainPosScale: { value: grainPosScale } });
         shader.vertexShader = shader.vertexShader
-          .replace("#include <common>", "#include <common>\nvarying vec3 vGrainPos;")
-          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGrainPos = transformed;");
+          .replace("#include <common>", "#include <common>\nvarying vec3 vGrainPos;\nuniform vec3 grainPosScale;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGrainPos = transformed * grainPosScale;");
         shader.fragmentShader = shader.fragmentShader
           .replace("#include <common>", `#include <common>
 varying vec3 vGrainPos;
