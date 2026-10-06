@@ -134,9 +134,10 @@ entity.
 space — floor at `floorHeight`, rotation only around the vertical axis —
 and converted into the parent's local space through the parent's inverse
 world matrix. The host mounts every module under an offset root
-(`AR_MODULE_POSITION`, `0 1.6 -3`), `lib/preview-ar.ts` mirrors that, and
-the fork's root entity may add its own offset; a fixed correction would be
-right for only one of them. Heading: the camera's view direction flattened
+(`AR_MODULE_POSITION`, `0 1.6 -3`) and starts its camera at `0 0.35 0.8`;
+`lib/preview-ar.ts` mirrors both (README "Where a module sits"), `npm run
+dev` doesn't, and the fork's root entity may add its own offset; a fixed
+correction would be right for only one of them. Heading: the camera's view direction flattened
 onto the floor; when the phone is held (almost) straight down or up, the
 screen's top edge is used instead — the direction it "points" while flat.
 

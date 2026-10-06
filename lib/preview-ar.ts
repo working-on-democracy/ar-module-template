@@ -78,9 +78,14 @@ const ArPreviewApp = {
         h("a-light", { type: "ambient", color: "#BBB" }),
         h("a-light", { type: "directional", color: "#FFF", intensity: "0.6", "cast-shadow": "true", position: "-0.5 1 1" })
       ]),
+      // Same start position as the host's <a-camera> (ArScene.vue in
+      // ar-demo-backend). 8th Wall keeps a non-zero start position as the
+      // camera's starting pose; with "0 0 0" it substitutes its own height
+      // (~2, measured), which put the module ~1.65 lower relative to the
+      // viewer than in the app. See README "Where a module sits".
       h("a-camera", {
         id: "camera",
-        position: "0 0 0",
+        position: "0 0.35 0.8",
         raycaster: "objects: .cantap",
         cursor: "fuse: false; rayOrigin: mouse;"
       })
@@ -92,7 +97,8 @@ const ArPreviewApp = {
       // modules: their content's position is entirely driven by the tracked
       // image's live pose (composed as a child of this entity), so adding a
       // fixed placement offset on top just shifts the tracked content away
-      // from the actual image instead of leaving it anchored to it.
+      // from the actual image instead of leaving it anchored to it. (The host
+      // currently does NOT skip it — see README "Where a module sits".)
       const moduleRootPosition = manifest.imageTargets?.length ? "0 0 0" : "0 1.6 -3";
       children.push(
         h("a-entity", { id: "module-root", position: moduleRootPosition }, [

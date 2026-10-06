@@ -303,7 +303,12 @@ for any of the above to actually run:
    entirely driven by the tracked image's live pose, that additional
    offset just shifts the rendered content away from the actual image
    instead of leaving it anchored to it (this template's preview now
-   skips the offset whenever `manifest.imageTargets?.length`). 8th
+   skips the offset whenever `manifest.imageTargets?.length`). **The host
+   currently doesn't** — it mounts every module at `0 1.6 -3`; with that
+   offset simulated in a headless `dev:ar` session, a test box on the
+   target left the image entirely. Expect image-target content to be
+   shifted in the app until the host skips the offset for such modules
+   (README "Where a module sits"). 8th
    Wall's own reference examples never nest `xrextras-named-image-target`
    under anything but `<a-scene>` directly — see
    [1a](#1a-the-footprint-convention-the-image-is-the-floor) for how

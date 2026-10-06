@@ -88,9 +88,10 @@ commits since the last check, and at least these files:
 If something changed, update the previews (`lib/preview*.ts`, `ar.html`,
 `index.html`, `lib/vendor/`), the docs and the line below.
 
-**Last checked:** 2026-10-05, host `master` at `ff575f9` — 8frame 1.3.0,
+**Last checked:** 2026-10-06, host `master` at `0651352` — 8frame 1.3.0,
 aframe-extras 6.1.1, `@8thwall/engine-binary` 1.0.0, `@8thwall/xrextras`
-1.0.0, `hostLights` supported (PR #4).
+1.0.0, `hostLights` supported (PR #4), camera starts at `0 0.35 0.8`,
+modules mounted at `0 1.6 -3` (see "Where a module sits").
 
 ### Builds
 
@@ -234,6 +235,37 @@ The scene's `<a-camera>` always has `id="camera"` — in the host, and in both l
 previews (`lib/preview.ts`, `lib/preview-ar.ts`), which construct their own `<a-camera>`
 to match. Query it with `document.querySelector("#camera")` (or `a-camera`, since
 there's only ever one) if a component needs to reach it directly.
+
+### Where a module sits: host camera and module root
+
+The host starts the shared `<a-camera>` at `0 0.35 0.8` and mounts every
+module inside an entity at `0 1.6 -3` (`AR_MODULE_POSITION` in
+`ArScene.vue`). Positions in `ArModule.vue` are therefore relative to that
+root — not to the camera, and not to the floor: the root sits 1.25 above
+and 3.8 in front of the camera's starting point.
+
+8th Wall uses the camera's start position as its starting pose (measured in
+a headless `dev:ar` session: `0 0.35 0.8` stays put; with `0 0 0` the engine
+substitutes its own height of about 2, which put modules ~1.65 lower
+relative to the viewer than in the app). So `npm run dev:ar` starts its
+camera at the same `0 0.35 0.8` and wraps the module in a `module-root` at
+`0 1.6 -3` (`lib/preview-ar.ts`) — same relative placement as the host.
+`npm run dev` (VR/desktop, no 8th Wall) is not matched: camera at `0 0 0`,
+module at `0 1.5 0`. Check placement in `dev:ar`.
+
+- **Don't compensate with fixed offsets** tuned to one preview — they'll
+  be wrong elsewhere. For content standing on the floor in front of the
+  viewer, use [`place-in-front`](guides/PLACEMENT-FEATURE-GUIDE.md), which
+  converts its world pose through the parent's matrix and so works under
+  any root offset.
+- **Image-target modules:** `dev:ar` mounts them at `0 0 0`, because their
+  pose comes entirely from the tracked image and any extra offset moves the
+  content off it ([Image Tracking §3](guides/IMAGE-TRACKING-FEATURE-GUIDE.md#required-runtime-setup--get-this-wrong-and-it-fails-silently-or-crashes)).
+  **The host currently doesn't skip the offset** — it mounts every module
+  at `AR_MODULE_POSITION`. Simulating that in a headless `dev:ar` session,
+  a test box on the target left the image entirely. Until the host skips
+  the offset for modules with `imageTargets`, image-target content will be
+  shifted in the app; re-test there after any host change.
 
 Before mounting your component, the host (`frontend/src/components/ArModule.vue`)
 walks the manifest and, in order:
