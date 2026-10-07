@@ -19,7 +19,10 @@ untouched original so you can try again with different settings.
 The stylizing tool also packs the result for the phone right away, and a
 third command chains everything: give it a picture, and it ends with a
 new, ready-to-use object in the scene — always the same steps, with the
-glitter and shadow settings already right. This guide explains both tools, the order to use them in, and
+glitter and shadow settings already right. Two more tools go further:
+one fuses two models into a single new object — sharply, softly melted,
+or as a block of coloured cubes — and one thins out a model's triangles
+without changing how it looks. This guide explains all of them, the order to use them in, and
 what to watch out for — including that generation services cost money,
 and that what you upload to them is not private.
 
@@ -30,7 +33,8 @@ and that what you upload to them is not private.
 Not tied to one feature — these tools produce `.glb` files for any scene.
 Read this before generating a model with an external service, before
 reducing a model's triangle count or texture size, and before debugging a
-stylized model that looks smeared instead of pixelated.
+stylized model that looks smeared instead of pixelated, and before fusing
+models or reducing a fused result.
 
 ## 1. The pipeline
 
@@ -271,7 +275,142 @@ with `shadow-side="back"` that renders clean (checked headless). For a
 scene larger than 10 × 10 m widen the shadow camera, accepting softer
 shadows.
 
-## 5. Incompatibilities, risks & troubleshooting
+## 5. Fusing two models — `scripts/glb-fuse.ts`
+
+```
+npm run fuse -- generated-assets/a.glb src/assets/b.glb --mode weich --seed 7
+npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets/ab-voxel.glb
+```
+
+| Option | Default | Effect |
+|---|---|---|
+| `--mode` | `hart` | `hart` exact union · `weich` rounded fillet, remeshed · `voxel` cube grid |
+| `--seed` | 1 | pose seed — same seed, same result |
+| `--match` | off | scale B so its largest side is 80 % of A's |
+| `--overlap` | `0.05-0.6` | accepted overlap, fraction of the smaller model's volume |
+| `--fillet` | 0.08 | `weich`: fillet radius as a fraction of A's height |
+| `--voxel-cells` | 40 | `voxel`: grid cells over the largest side |
+| `--out` | `generated-assets/<a>+<b>-<mode>.glb` | output file |
+
+What it does:
+
+1. **Pose:** both models keep their own size (unless `--match`). B gets a
+   seeded random rotation about all three axes and a random offset near
+   A's centre; the pose is re-rolled (next seed) until the overlap lies in
+   `--overlap`. Below ~5 % the two only touch; above ~60 % the smaller one
+   disappears inside the bigger one.
+2. **Closed solids first.** Booleans (`manifold-3d`) need watertight,
+   consistently oriented meshes. AI models and stylized models rarely are:
+   a few faces point inwards, and parts touch along an edge (an edge with
+   four faces). The script welds, turns faces outward per part and keeps
+   edge-touching parts apart; whatever still isn't closed is rebuilt as a
+   distance-field solid (`levelSet`, ~2–15 s, rounds sharp edges).
+   **Voxel models** (from `--mode voxel`) are recognised automatically and
+   rebuilt from real cubes with their face colours — otherwise cubes that
+   meet only at an edge or corner make them "not manifold" and the
+   fallback rounds every cube.
+3. **Fuse:**
+   - `hart` — exact union. Texture coordinates and materials of both
+     models survive unchanged; ~0.1–8 s.
+   - `weich` — both distance fields joined with a smooth maximum (the
+     fillet) and remeshed (110 cells over the largest side). Each triangle
+     takes its texture from the nearest point of the closer model.
+     20–60 s; result 25 000–35 000 triangles — reduce it (§6).
+   - `voxel` — both shapes sampled on a cube grid; each visible cube face
+     gets the one texel colour of the nearest surface point. A coarser
+     grid (`--voxel-cells 24`) gives bigger pixels and about a third of
+     the cube faces.
+4. **Write** an uncompressed `.glb` (float geometry — compressing is a
+   separate step), one primitive per material of both inputs.
+
+Inputs can be anything earlier steps made — raw, stylized, compressed
+(dequantized on load) or earlier fusions — so fusions can be chained.
+Results go to `generated-assets/` by default: they are raw material, not
+shipped.
+
+## 6. Reducing without changing the look — `scripts/glb-reduce.ts`
+
+```
+npm run reduce -- generated-assets/ab-weich.glb --error 0.01 --compress --out src/assets/ab.glb
+```
+
+| Option | Default | Effect |
+|---|---|---|
+| `--error` | 0.01 | allowed shape change, fraction of the model's size |
+| `--snap` | off | snap texture coordinates to texel centres first |
+| `--compress` | off | gltfpack + lossless WebP (same code as `compress-assets`) |
+| `--out` | `generated-assets/<name>-reduced.glb` | output file |
+
+Unlike `stylize` it changes nothing about the surface — textures,
+saturation, filters stay — and never collapses across texture seams. It
+welds identical vertices and simplifies with meshoptimizer only as far as
+the shape moves by less than `--error`. `--snap` moves every texture
+coordinate to the centre of the texel it already shows: invisible with
+`NEAREST` filtering, but faces of the same pixel colour become mergeable.
+
+Measured on fused results (2026-10-07):
+
+| Result | 1 % | 3 % (`--snap`) |
+|---|---|---|
+| `weich` fusions, 33 000–38 000 triangles | 2 700–5 200, look unchanged | 470–1 200, coarser, glossier |
+| `hart` with voxel parts, 18 000–54 000 | 12 700–21 000 | 4 800–15 000, single pixels skew into slanted facets |
+| same `hart`, voxel input at 24 cells | — | 2 000–11 600, pixel look kept, bigger pixels |
+
+`hart` results with voxel parts stay high: every cube face has its own
+colour, and the smooth partner's texture seams stop the simplification.
+Going further means collapsing across seams — the `--permissive`
+smearing of `stylize`.
+
+Compressing alone (`--compress` with a high `--error`, or
+`compress-assets`) already shrinks fused results from up to 2.5 MB to
+200–500 KB without touching the triangle count. Compressing a fused result
+that came from already compressed inputs quantizes their geometry a second
+time; `reduce` allows that on purpose and says so. For regular shipped
+assets the rule of the
+[ASSET-COMPRESSION-GUIDE.md](ASSET-COMPRESSION-GUIDE.md) stands: compress
+from the pristine original only.
+
+<!-- project-specific -->
+Picked as promising on a phone review of the test series (2026-10-07):
+`weich` fusions reduced at 1 % (2 700–5 200 triangles), `weich` only
+compressed, and as a look of its own `hart` with a 24-cell voxel input
+and 3 %. Re-stylizing fused results with `stylize --permissive` (500
+triangles) was judged less interesting than these. These tools are
+building blocks for the planned "polygon ecosystem" (objects that
+multiply, fuse, get compressed and finally vanish; coarser and coarser
+voxels as a possible last stage) — concept in the project's concept doc,
+not in this repo.
+<!-- /project-specific -->
+
+## 7. Photographing results — `photo-models`, `photo-strip`
+
+```
+npm run photo-models -- --ids fig-a,fig-b,fig-c --out generated-assets/photos
+npm run photo-strip -- --title "fig · three stages" \
+  --panel "generated-assets/photos/fig-a.png|Result|33 342 triangles" \
+  --panel "generated-assets/photos/fig-b.png|Reduced 1 %|2 678 triangles" \
+  --out generated-assets/photos/fig-strip.png
+```
+
+`photo-models` starts the stock-A-Frame preview on a free port, opens it in
+headless Chromium (software WebGL), waits until every `gltf-model` has
+loaded and photographs each model on its own: all other models and every
+`.test-label` sign hidden, the same three-quarter view (`--view front|side`
+also), framed on the model's bounding box. Without `--ids` it takes every
+`a-entity` with a `gltf-model` and an id. `--root` serves another checkout
+— e.g. a git worktree holding a throwaway test scene, so the branch's own
+`ArModule.vue` stays untouched.
+
+`photo-strip` puts photos side by side, trims each to its content (the
+uniform background is cut away), fits it into its panel and writes a
+heading and a subline under it, a title across the top — one strip per
+variant of a test series, ready for a doc.
+
+The preview renders with stock A-Frame 1.3.0 (three r137, like the host)
+and the scene's own lights, no camera image behind the model: right for
+comparing shapes and textures, not for judging the model in AR.
+
+## 8. Incompatibilities, risks & troubleshooting
 
 - **Pixels look smeared after compression:** the model was (re)compressed
   with `compress-assets` using lossy WebP or resizing. `stylize` itself
@@ -292,6 +431,25 @@ shadows.
 - **Name-dependent features** (e.g. `mesh-render-order` by mesh name) won't
   find their meshes after stylizing: merging renames and flattens nodes.
   Stylize such models with care or not at all.
+- **`fuse` reports "not closed → rebuilt as a distance-field solid"** for
+  almost every raw AI model: holes, or an edge shared by more than two
+  faces. Expected; the fallback rounds edges and takes a few seconds.
+  Inputs that went through `stylize` usually pass directly.
+- **`fuse` can't find a pose** ("No pose within the --overlap range"): the
+  models differ too much in size — use `--match` or widen `--overlap`.
+- **Dark patches on `weich` results:** textures are carried over from the
+  nearest point of the closer model; where that point lies on a dark part
+  of the texture, a whole region turns dark. Another `--seed` moves it.
+- **Loose fragments around a `hart` fusion:** only overlapping parts are
+  joined; separate small parts of an input (e.g. a fragmented AI model)
+  stay where they are.
+- **`reduce` barely reduces a `hart` voxel fusion:** see §6 — use a
+  coarser voxel grid for the voxel input.
+- **`photo-models` shows a model far too close or cut off:** the scene
+  was still moving (`place-in-front` re-places `#scene-root` after load);
+  every model is framed twice for that reason — raise `--timeout` on a slow
+  machine. Entity ids that equal asset ids are fine: the script selects
+  `a-entity#id`.
 - **Draco-compressed input** isn't supported (no decoder installed).
 - Headless rendering of a model to compare before/after: stock A-Frame
   1.3.0 (same three r137 as the host) renders in headless Chromium with

@@ -73,7 +73,8 @@ are doing what this repo calls **universalizing** — see §3.
    names off the mesh node). Before generating a model with an external
    service or reducing a model's triangles/texture size, also read
    **`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`**
-   (`npm run sloyd`, `npm run stylize`, credits, public uploads).
+   (`npm run sloyd`, `npm run stylize`, `npm run fuse`, `npm run reduce`,
+   credits, public uploads).
 7. **`cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`** — read
    before claiming anything camera/image-target/XR8-dependent works
    without a phone: how to run `dev:ar` in headless Chromium with an
@@ -116,7 +117,11 @@ lib/                            host/preview plumbing — not edited by a projec
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
 scripts/sloyd-generate.ts      `npm run sloyd` — Sloyd API text/image → .glb into generated-assets/ (credentials in .env.local)
 scripts/stylize-glb.ts         `npm run stylize` — low-poly + pixelated (NEAREST) + saturated .glb into src/assets/, compressed
-scripts/glb-compression.ts     shared gltfpack + WebP step used by compress-assets.ts and stylize-glb.ts
+scripts/glb-compression.ts     shared gltfpack + WebP step used by compress-assets.ts, stylize-glb.ts and glb-reduce.ts
+scripts/glb-fuse.ts            `npm run fuse` — two .glb → one (hart: exact boolean, weich: rounded, voxel: cube grid), manifold-3d; into generated-assets/
+scripts/glb-reduce.ts          `npm run reduce` — fewer triangles, look unchanged (error-limited, seams kept), optional --compress
+scripts/photo-models.ts        `npm run photo-models` — headless preview photos, one per model (others + .test-label hidden); --root serves a worktree
+scripts/photo-strip.ts         `npm run photo-strip` — trims photos and lays them out as one captioned strip (sharp)
 scripts/image-to-entity.ts     `npm run image-to-entity` — image → Sloyd → stylize → entity inserted into ArModule.vue (marked block)
 scripts/used-components.ts     scan behind automatic component registration (virtual:used-components in vite.config.ts)
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts

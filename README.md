@@ -171,7 +171,10 @@ generate, stylize, size the grain, and insert a ready entity into
 into `generated-assets/`; `npm run stylize` turns any `.glb` into a
 hard-edged low-poly model with visibly pixelated, more saturated textures
 and writes it to `src/assets/`, already compressed (original kept in
-`uncompressed-assets/`). See
+`uncompressed-assets/`). `npm run fuse` melts two `.glb` models into one
+(exact, rounded or as coloured cubes) and `npm run reduce` thins out a
+model's triangles without changing its look; `npm run photo-models` and
+`npm run photo-strip` photograph the results for documentation. See
 [cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md).
 
 ## The manifest: components, camera & image targets
