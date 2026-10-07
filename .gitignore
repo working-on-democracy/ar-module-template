@@ -21,3 +21,7 @@ uncompressed-assets/
 # shipped; scripts/stylize-glb.ts turns them into src/assets/ files.
 generated-assets/
 .sloyd-jobs.jsonl
+
+# Old Augmented Bahnhofsviertel project folder (artists' originals, ~4 GB) —
+# kept locally as source material, never part of this repo.
+augmented-bahnhofsviertel/
