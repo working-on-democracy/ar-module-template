@@ -33,7 +33,7 @@
 // --no-compress writes the uncompressed model to src/assets/ instead.
 import { parseArgs } from "node:util";
 import { existsSync, mkdirSync, statSync, unlinkSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Document, NodeIO, Primitive, TextureInfo } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
@@ -244,6 +244,7 @@ async function main(): Promise<void> {
     if (texture.getURI()) texture.setURI(texture.getURI().replace(/\.[^.]+$/, ".png"));
   }
 
+  mkdirSync(dirname(outPath), { recursive: true });
   if (!compress) {
     await io.write(outPath, doc);
     if (!values.out && existsSync(pristinePath)) {

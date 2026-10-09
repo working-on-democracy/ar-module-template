@@ -2,7 +2,8 @@
 // Fuses two .glb models into one — run via `npm run fuse -- <a.glb> <b.glb> [options]`.
 // Short version of what this does:
 //
-//   - Both models keep their original size (unless --match). B gets a seeded
+//   - Both models keep their original size (unless --match, or --match-height:
+//     B scaled so its height after the rotation equals A's). B gets a seeded
 //     random rotation about all three axes and a random position near A's
 //     centre; the pose is re-rolled until B overlaps the smaller model by
 //     5–60 % of its volume (--overlap), so the two really grow into each
@@ -47,11 +48,23 @@ const NP = 6; // vertex properties: x y z u v material
 
 const USAGE = `Usage:
   npm run fuse -- <a.glb> <b.glb> [options]
+  npm run fuse -- <a.glb> --mode voxel [--voxel-cells n]     (one model voxelized on its own)
 
 Options:
   --mode <m>           hart (exact union, default) | weich (rounded, slow) | voxel (cube grid)
   --seed <n>           pose seed (default 1); the same seed gives the same result
   --match              scale B so its largest side is 80 % of A's (for very different sizes)
+  --match-height       scale B so its height AFTER its rotation (world y) equals A's height
+  --min-fill <x>       a model whose volume is below x × its convex hull's volume (hollow or thin,
+                       e.g. a lamp shade) is closed: open edges capped, then enveloped until it
+                       reaches --fill-target (default 2 × min-fill). Default 0 = off
+  --opening <x>        an open edge loop at least x × the model's largest side (an umbrella's rim)
+                       is always capped (default 0.25; only with --min-fill > 0)
+  --close <a|b|ab>     always envelop these models (extreme cases no measure catches, e.g. a fringed
+                       umbrella), radius --close-radius × their largest side (default 0.15)
+  --repair             repair every model's edges shared by more than two faces (faces removed, holes
+                       capped), so it fuses as an exact solid instead of a coarse distance-field rebuild
+  --measure            only print each model's fill (volume / convex hull volume) and stop
   --overlap <a-b>      accepted overlap of the smaller model, fraction of its volume (default 0.05-0.6)
   --fillet <x>         weich: fillet radius as a fraction of A's height (default 0.08)
   --voxel-cells <n>    voxel: grid cells over the largest side (default 40)
@@ -78,6 +91,8 @@ interface Model {
   box: THREE.Box3;
   inside(x: number, y: number, z: number): boolean;
   sdf(x: number, y: number, z: number): number; // > 0 inside
+  udf(x: number, y: number, z: number): number; // distance to the surface
+  wrapped?: boolean; // sdf replaced by an enveloping field — always rebuilt from it
   uvMatAt(x: number, y: number, z: number): [number, number, number];
 }
 
@@ -111,7 +126,11 @@ async function load(io: NodeIO, file: string): Promise<Model> {
     }
   }
   if (!I.length) fail(`${file} has no triangles.`);
-  const m = { name: basename(file, extname(file)), file, mats, P: new Float32Array(P), UV: new Float32Array(UV), I: new Uint32Array(I), vMat: new Uint16Array(vMat) } as Model;
+  return buildModel(basename(file, extname(file)), file, mats, new Float32Array(P), new Float32Array(UV), new Uint32Array(I), new Uint16Array(vMat));
+}
+
+function buildModel(name: string, file: string, mats: Material[], P: Float32Array, UV: Float32Array, I: Uint32Array, vMat: Uint16Array): Model {
+  const m = { name, file, mats, P, UV, I, vMat } as Model;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(m.P, 3));
   geo.setIndex(new THREE.BufferAttribute(m.I, 1));
@@ -128,6 +147,7 @@ async function load(io: NodeIO, file: string): Promise<Model> {
     return n >= 2;
   };
   m.sdf = (x, y, z) => { q.set(x, y, z); bvh.closestPointToPoint(q, hit); return m.inside(x, y, z) ? hit.distance : -hit.distance; };
+  m.udf = (x, y, z) => { q.set(x, y, z); bvh.closestPointToPoint(q, hit); return hit.distance; };
   m.uvMatAt = (x, y, z) => {
     q.set(x, y, z);
     bvh.closestPointToPoint(q, hit);
@@ -136,6 +156,208 @@ async function load(io: NodeIO, file: string): Promise<Model> {
     return [out.x, out.y, m.vMat[a]];
   };
   return m;
+}
+
+// ---------------------------------------------------------------------------
+// closing thin, open shapes (an open umbrella: a sheet with almost no volume)
+// ---------------------------------------------------------------------------
+
+// Caps every open boundary loop (edges with one face, after welding exact
+// positions) with a fan from the loop's centre, split into rings so the
+// texture taken from the nearest point of the original surface can vary
+// across the cap.
+function capHoles(m: Model): { model: Model; loops: number; largest: number } {
+  const n = m.P.length / 3, map = new Map<string, number>(), w = new Uint32Array(n);
+  for (let i = 0; i < n; i++) {
+    const k = `${m.P[3 * i]},${m.P[3 * i + 1]},${m.P[3 * i + 2]}`;
+    if (!map.has(k)) map.set(k, i);
+    w[i] = map.get(k)!;
+  }
+  const count = new Map<string, number>();
+  for (let c = 0; c < m.I.length; c += 3) for (let e = 0; e < 3; e++) {
+    const a = w[m.I[c + e]], b = w[m.I[c + (e + 1) % 3]], k = a < b ? `${a}_${b}` : `${b}_${a}`;
+    count.set(k, (count.get(k) ?? 0) + 1);
+  }
+  // boundary edges as an undirected graph: faces next to a hole may point
+  // either way (direct() turns them consistently later)
+  const next = new Map<number, number[]>();
+  for (const [k, c] of count) {
+    if (c !== 1) continue;
+    const [a, b] = k.split("_").map(Number);
+    (next.get(a) ?? next.set(a, []).get(a)!).push(b);
+    (next.get(b) ?? next.set(b, []).get(b)!).push(a);
+  }
+  const take = (a: number, b: number) => { const l = next.get(b)!; l.splice(l.indexOf(a), 1); };
+  // walk boundary edges; a vertex met twice closes a cycle (handles vertices
+  // where several loops touch)
+  const loops: number[][] = [];
+  for (const start of next.keys()) {
+    while (next.get(start)!.length) {
+      const path = [start], at = new Map<number, number>([[start, 0]]);
+      let v = start;
+      for (;;) {
+        const out = next.get(v);
+        if (!out?.length) break;
+        const from = v;
+        v = out.pop()!;
+        take(from, v);
+        const seenAt = at.get(v);
+        if (seenAt !== undefined) {
+          const cycle = path.splice(seenAt);
+          for (const x of cycle) at.delete(x);
+          if (cycle.length >= 3) loops.push(cycle);
+          if (!path.length) break;
+          path.push(v); at.set(v, path.length - 1);
+          continue;
+        }
+        at.set(v, path.length); path.push(v);
+      }
+    }
+  }
+  let largest = 0;
+  for (const loop of loops) {
+    const b = new THREE.Box3();
+    for (const i of loop) b.expandByPoint(new THREE.Vector3(m.P[3 * i], m.P[3 * i + 1], m.P[3 * i + 2]));
+    largest = Math.max(largest, Math.max(...b.getSize(new THREE.Vector3()).toArray()));
+  }
+  const P = Array.from(m.P), UV = Array.from(m.UV), I = Array.from(m.I), vMat = Array.from(m.vMat);
+  const add = (x: number, y: number, z: number) => {
+    const [u, v, mat] = m.uvMatAt(x, y, z);
+    P.push(x, y, z); UV.push(u, v); vMat.push(mat);
+    return P.length / 3 - 1;
+  };
+  const RINGS = 4;
+  for (const loop of loops) {
+    const c = new THREE.Vector3();
+    for (const i of loop) c.add(new THREE.Vector3(m.P[3 * i], m.P[3 * i + 1], m.P[3 * i + 2]));
+    c.divideScalar(loop.length);
+    const centre = add(c.x, c.y, c.z);
+    // ring[r][j]: vertex r/RINGS of the way from the rim (r = 0) to the centre
+    const ring: number[][] = [loop.map((i) => add(m.P[3 * i], m.P[3 * i + 1], m.P[3 * i + 2]))];
+    for (let r = 1; r < RINGS; r++) {
+      const t = r / RINGS;
+      ring.push(loop.map((i) => add(m.P[3 * i] + (c.x - m.P[3 * i]) * t, m.P[3 * i + 1] + (c.y - m.P[3 * i + 1]) * t, m.P[3 * i + 2] + (c.z - m.P[3 * i + 2]) * t)));
+    }
+    const L = loop.length;
+    for (let r = 0; r < RINGS - 1; r++) for (let j = 0; j < L; j++) {
+      const a = ring[r][j], b = ring[r][(j + 1) % L], a2 = ring[r + 1][j], b2 = ring[r + 1][(j + 1) % L];
+      I.push(b, a, a2, b, a2, b2); // reversed against the boundary direction: faces the same way as the surface
+    }
+    for (let j = 0; j < L; j++) I.push(ring[RINGS - 1][(j + 1) % L], ring[RINGS - 1][j], centre);
+  }
+  const model = buildModel(m.name, m.file, m.mats, new Float32Array(P), new Float32Array(UV), new Uint32Array(I), new Uint16Array(vMat));
+  model.uvMatAt = m.uvMatAt; // texture from the original surface, also on the caps
+  return { model, loops: loops.length, largest };
+}
+
+// Repairs what keeps a model from being a closed solid (so it would be
+// rebuilt coarsely from a distance field): edges shared by more than two
+// faces, and spots where the faces can't all be turned the same way
+// (locally twisted surface). The faces there are removed and the holes
+// capped — repeated a few times, since a cap can expose the next spot.
+function repairEdges(m: Model): { model: Model; edges: number } {
+  let edges = 0;
+  for (let pass = 0; pass < 5; pass++) {
+    const n = m.P.length / 3, map = new Map<string, number>(), w = new Uint32Array(n), pos: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const k = `${m.P[3 * i]},${m.P[3 * i + 1]},${m.P[3 * i + 2]}`;
+      if (!map.has(k)) { map.set(k, map.size); pos.push(m.P[3 * i], m.P[3 * i + 1], m.P[3 * i + 2]); }
+      w[i] = map.get(k)!;
+    }
+    const nT = m.I.length / 3, faces = new Map<string, number[]>();
+    for (let t = 0; t < nT; t++) for (let e = 0; e < 3; e++) {
+      const a = w[m.I[3 * t + e]], b = w[m.I[3 * t + (e + 1) % 3]], k = a < b ? `${a}_${b}` : `${b}_${a}`;
+      (faces.get(k) ?? faces.set(k, []).get(k)!).push(t);
+    }
+    const drop = new Set<number>();
+    for (const fs of faces.values()) if (fs.length > 2) { edges++; for (const f of fs) drop.add(f); }
+    if (!drop.size) {
+      // orientation conflicts: after turning every part outward, a directed edge used twice
+      const tri = new Uint32Array(m.I.length);
+      for (let c = 0; c < tri.length; c++) tri[c] = w[m.I[c]];
+      orient(tri, pos);
+      const owner = new Map<string, number>();
+      for (let t = 0; t < nT; t++) for (let e = 0; e < 3; e++) {
+        const k = `${tri[3 * t + e]}>${tri[3 * t + (e + 1) % 3]}`;
+        if (owner.has(k)) { edges++; drop.add(t); drop.add(owner.get(k)!); } else owner.set(k, t);
+      }
+    }
+    if (!drop.size) break;
+    const I: number[] = [];
+    for (let t = 0; t < nT; t++) if (!drop.has(t)) I.push(m.I[3 * t], m.I[3 * t + 1], m.I[3 * t + 2]);
+    const cut = buildModel(m.name, m.file, m.mats, m.P, m.UV, new Uint32Array(I), m.vMat);
+    cut.uvMatAt = m.uvMatAt;
+    m = capHoles(cut).model;
+  }
+  return { model: m, edges };
+}
+
+// Envelops the model like shrink-wrap: everything closer to the surface than
+// `radius` is filled, the outside floods in from the edge of a grid, and the
+// result shrinks back by `radius` — openings narrower than about 2 × radius
+// are closed, the rest of the shape stays. Texture from the nearest point of
+// the original surface.
+function wrapModel(m: Model, radius: number, cells = 80): Model {
+  const pad = radius + 0.05 * Math.max(...m.box.getSize(new THREE.Vector3()).toArray());
+  const min = m.box.min.clone().subScalar(pad), size = m.box.getSize(new THREE.Vector3()).addScalar(2 * pad);
+  const h = Math.max(size.x, size.y, size.z) / cells;
+  const nx = Math.ceil(size.x / h) + 1, ny = Math.ceil(size.y / h) + 1, nz = Math.ceil(size.z / h) + 1, N = nx * ny * nz;
+  const idx = (i: number, j: number, k: number) => i + nx * (j + ny * k);
+  const blocked = new Uint8Array(N);
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    if (m.udf(min.x + i * h, min.y + j * h, min.z + k * h) <= radius) blocked[idx(i, j, k)] = 1;
+  }
+  // flood the outside from the grid border
+  const outside = new Uint8Array(N), queue: number[] = [];
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    if ((i && j && k && i < nx - 1 && j < ny - 1 && k < nz - 1) || blocked[idx(i, j, k)]) continue;
+    const c = idx(i, j, k); outside[c] = 1; queue.push(c);
+  }
+  for (let q = 0; q < queue.length; q++) {
+    const c = queue[q], i = c % nx, j = ((c / nx) | 0) % ny, k = (c / (nx * ny)) | 0;
+    for (const [di, dj, dk] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+      const a = i + di, b = j + dj, d = k + dk;
+      if (a < 0 || b < 0 || d < 0 || a >= nx || b >= ny || d >= nz) continue;
+      const o = idx(a, b, d);
+      if (outside[o] || blocked[o]) continue;
+      outside[o] = 1; queue.push(o);
+    }
+  }
+  // exact Euclidean distance (in cells) of every cell to the outside —
+  // separable squared-distance transform (Felzenszwalb & Huttenlocher), x, y, z
+  const BIG = 1e20, d2 = new Float64Array(N);
+  for (let c = 0; c < N; c++) d2[c] = outside[c] ? 0 : BIG;
+  const line = (len: number, get: (t: number) => number, set: (t: number, v: number) => void) => {
+    const f = new Float64Array(len), v = new Int32Array(len), z = new Float64Array(len + 1);
+    for (let t = 0; t < len; t++) f[t] = get(t);
+    let k = 0; v[0] = 0; z[0] = -Infinity; z[1] = Infinity;
+    for (let q = 1; q < len; q++) {
+      let sct = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+      while (sct <= z[k]) { k--; sct = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]); }
+      k++; v[k] = q; z[k] = sct; z[k + 1] = Infinity;
+    }
+    k = 0;
+    for (let q = 0; q < len; q++) { while (z[k + 1] < q) k++; set(q, (q - v[k]) * (q - v[k]) + f[v[k]]); }
+  };
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) line(nx, (t) => d2[idx(t, j, k)], (t, x) => { d2[idx(t, j, k)] = x; });
+  for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) line(ny, (t) => d2[idx(i, t, k)], (t, x) => { d2[idx(i, t, k)] = x; });
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) line(nz, (t) => d2[idx(i, j, t)], (t, x) => { d2[idx(i, j, t)] = x; });
+  const dist = new Float32Array(N);
+  for (let c = 0; c < N; c++) dist[c] = Math.sqrt(d2[c]);
+  const field = (x: number, y: number, z: number) => {
+    const fx = Math.min(nx - 1.001, Math.max(0, (x - min.x) / h)), fy = Math.min(ny - 1.001, Math.max(0, (y - min.y) / h)), fz = Math.min(nz - 1.001, Math.max(0, (z - min.z) / h));
+    const i = fx | 0, j = fy | 0, k = fz | 0, u = fx - i, v = fy - j, t = fz - k;
+    let r = 0;
+    for (const [a, wa] of [[0, 1 - u], [1, u]]) for (const [b, wb] of [[0, 1 - v], [1, v]]) for (const [c, wc] of [[0, 1 - t], [1, t]]) {
+      r += wa * wb * wc * dist[idx(i + a, j + b, k + c)];
+    }
+    return r * h - radius; // > 0 inside the wrapped shape
+  };
+  const w = { ...m, wrapped: true } as Model;
+  w.sdf = field;
+  w.inside = (x, y, z) => field(x, y, z) > 0;
+  w.box = m.box.clone().expandByScalar(h);
+  return w;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,18 +499,21 @@ function makeSolids(wasm: any) {
     return r;
   }
 
-  return function solid(m: Model, cells = 96): any {
-    const cell = voxelCell(m);
+  const solid = function solid(m: Model, cells = 96): any {
+    const cell = m.wrapped ? null : voxelCell(m);
     if (cell) return voxelSolid(m, cell);
-    try { const r = direct(m); console.log(`   ${m.name}: closed solid`); return r; } catch { /* fall back */ }
+    if (!m.wrapped) try { const r = direct(m); console.log(`   ${m.name}: closed solid`); return r; } catch { /* fall back */ }
     const t = performance.now(), s = m.box.getSize(new THREE.Vector3()), edge = Math.max(s.x, s.y, s.z) / cells, pad = 2 * edge;
     const g = Manifold.levelSet(([x, y, z]: number[]) => m.sdf(x, y, z), { min: m.box.min.clone().subScalar(pad).toArray(), max: m.box.max.clone().addScalar(pad).toArray() }, edge)
       .simplify(edge * 0.1).getMesh();
     const n = g.vertProperties.length / 3, vp = new Float32Array(n * NP);
     for (let i = 0; i < n; i++) { const [x, y, z] = g.vertProperties.subarray(3 * i, 3 * i + 3); vp.set([x, y, z, ...m.uvMatAt(x, y, z)], NP * i); }
-    console.log(`   ${m.name}: not closed → rebuilt as a distance-field solid (${sec(t)})`);
+    console.log(`   ${m.name}: ${m.wrapped ? "enveloped" : "not closed → rebuilt as a distance-field solid"} (${sec(t)})`);
     return new Manifold(new Mesh({ numProp: NP, vertProperties: vp, triVerts: g.triVerts }));
   };
+  /** true when the model is already an exact closed solid (no rebuild needed) */
+  solid.isClosed = (m: Model): boolean => { try { direct(m); return true; } catch { return false; } };
+  return solid;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +525,14 @@ async function main(): Promise<void> {
       mode: { type: "string", default: "hart" },
       seed: { type: "string", default: "1" },
       match: { type: "boolean", default: false },
+      "match-height": { type: "boolean", default: false },
+      "min-fill": { type: "string", default: "0" },
+      "fill-target": { type: "string" },
+      opening: { type: "string", default: "0.25" },
+      close: { type: "string", default: "" },
+      repair: { type: "boolean", default: false },
+      "close-radius": { type: "string", default: "0.15" },
+      measure: { type: "boolean", default: false },
       overlap: { type: "string", default: "0.05-0.6" },
       fillet: { type: "string", default: "0.08" },
       "voxel-cells": { type: "string", default: "40" },
@@ -307,10 +540,12 @@ async function main(): Promise<void> {
       help: { type: "boolean", default: false }
     }
   });
-  const [fileA, fileB] = positionals;
+  const mode = values.mode!;
+  // one input in voxel mode: the model is voxelized on its own, no second model, no pose
+  const single = positionals.length === 1 && mode === "voxel";
+  const fileA = positionals[0], fileB = single ? positionals[0] : positionals[1];
   if (values.help || !fileA || !fileB) { console.log(USAGE); return; }
   for (const f of [fileA, fileB]) if (!existsSync(f)) fail(`Not found: ${f}`);
-  const mode = values.mode!;
   if (!["hart", "weich", "voxel"].includes(mode)) fail("--mode must be hart, weich or voxel.");
   const [ovMin, ovMax] = values.overlap!.split("-").map(Number);
   if (!(ovMin >= 0 && ovMax > ovMin && ovMax <= 1)) fail('--overlap must look like "0.05-0.6".');
@@ -326,22 +561,76 @@ async function main(): Promise<void> {
   const { Manifold } = wasm, solid = makeSolids(wasm);
 
   const t0 = performance.now();
-  const A = await load(io, fileA), B = await load(io, fileB);
-  console.log(`\n● fuse ${A.name} + ${B.name} (${mode})`);
-  const MA = solid(A).asOriginal(), idA = MA.originalID(), MB0 = solid(B).asOriginal();
+  let A = await load(io, fileA), B = single ? A : await load(io, fileB);
+  console.log(single ? `\n● voxelize ${A.name}` : `\n● fuse ${A.name} + ${B.name} (${mode})`);
+
+  // fill = volume / convex hull volume; thin open shapes are closed until they reach --min-fill
+  const minFill = parseFloat(values["min-fill"]!);
+  const fillOf = (S: any) => S.volume() / Math.max(1e-12, S.hull().volume());
+  const fillTarget = values["fill-target"] !== undefined ? parseFloat(values["fill-target"]) : 2 * minFill;
+  const opening = parseFloat(values.opening!);
+  const prepare = (m: Model, force: boolean): { m: Model; S: any } => {
+    const rep = repairEdges(m);
+    // only where those edges keep the model from being an exact solid
+    if (rep.edges && (values.repair || force) && !values.measure && !solid.isClosed(m)) {
+      m = rep.model;
+      console.log(`   ${m.name}: ${rep.edges} edge(s) with more than two faces repaired`);
+    }
+    let S = solid(m), f = fillOf(S);
+    const big = Math.max(...m.box.getSize(new THREE.Vector3()).toArray());
+    const capped = capHoles(m), open = capped.largest / big;
+    console.log(`   ${m.name}: fill ${(f * 100).toFixed(1)} %, ${capped.loops} open edge loop(s), largest ${(open * 100).toFixed(0)} % of its size${values.measure ? `, ${rep.edges} edge(s) with more than two faces` : ""}`);
+    if (values.measure) return { m, S };
+    if (force) {
+      if (f >= fillTarget) return { m, S };
+      const r = parseFloat(values["close-radius"]!), wm = wrapModel(m, r * big), S2 = solid(wm);
+      console.log(`   ${m.name}: marked as extreme case → enveloped, radius ${(r * 100).toFixed(0)} % of its size → fill ${(fillOf(S2) * 100).toFixed(1)} %`);
+      return { m: wm, S: S2 };
+    }
+    if (!(minFill > 0)) return { m, S };
+    // 1. a large opening (an umbrella's rim) is always capped; small holes only when the fill is too low
+    if (capped.loops && (open >= opening || f < minFill)) {
+      const S2 = solid(capped.model), f2 = fillOf(S2);
+      console.log(`   ${m.name}: open edges capped → fill ${(f2 * 100).toFixed(1)} %`);
+      if (open >= opening || f2 > f) { m = capped.model; S = S2; f = f2; }
+    }
+    if (f >= minFill) return { m, S };
+    // 2. still hollow (a closed lamp shade): envelop with a growing radius until the fill reaches the target
+    for (const r of [0.03, 0.06, 0.1, 0.15, 0.2, 0.3]) {
+      const wm = wrapModel(m, r * big), S2 = solid(wm), f2 = fillOf(S2);
+      console.log(`   ${m.name}: enveloped, radius ${(r * 100).toFixed(0)} % of its size → fill ${(f2 * 100).toFixed(1)} %`);
+      m = wm; S = S2;
+      if (f2 >= fillTarget) break;
+    }
+    return { m, S };
+  };
+  const pa = prepare(A, values.close!.includes("a")), pb = single ? pa : prepare(B, values.close!.includes("b"));
+  if (values.measure) return;
+  A = pa.m; B = pb.m;
+  const MA = pa.S.asOriginal(), idA = MA.originalID(), MB0 = pb.S.asOriginal();
   const bs = A.box.getSize(new THREE.Vector3()), bc = A.box.getCenter(new THREE.Vector3()), oc = B.box.getCenter(new THREE.Vector3());
-  const sB = values.match ? 0.8 * Math.max(bs.x, bs.y, bs.z) / Math.max(...B.box.getSize(new THREE.Vector3()).toArray()) : 1;
+  if (values.match && values["match-height"]) fail("Use either --match or --match-height.");
+  let sB = values.match ? 0.8 * Math.max(bs.x, bs.y, bs.z) / Math.max(...B.box.getSize(new THREE.Vector3()).toArray()) : 1;
 
   // pose: seeded rotation + offset, re-rolled until the overlap is in range
   const mulberry = (a: number) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   let pose: { seed: number; rot: number[]; off: THREE.Vector3; q: THREE.Quaternion } | null = null, MB: any = null, overlap = 0;
-  for (let seed = parseInt(values.seed!, 10), tries = 0; tries < 500; seed++, tries++) {
+  // single model: B is A itself, unrotated and in place — the union is A alone
+  if (single) { pose = { seed: 0, rot: [0, 0, 0], off: oc.clone(), q: new THREE.Quaternion() }; MB = MB0; overlap = 1; sB = 1; }
+  for (let seed = parseInt(values.seed!, 10), tries = 0; !single && tries < 500; seed++, tries++) {
     const rnd = mulberry(seed), rot = [rnd() * 360 - 180, rnd() * 360 - 180, rnd() * 360 - 180];
     const off = new THREE.Vector3((rnd() - 0.5) * 0.7 * bs.x, (rnd() - 0.5) * 0.7 * bs.y, (rnd() - 0.5) * 0.7 * bs.z).add(bc);
-    const cand = MB0.translate(oc.clone().negate().toArray()).scale(sB).rotate(rot).translate(off.toArray());
+    const turned = MB0.translate(oc.clone().negate().toArray()).rotate(rot);
+    if (values["match-height"]) {
+      const tb = turned.boundingBox();
+      sB = bs.y / (tb.max[1] - tb.min[1]);
+    }
+    const cand = turned.scale(sB).translate(off.toArray());
     const f = (MA.volume() + cand.volume() - MA.add(cand).volume()) / Math.min(MA.volume(), cand.volume());
     if (f < ovMin || f > ovMax) continue;
-    pose = { seed, rot, off, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot.map((d) => d * Math.PI / 180) as [number, number, number]), "XYZ")) };
+    // manifold's rotate turns about x, then y, then z — three.js Euler order "ZYX". weich/voxel
+    // sample B through this quaternion, so it must match the pose the overlap was measured for
+    pose = { seed, rot, off, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot.map((d) => d * Math.PI / 180) as [number, number, number]), "ZYX")) };
     MB = cand; overlap = f;
     break;
   }
@@ -427,8 +716,14 @@ async function main(): Promise<void> {
   }
   for (const s of root.listScenes()) for (const c of s.listChildren()) s.removeChild(c);
   for (const nd of root.listNodes()) nd.dispose();
+  // where B ended up — kept so a model's line can be traced later
+  const bMatrix = new THREE.Matrix4().makeTranslation(pose.off.x, pose.off.y, pose.off.z)
+    .multiply(new THREE.Matrix4().makeRotationFromQuaternion(pose.q))
+    .multiply(new THREE.Matrix4().makeScale(sB, sB, sB))
+    .multiply(new THREE.Matrix4().makeTranslation(-oc.x, -oc.y, -oc.z));
   const scene = root.listScenes()[0] ?? doc.createScene();
-  scene.addChild(doc.createNode(basename(out, ".glb")).setMesh(mesh));
+  scene.addChild(doc.createNode(basename(out, ".glb")).setMesh(mesh)
+    .setExtras(single ? {} : { fuse: { a: basename(fileA), b: basename(fileB), mode, bMatrix: bMatrix.elements.map((v) => +v.toFixed(6)) } }));
   root.setDefaultScene(scene);
   for (const b of root.listBuffers()) if (b !== buffer) { for (const a of root.listAccessors()) if (a.getBuffer() === b) a.setBuffer(buffer); b.dispose(); }
   // float geometry out — compressing is a separate, deliberate step
@@ -436,7 +731,8 @@ async function main(): Promise<void> {
   await doc.transform(prune());
   mkdirSync(dirname(out), { recursive: true });
   await io.write(out, doc);
-  console.log(`   pose: seed ${pose.seed}, rotation ${pose.rot.map((d) => d.toFixed(0)).join("/")}°, overlap ${(overlap * 100).toFixed(0)} %${sB !== 1 ? `, B ×${sB.toFixed(2)}` : ""}`);
+  if (!single) console.log(`   pose: seed ${pose.seed}, rotation ${pose.rot.map((d) => d.toFixed(0)).join("/")}°, overlap ${(overlap * 100).toFixed(0)} %${sB !== 1 ? `, B ×${sB.toFixed(2)}` : ""}`);
+  if (!single) console.log(`   B matrix (column-major, B's file → result): ${JSON.stringify(bMatrix.elements.map((v) => +v.toFixed(6)))}`);
   console.log(`   ${tris} triangles, ${groups.size} material group(s), ${sec(t0)}`);
   console.log(`   written: ${out} (uncompressed)`);
   console.log(`\nNext: npm run reduce -- ${out} --compress   (keeps the look)\n`);

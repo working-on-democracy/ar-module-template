@@ -236,6 +236,28 @@ What it does, in order:
    movement. three.js reads glTF samplers on load, so no component is
    needed, and the compression step (`gltfpack -c`) keeps them (verified).
 
+### Light variant — `scripts/stylize-light-glb.ts`
+
+```
+npm run stylize-light -- generated-assets/chair.glb                       # → src/assets/ + uncompressed-assets/
+npm run stylize-light -- generated-assets/chair.glb --out /tmp/chair.glb  # one compressed file elsewhere
+```
+
+Makes a raw model lighter without changing its look — used as "phase 1"
+of the AI asset test track (2026-10-08), before any stylizing. Of the
+steps above it keeps merge (1), seam-safe simplify (2) and texture
+shrinking + saturation (5, applied to *every* map), then compresses like
+`stylize`. It skips hard edges (3), keeps all maps and the material's
+metal/roughness (4) and leaves the samplers alone (6) — smooth, mipmapped
+textures, no pixel look. Defaults: `--faces 5000`, `--texture 512`,
+`--saturation 1.1`; `--name`, `--replace`, `--out` as in `stylize`.
+`--no-compress` writes the uncompressed model — the input `stylize` needs
+for a further step (it refuses compressed files), e.g. phase 2 of the test
+track: `stylize-light --no-compress` → `stylize --faces 1500 --texture 128`.
+Seams keep the count above the target on fragmented layouts (~7.6k and
+~9.4k of 5000 seen); on the eight test models files went from 2.9–9.2 MB
+to 373–827 KB.
+
 ### Combining with grain-shimmer
 
 `grain-shimmer="filter: nearest"` sets the same sampling at runtime and
@@ -287,6 +309,13 @@ npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets
 | `--mode` | `hart` | `hart` exact union · `weich` rounded fillet, remeshed · `voxel` cube grid |
 | `--seed` | 1 | pose seed — same seed, same result |
 | `--match` | off | scale B so its largest side is 80 % of A's |
+| `--match-height` | off | scale B, after its rotation, so its world-space height equals A's — both stay visible at very different sizes (test track phase 3, 2026-10-08; up to 11× apart) |
+| one input + `--mode voxel` | — | `npm run fuse -- <a.glb> --mode voxel` voxelizes a single model on its own (no partner, no pose); `--repair`/`--min-fill` apply as usual |
+| `--min-fill` | 0 (off) | a model whose volume is below this share of its convex hull's volume (hollow or thin, e.g. a lamp shade) is closed before fusing: open edges capped, else enveloped until `--fill-target` (default 2 × min-fill). New faces take the texture of the nearest original point |
+| `--opening` | 0.25 | with `--min-fill`: an open edge loop at least this share of the model's largest side (an umbrella's rim) is always capped |
+| `--repair` | off | for every model that isn't an exact solid: removes the faces at edges shared by more than two faces and at locally twisted spots, caps the holes (up to 5 passes) — it then fuses with its original geometry and texture instead of a coarse distance-field rebuild (no fringes or crack lines). Exact solids stay untouched |
+| `--close a\|b\|ab` | — | marks a model as an extreme case no measure catches: repaired as with `--repair`, then enveloped (`--close-radius`, default 0.15 of its size) only if the fill stays below the target |
+| `--measure` | — | print each model's fill, open edge loops and largest opening, then stop |
 | `--overlap` | `0.05-0.6` | accepted overlap, fraction of the smaller model's volume |
 | `--fillet` | 0.08 | `weich`: fillet radius as a fraction of A's height |
 | `--voxel-cells` | 40 | `voxel`: grid cells over the largest side |
@@ -294,7 +323,7 @@ npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets
 
 What it does:
 
-1. **Pose:** both models keep their own size (unless `--match`). B gets a
+1. **Pose:** both models keep their own size (unless `--match` or `--match-height`). B gets a
    seeded random rotation about all three axes and a random offset near
    A's centre; the pose is re-rolled (next seed) until the overlap lies in
    `--overlap`. Below ~5 % the two only touch; above ~60 % the smaller one
@@ -321,7 +350,24 @@ What it does:
      grid (`--voxel-cells 24`) gives bigger pixels and about a third of
      the cube faces.
 4. **Write** an uncompressed `.glb` (float geometry — compressing is a
-   separate step), one primitive per material of both inputs.
+   separate step), one primitive per material of both inputs. A stays where
+   it is; where B ended up is logged and stored in the result node's
+   `extras.fuse.bMatrix` (column-major 4×4, B's file coordinates → result).
+   Every later step (reduce, stylize, texture-crush, split, compression)
+   keeps the coordinates, so a model can be followed through a chain of
+   fusions by multiplying these matrices — the test track's "Linie" photos
+   (2026-10-09) put each stage back with the inverse and keep one fixed
+   camera.
+
+**Rotation order (fixed 2026-10-09):** the overlap test and `--match-height`
+rotate B with manifold's `rotate` (x, then y, then z = three.js Euler
+`"ZYX"`). Until 2026-10-09 `weich` and `voxel` built B through a quaternion
+from Euler `"XYZ"` instead, so the built B was turned differently from the
+measured one — the overlaps logged for those results (test track phases
+4–8 and 10) describe a pose that wasn't built. Now all three modes use the
+measured pose (same seed → same B matrix for `hart` and `weich`). A `weich`
+or `voxel` fusion made before the fix comes out differently when re-run
+with the same seed.
 
 Inputs can be anything earlier steps made — raw, stylized, compressed
 (dequantized on load) or earlier fusions — so fusions can be chained.
@@ -337,6 +383,9 @@ npm run reduce -- generated-assets/ab-weich.glb --error 0.01 --compress --out sr
 | Option | Default | Effect |
 |---|---|---|
 | `--error` | 0.01 | allowed shape change, fraction of the model's size |
+| `--max-triangles` | — | raise `--error` step by step (2, 4, 8, 15, 25 %) until the model has at most this many triangles — e.g. phase 3 of the test track: min(10 000, both inputs' triangles together) per fusion |
+| `--target` | — | simplify to about this many triangles, never far below — no error limit; if seams or part borders leave it above, the aim is lowered in 7 % steps until it fits. A model already at or below it is only compressed. Use when a budget should be used up (error-based reduction dropped a dense enveloped lamp shade from 8 338 to 809) |
+| `--permissive` | off | also simplify across texture seams (meshoptimizer `Permissive`, as in `stylize`): reaches low counts on fragmented layouts, smears texels into streaks |
 | `--snap` | off | snap texture coordinates to texel centres first |
 | `--compress` | off | gltfpack + lossless WebP (same code as `compress-assets`) |
 | `--out` | `generated-assets/<name>-reduced.glb` | output file |
@@ -381,6 +430,40 @@ multiply, fuse, get compressed and finally vanish; coarser and coarser
 voxels as a possible last stage) — concept in the project's concept doc,
 not in this repo.
 <!-- /project-specific -->
+
+### Crushing textures on purpose — `scripts/glb-texture-crush.ts`
+
+```
+npm run texture-crush -- generated-assets/phase-8/e1.glb --format jpeg --quality 2 --passes 3 --saturation 1.5 --out x.glb
+```
+
+Re-encodes every texture at a very low lossy quality so the compression
+artifacts become part of the look (phase 9 of the test track,
+2026-10-09): JPEG gives 8×8 blocks, colour bleeding (4:2:0) and banding,
+WebP smeared patches; `--passes` re-encodes several times (generation
+loss); `--saturation` boosts colour textures first (1.5 = +50 %). Quality 5
+in one pass stayed subtle at photo size; quality 2 × 3 passes + 1.5 reads clearly. Geometry, materials and samplers are untouched and an already
+meshopt-compressed mesh is written back without a second quantization.
+Normal and metal-roughness maps are crushed too, which adds lighting noise.
+
+### Splitting a model in two — `scripts/glb-split.ts`
+
+```
+npm run split -- generated-assets/phase-7/s10.glb --seed 1 [--offset 0.15] [--compress] --out generated-assets/phase-11/h1
+```
+
+Cuts a model into `<out>-a.glb` and `<out>-b.glb` with a random plane
+roughly through the bounding-box centre (shifted by up to `--offset` of
+the half-width along its normal). Nothing is cut exactly: each triangle goes
+whole to the side its centre lies on, so the cut follows the existing
+polygon edges as a jagged staircase — no new points, no divided triangles
+(phase 11 of the test track, 2026-10-09). The cut stays open, there is no
+cap; materials are made double-sided so the inside shows instead of a
+see-through hole (`--single-sided` keeps them). Both halves keep their
+place; each is pruned to the vertices, materials and textures it still
+uses, but a half usually still needs almost every texture, so it is barely
+smaller than the whole. `--compress` re-compresses an already quantized
+input on purpose, like `reduce`.
 
 ## 7. Photographing results — `photo-models`, `photo-strip`
 

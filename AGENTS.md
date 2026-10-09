@@ -117,9 +117,12 @@ lib/                            host/preview plumbing — not edited by a projec
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
 scripts/sloyd-generate.ts      `npm run sloyd` — Sloyd API text/image → .glb into generated-assets/ (credentials in .env.local)
 scripts/stylize-glb.ts         `npm run stylize` — low-poly + pixelated (NEAREST) + saturated .glb into src/assets/, compressed
-scripts/glb-compression.ts     shared gltfpack + WebP step used by compress-assets.ts, stylize-glb.ts and glb-reduce.ts
+scripts/stylize-light-glb.ts   `npm run stylize-light` — lighter, look kept: seam-safe simplify (5000), all maps 512 px, +10 % saturation, compressed
+scripts/glb-compression.ts     shared gltfpack + WebP step used by compress-assets.ts, stylize-glb.ts, stylize-light-glb.ts and glb-reduce.ts
 scripts/glb-fuse.ts            `npm run fuse` — two .glb → one (hart: exact boolean, weich: rounded, voxel: cube grid), manifold-3d; into generated-assets/
 scripts/glb-reduce.ts          `npm run reduce` — fewer triangles, look unchanged (error-limited, seams kept), optional --compress
+scripts/glb-split.ts           `npm run split` — one .glb → two halves along a random plane; whole triangles per side (jagged, open cut, no new points)
+scripts/glb-texture-crush.ts  `npm run texture-crush` — textures re-encoded at very low JPEG/WebP quality on purpose (artifacts), geometry untouched
 scripts/photo-models.ts        `npm run photo-models` — headless preview photos, one per model (others + .test-label hidden); --root serves a worktree
 scripts/photo-strip.ts         `npm run photo-strip` — trims photos and lays them out as one captioned strip (sharp)
 scripts/image-to-entity.ts     `npm run image-to-entity` — image → Sloyd → stylize → entity inserted into ArModule.vue (marked block)

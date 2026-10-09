@@ -1,5 +1,6 @@
 // The .glb compression step shared by scripts/compress-assets.ts (interactive,
-// src/assets/) and scripts/stylize-glb.ts (compresses its own output). One
+// src/assets/), scripts/stylize-glb.ts and scripts/stylize-light-glb.ts
+// (compress their own output). One
 // implementation so both always produce the same result — see
 // cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md for the full
 // picture. No default export: a helper, not a component or entry point.
