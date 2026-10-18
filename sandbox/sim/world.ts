@@ -619,12 +619,13 @@ export function applyJob(w: World, result: JobResult) {
     const twin = newObject(w, rng, b, o.lineage, o.id, o.generation, o.pos, o.rotY);
     const p = w.params;
     Object.assign(twin, half(b, -1), {
-      scale: o.scale, lift: o.lift + rng.vary(p.halvingRise, p.riseVariance),
+      scale: o.scale, lift: o.lift + (b.min[1] - o.min[1]) * o.scale + rng.vary(p.halvingRise, p.riseVariance),
       grow: 1, copiesLeft: 0, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
       photo: o.photo ? { ...o.photo, halvedSince: true } : null,
     });
+    const liftA = o.lift + (a.min[1] - o.min[1]) * o.scale; // keeps its place inside the model
     Object.assign(o, half(a, 1), { halvings: o.halvings + 1, state: "verwelkend", nextCrushAt: w.eigen + w.params.crushEveryDays });
-    o.lift += rng.vary(p.halvingRise, p.riseVariance); // splinters float
+    o.lift = liftA + rng.vary(p.halvingRise, p.riseVariance); // splinters float
     w.rngState = rng.state();
     fitHeight(o, p); fitHeight(twin, p);
     if (o.photo) o.photo.halvedSince = true;

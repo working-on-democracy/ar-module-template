@@ -19,7 +19,9 @@
     "reduce": "tsx scripts/glb-reduce.ts",
     "photo-models": "tsx scripts/photo-models.ts",
     "photo-strip": "tsx scripts/photo-strip.ts",
-    "image-to-entity": "tsx scripts/image-to-entity.ts"
+    "image-to-entity": "tsx scripts/image-to-entity.ts",
+    "sandbox": "tsx sandbox/server.ts",
+    "lifecycle-page": "tsx sandbox/lifecycle-page/build.mts"
   },
   "devDependencies": {
     "@8thwall/engine-binary": "1.0.0",

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pflanzen-Sandbox</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600&display=swap">
+<style>
+:root {
+  --bg: #e9ece6; --panel: rgba(255, 255, 255, 0.92); --fg: #1c221e; --muted: #5f6a63; --line: #d3d8cf;
+  --accent: #2e6a4c; --st-keimling: #8fbf72; --st-aktiv: #2e6a4c; --st-verwelkend: #c08a2c; --st-tot: #9aa19c;
+  --photo: #3466a8; --drawing: #c2410c; --origin: #4d4038;
+  --font: "Barlow", "Helvetica Neue", Arial, sans-serif; --font-display: "Barlow Semi Condensed", "Barlow", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font); overflow: hidden; }
+#scene { position: fixed; inset: 0; }
+#hud { position: fixed; top: 12px; left: 12px; bottom: 12px; width: 340px; display: flex; flex-direction: column; gap: 10px; overflow: auto; padding-right: 2px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; backdrop-filter: blur(6px); }
+h1 { margin: 0; font: 600 20px var(--font-display); }
+h2 { margin: 0; font: 600 13px var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-variant-numeric: tabular-nums; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.phase { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; font-size: 12px; }
+button, select { font: 500 13px var(--font); color: var(--fg); background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+#chart { width: 100%; height: 90px; display: block; }
+.jobs, .photos, .log { display: grid; gap: 3px; font-size: 12.5px; }
+.photos .row { justify-content: space-between; }
+.log { max-height: 220px; overflow: auto; }
+.log div { color: var(--muted); } .log b { color: var(--fg); font-weight: 500; }
+.muted { color: var(--muted); font-size: 12.5px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+#tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; display: none; max-width: 260px; }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+<div id="hud">
+  <div class="card">
+    <h1>Pflanzen-Sandbox</h1>
+    <div class="row"><span class="phase" id="phase">…</span><span class="muted" id="run"></span></div>
+    <div class="kv" id="clock"></div>
+    <div class="bar" title="Dreiecke im aktiven Ökosystem / Budget"><i id="budget-bar" style="width:0"></i></div>
+    <canvas id="chart"></canvas>
+  </div>
+  <div class="card">
+    <h2>Steuerung</h2>
+    <div class="row">
+      <button id="pause">Pause</button>
+      <label class="muted" for="speed">Tempo</label>
+      <select id="speed">
+        <option value="0.25">¼ Tag/min</option><option value="1" selected>1 Tag/min</option>
+        <option value="4">4 Tage/min</option><option value="15">15 Tage/min</option><option value="60">60 Tage/min</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="viewer-add">+ Gerät</button><button id="viewer-remove">− Gerät</button>
+      <button id="photo-add">Foto hochladen</button><button id="drawing-add">Zeichnung</button>
+    </div>
+    <div class="row">
+      <span class="muted">Foto auf Objekt:</span>
+      <button id="proj-uv" class="on">auf UVs</button><button id="proj-plane">projiziert</button>
+      <button id="helpers" class="on">Hilfslinien</button>
+    </div>
+  </div>
+  <div class="card"><h2>Rechenjobs</h2><div class="jobs" id="jobs"></div></div>
+  <div class="card"><h2>Fotos</h2><div class="photos" id="photos"></div></div>
+  <div class="card"><h2>Ereignisse</h2><div class="log" id="log"></div></div>
+  <div class="card legend">
+    <span><i class="sw" style="background:var(--st-keimling)"></i>Keimling</span>
+    <span><i class="sw" style="background:var(--st-aktiv)"></i>Aktiv</span>
+    <span><i class="sw" style="background:var(--st-verwelkend)"></i>Verwelkend</span>
+    <span><i class="sw" style="background:var(--origin)"></i>Ursprungsobjekt</span>
+    <span>Ring: Radius Hinschauen/Füttern · × Pflanzort · + Mittelpunkt</span>
+  </div>
+</div>
+<div id="tip"></div>
+<script type="module" src="./main.ts"></script>
+</body>
+</html>
