@@ -67,6 +67,8 @@ Options:
                        capped), so it fuses as an exact solid instead of a coarse distance-field rebuild
   --measure            only print each model's fill (volume / convex hull volume) and stop
   --overlap <a-b>      accepted overlap of the smaller model, fraction of its volume (default 0.05-0.6)
+  --pose-only          only find the pose and print B's matrix and the result's estimated box (seconds,
+                       not minutes); the same arguments and seed give the same pose in the full run
   --fillet <x>         weich: fillet radius as a fraction of A's height (default 0.08)
   --voxel-cells <n>    voxel: grid cells over the largest side (default 40; 1–3, or when the cell
                        centres find nothing: a cell counts as filled as soon as any part of the
@@ -538,6 +540,7 @@ async function main(): Promise<void> {
       "close-radius": { type: "string", default: "0.15" },
       measure: { type: "boolean", default: false },
       overlap: { type: "string", default: "0.05-0.6" },
+      "pose-only": { type: "boolean", default: false },
       fillet: { type: "string", default: "0.08" },
       "voxel-cells": { type: "string", default: "40" },
       out: { type: "string" },
@@ -647,6 +650,19 @@ async function main(): Promise<void> {
     box.expandByPoint(new THREE.Vector3(x, y, z).sub(oc).multiplyScalar(sB).applyQuaternion(pose.q).add(pose.off));
   }
   const size = box.getSize(new THREE.Vector3()), maxDim = Math.max(size.x, size.y, size.z);
+  // where B ends up — kept so a model's line can be traced later
+  const bMatrix = new THREE.Matrix4().makeTranslation(pose.off.x, pose.off.y, pose.off.z)
+    .multiply(new THREE.Matrix4().makeRotationFromQuaternion(pose.q))
+    .multiply(new THREE.Matrix4().makeScale(sB, sB, sB))
+    .multiply(new THREE.Matrix4().makeTranslation(-oc.x, -oc.y, -oc.z));
+  if (values["pose-only"]) {
+    // only the pose (the quick part): the same arguments and seed give the same pose in the full run
+    console.log(`   pose: seed ${pose.seed}, rotation ${pose.rot.map((d) => d.toFixed(0)).join("/")}°, overlap ${(overlap * 100).toFixed(0)} %${sB !== 1 ? `, B ×${sB.toFixed(2)}` : ""}`);
+    console.log(`   B matrix (column-major, B's file → result): ${JSON.stringify(bMatrix.elements.map((v) => +v.toFixed(6)))}`);
+    console.log(`   result box (estimate): ${JSON.stringify({ min: box.min.toArray().map((v) => +v.toFixed(6)), max: box.max.toArray().map((v) => +v.toFixed(6)) })}`);
+    console.log(`   pose only, ${sec(t0)}`);
+    process.exit(0);
+  }
 
   // result: triangles grouped by "source:material", flat x y z u v per corner
   const groups = new Map<string, number[]>();
@@ -736,11 +752,6 @@ async function main(): Promise<void> {
   }
   for (const s of root.listScenes()) for (const c of s.listChildren()) s.removeChild(c);
   for (const nd of root.listNodes()) nd.dispose();
-  // where B ended up — kept so a model's line can be traced later
-  const bMatrix = new THREE.Matrix4().makeTranslation(pose.off.x, pose.off.y, pose.off.z)
-    .multiply(new THREE.Matrix4().makeRotationFromQuaternion(pose.q))
-    .multiply(new THREE.Matrix4().makeScale(sB, sB, sB))
-    .multiply(new THREE.Matrix4().makeTranslation(-oc.x, -oc.y, -oc.z));
   const scene = root.listScenes()[0] ?? doc.createScene();
   scene.addChild(doc.createNode(basename(out, ".glb")).setMesh(mesh)
     .setExtras(single ? {} : { fuse: { a: basename(fileA), b: basename(fileB), mode, bMatrix: bMatrix.elements.map((v) => +v.toFixed(6)) } }));

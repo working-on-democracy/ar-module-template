@@ -16,13 +16,13 @@ export function runAbstractJob(w: World, job: JobRequest): JobResult {
   }
   if (job.kind === "copy" && job.recipe === "p2") {
     // Phase 2 stylize: about STYLIZE_COPY.faces triangles (more where seams stay)
-    return { jobId: job.id, outputs: [{ ...base, triangles: Math.min(o.triangles, STYLIZE_COPY.faces) }] };
+    return { jobId: job.id, outputs: [{ ...base, triangles: Math.min(o.triangles, job.faces ?? STYLIZE_COPY.faces) }] };
   }
   if (job.kind === "copy" || job.kind === "compress") {
     return { jobId: job.id, outputs: [{ ...base, triangles: Math.max(1, Math.floor(o.triangles * (job.keep ?? 1))) }] };
   }
   if (job.kind === "crush") return { jobId: job.id, outputs: [base] };
-  if (job.kind === "fuse") {
+  if (job.kind === "fuse" || job.kind === "pose") { // the same seed gives both the same pose
     // like glb-fuse: B gets a random rotation about all axes, is scaled to A's
     // height (only grows, at most maxGrowFactor in the world) and placed near
     // A's centre; the result is A's frame with B inside

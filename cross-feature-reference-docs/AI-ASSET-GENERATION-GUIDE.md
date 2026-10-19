@@ -317,6 +317,7 @@ npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets
 | `--close a\|b\|ab` | — | marks a model as an extreme case no measure catches: repaired as with `--repair`, then enveloped (`--close-radius`, default 0.15 of its size) only if the fill stays below the target |
 | `--measure` | — | print each model's fill, open edge loops and largest opening, then stop |
 | `--overlap` | `0.05-0.6` | accepted overlap, fraction of the smaller model's volume |
+| `--pose-only` | off | only find the pose, print B's matrix and the result's estimated box, then stop (well under a second, a soft fusion takes 30–100 s); the same arguments and seed give the same pose in the full run, so a caller can move B into place while the fusion is still computing |
 | `--fillet` | 0.08 | `weich`: fillet radius as a fraction of A's height |
 | `--max-scale` | – | never scale B by more than this (with `--match` / `--match-height`) |
 | `--voxel-cells` | 40 | `voxel`: grid cells over the largest side; 1–3 count a cell as filled as soon as any part of the model lies in it (1 = a single cube) |

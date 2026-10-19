@@ -5,7 +5,7 @@
 import type { Params } from "../params";
 import { compose, decompose, lerpPose, multiply, quatTilt, quatY, rotateAbout, transformPoint, type Mat4 } from "./pose";
 import { createRng, type Rng } from "./rng";
-import { fuseRecipe, halvingRecipe, STEP_LABEL } from "./recipes";
+import { fusePostTriangles, fuseRecipe, halvingRecipe, STEP_LABEL, STYLIZE_COPY } from "./recipes";
 import type {
   Drawing, JobRequest, JobResult, ModelVersion, ObjectKind, ObjectState, Photo, PlantObject, Scenario, ScheduledEntry, Vec3, World,
 } from "./types";
@@ -69,8 +69,10 @@ function swayStrength(o: PlantObject, p: Params): number {
 }
 
 /** Floating: how high (m) the object bobs up from where it stands. Grows as its
- *  triangles fall; less near the ground, more the higher it stands. */
+ *  triangles fall; less near the ground, more the higher it stands. Keimlinge
+ *  only once they have fully risen out of the ground. */
 export function swayOf(o: PlantObject, p: Params): number {
+  if (o.grow < 1) return 0; // a Keimling still rising out of the ground stands still
   const s = swayStrength(o, p);
   if (!s) return 0;
   const height = Math.min(p.swayMaxFactor, p.swayGroundFactor + p.swayPerMetre * Math.max(0, o.lift));
@@ -151,6 +153,10 @@ export function createWorld(scenario: Scenario, params: Params): World {
     generationCounts: {},
     plateauSince: null,
     voxelSince: null,
+    pioneerQueue: [],
+    firstRoundDone: {},
+    opening: { stage: "warten", first: null, firstA: null },
+    halvingSince: null,
     pairs: [],
     firstPairFormed: false,
     stepsSeen: {},
@@ -164,6 +170,7 @@ export function createWorld(scenario: Scenario, params: Params): World {
     nextSampleAt: 0,
     scheduled: [...scenario.timeline].sort((a, b) => a.at - b.at),
     factor: 1,
+    pioneerFactor: 1,
     factorParts: { inhalt: 0, ereignisse: 0, hinschauen: 0 },
   };
   let px = 0, pz = 0;
@@ -186,6 +193,15 @@ export function createWorld(scenario: Scenario, params: Params): World {
   w.budget = Math.round(Math.min(params.budgetMax, Math.max(params.budgetMin, params.budgetBase + params.budgetSlope * (sum - params.budgetRefOrigins))));
   w.compressAt = Math.round(w.budget * params.compressAtShare);
   w.halvingAt = Math.round(w.budget * params.halvingAtShare);
+  // the first Keimlinge (Vorläufer): every origin object once, in random order, two per generation (1, 1, 2, 2, 3 …),
+  // a little apart in time; the plain Keimlinge of every line run independently of them, from planting on
+  const origins = [...w.objects];
+  for (let i = origins.length - 1; i > 0; i--) { const j = Math.floor(rng.next() * (i + 1)); [origins[i], origins[j]] = [origins[j], origins[i]]; }
+  let at = 0;
+  for (let i = 0; i < Math.min(params.pioneerCount, origins.length); i++) {
+    if (i) at += params.pioneerStaggerMinutes / 1440;
+    w.pioneerQueue.push({ origin: origins[i].id, generation: Math.floor(i / 2) + 1, at });
+  }
   w.rngState = rng.state();
   log(w, "start", `${scenario.starters.length} Objekte gepflanzt (${sum} Dreiecke): Budget ${w.budget}, verstärkte Komprimierung ab ${w.compressAt}, Halbieren unter ${w.halvingAt}`);
   sample(w);
@@ -224,6 +240,9 @@ function newObject(
     lift: 0,
     pose: null,
     voxelCells: null,
+    fast: false,
+    shrinkBase: null,
+    stuck: false,
   };
 }
 
@@ -251,14 +270,16 @@ export function objectKind(o: PlantObject): ObjectKind {
   return "unveraendert";
 }
 
-function request(w: World, job: Omit<JobRequest, "id" | "dueAt">): number {
+/** Requests a job; its result is used `dueIn` Eigentage from now (default: the computing lead). */
+function request(w: World, job: Omit<JobRequest, "id" | "dueAt">, dueIn?: number): number {
   for (const id of [job.objectId, job.partnerId]) {
     const o = id ? w.objects.find((x) => x.id === id) : undefined;
     if (o) o.busy = true;
   }
   const id = w.nextJobId++;
-  const lead = job.kind === "fuse" && job.fuseMode === "weich" ? w.params.softFuseLeadDays : w.params.jobLeadDays;
-  w.jobs.push({ ...job, id, dueAt: w.eigen + lead });
+  const lead = job.pioneer || job.immediate ? w.params.pioneerLeadDays : // Vorläufer, first round of plain Keimlinge
+    job.kind === "fuse" && job.fuseMode === "weich" ? w.params.softFuseLeadDays : w.params.jobLeadDays;
+  w.jobs.push({ ...job, id, dueAt: w.eigen + (dueIn ?? lead) });
   return id;
 }
 
@@ -271,6 +292,7 @@ export function addPhoto(w: World, pos: Vec3, lifetime?: number, id?: string): P
   };
   w.photos.push(ph);
   log(w, "foto", `Foto ${ph.id} hochgeladen`);
+  boost(w, "foto", pos);
   return ph;
 }
 
@@ -293,6 +315,7 @@ export function addDrawing(w: World, pos: Vec3, lifetime?: number, color?: strin
   w.rngState = rng.state();
   w.drawings.push(d);
   log(w, "zeichnung", `Zeichnung ${d.id} gezeichnet`);
+  boost(w, "zeichnung", pos);
   return d;
 }
 
@@ -336,6 +359,9 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // Time scale: factor from the boosts, then both clocks.
   updateFactor(w);
   const dt = dtCalendar * w.factor; // Eigentage
+  // the fast line has its own time right after planting: the boosts count pioneerBoostFactor times
+  const dtFast = dtCalendar * w.pioneerFactor;
+  const dtOf = (o: PlantObject) => (o.fast ? dtFast : dt);
   w.calendar += dtCalendar;
   w.eigen += dt;
 
@@ -349,8 +375,24 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   const total = totalTriangles(w);
   w.plateauMax = Math.max(w.plateauMax, total);
 
-  // Keimlinge rise out of the ground.
-  for (const o of w.objects) if (o.grow < 1) o.grow = Math.min(1, o.grow + dt / p.growDays);
+  // Keimlinge rise out of the ground (the Vorläufer faster).
+  for (const o of w.objects) if (o.grow < 1) o.grow = Math.min(1, o.grow + (dtOf(o) * (o.fast ? p.pioneerGrowSpeed : 1)) / p.growDays);
+
+  // The first Keimlinge (Vorläufer), one after the other: copied straight from their origin
+  // object as the generation they were given (Phase 2 stylize, then fewer faces, then voxels).
+  while (w.pioneerQueue.length && w.pioneerQueue[0].at <= w.eigen) {
+    const { origin: id, generation: gen } = w.pioneerQueue.shift()!;
+    const origin = w.objects.find((x) => x.id === id && x.state !== "tot");
+    if (!origin) continue;
+    const voxelCells = gen >= p.voxelFromGeneration
+      ? Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, gen - p.voxelFromGeneration)))
+      : undefined;
+    request(w, {
+      kind: "copy", objectId: origin.id, generation: gen, voxelCells, recipe: voxelCells ? "p5" : "p2", pioneer: true,
+      faces: voxelCells ? undefined : Math.round(STYLIZE_COPY.faces * Math.pow(p.copyShrink, gen - 1)),
+      spawn: { pos: [...origin.pos] as Vec3, rotY: rng.range(0, Math.PI * 2) }, // placed next to the others when it arrives
+    });
+  }
 
   // Keimling phase: from planting until the plateau time is over (or growth
   // gives up after growthMaxDays). Two kinds of new Keimlinge:
@@ -372,8 +414,9 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     // voxel generations begin once the count rises above halvingAt (the halving threshold, on the way up)
     if (w.voxelSince === null && totalTriangles(w) >= w.halvingAt) { w.voxelSince = w.eigen; log(w, "phase", `Über ${w.halvingAt} Dreiecken: Voxel-Generationen beginnen`); }
     const voxelStart = w.voxelSince ?? w.plateauSince ?? (w.eigen >= p.growthMaxDays - p.voxelTargetDays ? p.growthMaxDays - p.voxelTargetDays : null);
-    const free = (o: PlantObject) => o.grow >= 1 && !o.busy && !o.pairedWith && !o.photo && (o.origin || o.state === "keimling");
-    const spawn = (parent: PlantObject, gen: number, max: number): boolean => {
+    // the Vorläufer make no copies; an origin object may copy while it is busy with another copy (a Vorläufer)
+    const free = (o: PlantObject) => o.grow >= 1 && (!o.busy || o.origin) && !o.pairedWith && !o.photo && !o.fast && (o.origin || o.state === "keimling");
+    const spawn = (parent: PlantObject, gen: number, max: number, immediate = false): boolean => {
       const voxelCells = gen >= p.voxelFromGeneration
         ? Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, gen - p.voxelFromGeneration)))
         : undefined;
@@ -385,7 +428,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
       // a plain copy within a generation, a reduced one for the next plain generation
       const recipe = voxelCells ? "p5" : gen === parent.generation ? "copy" : parent.origin && gen === 1 ? "p2" : "reduce";
       request(w, {
-        kind: "copy", objectId: parent.id, generation: gen, voxelCells, recipe,
+        kind: "copy", objectId: parent.id, immediate, generation: gen, voxelCells, recipe,
         keep: gen > parent.generation ? p.copyShrink : 1, // a new generation is worse, the same generation a plain copy
         spawn: { pos: [parent.pos[0] + Math.cos(angle) * r, 0, parent.pos[2] + Math.sin(angle) * r], rotY: rng.range(0, Math.PI * 2) },
       });
@@ -420,7 +463,8 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
       let pick = rng.next() * plain.reduce((n, o) => n + 1 + o.generation, 0), parent = plain[0];
       for (const o of plain) { pick -= 1 + o.generation; if (pick <= 0) { parent = o; break; } }
       const gen = parent.origin ? 1 : Math.min(lastPlain, parent.generation + (rng.next() < advance ? 1 : 0));
-      spawn(parent, gen, limit);
+      // the first round of every line is used as soon as it is ready, like the Vorläufer
+      if (spawn(parent, gen, limit, !w.firstRoundDone[origin.lineage])) w.firstRoundDone[origin.lineage] = true;
     }
   } else {
     for (const o of w.objects) {
@@ -431,21 +475,75 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // Fusion: a free object picks the nearest free partner in its radius, by
   // chance. The pair is reserved for good; the smaller one travels to the
   // larger one while the fused model is computed; swap once both are done.
+  // (the fast line only once the Vorläufer's opening fusions are over)
   const canFuse = (o: PlantObject) =>
-    o.grow >= 1 && !o.origin && !o.busy && !o.pairedWith && !o.photo && (o.state === "aktiv" || o.state === "keimling");
-  const pairUp = (o: PlantObject, q: PlantObject, why: string) => {
+    o.grow >= 1 && !o.origin && !o.busy && !o.pairedWith && !o.photo && (o.state === "aktiv" || o.state === "keimling") &&
+    (!o.fast || w.opening.stage === "fertig");
+  const pairUp = (o: PlantObject, q: PlantObject, why: string, opening = false): number => {
     // the lower one travels and (with fuseMatchHeight) grows to the taller one's height
     const [a, b] = objectHeight(o) >= objectHeight(q) ? [o, q] : [q, o];
     // the test track step: Phase 3 hard for a first fusion, then 4, 7, 8, 10 (soft); Phase 6 with a voxel partner
     const r = fuseRecipe(a, b, !!p.softAfterFirstFusion);
     // the fused model is computed first: it fixes B's pose (position, rotation, scale) inside the result
-    const jobId = request(w, { kind: "fuse", objectId: a.id, partnerId: b.id, fuseMode: r.mode, recipe: r.step, overlap: r.overlap, fusePost: r.post, seed: Math.floor(rng.next() * 1e6) });
+    // the fast line travels faster, its opening fusions faster still and on a flatter curve, so they are seen moving early
+    // two jobs with the same seed: first only the pose (quick, used at once: the journey starts
+    // right away), then the fused model, computed during the journey and used on arrival. The
+    // journey lasts at least the usual computing lead, so a fast sandbox clock rarely has to
+    // wait (not the Vorläufer's opening: there the clock waits if need be)
+    const lead = r.mode === "weich" ? p.softFuseLeadDays : p.jobLeadDays;
+    const travel = rng.vary(p.fuseTravelDays, 0.2) / (a.fast || b.fast ? p.pioneerFuseSpeed : 1) / (opening ? p.firstFuseSpeed : 1);
+    const duration = opening ? travel : Math.max(travel, lead);
+    const fuse = { objectId: a.id, partnerId: b.id, fuseMode: r.mode, overlap: r.overlap, seed: Math.floor(rng.next() * 1e6) };
+    const poseJobId = request(w, { kind: "pose", ...fuse }, 0);
+    const jobId = request(w, { kind: "fuse", ...fuse, recipe: r.step, fusePost: r.post }, duration);
     a.pairedWith = b.id; b.pairedWith = a.id;
     w.firstPairFormed = true;
-    w.pairs.push({ a: a.id, b: b.id, jobId, start: null, duration: rng.vary(p.fuseTravelDays, 0.2), from: null, to: null, aFrom: null, aTo: null, aLift: 0, aScale: 1, result: null });
+    w.pairs.push({ a: a.id, b: b.id, jobId, poseJobId, expectedTriangles: fusePostTriangles(r.post, a.triangles + b.triangles), opening, start: null, duration, easeK: opening ? p.firstFuseEaseK : p.fuseEaseK, from: null, to: null, aFrom: null, aTo: null, aLift: 0, aScale: 1, result: null });
     if (w.champion === b.id) w.champion = a.id; // the chain goes on in the merged object
     log(w, "verschmelzung-paar", `${b.id} (${b.triangles}) wird von ${a.id} (${a.triangles}) angezogen, Paar steht fest (${STEP_LABEL[r.step]}${why})`, a.id);
+    return jobId;
   };
+
+  // The Vorläufer's opening, always the same: once all of them are grown, a random two pair
+  // up; halfway through their journey two of the others; as soon as the first two have
+  // fused, the result pairs with the last one. All three without computing lead, at
+  // firstFuseSpeed on the flatter curve. Only then does the fast line fuse with others.
+  const op = w.opening;
+  if (op.stage !== "fertig") {
+    const ready = () => w.objects.filter((o) => o.fast && o.state === "keimling" && o.grow >= 1 && !o.busy && !o.pairedWith && !o.pose);
+    const pick = (objs: PlantObject[]) => objs.splice(Math.floor(rng.next() * objs.length), 1)[0];
+    const pending = w.pioneerQueue.length > 0 || w.jobs.some((j) => j.pioneer) || w.objects.some((o) => o.fast && o.state === "keimling" && o.grow < 1);
+    const opening = () => w.pairs.filter((pr) => pr.opening);
+    if (op.stage === "warten") {
+      const c = ready();
+      if (c.length >= 2 && !pending) { // all grown, so any two can be the first pair
+        const x = pick(c), y = pick(c);
+        op.first = pairUp(x, y, ", Vorläufer: erste Verschmelzung", true);
+        op.firstA = w.pairs.find((pr) => pr.jobId === op.first)!.a;
+        op.stage = "erstes";
+      } else if (!pending && c.length < 2 && !w.objects.some((o) => o.fast && o.state === "keimling" && !o.pairedWith && (o.busy || o.pose))) op.stage = "fertig"; // fewer than two Vorläufer
+    }
+    if (op.stage === "erstes") {
+      const first = w.pairs.find((pr) => pr.jobId === op.first);
+      const halfway = !first || (first.start !== null && w.eigen >= first.start + first.duration / 2);
+      const c = ready();
+      if (halfway && (c.length >= 3 || (!pending && c.length >= 2 && !first))) {
+        const x = pick(c), y = pick(c);
+        pairUp(x, y, ", Vorläufer: zweite Verschmelzung", true);
+        op.stage = "zweites";
+      } else if (halfway && !pending && c.length < 2) op.stage = "zweites"; // nobody left for a second pair
+    }
+    if (op.stage === "zweites" && !w.pairs.some((pr) => pr.jobId === op.first)) {
+      const merged = w.objects.find((o) => o.id === op.firstA && o.state !== "tot" && !o.busy && !o.pairedWith);
+      const last = ready()[0];
+      if (merged && last) { pairUp(merged, last, ", Vorläufer: dritte Verschmelzung", true); op.stage = "drittes"; }
+      else if (!pending && !last) op.stage = "drittes"; // no single one left
+    }
+    if (op.stage === "drittes" && !opening().length) {
+      op.stage = "fertig";
+      log(w, "phase", "Die Vorläufer sind verschmolzen: Die schnelle Linie verschmilzt ab jetzt auch mit anderen Objekten");
+    }
+  }
   const nearestFusable = (o: PlantObject, ok: (x: PlantObject) => boolean) =>
     nearest(w.objects.filter((x) => x !== o && canFuse(x) && ok(x)), o.pos);
 
@@ -462,7 +560,10 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (champ && champ.fusions < p.requiredFusions && w.firstPairFormed) w.champion = champ.id;
   }
   if (champ && w.champion && champ.fusions < p.requiredFusions && canFuse(champ) && w.eigen >= w.nextChainAt) {
-    const q = nearestFusable(champ, (x) => !x.voxelCells);
+    // preferably a partner never fused: fusions add up, so a fused one would skip a step of the chain
+    // (in the descent, when unfused ones grow scarce, any plain partner)
+    const late = w.phase === "abstieg" || w.phase === "verfall";
+    const q = nearestFusable(champ, (x) => !x.voxelCells && x.fusions === 0) ?? (late ? nearestFusable(champ, (x) => !x.voxelCells) : null);
     if (q) { pairUp(champ, q, ", Kette"); w.nextChainAt = w.eigen + p.chainEveryDays; }
     else if (w.phase === "abstieg" || w.phase === "verfall") w.champion = null; // nobody left to fuse with: the chain gives up
   }
@@ -482,7 +583,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   for (const o of w.objects) {
     if (!canFuse(o) || o.id === w.champion) continue;
     // the very first pair forms as soon as two grown objects are in reach of each other
-    if (w.firstPairFormed && !rng.chance(p.fusePerDay, dt)) continue;
+    if (w.firstPairFormed && !rng.chance(p.fusePerDay * (o.fast ? p.pioneerFuseSpeed : 1), dtOf(o))) continue; // the fast line decides faster
     const reach = objectRadius(o, p);
     const q = nearestFusable(o, (x) => x.id !== w.champion && dist2d(x.pos, o.pos) <= reach);
     if (q) pairUp(o, q, "");
@@ -494,7 +595,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     // on the way B already turns, scales and rises into its pose inside the
     // fused model, and A already rises (or sinks/shrinks) to its final height
     const t = Math.min(1, (w.eigen - pair.start) / pair.duration);
-    const k = p.fuseEaseK, s = k > 0 ? (Math.exp(k * t) - 1) / (Math.exp(k) - 1) : t;
+    const k = pair.easeK, s = k > 0 ? (Math.exp(k * t) - 1) / (Math.exp(k) - 1) : t;
     b.pose = lerpPose(pair.from, pair.to, s);
     b.pos = [b.pose.p[0], 0, b.pose.p[2]];
     a.pose = lerpPose(pair.aFrom, pair.aTo, s);
@@ -503,7 +604,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     Object.assign(a, {
       glb: pair.result.glb, triangles: pair.result.triangles, min: pair.result.min, max: pair.result.max,
       lift: pair.aLift, scale: pair.aScale, growBase: pair.aScale, pose: null,
-      fusions: a.fusions + b.fusions + 1, state: "aktiv", busy: false, pairedWith: null,
+      fusions: a.fusions + b.fusions + 1, state: "aktiv", busy: false, pairedWith: null, fast: a.fast || b.fast,
       // the minimum strength holds for a first fusion only (or the first after the colour faded out); later it may fade out
       tint: mixTint(a.tint, b.tint, p.tintFuseLoss, a.tintFusions + b.tintFusions === 0 ? p.tintMin : 0, p.tintMax),
     });
@@ -557,7 +658,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     }
     // Halving once the count has dropped from the plateau.
     if (w.nextHalvingAt === null && total <= w.halvingAt) {
-      w.nextHalvingAt = w.eigen;
+      w.nextHalvingAt = w.eigen; w.halvingSince = w.eigen;
       log(w, "phase", `Polygonzahl unter ${w.halvingAt} Dreiecken: Halbieren beginnt`);
     }
     if (w.nextHalvingAt !== null && w.eigen >= w.nextHalvingAt) {
@@ -566,14 +667,15 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
       const chain = w.halvingChain && w.halvingChain !== "fertig" ? w.objects.find((x) => x.id === w.halvingChain && x.state !== "tot") : undefined;
       const o = chain && !chain.busy && chain.halvings < p.requiredHalvings && chain.triangles >= 24
         ? chain
-        : largest(w, (x) => x.triangles >= p.minTrianglesToHalve && x.id !== w.champion);
+        : largest(w, (x) => x.triangles >= p.minTrianglesToHalve && x.id !== w.champion, (x) => (x.fast ? p.pioneerHalvingAffinity : 1));
       if (o) {
         const hr = halvingRecipe(o);
         if (w.halvingChain !== "fertig" && !chain) w.halvingChain = o.id; // a new chain only until one has run through
         request(w, { kind: "split", objectId: o.id, recipe: hr.step, halving: hr, seed: Math.floor(rng.next() * 1e6), apart: rng.range(0, Math.PI * 2) });
         log(w, "halbierung", `Halbierung: ${o.id} (${o.triangles} Dreiecke, ${STEP_LABEL[hr.step]})`, o.id);
       }
-      w.nextHalvingAt = w.eigen + rng.vary(p.halvingEveryDays, p.halvingVariance);
+      // the rate rises gradually from the first halving on
+      w.nextHalvingAt = w.eigen + rng.vary(p.halvingEveryDays, p.halvingVariance) / (1 + p.halvingRateRisePerDay * (w.eigen - (w.halvingSince ?? w.eigen)));
     }
     // Too small to halve: wilting without halving.
     for (const o of w.objects) {
@@ -601,21 +703,23 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
 
   // Descent: everything not on its way to a fusion drifts slowly towards the
   // planting point, and the two halves of a halving push each other away —
-  // both added up (resting drawings move along); decay: it sinks back to the ground.
+  // both added up (resting drawings move along). Decay: no more drift, the
+  // halves push apart more strongly, and wilting objects shrink slowly.
   if (w.phase === "abstieg" || w.phase === "verfall") {
+    const decay = w.phase === "verfall";
     for (const o of w.objects) {
       if (o.origin || o.state === "tot" || o.pairedWith || o.pose) continue;
       let mx = 0, mz = 0;
       const dx = w.plantingPoint[0] - o.pos[0], dz = w.plantingPoint[2] - o.pos[2], d = Math.hypot(dx, dz);
       const room = d - (p.gatherStop + objectWidth(o) / 2);
-      if (room > 0) {
+      if (!decay && room > 0) {
         const move = Math.min(room, p.gatherPerDay * Math.min(1, room) * dt);
         mx += (dx / d) * move; mz += (dz / d) * move;
       }
       const sib = o.sibling ? w.objects.find((x) => x.id === o.sibling && x.state !== "tot") : undefined;
       if (sib) {
         const sx = o.pos[0] - sib.pos[0], sz = o.pos[2] - sib.pos[2], sd = Math.hypot(sx, sz);
-        const push = p.halvingRepelPerDay * Math.max(0, 1 - sd / p.halvingRepelRange) * dt;
+        const push = p.halvingRepelPerDay * (decay ? p.decayRepelFactor : 1) * Math.max(0, 1 - sd / p.halvingRepelRange) * dt;
         if (push > 0) {
           const ux = sd > 1e-6 ? sx / sd : Math.cos(o.rotY), uz = sd > 1e-6 ? sz / sd : Math.sin(o.rotY);
           mx += ux * push; mz += uz * push;
@@ -625,14 +729,20 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
         o.pos = [o.pos[0] + mx, o.pos[1], o.pos[2] + mz];
         for (const dr of w.drawings) if (dr.mode === "ruhend" && dr.target === o.id) dr.pos = [dr.pos[0] + mx, dr.pos[1], dr.pos[2] + mz];
       }
-      if (w.phase === "verfall" && o.lift > 0) {
-        const sink = Math.min(o.lift, p.decaySinkPerDay * dt);
-        o.lift -= sink;
-        for (const dr of w.drawings) if (dr.mode === "ruhend" && dr.target === o.id) dr.pos = [dr.pos[0], dr.pos[1] - sink, dr.pos[2]];
+      if (decay && o.state === "verwelkend") { // shrinks about its underside, down to decayShrinkMin
+        o.shrinkBase ??= o.scale;
+        o.scale = Math.max(o.shrinkBase * p.decayShrinkMin, o.scale - o.shrinkBase * p.decayShrinkPerDay * dt);
       }
     }
   }
 
+  // An object that can get smaller neither by compression nor by halving dies.
+  for (const o of w.objects) {
+    if (!o.stuck || o.state === "tot" || o.busy || o.pairedWith || o.id === w.champion) continue;
+    if (o.id === w.halvingChain && o.halvings < p.requiredHalvings) continue; // the chain's piece can still be halved
+    o.state = "tot"; o.deadSince = w.eigen;
+    log(w, "tod", `${o.id} stirbt: lässt sich weder komprimieren noch halbieren (${o.triangles} Dreiecke)`, o.id);
+  }
   // Wilting: texture crush, death, removal.
   for (const o of w.objects) {
     if (o.state === "verwelkend" && !o.busy) {
@@ -687,7 +797,6 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     o.photo = { photoId: ph.id, since: w.eigen, halvedSince: false };
     o.state = "verwelkend";
     o.nextCrushAt = w.eigen + p.crushEveryDays;
-    boost(w, "foto");
     log(w, "foto-uebernahme", `${o.id} übernimmt Foto ${ph.id} und verwelkt`, o.id);
   }
 
@@ -729,7 +838,6 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (d.overlap >= d.overlapGoal || arrived) {
       d.mode = "ruhend";
       d.texture = { glb: t.glb, fromObject: t.id }; // own texture only, never the photo
-      boost(w, "zeichnung");
       log(w, "zeichnung-ruht", `Zeichnung ${d.id} ruht (Überschneidung ${(d.overlap * 100).toFixed(1)} %), erbt Textur von ${t.id}`, t.id);
     }
   }
@@ -772,22 +880,46 @@ function mixTint(a: PlantObject["tint"], b: PlantObject["tint"], loss: number, m
   return strength > 0 ? { color: pureColor(hue), strength } : null;
 }
 
-function updateFactor(w: World) {
+/** Time factor from the boosts now (also right after a command: devices, photos, drawings). */
+export function updateFactor(w: World) {
   const p = w.params;
   const center = ecosystemCenter(w);
   const items =
     w.photos.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length +
     w.drawings.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length;
-  const inhalt = Math.min(items, p.contentBoostMaxItems) * p.contentBoostPerItem;
+  // right after planting, photos and drawings speed the plant up more
+  const early = 1 + (p.earlyContentFactor - 1) * earlyShare(w, p.earlyContentHours);
+  const inhalt = Math.min(items, p.contentBoostMaxItems) * p.contentBoostPerItem * early;
   let ereignisse = 0;
-  for (const b of w.boosts) ereignisse += b.strength * Math.max(0, (b.until - w.calendar) / (b.until - b.start));
-  const hinschauen = w.viewers * p.viewerBoost;
+  for (const b of w.boosts) ereignisse += b.strength * Math.max(0, (b.until - w.calendar) / (b.until - b.start)) * early;
+  const hinschauen = Math.min(w.viewers, p.viewerMaxDevices) * p.viewerBoost;
   w.factorParts = { inhalt, ereignisse, hinschauen };
-  w.factor = Math.min(p.maxFactor, 1 + inhalt + ereignisse + hinschauen);
+  // photos and drawings have their own cap, devices never take from it
+  w.factor = 1 + Math.min(p.contentMaxBoost, inhalt + ereignisse) + hinschauen;
+  // the fast line, always: up to pioneerContentMaxItems photos and drawings count, events
+  // fastEventFactor times, within its own higher cap; right after planting the cap is higher
+  // still and all its boosts count pioneerBoostFactor times, both fading back with the other
+  // extra boosts of the first half hour
+  const share = earlyShare(w, p.pioneerBoostHours);
+  const inhaltFast = Math.min(items, p.pioneerContentMaxItems) * p.contentBoostPerItem * early;
+  const capFast = p.fastContentMaxBoost + (p.pioneerEarlyContentMax - p.fastContentMaxBoost) * share;
+  const contentFast = Math.min(capFast, inhaltFast + ereignisse * p.fastEventFactor);
+  w.pioneerFactor = 1 + (1 + (p.pioneerBoostFactor - 1) * share) * (contentFast + hinschauen);
 }
 
-function boost(w: World, kind: "foto" | "zeichnung") {
+/** How much of an extra boost of the first hours after planting is left: 1 until
+ *  earlyFadeFromHours, then falling linearly to 0 at `hours` (calendar time). */
+function earlyShare(w: World, hours: number): number {
+  const h = w.calendar * 24, from = Math.min(w.params.earlyFadeFromHours, hours);
+  if (h >= hours) return 0;
+  if (h <= from) return 1;
+  return (hours - h) / (hours - from);
+}
+
+/** A new photo or drawing in the feed radius speeds the ecosystem up the moment it is made. */
+function boost(w: World, kind: "foto" | "zeichnung", pos: Vec3) {
   const p = w.params;
+  if (w.phase === "ende" || dist2d(pos, ecosystemCenter(w)) > p.feedRadius) return;
   w.boosts.push({ kind, strength: p.eventBoost, start: w.calendar, until: w.calendar + p.eventBoostDays });
 }
 
@@ -801,10 +933,72 @@ function pendingCopyTriangles(w: World): number {
   return n;
 }
 
-function largest(w: World, filter: (o: PlantObject) => boolean): PlantObject | null {
-  let best: PlantObject | null = null;
-  for (const o of w.objects) if (o.state !== "tot" && !o.origin && !o.busy && filter(o) && (!best || o.triangles > best.triangles)) best = o;
+/** The object with the most triangles (× weight, e.g. the fast line's halving affinity). */
+function largest(w: World, filter: (o: PlantObject) => boolean, weight: (o: PlantObject) => number = () => 1): PlantObject | null {
+  let best: PlantObject | null = null, bestScore = -Infinity;
+  for (const o of w.objects) {
+    if (o.state === "tot" || o.origin || o.busy || !filter(o)) continue;
+    const score = o.triangles * weight(o);
+    if (score > bestScore) { best = o; bestScore = score; }
+  }
   return best;
+}
+
+/** Footprint on the ground of an object fully grown: centre offset from pos and half extents (x, z). */
+function footprint(o: PlantObject) {
+  const grow = o.grow; o.grow = 1;
+  const b = worldBounds(o); o.grow = grow;
+  return { ox: (b.min[0] + b.max[0]) / 2 - o.pos[0], oz: (b.min[2] + b.max[2]) / 2 - o.pos[2], hx: (b.max[0] - b.min[0]) / 2, hz: (b.max[2] - b.min[2]) / 2 };
+}
+
+type Footprint = ReturnType<typeof footprint> & { x: number; z: number };
+const placed = (o: PlantObject): Footprint => { const f = footprint(o); return { ...f, x: o.pos[0] + f.ox, z: o.pos[2] + f.oz }; };
+/** Gap between two footprints (0 when they touch or overlap). */
+const gapOf = (a: Footprint, b: Footprint) =>
+  Math.hypot(Math.max(0, Math.abs(a.x - b.x) - a.hx - b.hx), Math.max(0, Math.abs(a.z - b.z) - a.hz - b.hz));
+const overlaps = (a: Footprint, b: Footprint) => Math.abs(a.x - b.x) < a.hx + b.hx && Math.abs(a.z - b.z) < a.hz + b.hz;
+
+/** A Vorläufer stands close to the others (footprints at most pioneerGap apart, not
+ *  overlapping) and at least pioneerOriginGap away from every origin object. The
+ *  first one stands as near to the planting point as allows room for the group
+ *  around it (the origin objects stand in a ring, its middle is too small). */
+function placePioneer(w: World, child: PlantObject, rng: Rng) {
+  const p = w.params;
+  const f = footprint(child);
+  const at = (x: number, z: number): Footprint => ({ ...f, x, z });
+  const origins = w.objects.filter((o) => o.origin && o.state !== "tot").map(placed);
+  const others = w.objects.filter((o) => o.fast && o !== child && o.state !== "tot" && !o.pose).map(placed);
+  const clearOfOrigins = (c: Footprint, room = 0) => origins.every((g) => gapOf(c, g) >= p.pioneerOriginGap + room);
+  let best: Footprint | null = null, bestD = Infinity;
+  if (!others.length) {
+    const room = p.originMaxSize + p.pioneerGap; // a neighbour fits between it and the origin objects
+    for (let r = 0; r <= 10 && !best; r += 0.05) {
+      const start = rng.range(0, Math.PI * 2), n = Math.max(1, Math.ceil((r * Math.PI * 2) / 0.1));
+      for (let k = 0; k < n; k++) {
+        const a = start + (k / n) * Math.PI * 2, c = at(w.plantingPoint[0] + Math.cos(a) * r, w.plantingPoint[2] + Math.sin(a) * r);
+        if (clearOfOrigins(c, room)) { best = c; break; }
+      }
+    }
+  } else {
+    // around the others: right next to one of them in a random direction, plus a random gap;
+    // of the fitting places the one nearest to the group's middle
+    const mx = others.reduce((n, o) => n + o.x, 0) / others.length, mz = others.reduce((n, o) => n + o.z, 0) / others.length;
+    // if nothing fits, the gap to the group may grow (never the one to the origin objects)
+    for (let maxGap = p.pioneerGap; !best && maxGap <= 4; maxGap *= 2) {
+      for (let t = 0; t < 400; t++) {
+        const o = others[Math.floor(rng.next() * others.length)], a = rng.range(0, Math.PI * 2), ux = Math.cos(a), uz = Math.sin(a);
+        let r = 0;
+        while (overlaps(at(o.x + ux * r, o.z + uz * r), o) && r < 10) r += 0.01;
+        r += rng.range(0, maxGap);
+        const c = at(o.x + ux * r, o.z + uz * r);
+        if (others.some((q) => overlaps(c, q)) || !clearOfOrigins(c)) continue;
+        if (Math.min(...others.map((q) => gapOf(c, q))) > maxGap) continue;
+        const d = Math.hypot(c.x - mx, c.z - mz);
+        if (d < bestD) { best = c; bestD = d; }
+      }
+    }
+  }
+  if (best) child.pos = [best.x - f.ox, 0, best.z - f.oz];
 }
 
 function nearest(objs: PlantObject[], pos: Vec3): PlantObject | null {
@@ -833,6 +1027,26 @@ export function overlapOf(d: Drawing, o: PlantObject): number {
 
 // ---------------------------------------------------------------- job results
 
+/** A pair's journey from the pose of B inside the fused model (bMatrix) and the fused model's
+ *  bounds (`fused`, estimated from the pose or the real ones): A rises with the fusion (more
+ *  when the result has few triangles) and is fitted under the height limit; B travels into
+ *  its place in A's final model frame. */
+function startJourney(w: World, pair: World["pairs"][number], o: PlantObject, partner: PlantObject, fused: ModelVersion, bMatrix: number[] | undefined, triangles: number) {
+  const p = w.params, rng = createRng(w.rngState);
+  const after: PlantObject = { ...o, glb: fused.glb, triangles, min: fused.min, max: fused.max, pose: null };
+  after.lift = o.lift + (fused.min[1] - o.min[1]) * o.scale;
+  const mult = Math.min(p.riseMaxMult, Math.max(1, p.riseLowPolyRef / Math.max(1, triangles)));
+  after.lift += rng.vary(p.riseStep, p.riseVariance) * mult;
+  fitSize(after, p);
+  w.rngState = rng.state();
+  pair.aFrom = decompose(modelMatrix(o));
+  pair.aTo = decompose(modelMatrix(after));
+  pair.aLift = after.lift; pair.aScale = after.scale;
+  pair.from = decompose(modelMatrix(partner));
+  pair.to = bMatrix ? decompose(multiply(modelMatrix(after), bMatrix)) : pair.from;
+  pair.start = w.eigen;
+}
+
 export function applyJob(w: World, result: JobResult) {
   const idx = w.jobs.findIndex((j) => j.id === result.jobId);
   if (idx < 0) return;
@@ -843,29 +1057,15 @@ export function applyJob(w: World, result: JobResult) {
   o.busy = false;
   if (job.recipe && job.recipe !== "copy" && job.recipe !== "reduce") w.stepsSeen[job.recipe] = (w.stepsSeen[job.recipe] ?? 0) + 1;
   const [a, b] = result.outputs;
-  if (job.kind === "fuse") {
-    const pair = w.pairs.find((x) => x.jobId === job.id);
+  if (job.kind === "pose" || job.kind === "fuse") {
+    const pair = w.pairs.find((x) => (job.kind === "pose" ? x.poseJobId : x.jobId) === job.id);
     const partner = w.objects.find((x) => x.id === job.partnerId);
     if (pair && partner) {
-      pair.result = a; // the pair stays busy until the swap
-      // A after the fusion: same model frame, then risen with the fusion
-      // (more when the result has few triangles) and fitted under the height limit
-      const p = w.params, rng = createRng(w.rngState);
-      const after: PlantObject = { ...o, glb: a.glb, triangles: a.triangles, min: a.min, max: a.max, pose: null };
-      after.lift = o.lift + (a.min[1] - o.min[1]) * o.scale;
-      const mult = Math.min(p.riseMaxMult, Math.max(1, p.riseLowPolyRef / Math.max(1, a.triangles)));
-      after.lift += rng.vary(p.riseStep, p.riseVariance) * mult;
-      fitSize(after, p);
-      w.rngState = rng.state();
-      pair.aFrom = decompose(modelMatrix(o));
-      pair.aTo = decompose(modelMatrix(after));
-      pair.aLift = after.lift; pair.aScale = after.scale;
-      // B's target: A's final model frame × B's place inside the result
-      pair.from = decompose(modelMatrix(partner));
-      pair.to = result.bMatrix ? decompose(multiply(modelMatrix(after), result.bMatrix)) : pair.from;
-      pair.start = w.eigen;
+      // the pose (or, should it be missing, the fused model) fixes where both go: the journey starts
+      if (pair.start === null) startJourney(w, pair, o, partner, a, result.bMatrix, pair.expectedTriangles);
+      if (job.kind === "fuse") pair.result = a; // swapped on arrival
     }
-    o.busy = true;
+    o.busy = true; // the pair stays busy until the swap
     return;
   }
   if (job.kind === "copy" && job.spawn) {
@@ -896,10 +1096,14 @@ export function applyJob(w: World, result: JobResult) {
     const maxTilt = (p.keimTiltPerGeneration * Math.max(0, gen - 1) * Math.PI) / 180;
     if (maxTilt > 0) child.tilt = { angle: rng.range(0, maxTilt), dir: rng.range(0, Math.PI * 2) };
     fitSize(child, p); // copies keep within the size limits too (origin objects keep their size)
+    if (job.pioneer) { child.fast = true; placePioneer(w, child, rng); }
     w.rngState = rng.state();
     w.objects.push(child);
     log(w, "kopie", `${o.id} kopiert sich: ${child.id}, Generation ${child.generation}${child.generation === o.generation ? " (gleiche Generation)" : ""}${child.voxelCells ? `, voxelisiert mit ${child.voxelCells} Zellen` : ""} (${child.triangles} Dreiecke)`, child.id);
   } else if (job.kind === "compress" || job.kind === "crush") {
+    const p = w.params;
+    // in the descent: too small to halve and the compression hardly took anything away — it cannot get smaller
+    if (job.kind === "compress" && !o.origin && (w.phase === "abstieg" || w.phase === "verfall") && o.triangles < p.minTrianglesToHalve && a.triangles > o.triangles * p.stuckKeep) o.stuck = true;
     Object.assign(o, { glb: a.glb, triangles: a.triangles, min: a.min, max: a.max });
     if (job.kind === "crush") o.crushLevel = job.level ?? o.crushLevel + 1;
   } else if (job.kind === "split" && b) {
@@ -913,7 +1117,7 @@ export function applyJob(w: World, result: JobResult) {
     const p = w.params;
     Object.assign(twin, half(b, -1), {
       scale: o.scale, lift: o.lift + (b.min[1] - o.min[1]) * o.scale + rng.vary(p.halvingRise, p.riseVariance),
-      grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
+      grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, fast: o.fast, shrinkBase: o.shrinkBase, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
       photo: o.photo ? { ...o.photo, halvedSince: true } : null,
     });
     const liftA = o.lift + (a.min[1] - o.min[1]) * o.scale; // keeps its place inside the model

@@ -12,9 +12,16 @@ import { modelMatrix } from "../sim/world";
 import { decompose } from "../sim/pose";
 
 type Obj = PlantObject & { sway: number; swayPeriod: number };
+const REALTIME = 1 / 1440; // one calendar day per day (npm run sandbox -- --speed echtzeit)
+const REALTIME_STEPS = [1, 2, 4, 8]; // the select's "echtzeit", "echtzeit2", … options
+const speedValue = (v: string) => (v.startsWith("echtzeit") ? REALTIME * Number(v.slice(8) || 1) : Number(v));
+const speedOption = (speed: number) => {
+  const k = REALTIME_STEPS.find((n) => Math.abs(speed - REALTIME * n) < 1e-12);
+  return k ? `echtzeit${k > 1 ? k : ""}` : String(speed);
+};
 interface State {
   run: { dir: string; commit: string; fuseMode: string | null; speed: number; paused: boolean; waitingFor: { id: number; kind: string; objectId: string; partnerId?: string } | null };
-  phase: string; eigen: number; calendar: number; factor: number;
+  phase: string; eigen: number; calendar: number; factor: number; pioneerFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
   viewers: number; plantingPoint: Vec3; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
   triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
@@ -26,7 +33,7 @@ interface State {
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const fmt = (n: number, d = 0) => n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
 const PHASE: Record<string, string> = { wachstum: "Wachstum", plateau: "Plateau", abstieg: "Abstieg", verfall: "Verfall", ende: "Vergangen" };
-const KIND: Record<string, string> = { copy: "Kopie", compress: "Komprimierung", split: "Halbierung", crush: "Crush", fuse: "Verschmelzung" };
+const KIND: Record<string, string> = { copy: "Kopie", compress: "Komprimierung", split: "Halbierung", crush: "Crush", pose: "Pose", fuse: "Verschmelzung" };
 const STATE_COLOR: Record<string, number> = { keimling: 0x8fbf72, aktiv: 0x2e6a4c, verwelkend: 0xc08a2c, tot: 0x9aa19c };
 
 // ---------------------------------------------------------------- scene
@@ -440,7 +447,7 @@ function hud(s: State) {
   const fp = s.factorParts;
   $("clock").innerHTML = [
     ["Kalendertag", fmt(s.calendar, 2)], ["Eigenzeit", fmt(s.eigen, 2)],
-    ["Zeitfaktor", `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})`],
+    ["Zeitfaktor", `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.pioneerFactor !== s.factor ? `, Vorläufer ${fmt(s.pioneerFactor, 2)} ×` : ""}`],
     ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.budget)} (Komprimierung ab ${fmt(s.compressAt)}, Halbieren unter ${fmt(s.halvingAt)})`],
     ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung`],
     ["Geräte", String(s.viewers)],
@@ -450,7 +457,7 @@ function hud(s: State) {
   $("pause").classList.toggle("on", s.run.paused);
   const sel = $<HTMLSelectElement>("speed");
   if (document.activeElement !== sel) {
-    const v = String(s.run.speed);
+    const v = speedOption(s.run.speed);
     if (![...sel.options].some((o) => o.value === v)) sel.add(new Option(`${fmt(s.run.speed, 2)} Tage/min`, v));
     sel.value = v;
   }
@@ -488,7 +495,10 @@ async function cmd(body: Record<string, unknown>) {
   await fetch("/api/cmd", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 }
 $("pause").addEventListener("click", () => cmd({ type: state?.run.paused ? "resume" : "pause" }));
-$("speed").addEventListener("change", (e) => cmd({ type: "speed", value: Number((e.target as HTMLSelectElement).value) }));
+$("speed").addEventListener("change", (e) => {
+  const v = (e.target as HTMLSelectElement).value;
+  cmd({ type: "speed", value: speedValue(v) });
+});
 $("viewer-add").addEventListener("click", () => cmd({ type: "viewers", delta: 1 }));
 $("viewer-remove").addEventListener("click", () => cmd({ type: "viewers", delta: -1 }));
 $("photo-add").addEventListener("click", () => cmd({ type: "addPhoto" }));
@@ -523,7 +533,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   const o = n ? views.get(n.userData.objectId)?.data : undefined;
   if (!o) { tip.style.display = "none"; return; }
   tip.style.display = "block"; tip.style.left = `${e.clientX + 14}px`; tip.style.top = `${e.clientY + 14}px`;
-  tip.innerHTML = `<b>${o.id}</b> · ${o.lineage}${o.origin ? " · Ursprung" : ""}<br>${o.state}, ${fmt(o.triangles)} Dreiecke<br>` +
+  tip.innerHTML = `<b>${o.id}</b> · ${o.lineage}${o.origin ? " · Ursprung" : ""}${o.fast ? " · schnelle Linie" : ""}<br>${o.state}, ${fmt(o.triangles)} Dreiecke<br>` +
     `Generation ${o.generation}${o.voxelCells ? ` (Voxel, ${o.voxelCells} Zellen)` : ""}, ${o.fusions} Verschmelzungen, ${o.halvings} Halbierungen<br>Crush ${o.crushLevel}, Höhe über Boden ${fmt(o.lift, 2)} m, Skalierung ${fmt(o.scale, 2)}${o.tilt ? `, Neigung ${fmt((o.tilt.angle * 180) / Math.PI, 1)}°` : ""}<br>${o.tint ? `Leuchtfarbe <span style="color:rgb(${o.tint.color.map((c) => Math.round(c * 255)).join(",")})">■</span> ${fmt(o.tint.strength * 100)} % (Intensität ${fmt(tintIntensity(o.tint), 3)}), ` : ""}Grain ${fmt(grainOf(o.triangles), 3)}, Schweben ${fmt(o.sway * 100, 1)} cm alle ${fmt(o.swayPeriod, 1)} s` +
     (o.photo ? `<br>Foto ${o.photo.photoId}` : "") + `<br><span class="muted">${o.glb}</span>`;
 });

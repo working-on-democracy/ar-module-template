@@ -8,7 +8,7 @@ import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CRUSH, STYLIZE_COPY } from "../sim/recipes";
-import type { JobRequest, JobResult, ModelVersion, World } from "../sim/types";
+import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "../sim/types";
 import { glbInfo } from "./glb-info";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -53,8 +53,9 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     }
     const rel = out(`-kopie-${job.recipe ?? "reduce"}`);
     if (job.recipe === "p2") { // Phase 2; texture seams can stop it far above the target (Muschel-Vase, Rucksack): then permissive
-      await stylize(o.glb, rel, STYLIZE_COPY.faces);
-      if ((await glbInfo(abs(rel))).triangles > STYLIZE_COPY.faces * 1.5) await stylize(o.glb, rel, STYLIZE_COPY.faces, ["--permissive"]);
+      const faces = job.faces ?? STYLIZE_COPY.faces; // a Vorläufer of generation 2 gets fewer
+      await stylize(o.glb, rel, faces);
+      if ((await glbInfo(abs(rel))).triangles > faces * 1.5) await stylize(o.glb, rel, faces, ["--permissive"]);
     } else if (job.recipe === "copy") copyFileSync(abs(o.glb), abs(rel)); // same generation: a plain copy
     else await reduce(o.glb, rel, o.triangles * (job.keep ?? 1));
     return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
@@ -86,8 +87,9 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     }
     return { jobId: job.id, outputs: [await version(opt.runDir, halves[0]), await version(opt.runDir, halves[1])] };
   }
-  // fuse (Phase 3, 4, 6, 7, 8, 10): union of both — B posed by the script
-  // around A, height-matched — then the step's own reduction or stylization
+  // pose and fuse (Phase 3, 4, 6, 7, 8, 10): union of both — B posed by the script around A,
+  // height-matched — then the step's own reduction or stylization. Both with the same
+  // arguments and seed, so the pose found first is the one the fusion uses.
   const b = w.objects.find((x) => x.id === job.partnerId);
   if (!b) return { jobId: job.id, outputs: [await version(opt.runDir, o.glb)] };
   const raw = out("-fuse-roh");
@@ -95,9 +97,18 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     "--overlap", job.overlap ?? "0.05-0.6", "--min-fill", "0.15", "--repair", "--out", abs(raw)];
   // B grows to A's height (after its rotation), but never more than maxGrowFactor in the world
   if (w.params.fuseMatchHeight) args.push("--match-height", "--max-scale", String((w.params.maxGrowFactor * b.scale) / o.scale));
+  const matrixOf = (log: string) => {
+    const m = log.match(/B matrix \(column-major[^)]*\): (\[[^\]]+\])/);
+    return m ? (JSON.parse(m[1]) as number[]) : undefined;
+  };
+  if (job.kind === "pose") { // the quick part: where B goes, and the result's estimated bounds
+    const log = await script("glb-fuse.ts", [...args, "--pose-only"]);
+    const box = log.match(/result box \(estimate\): (\{.*\})/);
+    const est = box ? (JSON.parse(box[1]) as { min: Vec3; max: Vec3 }) : { min: o.min, max: o.max };
+    return { jobId: job.id, outputs: [{ glb: o.glb, triangles: o.triangles, min: est.min, max: est.max }], bMatrix: matrixOf(log) };
+  }
   const log = await script("glb-fuse.ts", args);
-  const m = log.match(/B matrix \(column-major[^)]*\): (\[[^\]]+\])/);
-  const bMatrix = m ? (JSON.parse(m[1]) as number[]) : undefined;
+  const bMatrix = matrixOf(log);
   const rel = out(`-fuse-${job.recipe ?? ""}`);
   const post = job.fusePost ?? { kind: "reduce", target: o.triangles + b.triangles };
   if (post.kind === "reduce") await reduce(raw, rel, post.target);

@@ -36,6 +36,25 @@ export const PARAMS = {
   voxelCellsFactor: 0.5, // × per further generation (rounded, at least 1 cell): 24, 12, 6, 3, 2, 1
   voxelTargetDays: 8, // voxel generations begin once the count rises above the halving threshold (halvingAtShare); the last (single cube) this many Eigentage after that
   voxelCopiesPerGeneration: 1, // copies per line of every voxel generation; a fraction rounds up (1.5 → 2). Plain generations get many more, at the rate
+  // the first Keimlinge (Vorläufer): one per origin object, randomly assigned, two per generation (1, 1, 2, 2, 3),
+  // copied straight from the origin, staggered; they make no copies themselves. They and everything fused
+  // or halved from them form the fast line: growing, pairing and travelling to a partner faster, halved likelier
+  pioneerCount: 5, // 0 = none
+  pioneerStaggerMinutes: 1, // Eigenminuten between two of them (1 real minute at factor 1); the first right at planting
+  pioneerLeadDays: 0, // computing lead of the Vorläufer, of every line's first plain Keimling and of the Vorläufer's opening fusions: used as soon as the model is ready (the clock waits for it)
+  pioneerGrowSpeed: 2, // × faster rising out of the ground
+  pioneerFuseSpeed: 2, // × the pairing rate and × faster to the partner, whenever one of the pair is of the fast line
+  pioneerHalvingAffinity: 2, // × weight when choosing what is halved
+  firstFuseSpeed: 16, // the Vorläufer's opening (their three fusions among themselves): × faster to the partner on top of pioneerFuseSpeed …
+  firstFuseEaseK: 1, // … on a flatter curve (fuseEaseK otherwise): movement shows earlier
+  pioneerBoostHours: 0.5, // CALENDAR hours after planting in which the boosts act on the fast line …
+  pioneerBoostFactor: 8, // … this many times as strongly (growing, deciding on a partner)
+  pioneerEarlyContentMax: 30, // … and photos and drawings may add up to this for them (instead of fastContentMaxBoost), fading back with the other extra boosts
+  pioneerContentMaxItems: 20, // the fast line counts up to this many photos and drawings for the continuous boost, always
+  fastEventFactor: 1, // event boosts (a new photo or drawing) count this many times for the fast line, always
+  fastContentMaxBoost: 21, // photos and drawings may add up to this for the fast line (contentMaxBoost for everything else): it takes in more events before its cap
+  pioneerOriginGap: 0.5, // m at least between their footprints and any origin object's
+  pioneerGap: 0.2, // m at most between their footprint and the nearest other Vorläufer's
 
   // --- computing: a result is used this long after its job was requested (the
   // clock keeps running meanwhile and only stops if it is not ready by then)
@@ -100,8 +119,11 @@ export const PARAMS = {
   gatherStop: 0.3, // m from the planting point (plus half the object's width)
   halvingRepelPerDay: 0.04, // m per Eigentag: the two halves of a halving push each other away (added to the drift) …
   halvingRepelRange: 1.5, // … weaker with distance, none beyond this many metres
-  // decay: everything sinks slowly back to the ground
-  decaySinkPerDay: 0.1, // m per Eigentag
+  // decay: the drift to the planting point stops, the halves push apart this many times as strongly,
+  // and wilting objects shrink slowly, down to decayShrinkMin of their size
+  decayRepelFactor: 2,
+  decayShrinkPerDay: 0.015, // fraction of their size at the start of the decay, per Eigentag
+  decayShrinkMin: 0.7,
 
   // --- intensified compression (near the budget, accumulating time account)
   compressAtShare: 0.915, // of the budget: above this the account runs (also: the plateau is reached here)
@@ -121,6 +143,7 @@ export const PARAMS = {
   halvingAtShare: 0.73, // of the budget: in the descent, halving begins below this
   halvingEveryDays: 1.5,
   halvingVariance: 0.3,
+  halvingRateRisePerDay: 0.05, // the halving rate rises gradually: × (1 + this × Eigentage since halving began)
   minTrianglesToHalve: 600,
   smallWiltPerDay: 0.5, // in the descent, objects too small to halve wilt with this chance per Eigentag
 
@@ -128,6 +151,7 @@ export const PARAMS = {
   crushEveryDays: 1.0, // a wilting object's crush level goes up this often
   maxCrushLevel: 1, // wilting texture crush (Phase 9) this often; halvings from the second on crush again (Phase 13)
   deathTriangles: 30, // a wilting object below this dies
+  stuckKeep: 0.95, // in the descent, a compression that keeps more than this share of an object too small to halve: it cannot get any smaller and dies
   lingerDays: 2.0, // dead objects stay visible this long
 
   // --- photos
@@ -148,13 +172,17 @@ export const PARAMS = {
   feedRadius: 15, // around the moving centre: watching + feeding
   exclusionRadius: 100, // around the planting point
 
-  // --- time scale and boosts (factor = 1 + boosts, capped)
+  // --- time scale and boosts: factor = 1 + photos and drawings (capped) + devices (counted up to a number); the two never take from each other
   contentBoostPerItem: 0.05, // continuous: per photo/drawing in the feed radius
   contentBoostMaxItems: 10,
-  eventBoost: 2, // texture inheritance photo→plant or plant→drawing
+  eventBoost: 2, // a photo or drawing made in the feed radius, from the moment it is made
   eventBoostDays: 0.25, // calendar days, decays linearly
   viewerBoost: 1.5, // per device in the feed radius, only while present
-  maxFactor: 8,
+  viewerMaxDevices: 10, // no more devices counted than this
+  earlyContentHours: 0.5, // CALENDAR hours after planting in which the boosts from photos and drawings (content + events) count …
+  earlyContentFactor: 2, // … this many times
+  earlyFadeFromHours: 1 / 3, // CALENDAR hours: from here the extra boosts of the first half hour (earlyContent*, pioneerBoost*) fade out linearly, gone at their end
+  contentMaxBoost: 7, // photos and drawings (continuous + events) add at most this to the factor
 };
 
 export type Params = typeof PARAMS;

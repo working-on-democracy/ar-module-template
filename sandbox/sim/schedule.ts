@@ -20,9 +20,9 @@ export function useDueResults(w: World, ready: Map<number, JobResult>): JobReque
   return null;
 }
 
-/** One step, unless a due result is missing. Returns the new job requests, or the job it waits for. */
-export function advance(w: World, ready: Map<number, JobResult>): { jobs: JobRequest[] } | { waiting: JobRequest } {
+/** One step (of `quantum` calendar days), unless a due result is missing. Returns the new job requests, or the job it waits for. */
+export function advance(w: World, ready: Map<number, JobResult>, quantum = QUANTUM): { jobs: JobRequest[] } | { waiting: JobRequest } {
   const waiting = useDueResults(w, ready);
   if (waiting) return { waiting };
-  return { jobs: step(w, QUANTUM) };
+  return { jobs: step(w, quantum) };
 }

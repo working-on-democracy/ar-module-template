@@ -66,6 +66,12 @@ export interface PlantObject extends ModelVersion {
   pose: Pose | null;
   /** Voxel grid it was copied with (Keimling end stage), null = not voxelized. */
   voxelCells: number | null;
+  /** Fast line: one of the first Keimlinge (Vorläufer) or fused/halved from one — grows, pairs and travels faster, halved likelier. */
+  fast: boolean;
+  /** Scale when it began shrinking in the decay (it shrinks to decayShrinkMin × this); null = not yet. */
+  shrinkBase: number | null;
+  /** A compression could not make it smaller and it is too small to halve: it dies. */
+  stuck: boolean;
 }
 
 /** History of an object, for counting: Keimling, untouched, fused n times, halved. */
@@ -75,10 +81,19 @@ export type ObjectKind = "ursprung" | "keimling" | "voxelkeimling" | "unveraende
 export interface Pair {
   a: string;
   b: string;
+  /** The fusion job (its result is used on arrival). */
   jobId: number;
+  /** The pose job (used at once: the journey starts). */
+  poseJobId: number;
+  /** Triangles the fused model is expected to have (for the rise before it is known). */
+  expectedTriangles: number;
+  /** One of the Vorläufer's opening fusions (no computing lead, faster, flatter curve). */
+  opening?: boolean;
   /** Eigenzeit the journey began: once the fused model (and so B's pose in it) is known. */
   start: number | null;
   duration: number;
+  /** Easing of the journey (fuseEaseK; flatter for the fast line's first fusion). */
+  easeK: number;
   from: Pose | null;
   to: Pose | null;
   /** A's model frame now and after the fusion (risen, sunk or shrunk to the height limit). */
@@ -126,7 +141,8 @@ export interface Boost {
   until: number;
 }
 
-export type JobKind = "copy" | "compress" | "split" | "crush" | "fuse";
+/** pose: only where B goes inside the fused model (quick), before the fusion itself. */
+export type JobKind = "copy" | "compress" | "split" | "crush" | "pose" | "fuse";
 
 export interface JobRequest {
   id: number;
@@ -161,6 +177,12 @@ export interface JobRequest {
   partnerId?: string;
   /** fuse: scale of the partner after growing to the larger one's height. */
   partnerScale?: number;
+  /** copy: one of the first Keimlinge (Vorläufer), placed close to the others when it arrives. */
+  pioneer?: boolean;
+  /** copy: used as soon as it is ready, no computing lead (Vorläufer, first round of plain Keimlinge). */
+  immediate?: boolean;
+  /** copy, recipe p2: stylize to this many faces instead of STYLIZE_COPY.faces. */
+  faces?: number;
 }
 
 export interface JobResult {
@@ -241,6 +263,14 @@ export interface World {
   plateauSince: number | null;
   /** Eigenzeit the voxel generations began: the count rose above halvingAt during growth (null before). */
   voxelSince: number | null;
+  /** The first Keimlinge still to be requested: origin object, generation, Eigenzeit. */
+  pioneerQueue: { origin: string; generation: number; at: number }[];
+  /** Origin lines whose first plain Keimling has been requested (that one has no computing lead). */
+  firstRoundDone: Record<string, boolean>;
+  /** The Vorläufer's opening fusions: first pair, a second pair halfway through, then the first result with the last one. */
+  opening: { stage: "warten" | "erstes" | "zweites" | "drittes" | "fertig"; first: number | null; firstA: string | null };
+  /** Eigenzeit halving began (null before): its rate rises from there. */
+  halvingSince: number | null;
   pairs: Pair[];
   /** The first pair forms without waiting for chance; from then on the pairing rate applies. */
   firstPairFormed: boolean;
@@ -259,5 +289,7 @@ export interface World {
   /** Scenario entries still waiting for their calendar day. */
   scheduled: ScheduledEntry[];
   factor: number;
+  /** Time factor of the fast line: the boosts act more strongly on it right after planting (pioneerBoost*). */
+  pioneerFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
 }

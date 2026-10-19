@@ -3,7 +3,7 @@
 //
 //   --values <file.json>  values copied from the Lebenszyklus-Rechner ("Werte kopieren")
 //   --seed <n>            overrides the seed from the values
-//   --speed <x>           calendar days per real minute (default 1)
+//   --speed <x>           calendar days per real minute, or echtzeit = real time (1/1440, default), echtzeit2/4/8 = that many times
 //   --fuse <mode>         force one mode for every fusion: hart (~5–15 s) | weich (rounded, 30–100 s) | voxel;
 //                         default: an object's first fusion hard, later ones soft
 //   --port <n>            default 5180
@@ -28,7 +28,7 @@ import { createRng } from "./sim/rng";
 import { advance, QUANTUM } from "./sim/schedule";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
 import {
-  addDrawing, addPhoto, createWorld, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles,
+  addDrawing, addPhoto, createWorld, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
 } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -50,7 +50,10 @@ const scenarioValues: ScenarioValues = { ...SCENARIO_DEFAULTS, ...(input.scenari
 if (args.seed) scenarioValues.seed = Number(args.seed);
 const starters: string[] = input.starters ?? DEFAULT_STARTERS;
 const fuseMode = (args.fuse ?? null) as "hart" | "weich" | "voxel" | null; // null: first fusion hard, later ones soft (params)
-let speed = Number(args.speed ?? 1); // calendar days per real minute
+const REALTIME = 1 / 1440; // one calendar day per day
+// calendar days per real minute; echtzeit (default), echtzeit2, echtzeit4, echtzeit8 = that many times real time
+const rt = /^(?:echtzeit|realtime)(\d*)$/.exec(args.speed ?? "echtzeit");
+let speed = rt ? REALTIME * Number(rt[1] || 1) : Number(args.speed);
 let paused = false;
 const port = Number(args.port ?? 5180);
 
@@ -102,6 +105,8 @@ function enqueue(jobs: JobRequest[]) {
 }
 
 function pump() {
+  // the most urgent first: a pose is due at once (the journey waits for it), a copy or fusion later
+  queue.sort((a, b) => a.dueAt - b.dueAt || a.id - b.id);
   while (running.size < CONCURRENCY && queue.length) {
     const job = queue.shift()!;
     running.set(job.id, { job, since: Date.now() });
@@ -115,15 +120,21 @@ function pump() {
   }
 }
 
-/** A failed job: the objects are released unchanged, a fusion pair dissolves. */
+/** A failed job: the objects are released unchanged, a fusion pair dissolves (with its other job). */
 function dropJob(job: JobRequest) {
-  w.jobs = w.jobs.filter((j) => j.id !== job.id);
-  ready.delete(job.id);
+  const pair = w.pairs.find((p) => p.jobId === job.id || p.poseJobId === job.id);
+  const ids = pair ? [pair.jobId, pair.poseJobId] : [job.id];
+  w.jobs = w.jobs.filter((j) => !ids.includes(j.id));
+  for (const id of ids) ready.delete(id);
+  for (let i = queue.length - 1; i >= 0; i--) if (ids.includes(queue[i].id)) queue.splice(i, 1);
   for (const id of [job.objectId, job.partnerId]) {
     const o = w.objects.find((x) => x.id === id);
     if (o) { o.busy = false; o.pairedWith = null; }
   }
-  w.pairs = w.pairs.filter((p) => p.jobId !== job.id);
+  if (pair) {
+    w.pairs = w.pairs.filter((p) => p !== pair);
+    for (const id of [pair.a, pair.b]) { const o = w.objects.find((x) => x.id === id); if (o) { o.busy = false; o.pairedWith = null; o.pose = null; } }
+  }
   w.events.push({ eigen: w.eigen, calendar: w.calendar, type: "fehler", text: `Job ${job.id} (${job.kind}) fehlgeschlagen, Objekt bleibt unverändert` });
   // a failed copy is simply not made; a failed fusion leaves both objects as they were
 }
@@ -174,18 +185,24 @@ async function photoFile(id: string, level: number): Promise<string | null> {
 // ---------------------------------------------------------------- the loop
 
 // The clock runs in fixed steps while jobs compute; it stops only when a
-// result is due and not ready yet (see sim/schedule.ts).
+// result is due and not ready yet (see sim/schedule.ts). Slow speeds take
+// smaller steps, so the plant moves and reacts at least about once a real
+// second (in real time a step of 0.01 days would be 14.4 minutes); the same
+// seed at the same speed still gives the same run.
 const TICK_MS = 100;
+const STEP_SECONDS = 1; // real seconds per step at most
+const stepDays = () => Math.min(QUANTUM, (speed / 60) * STEP_SECONDS);
 let budget = 0; // calendar days the clock may still advance
 setInterval(() => {
   if (paused || w.phase === "ende") return;
   budget += (speed / 60) * (TICK_MS / 1000);
   waitingFor = null;
-  while (budget >= QUANTUM) {
-    const r = advance(w, ready);
-    if ("waiting" in r) { waitingFor = r.waiting; budget = Math.min(budget, QUANTUM); break; }
+  const q = stepDays();
+  while (budget >= q) {
+    const r = advance(w, ready, q);
+    if ("waiting" in r) { waitingFor = r.waiting; budget = Math.min(budget, q); break; }
     enqueue(r.jobs);
-    budget -= QUANTUM;
+    budget -= q;
   }
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
@@ -208,7 +225,7 @@ function stateFor(sinceSample: number) {
       dir: runDir.replace(ROOT, ""), commit, fuseMode, speed, paused,
       waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
     },
-    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, factorParts: w.factorParts,
+    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, pioneerFactor: w.pioneerFactor, factorParts: w.factorParts,
     viewers: w.viewers, plantingPoint: w.plantingPoint, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
     budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,
@@ -231,7 +248,7 @@ function command(cmd: Record<string, unknown>) {
   switch (cmd.type) {
     case "pause": paused = true; break;
     case "resume": paused = false; break;
-    case "speed": speed = Math.max(0.05, Number(cmd.value) || speed); break;
+    case "speed": speed = Math.max(REALTIME, Number(cmd.value) || speed); break;
     case "viewers": setViewers(w, w.viewers + Number(cmd.delta ?? 0)); break;
     case "addPhoto": addPhoto(w, randomSpot()); break;
     case "addDrawing": addDrawing(w, randomSpot()); break;
@@ -239,6 +256,7 @@ function command(cmd: Record<string, unknown>) {
     case "delete": removePhoto(w, String(cmd.photoId), "gelöscht"); break;
     default: throw new Error(`unbekannter Befehl ${String(cmd.type)}`);
   }
+  updateFactor(w); // devices, photos and drawings count at once, not only at the next step
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
 }
@@ -294,6 +312,6 @@ vite = await createViteServer({
   logLevel: "warn",
 });
 http.listen(port, () => {
-  console.log(`\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${speed} Kalendertage pro Minute, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
+  console.log(`\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : `${speed} Kalendertage pro Minute`}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
 });
 enqueue(w.jobs.slice());

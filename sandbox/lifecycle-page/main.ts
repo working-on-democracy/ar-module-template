@@ -67,6 +67,24 @@ const PARAM_GROUPS: Group[] = [
     { key: "voxelTargetDays", label: "Voxel-Generationen ab der Halbierungsgrenze (im Wachstum) bis zum Würfel in", unit: "Eigentagen", step: 0.5 },
     { key: "voxelCopiesPerGeneration", label: "Kopien je Voxel-Generation", unit: "pro Linie", step: 0.5 },
   ] },
+  { title: "Vorläufer", note: "Die ersten Keimlinge: jedes Ursprungsobjekt einmal, zufällig zugeordnet, je zwei pro Generation (1, 1, 2, 2, 3) und direkt von ihm kopiert, kurz nacheinander und dicht beieinander. Sie bilden selbst keine Kopien, zählen aber zum Budget. Sie und alles, was aus ihnen verschmilzt oder halbiert wird, bilden die schnelle Linie.", fields: [
+    { key: "pioneerCount", label: "Anzahl", unit: "0 = keine", step: 1 },
+    { key: "pioneerStaggerMinutes", label: "nacheinander im Abstand von", unit: "Eigenminuten (der erste beim Pflanzen)", step: 0.5 },
+    { key: "pioneerLeadDays", label: "Rechenvorlauf (auch erste Runde normaler Keimlinge und Eröffnung)", unit: "Eigentage (0 = eingesetzt, sobald fertig)", step: 0.05 },
+    { key: "pioneerGrowSpeed", label: "wachsen schneller", unit: "fach", step: 0.5 },
+    { key: "pioneerFuseSpeed", label: "Paarbildung und Weg zum Partner schneller", unit: "fach", step: 0.5 },
+    { key: "pioneerBoostHours", label: "Boosts wirken auf sie stärker in den ersten", unit: "Stunden nach dem Pflanzen (Kalenderzeit)", step: 0.25 },
+    { key: "pioneerBoostFactor", label: "dort", unit: "× Boost-Anteil des Zeitfaktors", step: 0.5 },
+    { key: "pioneerEarlyContentMax", label: "Fotos und Zeichnungen dort höchstens", unit: "+ zum Faktor", step: 0.5 },
+    { key: "pioneerContentMaxItems", label: "schnelle Linie zählt dauerhaft bis zu", unit: "Fotos und Zeichnungen", step: 1 },
+    { key: "fastEventFactor", label: "Ereignisse wirken auf die schnelle Linie", unit: "fach (immer, 1 = wie überall)", step: 0.5 },
+    { key: "fastContentMaxBoost", label: "Fotos und Zeichnungen für die schnelle Linie höchstens", unit: "+ zum Faktor", step: 1 },
+    { key: "firstFuseSpeed", label: "Eröffnung (drei Verschmelzungen der Vorläufer) zusätzlich schneller", unit: "fach", step: 0.5 },
+    { key: "firstFuseEaseK", label: "Eröffnung: Beschleunigung k", unit: "0 = gleichmäßig", step: 0.5 },
+    { key: "pioneerHalvingAffinity", label: "werden eher halbiert", unit: "fach", step: 0.5 },
+    { key: "pioneerOriginGap", label: "Abstand zu Ursprungsobjekten mindestens", unit: "m", step: 0.05 },
+    { key: "pioneerGap", label: "Abstand zum nächsten Vorläufer höchstens", unit: "m", step: 0.05 },
+  ] },
   { title: "Verschmelzen", note: "Aktive Objekte und ausgewachsene Keimlinge. Das erste Paar bildet sich sofort, sobald zwei in Reichweite ausgewachsen sind; danach gilt die Rate. Ein Paar steht fest; das niedrigere Objekt wandert zum höheren.", fields: [
     { key: "requiredFusions", label: "Ein Objekt durchläuft mindestens", unit: "Verschmelzungen (Phase 3, 4, 7, 8, 10)", step: 1 },
     { key: "chainEveryDays", label: "Kette verschmilzt höchstens alle", unit: "Eigentage", step: 0.1 },
@@ -105,7 +123,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "fusedGrowMax", label: "bis höchstens", unit: "× Größe nach der Verschmelzung (darüber: Sinken bis zur Einsinkgrenze)", step: 0.05 },
     { key: "maxSink", label: "Einsinken höchstens", unit: "Anteil der Höhe", step: 0.05 },
   ] },
-  { title: "Schweben, Zusammenziehen, Absinken", note: "Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab; im Verfall sinken sie zum Boden.", fields: [
+  { title: "Schweben, Zusammenziehen, Abstoßen", note: "Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab. Im Verfall hört das Zusammenziehen auf, die Hälften stoßen sich stärker ab und verwelkende Objekte schrumpfen langsam.", fields: [
     { key: "swayFromTriangles", label: "Schweben ab unter", unit: "Dreiecke", step: 1000 },
     { key: "swayAmplitude", label: "Schweben bei einem Dreieck", unit: "m", step: 0.05 },
     { key: "swaySlowSeconds", label: "anfangs ein Auf und Ab in", unit: "Sekunden", step: 0.5 },
@@ -117,7 +135,9 @@ const PARAM_GROUPS: Group[] = [
     { key: "gatherStop", label: "bis zum Pflanzpunkt höchstens", unit: "m + halbe Breite", step: 0.05 },
     { key: "halvingRepelPerDay", label: "Hälften stoßen sich ab mit", unit: "m pro Eigentag", step: 0.01 },
     { key: "halvingRepelRange", label: "Abstoßen bis Abstand", unit: "m", step: 0.1 },
-    { key: "decaySinkPerDay", label: "Absinken im Verfall", unit: "m pro Eigentag", step: 0.01 },
+    { key: "decayRepelFactor", label: "Abstoßen im Verfall", unit: "fach", step: 0.5 },
+    { key: "decayShrinkPerDay", label: "Verwelkende schrumpfen im Verfall um", unit: "Anteil ihrer Größe pro Eigentag", step: 0.005 },
+    { key: "decayShrinkMin", label: "bis auf", unit: "Anteil ihrer Größe", step: 0.05 },
   ] },
   { title: "Rechnen", note: "Ein Ergebnis wird so lange nach dem Auftrag eingesetzt; in der Sandbox läuft die Uhr währenddessen weiter.", fields: [
     { key: "jobLeadDays", label: "Rechenvorlauf", unit: "Eigentage", step: 0.05 },
@@ -135,6 +155,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "halvingAtShare", label: "Halbieren unter", unit: "Anteil Budget", step: 0.01 },
     { key: "halvingEveryDays", label: "Halbieren alle", unit: "Eigentage", step: 0.1 },
     { key: "halvingVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
+    { key: "halvingRateRisePerDay", label: "Halbieren wird häufiger um", unit: "× Rate pro Eigentag seit Beginn", step: 0.01 },
     { key: "minTrianglesToHalve", label: "Halbieren erst ab", unit: "Dreiecke", step: 50 },
     { key: "smallWiltPerDay", label: "Zu Kleine verwelken mit", unit: "Wahrscheinlichkeit pro Eigentag", step: 0.05 },
   ] },
@@ -146,6 +167,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "crushEveryDays", label: "Crush-Stufe alle", unit: "Eigentage", step: 0.1 },
     { key: "maxCrushLevel", label: "Höchste Crush-Stufe", step: 1 },
     { key: "deathTriangles", label: "Tod unter", unit: "Dreiecke", step: 10 },
+    { key: "stuckKeep", label: "Tod, wenn Komprimieren mehr behält als", unit: "Anteil (nur zu klein zum Halbieren)", step: 0.01 },
     { key: "lingerDays", label: "Tote bleiben sichtbar", unit: "Eigentage", step: 0.1 },
   ] },
   { title: "Fotos", fields: [
@@ -162,13 +184,17 @@ const PARAM_GROUPS: Group[] = [
     { key: "overlapMax", label: "Überschneidung bis", unit: "Anteil", step: 0.01 },
     { key: "drawingLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
   ] },
-  { title: "Zeitmaßstab und Boosts", note: "Faktor = 1 + Inhalt + Ereignisse + Hinschauen, höchstens die Obergrenze.", fields: [
+  { title: "Zeitmaßstab und Boosts", note: "Faktor = 1 + Fotos und Zeichnungen (Inhalt + Ereignisse, höchstens ihre Grenze) + Hinschauen (höchstens so viele Geräte). Geräte nehmen Fotos und Zeichnungen nichts weg.", fields: [
     { key: "contentBoostPerItem", label: "Inhalt pro Foto/Zeichnung", step: 0.01 },
     { key: "contentBoostMaxItems", label: "Inhalt zählt bis", unit: "Stück", step: 1 },
-    { key: "eventBoost", label: "Ereignis-Boost", step: 0.1 },
+    { key: "eventBoost", label: "Ereignis-Boost", unit: "neues Foto oder neue Zeichnung im Radius", step: 0.1 },
     { key: "eventBoostDays", label: "Ereignis klingt ab in", unit: "Kalendertage", step: 0.05 },
     { key: "viewerBoost", label: "Hinschauen pro Gerät", step: 0.1 },
-    { key: "maxFactor", label: "Obergrenze Faktor", step: 0.5 },
+    { key: "earlyContentHours", label: "Fotos und Zeichnungen wirken stärker in den ersten", unit: "Stunden nach dem Pflanzen (Kalenderzeit)", step: 0.25 },
+    { key: "earlyContentFactor", label: "dort", unit: "fach", step: 0.5 },
+    { key: "earlyFadeFromHours", label: "Extra-Boosts der Anfangszeit sinken ab", unit: "Stunden (bis 0 am Ende der Anfangszeit)", step: 0.05 },
+    { key: "contentMaxBoost", label: "Fotos und Zeichnungen höchstens", unit: "+ zum Faktor", step: 0.5 },
+    { key: "viewerMaxDevices", label: "Geräte gezählt höchstens", unit: "Stück", step: 1 },
   ] },
   { title: "Raum", fields: [
     { key: "feedRadius", label: "Radius Hinschauen und Füttern", unit: "m", step: 1 },
@@ -402,7 +428,7 @@ function renderCurve(r: RunResult) {
 
   // time factor strip
   const H3 = 96, T3 = 8, B3 = 24;
-  const maxF = Math.max(p.maxFactor, 1);
+  const maxF = Math.max(8, ...S.map((s) => s.factor));
   const YF = (v: number) => T3 + (1 - v / maxF) * (H3 - T3 - B3);
   const fpath = S.map((s, k) => `${k ? "L" : "M"}${X(s.calendar).toFixed(1)} ${YF(s.factor).toFixed(1)}`).join("");
   let g3 = "";
