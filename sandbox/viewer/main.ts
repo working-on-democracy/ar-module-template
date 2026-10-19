@@ -3,16 +3,21 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { Drawing, Pair, Photo, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
 import type { Params } from "../params";
+import { modelMatrix } from "../sim/world";
+import { decompose } from "../sim/pose";
 
-type Obj = PlantObject & { sway: number };
+type Obj = PlantObject & { sway: number; swayPeriod: number };
 interface State {
-  run: { dir: string; commit: string; fuseMode: string; waitForJobs: boolean; speed: number; paused: boolean };
+  run: { dir: string; commit: string; fuseMode: string | null; speed: number; paused: boolean; waitingFor: { id: number; kind: string; objectId: string; partnerId?: string } | null };
   phase: string; eigen: number; calendar: number; factor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
   viewers: number; plantingPoint: Vec3; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
-  triangles: number; plateauMax: number; params: Params;
+  triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
   objects: Obj[]; photos: Photo[]; drawings: Drawing[]; pairs: Pair[];
   jobs: { id: number; kind: string; objectId: string; partnerId?: string; seconds: number }[]; queued: number;
   samples: Sample[]; sampleCount: number; events: SimEvent[];
@@ -29,6 +34,7 @@ const STATE_COLOR: Record<string, number> = { keimling: 0x8fbf72, aktiv: 0x2e6a4
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $("scene").appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xe9ece6);
@@ -37,13 +43,49 @@ camera.position.set(6, 5, 9);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0.6, 0);
 controls.enableDamping = true;
+// orbit about the pivot; WASD moves pivot and camera over the ground, Q/E down
+// and up, Shift faster; double-click sets the pivot on an object and moves in
+controls.minDistance = 0.3;
+controls.maxDistance = 150;
+controls.screenSpacePanning = true;
+const keys = new Set<string>();
+window.addEventListener("keydown", (e) => {
+  if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+  keys.add(e.code);
+});
+window.addEventListener("keyup", (e) => keys.delete(e.code));
+window.addEventListener("blur", () => keys.clear());
+const fwd = new THREE.Vector3(), side = new THREE.Vector3(), move = new THREE.Vector3();
+function walk(dt: number) {
+  if (!keys.size) return;
+  camera.getWorldDirection(fwd); fwd.y = 0;
+  if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+  fwd.normalize();
+  side.crossVectors(fwd, camera.up).normalize();
+  move.set(0, 0, 0);
+  if (keys.has("KeyW")) move.add(fwd);
+  if (keys.has("KeyS")) move.sub(fwd);
+  if (keys.has("KeyD")) move.add(side);
+  if (keys.has("KeyA")) move.sub(side);
+  if (keys.has("KeyE")) move.y += 1;
+  if (keys.has("KeyQ")) move.y -= 1;
+  if (!move.lengthSq()) return;
+  // faster when far away from the pivot, so both close-ups and the overview work
+  const speed = Math.max(0.6, camera.position.distanceTo(controls.target) * 0.8) * (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 3 : 1);
+  move.normalize().multiplyScalar(speed * dt);
+  camera.position.add(move); controls.target.add(move);
+  flight = null;
+}
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9a88, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 1.8);
 sun.position.set(-6, 12, 8);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20 });
+// tight depth range and both biases against shadow acne (stripes on the models' own faces)
+Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 2, far: 45 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
 scene.add(sun);
 
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshStandardMaterial({ color: 0xdfe3da, roughness: 1 }));
@@ -54,8 +96,11 @@ const grid = new THREE.GridHelper(60, 60, 0xb9c0b5, 0xcfd5cb);
 grid.position.y = 0.002;
 scene.add(grid);
 
+let pairMaterial: LineMaterial | null = null; // set below; needs the canvas size
+
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
+  pairMaterial?.resolution.set(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 }
@@ -86,8 +131,15 @@ let exclusionRing = circle(1, 0x5f6a63, 0.35);
 helpers.add(exclusionRing);
 const bboxHelper = new THREE.Box3Helper(new THREE.Box3(), new THREE.Color(0x8a948c));
 helpers.add(bboxHelper);
-const pairLines = new THREE.LineSegments(new THREE.BufferGeometry(), lineMat(0x1c221e, 0.6));
-helpers.add(pairLines);
+// dashed line between two objects of a pair while they move towards each other
+// (fat lines: WebGL draws ordinary lines 1 px wide whatever their width)
+pairMaterial = new LineMaterial({ color: 0xe0218a, linewidth: 4, dashed: true, dashSize: 0.14, gapSize: 0.09, depthTest: false, transparent: true });
+pairMaterial.resolution.set(window.innerWidth, window.innerHeight);
+const pairLines = new LineSegments2(new LineSegmentsGeometry(), pairMaterial);
+pairLines.renderOrder = 10; // drawn over the models, so it stays visible
+pairLines.frustumCulled = false;
+scene.add(pairLines); // not under helpers: always shown
+let movingPairs: Pair[] = [];
 
 // ---------------------------------------------------------------- models
 
@@ -108,6 +160,59 @@ function photoTexture(id: string, level: number) {
 }
 
 let projection: "uv" | "plane" = "uv";
+let grainOn = true;
+
+// Grain shimmer (concept: per object from its own triangles, 0.4 · 2^(−n/1000),
+// 0 from 10 000; grainScale 2400 / model height; textures nearest, no mipmaps) —
+// the shader of src/a-frame-components/grain-shimmer.ts, for plain three.js.
+const grainOf = (triangles: number) => (triangles >= 10000 ? 0 : 0.4 * Math.pow(2, -triangles / 1000));
+type GrainUniforms = { grainStrength: { value: number }; grainScale: { value: number }; grainSeed: { value: number } };
+function grainMaterial(original: THREE.Material, u: GrainUniforms): THREE.Material {
+  const m = original.clone() as THREE.MeshStandardMaterial;
+  for (const key of ["map", "emissiveMap", "roughnessMap", "metalnessMap", "aoMap", "normalMap", "alphaMap"] as const) {
+    const tex = m[key];
+    if (!tex) continue;
+    const own = tex.clone(); // shares the image, not the sampler
+    own.minFilter = THREE.NearestFilter; own.magFilter = THREE.NearestFilter; own.generateMipmaps = false; own.needsUpdate = true;
+    m[key] = own;
+  }
+  m.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, u);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vGrainPos;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGrainPos = transformed;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+varying vec3 vGrainPos;
+uniform float grainStrength;
+uniform float grainScale;
+uniform float grainSeed;
+float grainHash(vec3 p) {
+  p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419) + grainSeed);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}`)
+      .replace("#include <map_fragment>", `#include <map_fragment>
+diffuseColor.rgb *= 1.0 + (grainHash(floor(vGrainPos * grainScale)) - 0.5) * 2.0 * grainStrength;`);
+  };
+  m.customProgramCacheKey = () => "grain-shimmer";
+  m.needsUpdate = true;
+  return m;
+}
+// Emissive tint: pure hues differ a lot in brightness (yellow ~13× blue). The
+// strength is scaled so every hue gives off as much light (relative luminance,
+// linear) as the average pure hue does at that strength.
+const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const luminance = (c: Vec3) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+const pureHue = (h: number): Vec3 => {
+  const k = (n: number) => (n + h * 6) % 6, f = (n: number) => 1 - Math.max(0, Math.min(k(n), 4 - k(n), 1));
+  return [f(5), f(3), f(1)];
+};
+const MEAN_HUE_LUMINANCE = Array.from({ length: 360 }, (_, i) => luminance(pureHue(i / 360))).reduce((a, b) => a + b, 0) / 360;
+const tintIntensity = (t: { color: Vec3; strength: number }) => (t.strength * MEAN_HUE_LUMINANCE) / Math.max(1e-3, luminance(t.color));
+
+const withGrain = (mat: THREE.Material | THREE.Material[], u: GrainUniforms) =>
+  Array.isArray(mat) ? mat.map((x) => grainMaterial(x, u)) : grainMaterial(mat, u);
 
 interface View {
   root: THREE.Group; // position, rotation, lift, sway
@@ -116,7 +221,9 @@ interface View {
   marker: THREE.Mesh; // state disc on the ground
   originRing: THREE.Line | null;
   photoKey: string;
-  meshes: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; geometry: THREE.BufferGeometry }[];
+  meshes: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; grainy: THREE.Material | THREE.Material[]; geometry: THREE.BufferGeometry }[];
+  grain: GrainUniforms;
+  grainKey: string;
   data: Obj;
   phase: number;
 }
@@ -128,7 +235,8 @@ function newView(o: Obj): View {
   const marker = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: STATE_COLOR[o.state], transparent: true, opacity: 0.35 }));
   marker.rotation.x = -Math.PI / 2;
   scene.add(root, marker);
-  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], data: o, phase: Math.random() * 10 };
+  const grain = { grainStrength: { value: 0 }, grainScale: { value: 300 }, grainSeed: { value: 0 } };
+  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10 };
   if (o.origin) { v.originRing = circle(1, 0x4d4038); scene.add(v.originRing); }
   root.position.set(o.pos[0], 0, o.pos[2]);
   return v;
@@ -145,8 +253,9 @@ async function setModel(v: View, rel: string) {
     if (!m.isMesh) return;
     m.castShadow = true; m.receiveShadow = true;
     m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone(); // own materials per object
-    v.meshes.push({ mesh: m, material: m.material, geometry: m.geometry });
+    v.meshes.push({ mesh: m, material: m.material, grainy: withGrain(m.material, v.grain), geometry: m.geometry });
   });
+  v.grain.grainScale.value = 2400 / Math.max(1e-6, v.data.max[1] - v.data.min[1]); // ~2400 cells over the model's height
   if (v.model) v.root.remove(v.model);
   v.model = model;
   v.root.add(model);
@@ -157,14 +266,15 @@ async function setModel(v: View, rel: string) {
 /** Photo texture (reference only, the model keeps its own) and fading when dead. */
 function applyLook(v: View) {
   const o = v.data;
-  const key = o.photo ? `${o.photo.photoId}-${o.crushLevel}-${projection}` : "";
+  v.grain.grainStrength.value = grainOf(o.triangles);
+  const key = (o.photo ? `${o.photo.photoId}-${o.crushLevel}-${projection}` : "") + (grainOn ? "|grain" : "");
   if (key !== v.photoKey) {
     v.photoKey = key;
     for (const e of v.meshes) {
       e.mesh.geometry = e.geometry;
-      if (!o.photo) { e.mesh.material = e.material; continue; }
+      if (!o.photo) { e.mesh.material = grainOn ? e.grainy : e.material; continue; }
       const tex = photoTexture(o.photo.photoId, o.crushLevel);
-      const swap = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.map = tex; c.color?.set(0xffffff); return c; };
+      const swap = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.map = tex; c.color?.set(0xffffff); return grainOn ? grainMaterial(c, v.grain) : c; };
       e.mesh.material = Array.isArray(e.material) ? e.material.map(swap) : swap(e.material);
       if (projection === "plane") e.mesh.geometry = planarUv(e.geometry);
     }
@@ -173,6 +283,18 @@ function applyLook(v: View) {
   for (const e of v.meshes) {
     for (const m of Array.isArray(e.mesh.material) ? e.mesh.material : [e.mesh.material]) {
       m.transparent = dead; m.opacity = dead ? 0.3 : 1;
+      const sm = m as THREE.MeshStandardMaterial;
+      if (sm.emissive) { // emissive tint: the texture stays as it is; the model's own emissive comes back without a tint
+        const own = (sm.userData.ownEmissive ??= { color: sm.emissive.clone(), intensity: sm.emissiveIntensity, map: sm.emissiveMap });
+        if (o.tint) {
+          sm.emissive.setRGB(o.tint.color[0], o.tint.color[1], o.tint.color[2], THREE.SRGBColorSpace);
+          sm.emissiveIntensity = tintIntensity(o.tint); // same brightness for every hue
+          if (sm.emissiveMap) { sm.emissiveMap = null; sm.needsUpdate = true; }
+        } else {
+          sm.emissive.copy(own.color); sm.emissiveIntensity = own.intensity;
+          if (sm.emissiveMap !== own.map) { sm.emissiveMap = own.map; sm.needsUpdate = true; }
+        }
+      }
     }
   }
 }
@@ -305,31 +427,25 @@ function sync(s: State) {
   helpers.add(feedRing, exclusionRing);
   if (s.bounds) bboxHelper.box.set(new THREE.Vector3(...s.bounds.min), new THREE.Vector3(...s.bounds.max));
   bboxHelper.visible = !!s.bounds;
-  const pts: THREE.Vector3[] = [];
-  for (const p of s.pairs) {
-    const a = s.objects.find((o) => o.id === p.a), b = s.objects.find((o) => o.id === p.b);
-    if (a && b) pts.push(new THREE.Vector3(a.pos[0], 0.05, a.pos[2]), new THREE.Vector3(b.pos[0], 0.05, b.pos[2]));
-  }
-  pairLines.geometry.dispose();
-  pairLines.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+  movingPairs = s.pairs.filter((p) => p.start !== null);
 }
 
 // ---------------------------------------------------------------- HUD
 
 function hud(s: State) {
   $("phase").textContent = PHASE[s.phase] ?? s.phase;
-  $("run").textContent = `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode}`;
+  $("run").textContent = `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode ?? "erste Verschmelzung hart, danach weich"}`;
   const counts = { keimling: 0, aktiv: 0, verwelkend: 0, tot: 0, ursprung: 0 };
   for (const o of s.objects) { if (o.origin) counts.ursprung++; else counts[o.state]++; }
   const fp = s.factorParts;
   $("clock").innerHTML = [
     ["Kalendertag", fmt(s.calendar, 2)], ["Eigenzeit", fmt(s.eigen, 2)],
     ["Zeitfaktor", `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})`],
-    ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.params.budget)}`],
+    ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.budget)} (Komprimierung ab ${fmt(s.compressAt)}, Halbieren unter ${fmt(s.halvingAt)})`],
     ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung`],
     ["Geräte", String(s.viewers)],
   ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
-  $("budget-bar").style.width = `${Math.min(100, (s.triangles / s.params.budget) * 100)}%`;
+  $("budget-bar").style.width = `${Math.min(100, (s.triangles / s.budget) * 100)}%`;
   $("pause").textContent = s.run.paused ? "Weiter" : "Pause";
   $("pause").classList.toggle("on", s.run.paused);
   const sel = $<HTMLSelectElement>("speed");
@@ -338,10 +454,11 @@ function hud(s: State) {
     if (![...sel.options].some((o) => o.value === v)) sel.add(new Option(`${fmt(s.run.speed, 2)} Tage/min`, v));
     sel.value = v;
   }
-  $("jobs").innerHTML = s.jobs.length
-    ? s.jobs.map((j) => `<div>${KIND[j.kind] ?? j.kind} ${j.objectId}${j.partnerId ? " + " + j.partnerId : ""} · ${j.seconds} s</div>`).join("") +
-      (s.queued ? `<div class="muted">${s.queued} warten</div>` : "") + (s.run.waitForJobs ? `<div class="muted">Uhren warten auf die Jobs</div>` : "")
-    : `<div class="muted">keine</div>`;
+  const wf = s.run.waitingFor;
+  $("jobs").innerHTML =
+    (wf ? `<div><b>Uhr wartet auf ${KIND[wf.kind] ?? wf.kind} ${wf.objectId}${wf.partnerId ? " + " + wf.partnerId : ""}</b></div>` : `<div class="muted">Uhr läuft</div>`) +
+    s.jobs.map((j) => `<div>${KIND[j.kind] ?? j.kind} ${j.objectId}${j.partnerId ? " + " + j.partnerId : ""} · ${j.seconds} s</div>`).join("") +
+    (s.queued ? `<div class="muted">${s.queued} weitere fertig oder in der Warteschlange</div>` : "");
   const photos = s.photos.filter((p) => !p.gone || p.blocked);
   $("photos").innerHTML = photos.length ? photos.map((p) => {
     const user = s.objects.filter((o) => o.photo?.photoId === p.id).map((o) => o.id).join(", ");
@@ -359,9 +476,9 @@ function drawChart(s: State) {
   c.width = box.width * dpr; c.height = box.height * dpr;
   const ctx = c.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const maxDay = Math.max(1, s.calendar), maxTri = Math.max(s.params.budget, s.plateauMax) * 1.05;
+  const maxDay = Math.max(1, s.calendar), maxTri = Math.max(s.budget, s.plateauMax) * 1.05;
   const X = (d: number) => (d / maxDay) * box.width, Y = (v: number) => box.height - (v / maxTri) * box.height;
-  ctx.strokeStyle = "#c2410c"; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(0, Y(s.params.budget)); ctx.lineTo(box.width, Y(s.params.budget)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#c2410c"; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(0, Y(s.budget)); ctx.lineTo(box.width, Y(s.budget)); ctx.stroke(); ctx.setLineDash([]);
   ctx.strokeStyle = "#2e6a4c"; ctx.lineWidth = 1.5; ctx.beginPath();
   samples.forEach((p, i) => (i ? ctx.lineTo(X(p.calendar), Y(p.triangles)) : ctx.moveTo(X(p.calendar), Y(p.triangles))));
   ctx.stroke();
@@ -388,6 +505,10 @@ for (const [id, mode] of [["proj-uv", "uv"], ["proj-plane", "plane"]] as const) 
     for (const v of views.values()) applyLook(v);
   });
 }
+$("grain").addEventListener("click", () => {
+  grainOn = !grainOn; $("grain").classList.toggle("on", grainOn);
+  for (const v of views.values()) applyLook(v);
+});
 $("helpers").addEventListener("click", () => { helpers.visible = !helpers.visible; $("helpers").classList.toggle("on", helpers.visible); });
 
 // hover: what is this object
@@ -403,29 +524,62 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   if (!o) { tip.style.display = "none"; return; }
   tip.style.display = "block"; tip.style.left = `${e.clientX + 14}px`; tip.style.top = `${e.clientY + 14}px`;
   tip.innerHTML = `<b>${o.id}</b> · ${o.lineage}${o.origin ? " · Ursprung" : ""}<br>${o.state}, ${fmt(o.triangles)} Dreiecke<br>` +
-    `Generation ${o.generation}, ${o.fusions} Verschmelzungen, ${o.halvings} Halbierungen<br>Crush ${o.crushLevel}, Höhe über Boden ${fmt(o.lift, 2)} m, Skalierung ${fmt(o.scale, 2)}` +
+    `Generation ${o.generation}${o.voxelCells ? ` (Voxel, ${o.voxelCells} Zellen)` : ""}, ${o.fusions} Verschmelzungen, ${o.halvings} Halbierungen<br>Crush ${o.crushLevel}, Höhe über Boden ${fmt(o.lift, 2)} m, Skalierung ${fmt(o.scale, 2)}${o.tilt ? `, Neigung ${fmt((o.tilt.angle * 180) / Math.PI, 1)}°` : ""}<br>${o.tint ? `Leuchtfarbe <span style="color:rgb(${o.tint.color.map((c) => Math.round(c * 255)).join(",")})">■</span> ${fmt(o.tint.strength * 100)} % (Intensität ${fmt(tintIntensity(o.tint), 3)}), ` : ""}Grain ${fmt(grainOf(o.triangles), 3)}, Schweben ${fmt(o.sway * 100, 1)} cm alle ${fmt(o.swayPeriod, 1)} s` +
     (o.photo ? `<br>Foto ${o.photo.photoId}` : "") + `<br><span class="muted">${o.glb}</span>`;
+});
+
+// double-click: pivot on what is under the cursor, camera ~2 m away from it
+let flight: { from: THREE.Vector3; to: THREE.Vector3; tFrom: THREE.Vector3; tTo: THREE.Vector3; start: number } | null = null;
+renderer.domElement.addEventListener("dblclick", (e) => {
+  mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const targets = [...views.values()].map((v) => v.root as THREE.Object3D).concat([ground]);
+  const hit = ray.intersectObjects(targets, true)[0];
+  if (!hit) return;
+  let n: THREE.Object3D | null = hit.object, focus = hit.point.clone();
+  while (n && !n.userData.objectId) n = n.parent;
+  if (n) new THREE.Box3().setFromObject(n).getCenter(focus); // an object: its centre
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flight = { from: camera.position.clone(), to: focus.clone().add(dir.multiplyScalar(2)), tFrom: controls.target.clone(), tTo: focus, start: performance.now() };
 });
 
 // ---------------------------------------------------------------- frame loop
 
 const clock = new THREE.Clock();
+const tmpPos = new THREE.Vector3(), tmpQuat = new THREE.Quaternion();
+let tmpScale = 1;
 function frame() {
-  const t = clock.getElapsedTime(), k = 0.15;
+  const dt = clock.getDelta(), t = clock.elapsedTime, k = 0.15;
+  walk(dt);
   for (const v of views.values()) {
     const o = v.data;
-    const h = (o.max[1] - o.min[1]) * o.scale;
-    const sway = o.sway ? Math.sin(t * 1.4 + v.phase) * o.sway : 0;
-    const targetY = o.lift - h * (1 - o.grow) + sway;
-    v.root.position.x += (o.pos[0] - v.root.position.x) * k;
-    v.root.position.z += (o.pos[2] - v.root.position.z) * k;
-    v.root.position.y += (targetY - v.root.position.y) * k;
-    v.root.rotation.y = o.rotY;
-    if (v.model) { v.model.scale.setScalar(o.scale); v.model.position.y = -o.min[1] * o.scale; }
-    const r = Math.max(0.15, Math.hypot(o.max[0] - o.min[0], o.max[2] - o.min[2]) / 2 * o.scale);
+    // floating: bobs up from where it stands, never below it
+    const sway = o.sway ? o.sway * (1 - Math.cos((t * 2 * Math.PI) / Math.max(0.5, o.swayPeriod) + v.phase)) / 2 : 0;
+    // root = the model frame in the world, as the simulation computes it: the
+    // travelling pose, or standing (lift, growing, leaning)
+    const pose = decompose(modelMatrix(o));
+    tmpPos.set(pose.p[0], pose.p[1] + sway, pose.p[2]);
+    tmpQuat.set(...pose.q);
+    tmpScale = pose.s;
+    v.root.position.lerp(tmpPos, k);
+    v.root.quaternion.slerp(tmpQuat, k);
+    v.root.scale.setScalar(v.root.scale.x + (tmpScale - v.root.scale.x) * k);
+    if (v.model) { v.model.scale.setScalar(1); v.model.position.set(0, 0, 0); }
+    const r = Math.max(0.15, Math.hypot(o.max[0] - o.min[0], o.max[2] - o.min[2]) / 2 * (o.pose ? o.pose.s : o.scale));
     v.marker.position.set(v.root.position.x, 0.004, v.root.position.z); v.marker.scale.setScalar(r);
     if (v.originRing) { v.originRing.position.set(v.root.position.x, 0.006, v.root.position.z); v.originRing.scale.setScalar(r + 0.08); }
   }
+  const pts: THREE.Vector3[] = [];
+  for (const p of movingPairs) {
+    const a = views.get(p.a), b = views.get(p.b);
+    if (a?.model && b?.model) pts.push(new THREE.Box3().setFromObject(a.root).getCenter(new THREE.Vector3()), new THREE.Box3().setFromObject(b.root).getCenter(new THREE.Vector3()));
+  }
+  pairLines.geometry.dispose();
+  const geo = new LineSegmentsGeometry();
+  geo.setPositions(pts.flatMap((v) => [v.x, v.y, v.z]));
+  pairLines.geometry = geo;
+  pairLines.visible = pts.length > 0;
+  if (pts.length) pairLines.computeLineDistances();
   for (const dv of drawingViews.values()) {
     const tg = dv.group.userData.target as { pos: Vec3; scale: number } | undefined;
     if (!tg) continue;
@@ -435,6 +589,12 @@ function frame() {
   for (const pv of photoViews.values()) {
     const p = pv.group.position;
     pv.plate.rotation.y = Math.atan2(camera.position.x - p.x, camera.position.z - p.z); // faces the camera
+  }
+  if (flight) {
+    const u = Math.min(1, (performance.now() - flight.start) / 600), e = u * u * (3 - 2 * u);
+    camera.position.lerpVectors(flight.from, flight.to, e);
+    controls.target.lerpVectors(flight.tFrom, flight.tTo, e);
+    if (u >= 1) flight = null;
   }
   controls.update();
   renderer.render(scene, camera);

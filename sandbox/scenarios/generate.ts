@@ -8,7 +8,7 @@ import type { ModelVersion, Scenario, ScheduledEntry, Vec3 } from "../sim/types"
 const MODELS = models as unknown as Record<string, ModelVersion>;
 
 export const SCENARIO_DEFAULTS = {
-  seed: 1,
+  seed: 7,
   days: 200,
   photosPerWeek: 2,
   drawingsPerWeek: 3,

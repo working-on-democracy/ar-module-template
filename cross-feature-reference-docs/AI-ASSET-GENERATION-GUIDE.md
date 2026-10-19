@@ -318,7 +318,8 @@ npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets
 | `--measure` | — | print each model's fill, open edge loops and largest opening, then stop |
 | `--overlap` | `0.05-0.6` | accepted overlap, fraction of the smaller model's volume |
 | `--fillet` | 0.08 | `weich`: fillet radius as a fraction of A's height |
-| `--voxel-cells` | 40 | `voxel`: grid cells over the largest side |
+| `--max-scale` | – | never scale B by more than this (with `--match` / `--match-height`) |
+| `--voxel-cells` | 40 | `voxel`: grid cells over the largest side; 1–3 count a cell as filled as soon as any part of the model lies in it (1 = a single cube) |
 | `--out` | `generated-assets/<a>+<b>-<mode>.glb` | output file |
 
 What it does:

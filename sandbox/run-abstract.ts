@@ -3,15 +3,17 @@
 // `npx tsx sandbox/run-abstract.ts [maxCalendarDays]`
 import { PARAMS } from "./params";
 import { basic } from "./scenarios/basic";
-import { settleJobs } from "./sim/abstract-jobs";
-import { applyJob, createWorld, step } from "./sim/world";
+import { runAbstractJob } from "./sim/abstract-jobs";
+import { advance } from "./sim/schedule";
+import type { JobResult } from "./sim/types";
+import { createWorld } from "./sim/world";
 
 const maxDays = Number(process.argv[2] ?? 120);
 const w = createWorld(basic, { ...PARAMS });
-const DT = 0.01;
+const ready = new Map<number, JobResult>();
 while (w.calendar < maxDays && w.phase !== "ende") {
-  step(w, DT);
-  settleJobs(w, applyJob);
+  const r = advance(w, ready);
+  if ("jobs" in r) for (const j of r.jobs) ready.set(j.id, runAbstractJob(w, j)); // computed at once, used when due
 }
 for (const e of w.events) console.log(`E ${e.eigen.toFixed(2).padStart(6)}  K ${e.calendar.toFixed(2).padStart(6)}  ${e.text}`);
 console.log("\nEigenzeit  Kalender  Dreiecke  Faktor  K/A/V/T");

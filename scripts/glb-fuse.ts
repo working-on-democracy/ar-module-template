@@ -55,6 +55,7 @@ Options:
   --seed <n>           pose seed (default 1); the same seed gives the same result
   --match              scale B so its largest side is 80 % of A's (for very different sizes)
   --match-height       scale B so its height AFTER its rotation (world y) equals A's height
+  --max-scale <x>      never scale B by more than x (with --match / --match-height; default: no limit)
   --min-fill <x>       a model whose volume is below x × its convex hull's volume (hollow or thin,
                        e.g. a lamp shade) is closed: open edges capped, then enveloped until it
                        reaches --fill-target (default 2 × min-fill). Default 0 = off
@@ -67,7 +68,9 @@ Options:
   --measure            only print each model's fill (volume / convex hull volume) and stop
   --overlap <a-b>      accepted overlap of the smaller model, fraction of its volume (default 0.05-0.6)
   --fillet <x>         weich: fillet radius as a fraction of A's height (default 0.08)
-  --voxel-cells <n>    voxel: grid cells over the largest side (default 40)
+  --voxel-cells <n>    voxel: grid cells over the largest side (default 40; 1–3, or when the cell
+                       centres find nothing: a cell counts as filled as soon as any part of the
+                       model lies in it; 1 = a single cube)
   --out <path>         output file (default generated-assets/<a>+<b>-<mode>.glb)`;
 
 function fail(msg: string): never {
@@ -524,6 +527,7 @@ async function main(): Promise<void> {
     options: {
       mode: { type: "string", default: "hart" },
       seed: { type: "string", default: "1" },
+      "max-scale": { type: "string" },
       match: { type: "boolean", default: false },
       "match-height": { type: "boolean", default: false },
       "min-fill": { type: "string", default: "0" },
@@ -551,7 +555,7 @@ async function main(): Promise<void> {
   if (!(ovMin >= 0 && ovMax > ovMin && ovMax <= 1)) fail('--overlap must look like "0.05-0.6".');
   const fillet = parseFloat(values.fillet!), voxelCells = parseInt(values["voxel-cells"]!, 10);
   if (!(fillet > 0)) fail("--fillet must be a positive number.");
-  if (!(voxelCells >= 4)) fail("--voxel-cells must be 4 or more.");
+  if (!(voxelCells >= 1)) fail("--voxel-cells must be 1 or more.");
   const out = values.out ?? join(ROOT, "generated-assets", `${basename(fileA, extname(fileA))}+${basename(fileB, extname(fileB))}-${mode}.glb`);
 
   await MeshoptDecoder.ready;
@@ -625,6 +629,7 @@ async function main(): Promise<void> {
       const tb = turned.boundingBox();
       sB = bs.y / (tb.max[1] - tb.min[1]);
     }
+    if (values["max-scale"]) sB = Math.min(sB, parseFloat(values["max-scale"]));
     const cand = turned.scale(sB).translate(off.toArray());
     const f = (MA.volume() + cand.volume() - MA.add(cand).volume()) / Math.min(MA.volume(), cand.volume());
     if (f < ovMin || f > ovMax) continue;
@@ -673,10 +678,25 @@ async function main(): Promise<void> {
     const cell = maxDim / voxelCells, o = box.min.clone().subScalar(cell);
     const nx = Math.ceil(size.x / cell) + 2, ny = Math.ceil(size.y / cell) + 2, nz = Math.ceil(size.z / cell) + 2;
     const occ = new Uint8Array(nx * ny * nz), id = (i: number, j: number, k: number) => (k * ny + j) * nx + i;
-    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      const x = o.x + (i + 0.5) * cell, y = o.y + (j + 0.5) * cell, z = o.z + (k + 0.5) * cell, l = toB(x, y, z);
-      occ[id(i, j, k)] = A.inside(x, y, z) || B.inside(l.x, l.y, l.z) ? 1 : 0;
-    }
+    // fine grids test the cell centre; very coarse ones (1–3 cells) would miss
+    // thin or hollow models that way, so there a cell is filled as soon as one
+    // of 6³ sample points in it lies inside
+    // (also when the centres alone find nothing, e.g. an already blocky model on a coarse grid)
+    const inCell = (x: number, y: number, z: number) => { const l = toB(x, y, z); return A.inside(x, y, z) || B.inside(l.x, l.y, l.z); };
+    const fill = (sub: number) => {
+      let any = 0;
+      for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        let filled = false;
+        for (let c = 0; c < sub * sub * sub && !filled; c++) {
+          const a = (c % sub + 0.5) / sub, b2 = (Math.floor(c / sub) % sub + 0.5) / sub, d = (Math.floor(c / (sub * sub)) + 0.5) / sub;
+          filled = inCell(o.x + (i + a) * cell, o.y + (j + b2) * cell, o.z + (k + d) * cell);
+        }
+        occ[id(i, j, k)] = filled ? 1 : 0;
+        if (filled) any++;
+      }
+      return any;
+    };
+    if (!fill(voxelCells < 4 ? 6 : 1)) fill(6);
     const on = (i: number, j: number, k: number) => i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz && occ[id(i, j, k)];
     for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       if (!occ[id(i, j, k)]) continue;

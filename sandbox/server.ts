@@ -4,8 +4,8 @@
 //   --values <file.json>  values copied from the Lebenszyklus-Rechner ("Werte kopieren")
 //   --seed <n>            overrides the seed from the values
 //   --speed <x>           calendar days per real minute (default 1)
-//   --fuse <mode>         hart (default, ~5 s) | weich (rounded, 30–100 s) | voxel
-//   --no-wait             let the clocks run while jobs compute (not repeatable)
+//   --fuse <mode>         force one mode for every fusion: hart (~5–15 s) | weich (rounded, 30–100 s) | voxel;
+//                         default: an object's first fusion hard, later ones soft
 //   --port <n>            default 5180
 //
 // Every run gets a folder sandbox-runs/<time>-seed<n>/ (gitignored): run.json
@@ -21,13 +21,14 @@ import sharp from "sharp";
 import { createServer as createViteServer } from "vite";
 import { PARAMS, type Params } from "./params";
 import { glbInfo } from "./runner/glb-info";
-import { runGlbJob } from "./runner/jobs";
+import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import models from "./scenarios/starter-models.json";
 import { createRng } from "./sim/rng";
-import type { JobRequest, ModelVersion, Vec3, World } from "./sim/types";
+import { advance, QUANTUM } from "./sim/schedule";
+import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
 import {
-  addDrawing, addPhoto, applyJob, createWorld, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, totalTriangles,
+  addDrawing, addPhoto, createWorld, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles,
 } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -36,21 +37,20 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const { values: args } = parseArgs({
   options: {
     values: { type: "string" }, seed: { type: "string" }, speed: { type: "string" },
-    fuse: { type: "string" }, "no-wait": { type: "boolean" }, port: { type: "string" },
+    fuse: { type: "string" }, port: { type: "string" },
   },
 });
 
 // ---------------------------------------------------------------- inputs
 
-const DEFAULT_STARTERS = ["flamingo", "regenschirm", "naehmaschine", "tiffany-lampe"];
+const DEFAULT_STARTERS = ["flamingo", "mango", "muschel-vase", "rucksack", "tarot-figur"];
 const input = args.values ? JSON.parse(readFileSync(args.values, "utf8")) : {};
 const params: Params = { ...PARAMS, ...(input.params ?? {}) };
 const scenarioValues: ScenarioValues = { ...SCENARIO_DEFAULTS, ...(input.scenario ?? {}) };
 if (args.seed) scenarioValues.seed = Number(args.seed);
 const starters: string[] = input.starters ?? DEFAULT_STARTERS;
-const fuseMode = (args.fuse ?? "hart") as "hart" | "weich" | "voxel";
+const fuseMode = (args.fuse ?? null) as "hart" | "weich" | "voxel" | null; // null: first fusion hard, later ones soft (params)
 let speed = Number(args.speed ?? 1); // calendar days per real minute
-let waitForJobs = !args["no-wait"];
 let paused = false;
 const port = Number(args.port ?? 5180);
 
@@ -70,22 +70,30 @@ for (const s of scenario.starters) {
   }
   const rel = `glb/${s.name}.glb`;
   copyFileSync(src, join(runDir, rel));
-  const info = await glbInfo(join(runDir, rel));
+  let info = await glbInfo(join(runDir, rel));
+  if (info.triangles > params.originMaxTriangles) { // too heavy for an origin object: reduced to the limit when planted
+    const reduce = (extra: string[]) => script("glb-reduce.ts", [src, "--target", String(params.originMaxTriangles), ...extra, "--out", join(runDir, rel)]);
+    await reduce([]);
+    info = await glbInfo(join(runDir, rel));
+    if (info.triangles > params.originMaxTriangles * 1.1) { await reduce(["--permissive"]); info = await glbInfo(join(runDir, rel)); } // texture seams stopped it
+  }
   s.model = { glb: rel, triangles: info.triangles, min: info.min, max: info.max };
 }
 
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
 writeFileSync(join(runDir, "run.json"), JSON.stringify({
-  started: new Date().toISOString(), commit, fuseMode, waitForJobs, speed, params, scenario: scenarioValues, starters,
+  started: new Date().toISOString(), commit, fuseMode, jobLeadDays: params.jobLeadDays, speed, params, scenario: scenarioValues, starters,
 }, null, 2));
 
 // ---------------------------------------------------------------- world, jobs
 
 const w: World = createWorld(scenario, params);
 const running = new Map<number, { job: JobRequest; since: number }>();
+const ready = new Map<number, JobResult>(); // computed, waiting for their due time
+let waitingFor: JobRequest | null = null;
 const queue: JobRequest[] = [];
-const CONCURRENCY = 2;
+const CONCURRENCY = 3; // jobs computed at the same time (6 cores: soft fusions and stylize are heavy)
 let loggedEvents = 0;
 
 function enqueue(jobs: JobRequest[]) {
@@ -98,7 +106,7 @@ function pump() {
     const job = queue.shift()!;
     running.set(job.id, { job, since: Date.now() });
     runGlbJob(w, job, { runDir, fuseMode })
-      .then((res) => applyJob(w, res))
+      .then((res) => { if (w.jobs.some((j) => j.id === job.id)) ready.set(job.id, res); })
       .catch((err: Error) => {
         console.error(`Job ${job.id} (${job.kind}) fehlgeschlagen:\n${err.message.slice(0, 2000)}`);
         dropJob(job);
@@ -110,12 +118,14 @@ function pump() {
 /** A failed job: the objects are released unchanged, a fusion pair dissolves. */
 function dropJob(job: JobRequest) {
   w.jobs = w.jobs.filter((j) => j.id !== job.id);
+  ready.delete(job.id);
   for (const id of [job.objectId, job.partnerId]) {
     const o = w.objects.find((x) => x.id === id);
     if (o) { o.busy = false; o.pairedWith = null; }
   }
   w.pairs = w.pairs.filter((p) => p.jobId !== job.id);
   w.events.push({ eigen: w.eigen, calendar: w.calendar, type: "fehler", text: `Job ${job.id} (${job.kind}) fehlgeschlagen, Objekt bleibt unverändert` });
+  // a failed copy is simply not made; a failed fusion leaves both objects as they were
 }
 
 // Photos are generated when they appear (scenario or button).
@@ -163,16 +173,19 @@ async function photoFile(id: string, level: number): Promise<string | null> {
 
 // ---------------------------------------------------------------- the loop
 
+// The clock runs in fixed steps while jobs compute; it stops only when a
+// result is due and not ready yet (see sim/schedule.ts).
 const TICK_MS = 100;
+let budget = 0; // calendar days the clock may still advance
 setInterval(() => {
   if (paused || w.phase === "ende") return;
-  if (waitForJobs && (w.jobs.length || running.size)) return; // clocks wait: same seed, same run
-  let dt = (speed / 60) * (TICK_MS / 1000);
-  while (dt > 1e-9) {
-    const d = Math.min(dt, 0.01);
-    enqueue(step(w, d));
-    dt -= d;
-    if (waitForJobs && w.jobs.length) break;
+  budget += (speed / 60) * (TICK_MS / 1000);
+  waitingFor = null;
+  while (budget >= QUANTUM) {
+    const r = advance(w, ready);
+    if ("waiting" in r) { waitingFor = r.waiting; budget = Math.min(budget, QUANTUM); break; }
+    enqueue(r.jobs);
+    budget -= QUANTUM;
   }
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
@@ -191,11 +204,15 @@ setInterval(() => writeFileSync(join(runDir, "state.json"), JSON.stringify(state
 
 function stateFor(sinceSample: number) {
   return {
-    run: { dir: runDir.replace(ROOT, ""), commit, fuseMode, waitForJobs, speed, paused },
+    run: {
+      dir: runDir.replace(ROOT, ""), commit, fuseMode, speed, paused,
+      waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
+    },
     phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, factorParts: w.factorParts,
     viewers: w.viewers, plantingPoint: w.plantingPoint, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
-    objects: w.objects.map((o) => ({ ...o, sway: swayOf(o, w.params) })),
+    budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,
+    objects: w.objects.map((o) => ({ ...o, sway: swayOf(o, w.params), swayPeriod: swayPeriodOf(o, w.params) })),
     photos: w.photos, drawings: w.drawings.filter((d) => !d.gone), pairs: w.pairs,
     jobs: [...running.values()].map(({ job, since }) => ({ id: job.id, kind: job.kind, objectId: job.objectId, partnerId: job.partnerId, seconds: Math.round((Date.now() - since) / 1000) })),
     queued: Math.max(0, w.jobs.length - running.size),
@@ -215,7 +232,6 @@ function command(cmd: Record<string, unknown>) {
     case "pause": paused = true; break;
     case "resume": paused = false; break;
     case "speed": speed = Math.max(0.05, Number(cmd.value) || speed); break;
-    case "wait": waitForJobs = !!cmd.value; break;
     case "viewers": setViewers(w, w.viewers + Number(cmd.delta ?? 0)); break;
     case "addPhoto": addPhoto(w, randomSpot()); break;
     case "addDrawing": addDrawing(w, randomSpot()); break;
@@ -259,13 +275,8 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   return false;
 }
 
-const vite = await createViteServer({
-  configFile: false,
-  root: join(HERE, "viewer"),
-  server: { middlewareMode: true },
-  appType: "spa",
-  logLevel: "warn",
-});
+// the viewer through Vite; its live-reload socket runs on this same server
+let vite: Awaited<ReturnType<typeof createViteServer>> | null = null;
 const http = createHttpServer(async (req, res) => {
   try {
     if (await api(req, res)) return;
@@ -273,9 +284,16 @@ const http = createHttpServer(async (req, res) => {
     send(res, 500, JSON.stringify({ error: (e as Error).message }));
     return;
   }
-  vite.middlewares(req, res);
+  vite?.middlewares(req, res);
+});
+vite = await createViteServer({
+  configFile: false,
+  root: join(HERE, "viewer"),
+  server: { middlewareMode: true, hmr: { server: http } },
+  appType: "spa",
+  logLevel: "warn",
 });
 http.listen(port, () => {
-  console.log(`\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${speed} Kalendertage pro Minute, Verschmelzen: ${fuseMode}${waitForJobs ? ", Uhren warten auf Jobs" : ""}\n`);
+  console.log(`\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${speed} Kalendertage pro Minute, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
 });
 enqueue(w.jobs.slice());

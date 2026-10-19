@@ -4,10 +4,11 @@
 import { PARAMS, type Params } from "../params";
 import models from "../scenarios/starter-models.json";
 import { buildScenario, SCENARIO_DEFAULTS, type ScenarioValues } from "../scenarios/generate";
-import { settleJobs } from "../sim/abstract-jobs";
+import { runAbstractJob } from "../sim/abstract-jobs";
+import { advance } from "../sim/schedule";
 import { createRng } from "../sim/rng";
-import type { ModelVersion, ObjectKind, ObjectState, Scenario, ScheduledEntry, Vec3, World } from "../sim/types";
-import { applyJob, createWorld, ecosystemBounds, ecosystemCenter, drawingCenter, step, swayOf, worldBounds } from "../sim/world";
+import type { JobResult, ModelVersion, ObjectKind, ObjectState, Scenario, ScheduledEntry, Vec3, World } from "../sim/types";
+import { createWorld, ecosystemBounds, ecosystemCenter, drawingCenter, step, swayOf, worldBounds } from "../sim/world";
 
 const MODELS = models as unknown as Record<string, ModelVersion>;
 const MODEL_LABELS: Record<string, string> = {
@@ -38,30 +39,59 @@ const SCENARIO_GROUP: Group = {
 };
 
 const PARAM_GROUPS: Group[] = [
-  { title: "Polygonbudget und Keimlinge", fields: [
-    { key: "budget", label: "Polygonbudget", unit: "Dreiecke", step: 1000 },
+  { title: "Polygonbudget", note: "Passt sich den Ursprungsobjekten an: Grundwert + Steigung × (Summe ihrer Dreiecke − Bezugssumme), zwischen Minimum und Maximum. Die Grenzen für verstärkte Komprimierung und Halbieren sind Anteile davon.", fields: [
+    { key: "budgetBase", label: "Grundwert", unit: "Dreiecke", step: 1000 },
+    { key: "budgetRefOrigins", label: "bei Ursprungsobjekten mit zusammen", unit: "Dreiecken", step: 1000 },
+    { key: "budgetSlope", label: "Steigung", unit: "Budget pro Dreieck mehr", step: 0.05 },
+    { key: "budgetMin", label: "Budget mindestens", unit: "Dreiecke", step: 1000 },
+    { key: "budgetMax", label: "Budget höchstens", unit: "Dreiecke", step: 1000 },
+    { key: "originMaxTriangles", label: "Ursprungsobjekt höchstens", unit: "Dreiecke (sonst reduziert)", step: 500 },
+  ] },
+  { title: "Keimlinge", fields: [
     { key: "growDays", label: "Aufwachsen", unit: "Eigentage", step: 0.1 },
-    { key: "copiesPerObject", label: "Kopien pro Objekt", step: 1 },
     { key: "maxGeneration", label: "Höchste Generation", step: 1 },
-    { key: "copyEveryDays", label: "Abstand zwischen Kopien", unit: "Eigentage", step: 0.1 },
+    { key: "keimRatePerDay", label: "Neue Keimlinge", unit: "pro Ursprungslinie und Eigentag", step: 0.1 },
     { key: "copyVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
+    { key: "genAdvanceStart", label: "Nächste Generation anfangs mit", unit: "Wahrscheinlichkeit", step: 0.05 },
+    { key: "genAdvanceDays", label: "sicher nach", unit: "Eigentagen", step: 1 },
+    { key: "growthMaxDays", label: "Keimlingsphase ohne Plateau höchstens", unit: "Eigentage", step: 1 },
     { key: "copyShrink", label: "Kopie behält", unit: "Anteil Dreiecke", step: 0.05 },
     { key: "spreadBase", label: "Abstand Kopie", unit: "m", step: 0.1 },
     { key: "spreadPerGeneration", label: "+ pro Generation", unit: "m", step: 0.1 },
     { key: "spreadJitter", label: "+ zufällig bis", unit: "m", step: 0.1 },
+    { key: "plateauDays", label: "Plateau hält", unit: "Eigentage", step: 0.5 },
+    { key: "plateauRefillBelow", label: "Neue Keimlinge im Plateau nur unter", unit: "Anteil Budget", step: 0.01 },
+    { key: "voxelFromGeneration", label: "Voxelisiert ab Generation", step: 1 },
+    { key: "voxelCellsStart", label: "Voxelraster dort", unit: "Zellen über die längste Seite", step: 1 },
+    { key: "voxelCellsFactor", label: "je Generation gröber", unit: "× Zellen", step: 0.05 },
+    { key: "voxelTargetDays", label: "Voxel-Generationen ab der Halbierungsgrenze (im Wachstum) bis zum Würfel in", unit: "Eigentagen", step: 0.5 },
+    { key: "voxelCopiesPerGeneration", label: "Kopien je Voxel-Generation", unit: "pro Linie", step: 0.5 },
   ] },
-  { title: "Verschmelzen", note: "Aktive Objekte und ausgewachsene Keimlinge. Ein Paar steht fest, sobald es sich gefunden hat; das kleinere Objekt wandert zum größeren.", fields: [
+  { title: "Verschmelzen", note: "Aktive Objekte und ausgewachsene Keimlinge. Das erste Paar bildet sich sofort, sobald zwei in Reichweite ausgewachsen sind; danach gilt die Rate. Ein Paar steht fest; das niedrigere Objekt wandert zum höheren.", fields: [
+    { key: "requiredFusions", label: "Ein Objekt durchläuft mindestens", unit: "Verschmelzungen (Phase 3, 4, 7, 8, 10)", step: 1 },
+    { key: "chainEveryDays", label: "Kette verschmilzt höchstens alle", unit: "Eigentage", step: 0.1 },
+    { key: "requiredHalvings", label: "Ein Teil wird mindestens", unit: "mal halbiert (Phase 11 … 13)", step: 1 },
+    { key: "softAfterFirstFusion", label: "Erste Verschmelzung hart, danach weich", unit: "1 = ja, 0 = immer hart", step: 1 },
     { key: "fusePerDay", label: "Paarbildungs-Rate", unit: "pro Eigentag und Objekt", step: 0.05 },
     { key: "fuseTravelDays", label: "Weg zum Partner", unit: "Eigentage", step: 0.1 },
     { key: "fuseEaseK", label: "Beschleunigung k", unit: "0 = gleichmäßig", step: 0.5 },
     { key: "fuseGap", label: "Endabstand", unit: "Anteil der Radien", step: 0.05 },
-    { key: "fuseKeepStart", label: "Erste Verschmelzung behält", unit: "Anteil Dreiecke", step: 0.05 },
-    { key: "fuseKeepStep", label: "je frühere Verschmelzung weniger", unit: "Anteil", step: 0.05 },
-    { key: "fuseKeepMin", label: "behält mindestens", unit: "Anteil", step: 0.05 },
   ] },
-  { title: "Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre Höhe wird beim Pflanzen in den Bereich unten gebracht, Kopien übernehmen die Skalierung.", fields: [
-    { key: "originMinHeight", label: "Ursprungsobjekt mindestens", unit: "m hoch", step: 0.05 },
-    { key: "originMaxHeight", label: "Ursprungsobjekt höchstens", unit: "m hoch", step: 0.05 },
+  { title: "Größe und Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre längste Seite wird beim Pflanzen in den Bereich unten gebracht. Keimlinge nehmen die Größe ihres Ursprungsobjekts, leicht variiert und mit jeder Generation größer; sie dürfen den Bereich um den Spielraum verlassen, nach oben ab Generation 2 jeweils weiter.", fields: [
+    { key: "originMinSize", label: "Ursprungsobjekt mindestens", unit: "m, längste Seite", step: 0.05 },
+    { key: "originMaxSize", label: "Ursprungsobjekt höchstens", unit: "m, längste Seite", step: 0.05 },
+    { key: "keimSizeVariance", label: "Keimling-Größe variiert", unit: "±Anteil", step: 0.05 },
+    { key: "keimGrowPerGeneration", label: "je Generation größer um", unit: "Anteil (nach der ersten Voxel-Generation je Generation halbiert)", step: 0.05 },
+    { key: "keimGrowStopGeneration", label: "kein Wachstum mehr ab Generation", step: 1 },
+    { key: "keimSizeSlack", label: "Spielraum über den Bereich hinaus", unit: "m", step: 0.05 },
+    { key: "keimSizeSlackPerGeneration", label: "nach oben je weitere Generation", unit: "m (nach der ersten Voxel-Generation je Generation halbiert)", step: 0.05 },
+    { key: "keimTiltPerGeneration", label: "Neigung bis", unit: "Grad × (Generation − 1)", step: 0.5 },
+    { key: "tintStart", label: "Leuchtfarbe Generation 1", unit: "Stärke (zufällige reine Farbe)", step: 0.01 },
+    { key: "tintPerGeneration", label: "+ je weitere Generation", unit: "Stärke", step: 0.01 },
+    { key: "tintFuseLoss", label: "Verschmelzen: Mittel beider minus", unit: "Stärke (Farben gemischt)", step: 0.01 },
+    { key: "tintMin", label: "Leuchtfarbe mindestens", unit: "Stärke, nur bei der ersten Verschmelzung (auch nach dem Verblassen)", step: 0.01 },
+    { key: "tintMax", label: "Leuchtfarbe höchstens", unit: "Stärke", step: 0.01 },
+    { key: "keimStartScale", label: "Keimling wächst ab", unit: "Anteil seiner Größe", step: 0.05 },
     { key: "fuseMatchHeight", label: "Kleineres wächst auf Höhe des größeren", unit: "1 = ja, 0 = nein", step: 1 },
     { key: "maxGrowFactor", label: "wächst höchstens um", unit: "Faktor", step: 0.5 },
     { key: "riseStep", label: "Steigt pro Verschmelzung", unit: "m", step: 0.05 },
@@ -70,12 +100,31 @@ const PARAM_GROUPS: Group[] = [
     { key: "riseMaxMult", label: "höchstens", unit: "fach", step: 0.5 },
     { key: "halvingRise", label: "Hälften schweben auf", unit: "m", step: 0.05 },
     { key: "maxTop", label: "Höhengrenze Oberkante", unit: "m", step: 0.1 },
+    { key: "maxWidth", label: "Breitengrenze", unit: "m, längere Seite am Boden", step: 0.1 },
+    { key: "fusedGrowPerDay", label: "Verschmolzene wachsen um", unit: "Anteil ihrer Größe pro Eigentag", step: 0.01 },
+    { key: "fusedGrowMax", label: "bis höchstens", unit: "× Größe nach der Verschmelzung (darüber: Sinken bis zur Einsinkgrenze)", step: 0.05 },
     { key: "maxSink", label: "Einsinken höchstens", unit: "Anteil der Höhe", step: 0.05 },
-    { key: "swayBelowTriangles", label: "Schwanken unter", unit: "Dreiecke", step: 50 },
-    { key: "swayAmplitude", label: "Schwanken bis", unit: "m", step: 0.05 },
+  ] },
+  { title: "Schweben, Zusammenziehen, Absinken", note: "Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab; im Verfall sinken sie zum Boden.", fields: [
+    { key: "swayFromTriangles", label: "Schweben ab unter", unit: "Dreiecke", step: 1000 },
+    { key: "swayAmplitude", label: "Schweben bei einem Dreieck", unit: "m", step: 0.05 },
+    { key: "swaySlowSeconds", label: "anfangs ein Auf und Ab in", unit: "Sekunden", step: 0.5 },
+    { key: "swayFastSeconds", label: "bei einem Dreieck in", unit: "Sekunden", step: 0.5 },
+    { key: "swayGroundFactor", label: "am Boden", unit: "× Schweben", step: 0.1 },
+    { key: "swayPerMetre", label: "+ pro Meter Höhe", unit: "× Schweben", step: 0.1 },
+    { key: "swayMaxFactor", label: "höchstens", unit: "× Schweben", step: 0.1 },
+    { key: "gatherPerDay", label: "Zusammenziehen im Abstieg", unit: "m pro Eigentag", step: 0.01 },
+    { key: "gatherStop", label: "bis zum Pflanzpunkt höchstens", unit: "m + halbe Breite", step: 0.05 },
+    { key: "halvingRepelPerDay", label: "Hälften stoßen sich ab mit", unit: "m pro Eigentag", step: 0.01 },
+    { key: "halvingRepelRange", label: "Abstoßen bis Abstand", unit: "m", step: 0.1 },
+    { key: "decaySinkPerDay", label: "Absinken im Verfall", unit: "m pro Eigentag", step: 0.01 },
+  ] },
+  { title: "Rechnen", note: "Ein Ergebnis wird so lange nach dem Auftrag eingesetzt; in der Sandbox läuft die Uhr währenddessen weiter.", fields: [
+    { key: "jobLeadDays", label: "Rechenvorlauf", unit: "Eigentage", step: 0.05 },
+    { key: "softFuseLeadDays", label: "Rechenvorlauf weiche Verschmelzung", unit: "Eigentage", step: 0.1 },
   ] },
   { title: "Verstärkte Komprimierung", note: "Zeitkonto über der Grenze, summiert sich, steht nach dem Auslösen auf null.", fields: [
-    { key: "compressThreshold", label: "Grenze", unit: "Anteil Budget", step: 0.01 },
+    { key: "compressAtShare", label: "Grenze (auch: Plateau erreicht)", unit: "Anteil Budget", step: 0.005 },
     { key: "compressSpanDays", label: "Zeitspanne", unit: "Eigentage", step: 0.1 },
     { key: "compressVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
     { key: "compressKeep", label: "Objekt behält", unit: "Anteil Dreiecke", step: 0.05 },
@@ -83,10 +132,11 @@ const PARAM_GROUPS: Group[] = [
   { title: "Abstieg und Halbieren", fields: [
     { key: "descentCompressEveryDays", label: "Komprimierung alle", unit: "Eigentage", step: 0.1 },
     { key: "descentCompressKeep", label: "Objekt behält", unit: "Anteil Dreiecke", step: 0.05 },
-    { key: "halvingThreshold", label: "Halbieren ab", unit: "Anteil Höchststand", step: 0.05 },
+    { key: "halvingAtShare", label: "Halbieren unter", unit: "Anteil Budget", step: 0.01 },
     { key: "halvingEveryDays", label: "Halbieren alle", unit: "Eigentage", step: 0.1 },
     { key: "halvingVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
     { key: "minTrianglesToHalve", label: "Halbieren erst ab", unit: "Dreiecke", step: 50 },
+    { key: "smallWiltPerDay", label: "Zu Kleine verwelken mit", unit: "Wahrscheinlichkeit pro Eigentag", step: 0.05 },
   ] },
   { title: "Verfall", note: "Beginnt, sobald nur noch verwelkende Objekte existieren.", fields: [
     { key: "decayCompressEveryDays", label: "Komprimierung alle", unit: "Eigentage", step: 0.05 },
@@ -126,7 +176,7 @@ const PARAM_GROUPS: Group[] = [
   ] },
 ];
 
-const DEFAULT_STARTERS = ["flamingo", "regenschirm", "naehmaschine", "tiffany-lampe"];
+const DEFAULT_STARTERS = ["flamingo", "mango", "muschel-vase", "rucksack", "tarot-figur"];
 
 // ---------------------------------------------------------------- state
 
@@ -171,17 +221,17 @@ interface Frame {
 
 interface RunResult { world: World; frames: Frame[]; ms: number }
 
-const DT = 0.01; // calendar days per step
 const FRAME_EVERY = 0.25;
 
 function run(i: Inputs): RunResult {
   const t0 = performance.now();
   const w = createWorld(buildScenario(i), { ...i.params });
   const frames: Frame[] = [snapshot(w)];
+  const ready = new Map<number, JobResult>();
   let nextFrame = FRAME_EVERY;
   while (w.calendar < i.scenario.days && w.phase !== "ende") {
-    step(w, DT);
-    settleJobs(w, applyJob);
+    const r = advance(w, ready);
+    if ("jobs" in r) for (const j of r.jobs) ready.set(j.id, runAbstractJob(w, j)); // computed at once, used when due
     if (w.calendar >= nextFrame) { frames.push(snapshot(w)); nextFrame += FRAME_EVERY; }
   }
   frames.push(snapshot(w));
@@ -200,7 +250,7 @@ function snapshot(w: World): Frame {
     }; }),
     photos: w.photos.map((p) => ({ x: p.pos[0], z: p.pos[2], blocked: p.blocked, gone: p.gone, used: usedPhotos.has(p.id) })),
     drawings: w.drawings.filter((d) => !d.gone).map((d) => ({ x: d.pos[0], z: d.pos[2], y: drawingCenter(d)[1], mode: d.mode, scale: d.scale, tex: !!d.texture })),
-    pairs: w.pairs.flatMap((pr) => {
+    pairs: w.pairs.filter((pr) => pr.start !== null).flatMap((pr) => {
       const a = w.objects.find((o) => o.id === pr.a), b = w.objects.find((o) => o.id === pr.b);
       return a && b ? [{ ax: a.pos[0], az: a.pos[2], bx: b.pos[0], bz: b.pos[2] }] : [];
     }),
@@ -227,7 +277,7 @@ function renderForm() {
     const m = MODELS[name];
     const h = (m.max[1] - m.min[1]).toFixed(2);
     return `<label class="starter" for="st-${name}"><input id="st-${name}" type="checkbox" data-starter="${name}" ${inputs.starters.includes(name) ? "checked" : ""}>
-      <span>${MODEL_LABELS[name] ?? name}</span><span class="starter-meta">${fmt(m.triangles)} △ · Original ${h} m</span></label>`;
+      <span>${MODEL_LABELS[name] ?? name}</span><span class="starter-meta">${fmt(m.triangles)} △ · Original ${h} m hoch</span></label>`;
   }).join("");
   const group = (prefix: string, g: Group, values: Record<string, number>, open: boolean) =>
     `<details class="group" ${open ? "open" : ""}><summary>${esc(g.title)}</summary>
@@ -276,7 +326,7 @@ function renderSummary(r: RunResult) {
     e ? `<b>Tag ${fmt(e.calendar, 1)}</b><span>Eigenzeit ${fmt(e.eigen, 1)}</span>` : `<b>—</b><span>nicht erreicht</span>`;
   const count = (t: string) => w.events.filter((e) => e.type === t).length;
   $("#summary").innerHTML = `
-    <div class="stat"><span class="stat-label">Höchststand</span><b>${fmt(w.plateauMax)} △</b><span>${fmt((w.plateauMax / w.params.budget) * 100)} % des Budgets</span></div>
+    <div class="stat"><span class="stat-label">Höchststand</span><b>${fmt(w.plateauMax)} △</b><span>${fmt((w.plateauMax / w.budget) * 100)} % des Budgets (${fmt(w.budget)})</span></div>
     <div class="stat"><span class="stat-label">Plateau erreicht</span>${when(plateau)}</div>
     <div class="stat"><span class="stat-label">Abstieg ab</span>${when(descent)}</div>
     <div class="stat"><span class="stat-label">Erste Halbierung</span>${when(halving)}</div>
@@ -291,7 +341,7 @@ function renderSummary(r: RunResult) {
 // --- curve chart (SVG)
 
 const STATE_ORDER: ObjectState[] = ["keimling", "aktiv", "verwelkend", "tot"];
-const KIND_ORDER: ObjectKind[] = ["ursprung", "keimling", "unveraendert", "v1", "v2", "v3", "v4", "halbiert"];
+const KIND_ORDER: ObjectKind[] = ["ursprung", "keimling", "voxelkeimling", "unveraendert", "v1", "v2", "v3", "v4", "halbiert"];
 
 const STATE_LABEL: Record<ObjectState, string> = { keimling: "Keimling", aktiv: "Aktiv", verwelkend: "Verwelkend", tot: "Tot" };
 
@@ -305,7 +355,7 @@ function renderCurve(r: RunResult) {
   const w = r.world, p = w.params, S = w.samples;
   const W = 760, H = 300, L = 64, R = 16, T = 16, B = 34;
   const maxDay = Math.max(1, w.calendar);
-  const maxTri = Math.max(p.budget, w.plateauMax) * 1.05;
+  const maxTri = Math.max(w.budget, w.plateauMax) * 1.05;
   const X = (d: number) => L + (d / maxDay) * (W - L - R);
   const Y = (v: number) => T + (1 - v / maxTri) * (H - T - B);
   const path = S.map((s, k) => `${k ? "L" : "M"}${X(s.calendar).toFixed(1)} ${Y(s.triangles).toFixed(1)}`).join("");
@@ -321,8 +371,8 @@ function renderCurve(r: RunResult) {
   const cur = result ? result.frames[frameIndex] : null;
   const cursor = cur ? `<line x1="${X(cur.calendar)}" x2="${X(cur.calendar)}" y1="${T}" y2="${H - B}" class="cursor"/>` : "";
   $("#curve").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Dreiecke im Ökosystem über die Kalendertage">
-    ${grid}${ref(p.budget, `Budget ${fmt(p.budget)}`, "ref")}${ref(p.compressThreshold * p.budget, "Grenze verstärkte Komprimierung", "ref ref-soft")}
-    ${w.plateauMax ? ref(p.halvingThreshold * w.plateauMax, "Halbieren ab", "ref ref-soft") : ""}
+    ${grid}${ref(w.budget, `Budget ${fmt(w.budget)}`, "ref")}${ref(w.compressAt, "Grenze verstärkte Komprimierung", "ref ref-soft")}
+    ${ref(w.halvingAt, "Halbieren unter", "ref ref-soft")}
     ${marks}<path d="${area}" class="area"/><path d="${path}" class="line"/>${cursor}
     <text x="${L}" y="${H - 1}" class="axis-label">Kalendertage</text></svg>`;
 
@@ -404,7 +454,7 @@ function renderMap() {
     ctx.setLineDash([4, 3]); ctx.strokeStyle = css("--muted"); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.setLineDash([]);
   }
   // fusion pairs: B on its way to A
-  ctx.strokeStyle = css("--fg"); ctx.lineWidth = 1.5; ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = css("--pair"); ctx.lineWidth = 3.5; ctx.setLineDash([8, 5]);
   for (const pr of f.pairs) {
     const [ax, ay] = P(pr.ax, pr.az), [bx, by] = P(pr.bx, pr.bz);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
@@ -503,7 +553,7 @@ function renderSide() {
   // objects, farthest drawn first does not matter in a silhouette view
   for (const o of f.objects) {
     const x0 = X(o.x0), x1 = X(o.x1), y0 = Y(o.y0), y1 = Y(o.y1);
-    if (o.sway > 0) { ctx.fillStyle = css(`--st-${o.state}`); ctx.globalAlpha = 0.18; ctx.fillRect(x0, Y(o.y1 + o.sway), x1 - x0, Y(o.y0 - o.sway) - Y(o.y1 + o.sway)); }
+    if (o.sway > 0) { ctx.fillStyle = css(`--st-${o.state}`); ctx.globalAlpha = 0.18; ctx.fillRect(x0, Y(o.y1 + o.sway), x1 - x0, Y(o.y0) - Y(o.y1 + o.sway)); } // floats upwards only
     ctx.globalAlpha = o.state === "tot" ? 0.4 : 0.85;
     ctx.fillStyle = o.origin ? css("--kd-ursprung") : css(`--st-${o.state}`);
     ctx.fillRect(x0, y1, Math.max(1.5, x1 - x0), y0 - y1);

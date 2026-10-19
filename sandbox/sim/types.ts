@@ -1,6 +1,8 @@
 // The simulation's world state. Shaped like the documents the platform would
 // later store, with metre coordinates (x east, z south, y up) instead of GPS.
 import type { Params } from "../params";
+import type { Pose } from "./pose";
+import type { FusePost, HalvingRecipe } from "./recipes";
 
 export type Vec3 = [number, number, number];
 
@@ -28,8 +30,12 @@ export interface PlantObject extends ModelVersion {
   state: ObjectState;
   bornAt: number; // Eigenzeit
   grow: number; // 0…1, rising out of the ground
-  copiesLeft: number;
-  nextCopyAt: number;
+  /** Fraction of its size a Keimling starts at; it grows to full size while rising. */
+  startScale: number;
+  /** Scale right after its last fusion: from there it may grow slowly up to fusedGrowMax × this (null = never fused). */
+  growBase: number | null;
+  /** Lean about a pivot on the ground under the centre (later Keimling generations): angle and direction, radians. */
+  tilt: { angle: number; dir: number } | null;
   busy: boolean; // a geometry job for this object is running
   photo: { photoId: string; since: number; halvedSince: boolean } | null;
   crushLevel: number;
@@ -41,6 +47,12 @@ export interface PlantObject extends ModelVersion {
   fusions: number;
   /** How many halvings lie behind this object. */
   halvings: number;
+  /** Emissive tint: pure colour (sRGB 0…1, brightest channel 1) and strength; null = none (origin objects). */
+  tint: { color: Vec3; strength: number } | null;
+  /** Fusions since the tint last faded out (or since birth): with 0 on both sides a fusion keeps at least tintMin. */
+  tintFusions: number;
+  /** The other half of its last halving: they push each other away from the descent on. */
+  sibling: string | null;
   /** Planted origin object: copies itself, but stands outside the active
    *  ecosystem (no budget, no fusion, no photos) and only mirrors its state. */
   origin: boolean;
@@ -49,20 +61,31 @@ export interface PlantObject extends ModelVersion {
   scale: number;
   /** Height of the object's underside above the ground (m); negative = sunk in. */
   lift: number;
+  /** Full transform of the model into the world while it travels into a
+   *  fusion pose (rotation about all axes); null = standing (pos, lift, rotY, scale). */
+  pose: Pose | null;
+  /** Voxel grid it was copied with (Keimling end stage), null = not voxelized. */
+  voxelCells: number | null;
 }
 
 /** History of an object, for counting: Keimling, untouched, fused n times, halved. */
-export type ObjectKind = "ursprung" | "keimling" | "unveraendert" | "v1" | "v2" | "v3" | "v4" | "halbiert";
+export type ObjectKind = "ursprung" | "keimling" | "voxelkeimling" | "unveraendert" | "v1" | "v2" | "v3" | "v4" | "halbiert";
 
 /** Two objects that have decided to fuse: B travels to A, the fused model is computed meanwhile. */
 export interface Pair {
   a: string;
   b: string;
   jobId: number;
-  start: number; // Eigenzeit
+  /** Eigenzeit the journey began: once the fused model (and so B's pose in it) is known. */
+  start: number | null;
   duration: number;
-  from: Vec3;
-  to: Vec3;
+  from: Pose | null;
+  to: Pose | null;
+  /** A's model frame now and after the fusion (risen, sunk or shrunk to the height limit). */
+  aFrom: Pose | null;
+  aTo: Pose | null;
+  aLift: number;
+  aScale: number;
   result: ModelVersion | null;
 }
 
@@ -109,6 +132,8 @@ export interface JobRequest {
   id: number;
   kind: JobKind;
   objectId: string;
+  /** Eigenzeit at which the result is used — never earlier, so a run does not depend on computing speed. */
+  dueAt: number;
   /** copy/compress: keep at most this fraction of the triangles. */
   keep?: number;
   /** crush: new crush level. */
@@ -119,6 +144,19 @@ export interface JobRequest {
   spawn?: { pos: Vec3; rotY: number };
   /** split: horizontal direction the two halves move apart. */
   apart?: number;
+  /** copy: generation of the new Keimling (its parent's, or the next one). */
+  generation?: number;
+  /** copy: voxelize with this many cells over the largest side instead of reducing. */
+  voxelCells?: number;
+  /** fuse: hart (exact union) or weich (rounded, slow). */
+  fuseMode?: "hart" | "weich";
+  /** Test track step this job carries out (see sim/recipes.ts): p2 … p13d, or "copy"/"reduce". */
+  recipe?: string;
+  /** fuse: accepted overlap (glb-fuse --overlap) and what follows the union. */
+  overlap?: string;
+  fusePost?: FusePost;
+  /** split: what happens to the halves. */
+  halving?: HalvingRecipe;
   /** fuse: the object that travels to objectId and merges into it. */
   partnerId?: string;
   /** fuse: scale of the partner after growing to the larger one's height. */
@@ -128,6 +166,8 @@ export interface JobRequest {
 export interface JobResult {
   jobId: number;
   outputs: ModelVersion[]; // split: two, all others: one
+  /** fuse: where B's model ended up inside the result (column-major, B's file → result). */
+  bMatrix?: number[];
 }
 
 export interface SimEvent {
@@ -182,6 +222,10 @@ export interface World {
   boosts: Boost[];
   viewers: number;
   plantingPoint: Vec3;
+  /** Polygon budget and the two thresholds, from the planted origin objects' triangles (params budget*). */
+  budget: number;
+  compressAt: number;
+  halvingAt: number;
   plateauMax: number;
   phase: "wachstum" | "plateau" | "abstieg" | "verfall" | "ende";
   compressAccount: number;
@@ -189,7 +233,24 @@ export interface World {
   nextDescentCompressAt: number;
   nextHalvingAt: number | null;
   jobs: JobRequest[]; // requested, not yet applied
+  /** Eigenzeit each origin line forms its next Keimling. */
+  nextSpawnAt: Record<string, number>;
+  /** Copies made per origin line and generation: "flamingo:4" → 2. */
+  generationCounts: Record<string, number>;
+  /** Eigenzeit the plateau was reached (null before). */
+  plateauSince: number | null;
+  /** Eigenzeit the voxel generations began: the count rose above halvingAt during growth (null before). */
+  voxelSince: number | null;
   pairs: Pair[];
+  /** The first pair forms without waiting for chance; from then on the pairing rate applies. */
+  firstPairFormed: boolean;
+  /** How often each test track step was applied in this run. */
+  stepsSeen: Record<string, number>;
+  /** The object carried through the whole fusion chain (Phase 3 … 10), protected until done. */
+  champion: string | null;
+  nextChainAt: number;
+  /** The piece carried through the whole halving chain (Phase 11 … 13, thirds); "fertig" once one has. */
+  halvingChain: string | null;
   nextJobId: number;
   nextId: number;
   events: SimEvent[];

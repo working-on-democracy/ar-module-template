@@ -19,7 +19,9 @@
   --st-tot: #9aa19c;
   --photo: #3466a8;
   --drawing: #c2410c;
+  --pair: #e0218a;
   --kd-ursprung: #4d4038;
+  --kd-voxelkeimling: #4fa89a;
   --kd-unveraendert: #b9c2b8;
   --kd-v1: #9cc3d9;
   --kd-v2: #5c9cc4;
@@ -34,15 +36,15 @@
     --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
     --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
     --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
-    --photo: #6f9be0; --drawing: #f07a45;
-    --kd-ursprung: #cbbcae; --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
+    --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
+    --kd-ursprung: #cbbcae; --kd-voxelkeimling: #6cc4b5; --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
   --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
   --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
-  --photo: #6f9be0; --drawing: #f07a45;
+  --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
     --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -102,7 +104,7 @@ summary { cursor: pointer; font: 600 15px var(--font-display); letter-spacing: 0
 .cursor { stroke: var(--drawing); stroke-width: 1.5; }
 .factor { fill: none; stroke: var(--fg); stroke-width: 1.25; opacity: 0.7; }
 .st, .kd { stroke: none; }
-.kd-ursprung { fill: var(--kd-ursprung); } .kd-keimling { fill: var(--st-keimling); } .kd-unveraendert { fill: var(--kd-unveraendert); } .kd-v1 { fill: var(--kd-v1); } .kd-v2 { fill: var(--kd-v2); } .kd-v3 { fill: var(--kd-v3); } .kd-v4 { fill: var(--kd-v4); } .kd-halbiert { fill: var(--st-verwelkend); }
+.kd-ursprung { fill: var(--kd-ursprung); } .kd-keimling { fill: var(--st-keimling); } .kd-voxelkeimling { fill: var(--kd-voxelkeimling); } .kd-unveraendert { fill: var(--kd-unveraendert); } .kd-v1 { fill: var(--kd-v1); } .kd-v2 { fill: var(--kd-v2); } .kd-v3 { fill: var(--kd-v3); } .kd-v4 { fill: var(--kd-v4); } .kd-halbiert { fill: var(--st-verwelkend); }
 .st-keimling { fill: var(--st-keimling); } .st-aktiv { fill: var(--st-aktiv); } .st-verwelkend { fill: var(--st-verwelkend); } .st-tot { fill: var(--st-tot); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -163,6 +165,7 @@ select { font: 14px var(--font-body); color: var(--fg); background: var(--bg); b
         <div class="legend">
           <span><i class="sw" style="background: var(--kd-ursprung)"></i>Ursprungsobjekt</span>
           <span><i class="sw" style="background: var(--st-keimling)"></i>Keimling</span>
+          <span><i class="sw" style="background: var(--kd-voxelkeimling)"></i>Voxel-Keimling</span>
           <span><i class="sw" style="background: var(--kd-unveraendert)"></i>Weder verschmolzen noch halbiert</span>
           <span><i class="sw" style="background: var(--kd-v1)"></i>1 Verschmelzung</span>
           <span><i class="sw" style="background: var(--kd-v2)"></i>2</span>
@@ -190,7 +193,7 @@ select { font: 14px var(--font-body); color: var(--fg); background: var(--bg); b
             <span><i class="sw" style="border: 1.5px solid var(--photo)"></i>Foto (gefüllt: übernommen, durchgestrichen: gesperrt)</span>
             <span><i class="sw" style="background: var(--drawing); height: 3px"></i>Zeichnung (grün: hat Textur geerbt)</span>
             <span><i class="sw" style="border: 1px dashed var(--muted)"></i>Bounding Box</span>
-            <span><i class="sw" style="border-top: 2px dotted var(--fg); height: 0"></i>Paar auf dem Weg zur Verschmelzung (Zahl im Objekt: Verschmelzungen)</span>
+            <span><i class="sw" style="border-top: 3px dashed var(--pair); height: 0"></i>Paar, das sich aufeinander zubewegt (Zahl im Objekt: Verschmelzungen)</span>
           </div>
         </div>
       </section>

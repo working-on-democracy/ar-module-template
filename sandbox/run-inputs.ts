@@ -4,13 +4,19 @@
 import { readFileSync } from "node:fs";
 import { PARAMS } from "./params";
 import { buildScenario, SCENARIO_DEFAULTS } from "./scenarios/generate";
-import { settleJobs } from "./sim/abstract-jobs";
-import { applyJob, createWorld, step } from "./sim/world";
+import { runAbstractJob } from "./sim/abstract-jobs";
+import { advance } from "./sim/schedule";
+import type { JobResult } from "./sim/types";
+import { createWorld } from "./sim/world";
 
 const input = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const scenario = { ...SCENARIO_DEFAULTS, ...input.scenario };
 const w = createWorld(buildScenario({ scenario, starters: input.starters }), { ...PARAMS, ...input.params });
-while (w.calendar < scenario.days && w.phase !== "ende") { step(w, 0.01); settleJobs(w, applyJob); }
+const ready = new Map<number, JobResult>();
+while (w.calendar < scenario.days && w.phase !== "ende") {
+  const r = advance(w, ready);
+  if ("jobs" in r) for (const j of r.jobs) ready.set(j.id, runAbstractJob(w, j));
+}
 for (const e of w.events) console.log(`E ${e.eigen.toFixed(2).padStart(6)}  K ${e.calendar.toFixed(2).padStart(6)}  ${e.text}`);
 console.log("\nEigenzeit  Kalender  Dreiecke  Faktor  K/A/V/T");
 for (const s of w.samples.filter((_, i) => i % 10 === 0)) {
