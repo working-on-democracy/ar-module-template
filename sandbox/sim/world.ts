@@ -591,7 +591,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   for (const pair of [...w.pairs]) {
     const a = w.objects.find((x) => x.id === pair.a), b = w.objects.find((x) => x.id === pair.b);
     if (!a || !b) { w.pairs.splice(w.pairs.indexOf(pair), 1); continue; }
-    if (pair.start === null || !pair.from || !pair.to || !pair.aFrom || !pair.aTo || !pair.result) continue; // pose not known yet: B waits
+    if (pair.start === null || !pair.from || !pair.to || !pair.aFrom || !pair.aTo) continue; // pose not known yet: B waits
     // on the way B already turns, scales and rises into its pose inside the
     // fused model, and A already rises (or sinks/shrinks) to its final height
     const t = Math.min(1, (w.eigen - pair.start) / pair.duration);
@@ -599,7 +599,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     b.pose = lerpPose(pair.from, pair.to, s);
     b.pos = [b.pose.p[0], 0, b.pose.p[2]];
     a.pose = lerpPose(pair.aFrom, pair.aTo, s);
-    if (t < 1) continue;
+    if (t < 1 || !pair.result) continue; // arrived before the fused model is ready: both wait overlapping
     const before = a.triangles + b.triangles;
     Object.assign(a, {
       glb: pair.result.glb, triangles: pair.result.triangles, min: pair.result.min, max: pair.result.max,
