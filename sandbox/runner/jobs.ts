@@ -12,6 +12,8 @@ import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "../sim/ty
 import { glbInfo } from "./glb-info";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
+/** Prepared models for glb-fuse, shared by all runs (keyed by file content and options, so a model is never prepared twice). */
+const FUSE_CACHE = join(ROOT, "sandbox-runs", "fuse-cache");
 
 export interface JobOptions {
   runDir: string; // glb paths in the world are relative to it
@@ -19,10 +21,14 @@ export interface JobOptions {
   fuseMode: "hart" | "weich" | "voxel" | null;
 }
 
+/** A script that hangs is stopped after this long and its job counts as failed (the clock would wait for it forever). */
+const SCRIPT_TIMEOUT_MS = 15 * 60_000;
+
 export function script(name: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("npx", ["tsx", join(ROOT, "scripts", name), ...args], { cwd: ROOT, maxBuffer: 1 << 24 }, (err, stdout, stderr) => {
-      if (err) reject(new Error(`${name} ${args.join(" ")}\n${stderr || stdout || err.message}`));
+    execFile("npx", ["tsx", join(ROOT, "scripts", name), ...args], { cwd: ROOT, maxBuffer: 1 << 24, timeout: SCRIPT_TIMEOUT_MS }, (err, stdout, stderr) => {
+      if (err?.killed) reject(new Error(`${name} ${args.join(" ")}\nnach ${SCRIPT_TIMEOUT_MS / 60_000} Minuten abgebrochen`));
+      else if (err) reject(new Error(`${name} ${args.join(" ")}\n${stderr || stdout || err.message}`));
       else resolve(stdout);
     });
   });
@@ -39,7 +45,7 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
   const abs = (rel: string) => join(opt.runDir, rel);
   const out = (suffix: string) => `glb/${o.id}-j${job.id}${suffix}.glb`;
   const reduce = (from: string, to: string, target: number, extra: string[] = []) =>
-    script("glb-reduce.ts", [abs(from), "--target", String(Math.max(4, Math.floor(target))), ...extra, "--out", abs(to)]);
+    script("glb-reduce.ts", [abs(from), "--target", String(Math.max(1, Math.floor(target))), ...extra, "--out", abs(to)]);
   const stylize = (from: string, to: string, faces: number, extra: string[] = []) =>
     script("stylize-glb.ts", [abs(from), "--faces", String(faces), "--texture", String(STYLIZE_COPY.texture), "--saturation", String(STYLIZE_COPY.saturation), ...extra, "--no-compress", "--out", abs(to)]);
   const crush = (from: string, to: string) => // Phase 9
@@ -62,7 +68,15 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
   }
   if (job.kind === "compress") {
     const rel = out("-komp");
-    await reduce(o.glb, rel, o.triangles * (job.keep ?? 1));
+    const target = o.triangles * (job.keep ?? 1);
+    // an origin object's last compression: under the death limit whatever it takes
+    // (or a forced one: the object could hardly be compressed any more)
+    if (job.final || job.force) await reduce(o.glb, rel, target, ["--permissive", "--prune", "--force"]);
+    else {
+      await reduce(o.glb, rel, target);
+      // origin objects must keep up with the ecosystem: texture seams stop them far above the target, then permissive
+      if (o.origin && (await glbInfo(abs(rel))).triangles > target * 1.5) await reduce(o.glb, rel, target, ["--permissive"]);
+    }
     return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
   }
   if (job.kind === "crush") {
@@ -94,7 +108,8 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
   if (!b) return { jobId: job.id, outputs: [await version(opt.runDir, o.glb)] };
   const raw = out("-fuse-roh");
   const args = [abs(o.glb), abs(b.glb), "--mode", opt.fuseMode ?? job.fuseMode ?? "hart", "--seed", String(job.seed ?? job.id),
-    "--overlap", job.overlap ?? "0.05-0.6", "--min-fill", "0.15", "--repair", "--out", abs(raw)];
+    "--overlap", job.overlap ?? "0.05-0.6", "--min-fill", "0.15", "--repair", "--out", abs(raw),
+    "--cache", FUSE_CACHE]; // every model is prepared only once, across all runs
   // B grows to A's height (after its rotation), but never more than maxGrowFactor in the world
   if (w.params.fuseMatchHeight) args.push("--match-height", "--max-scale", String((w.params.maxGrowFactor * b.scale) / o.scale));
   const matrixOf = (log: string) => {

@@ -47,6 +47,61 @@ export function worldBounds(o: PlantObject): { min: Vec3; max: Vec3 } {
 /** Width of the object as it stands: its longer horizontal side (model x or z × scale). */
 export const objectWidth = (o: PlantObject) => Math.max(o.max[0] - o.min[0], o.max[2] - o.min[2]) * o.scale;
 
+/** Moves a standing object (and the drawings resting on it). */
+function moveBy(w: World, o: PlantObject, dx: number, dy: number, dz: number) {
+  o.pos = [o.pos[0] + dx, o.pos[1], o.pos[2] + dz];
+  o.lift += dy;
+  for (const dr of w.drawings) if (dr.mode === "ruhend" && dr.target === o.id) dr.pos = [dr.pos[0] + dx, dr.pos[1] + dy, dr.pos[2] + dz];
+}
+
+/** A fixed number in [0, 1) for a pair of objects, the same in either order. */
+function pairShare(a: string, b: string): number {
+  let h = 2166136261;
+  for (const c of a < b ? a + "|" + b : b + "|" + a) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
+/** Death: it stays visible for its own linger time and sinks steadily until its top is under the ground. */
+function die(w: World, o: PlantObject) {
+  const p = w.params;
+  o.state = "tot"; o.deadSince = w.eigen; o.busy = false;
+  o.linger = Math.max(0.05, p.lingerDays + (pairShare(o.id, "linger") * 2 - 1) * p.lingerVariance);
+  o.sinkFrom = o.lift;
+  o.sinkTo = o.lift - (worldBounds(o).max[1] + 0.02); // its top (leaning, too) just under the ground
+  o.wind = null; o.liftAdd = 0;
+}
+
+/** A job failed: the objects are released unchanged, a fusion pair dissolves (both its jobs go). */
+export function jobFailed(w: World, job: JobRequest): number[] {
+  const pair = w.pairs.find((x) => x.jobId === job.id || x.poseJobId === job.id);
+  const ids = pair ? [pair.jobId, pair.poseJobId] : [job.id];
+  w.jobs = w.jobs.filter((j) => !ids.includes(j.id));
+  for (const id of [job.objectId, job.partnerId, pair?.a, pair?.b]) {
+    const o = id ? w.objects.find((x) => x.id === id) : undefined;
+    if (o) { o.busy = false; o.pairedWith = null; o.pose = null; }
+  }
+  if (pair) w.pairs = w.pairs.filter((x) => x !== pair);
+  const o = w.objects.find((x) => x.id === job.objectId);
+  if (o) o.failures++;
+  log(w, "fehler", `Job ${job.id} (${job.kind}) fehlgeschlagen, Objekt bleibt unverändert${o ? ` (${o.failures}. Fehler von ${o.id})` : ""}`, job.objectId);
+  return ids;
+}
+
+/** Wind: 0 above windFromTriangles or before the first halving, 1 at deathTriangles (log scale). */
+function windStrength(o: PlantObject, p: Params): number {
+  if (!o.halvings || o.triangles >= p.windFromTriangles) return 0;
+  return Math.min(1, Math.log(p.windFromTriangles / Math.max(1, o.triangles)) / Math.log(p.windFromTriangles / Math.max(1, p.deathTriangles)));
+}
+
+/** A new wind direction (unit vector): random, partly up or down; beyond windRange back inwards. */
+function windGoal(w: World, o: PlantObject, rng: Rng): Vec3 {
+  const p = w.params;
+  const dx = w.plantingPoint[0] - o.pos[0], dz = w.plantingPoint[2] - o.pos[2];
+  const ang = Math.hypot(dx, dz) > p.windRange ? Math.atan2(dz, dx) + rng.range(-1, 1) : rng.range(0, Math.PI * 2);
+  const y = rng.range(-1, 1) * p.windVertical, r = Math.sqrt(1 - y * y);
+  return [Math.cos(ang) * r, y, Math.sin(ang) * r];
+}
+
 /** Keep the object within the size limits: no wider than maxWidth (it shrinks),
  *  top edge under maxTop (sink up to maxSink of the height, shrink beyond that). */
 function fitSize(o: PlantObject, p: Params) {
@@ -72,7 +127,7 @@ function swayStrength(o: PlantObject, p: Params): number {
  *  triangles fall; less near the ground, more the higher it stands. Keimlinge
  *  only once they have fully risen out of the ground. */
 export function swayOf(o: PlantObject, p: Params): number {
-  if (o.grow < 1) return 0; // a Keimling still rising out of the ground stands still
+  if (o.grow < 1 || o.state === "tot") return 0; // a Keimling still rising out of the ground stands still, the dead sink
   const s = swayStrength(o, p);
   if (!s) return 0;
   const height = Math.min(p.swayMaxFactor, p.swayGroundFactor + p.swayPerMetre * Math.max(0, o.lift));
@@ -172,6 +227,8 @@ export function createWorld(scenario: Scenario, params: Params): World {
     factor: 1,
     pioneerFactor: 1,
     factorParts: { inhalt: 0, ereignisse: 0, hinschauen: 0 },
+    lastWatched: 0,
+    boostsPaused: false,
   };
   let px = 0, pz = 0;
   for (const s of scenario.starters) {
@@ -241,8 +298,17 @@ function newObject(
     pose: null,
     voxelCells: null,
     fast: false,
+    pioneer: false,
     shrinkBase: null,
     stuck: false,
+    liftAdd: 0,
+    liftTau: 1,
+    wind: null,
+    forceCompress: false,
+    failures: 0,
+    linger: null,
+    sinkFrom: null,
+    sinkTo: null,
   };
 }
 
@@ -277,6 +343,7 @@ function request(w: World, job: Omit<JobRequest, "id" | "dueAt">, dueIn?: number
     if (o) o.busy = true;
   }
   const id = w.nextJobId++;
+  if (job.kind === "compress" && w.objects.find((x) => x.id === job.objectId)?.forceCompress) job = { ...job, force: true };
   const lead = job.pioneer || job.immediate ? w.params.pioneerLeadDays : // Vorläufer, first round of plain Keimlinge
     job.kind === "fuse" && job.fuseMode === "weich" ? w.params.softFuseLeadDays : w.params.jobLeadDays;
   w.jobs.push({ ...job, id, dueAt: w.eigen + (dueIn ?? lead) });
@@ -415,7 +482,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (w.voxelSince === null && totalTriangles(w) >= w.halvingAt) { w.voxelSince = w.eigen; log(w, "phase", `Über ${w.halvingAt} Dreiecken: Voxel-Generationen beginnen`); }
     const voxelStart = w.voxelSince ?? w.plateauSince ?? (w.eigen >= p.growthMaxDays - p.voxelTargetDays ? p.growthMaxDays - p.voxelTargetDays : null);
     // the Vorläufer make no copies; an origin object may copy while it is busy with another copy (a Vorläufer)
-    const free = (o: PlantObject) => o.grow >= 1 && (!o.busy || o.origin) && !o.pairedWith && !o.photo && !o.fast && (o.origin || o.state === "keimling");
+    const free = (o: PlantObject) => o.grow >= 1 && (!o.busy || o.origin) && !o.pairedWith && !o.photo && !o.pioneer && (o.origin || o.state === "keimling");
     const spawn = (parent: PlantObject, gen: number, max: number, immediate = false): boolean => {
       const voxelCells = gen >= p.voxelFromGeneration
         ? Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, gen - p.voxelFromGeneration)))
@@ -478,7 +545,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // (the fast line only once the Vorläufer's opening fusions are over)
   const canFuse = (o: PlantObject) =>
     o.grow >= 1 && !o.origin && !o.busy && !o.pairedWith && !o.photo && (o.state === "aktiv" || o.state === "keimling") &&
-    (!o.fast || w.opening.stage === "fertig");
+    (!o.pioneer || w.opening.stage === "fertig");
   const pairUp = (o: PlantObject, q: PlantObject, why: string, opening = false): number => {
     // the lower one travels and (with fuseMatchHeight) grows to the taller one's height
     const [a, b] = objectHeight(o) >= objectHeight(q) ? [o, q] : [q, o];
@@ -498,7 +565,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     const jobId = request(w, { kind: "fuse", ...fuse, recipe: r.step, fusePost: r.post }, duration);
     a.pairedWith = b.id; b.pairedWith = a.id;
     w.firstPairFormed = true;
-    w.pairs.push({ a: a.id, b: b.id, jobId, poseJobId, expectedTriangles: fusePostTriangles(r.post, a.triangles + b.triangles), opening, start: null, duration, easeK: opening ? p.firstFuseEaseK : p.fuseEaseK, from: null, to: null, aFrom: null, aTo: null, aLift: 0, aScale: 1, result: null });
+    w.pairs.push({ a: a.id, b: b.id, jobId, poseJobId, expectedTriangles: fusePostTriangles(r.post, a.triangles + b.triangles), opening, start: null, duration, easeK: opening ? p.firstFuseEaseK : p.fuseEaseK, from: null, to: null, aFrom: null, aTo: null, aLift: 0, aMinY: 0, aScale: 1, result: null });
     if (w.champion === b.id) w.champion = a.id; // the chain goes on in the merged object
     log(w, "verschmelzung-paar", `${b.id} (${b.triangles}) wird von ${a.id} (${a.triangles}) angezogen, Paar steht fest (${STEP_LABEL[r.step]}${why})`, a.id);
     return jobId;
@@ -510,9 +577,9 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // firstFuseSpeed on the flatter curve. Only then does the fast line fuse with others.
   const op = w.opening;
   if (op.stage !== "fertig") {
-    const ready = () => w.objects.filter((o) => o.fast && o.state === "keimling" && o.grow >= 1 && !o.busy && !o.pairedWith && !o.pose);
+    const ready = () => w.objects.filter((o) => o.pioneer && o.state === "keimling" && o.grow >= 1 && !o.busy && !o.pairedWith && !o.pose);
     const pick = (objs: PlantObject[]) => objs.splice(Math.floor(rng.next() * objs.length), 1)[0];
-    const pending = w.pioneerQueue.length > 0 || w.jobs.some((j) => j.pioneer) || w.objects.some((o) => o.fast && o.state === "keimling" && o.grow < 1);
+    const pending = w.pioneerQueue.length > 0 || w.jobs.some((j) => j.pioneer) || w.objects.some((o) => o.pioneer && o.state === "keimling" && o.grow < 1);
     const opening = () => w.pairs.filter((pr) => pr.opening);
     if (op.stage === "warten") {
       const c = ready();
@@ -521,7 +588,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
         op.first = pairUp(x, y, ", Vorläufer: erste Verschmelzung", true);
         op.firstA = w.pairs.find((pr) => pr.jobId === op.first)!.a;
         op.stage = "erstes";
-      } else if (!pending && c.length < 2 && !w.objects.some((o) => o.fast && o.state === "keimling" && !o.pairedWith && (o.busy || o.pose))) op.stage = "fertig"; // fewer than two Vorläufer
+      } else if (!pending && c.length < 2 && !w.objects.some((o) => o.pioneer && o.state === "keimling" && !o.pairedWith && (o.busy || o.pose))) op.stage = "fertig"; // fewer than two Vorläufer
     }
     if (op.stage === "erstes") {
       const first = w.pairs.find((pr) => pr.jobId === op.first);
@@ -603,8 +670,10 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     const before = a.triangles + b.triangles;
     Object.assign(a, {
       glb: pair.result.glb, triangles: pair.result.triangles, min: pair.result.min, max: pair.result.max,
-      lift: pair.aLift, scale: pair.aScale, growBase: pair.aScale, pose: null,
-      fusions: a.fusions + b.fusions + 1, state: "aktiv", busy: false, pairedWith: null, fast: a.fast || b.fast,
+      // the real model's underside differs from the pose's estimate: keep the model where it is, only the underside moves
+      lift: pair.aLift + (pair.result.min[1] - pair.aMinY) * pair.aScale, scale: pair.aScale, growBase: pair.aScale, pose: null,
+      liftAdd: 0, // its pending rise went into the fusion's start height
+      fusions: a.fusions + b.fusions + 1, state: "aktiv", busy: false, pairedWith: null, fast: a.fast || b.fast, pioneer: a.pioneer || b.pioneer,
       // the minimum strength holds for a first fusion only (or the first after the colour faded out); later it may fade out
       tint: mixTint(a.tint, b.tint, p.tintFuseLoss, a.tintFusions + b.tintFusions === 0 ? p.tintMin : 0, p.tintMax),
     });
@@ -701,6 +770,23 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (o.lift < Math.min(before.lift, -p.maxSink * h) || objectWidth(o) > p.maxWidth) { o.scale = before.scale; o.lift = before.lift; o.growBase = o.scale / p.fusedGrowMax; } // no room: stops growing
   }
 
+  // Kinship: fused, active objects drift towards the nearest one with the same number
+  // of fusions, until they almost touch or overlap a little (gap fixed per pair).
+  const kin = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.pairedWith && !o.pose && o.grow >= 1 && o.fusions >= p.attractFromFusions);
+  for (const o of kin) {
+    let best: PlantObject | null = null, bestD = p.attractRange;
+    for (const q of kin) {
+      const d = dist2d(o.pos, q.pos);
+      if (q !== o && q.fusions === o.fusions && d <= bestD) { best = q; bestD = d; }
+    }
+    if (!best || bestD < 1e-6) continue;
+    const goal = p.attractGapMin + (p.attractGapMax - p.attractGapMin) * pairShare(o.id, best.id);
+    const room = bestD - (objectWidth(o) + objectWidth(best)) / 2 - goal;
+    if (room <= 0) continue;
+    const move = Math.min(room / 2, p.attractPerDay * Math.min(1, room / 0.3) * dtOf(o)); // both move, each half the way at most
+    moveBy(w, o, ((best.pos[0] - o.pos[0]) / bestD) * move, 0, ((best.pos[2] - o.pos[2]) / bestD) * move);
+  }
+
   // Descent: everything not on its way to a fusion drifts slowly towards the
   // planting point, and the two halves of a halving push each other away —
   // both added up (resting drawings move along). Decay: no more drift, the
@@ -725,10 +811,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
           mx += ux * push; mz += uz * push;
         }
       }
-      if (mx || mz) {
-        o.pos = [o.pos[0] + mx, o.pos[1], o.pos[2] + mz];
-        for (const dr of w.drawings) if (dr.mode === "ruhend" && dr.target === o.id) dr.pos = [dr.pos[0] + mx, dr.pos[1], dr.pos[2] + mz];
-      }
+      if (mx || mz) moveBy(w, o, mx, 0, mz);
       if (decay && o.state === "verwelkend") { // shrinks about its underside, down to decayShrinkMin
         o.shrinkBase ??= o.scale;
         o.scale = Math.max(o.shrinkBase * p.decayShrinkMin, o.scale - o.shrinkBase * p.decayShrinkPerDay * dt);
@@ -736,11 +819,40 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     }
   }
 
+  // Heights: a compression's rise (or the drift down from the height limit) comes
+  // gradually; an object that reaches the limit drifts down again by a random
+  // amount, slowly. Light splinters drift in the wind instead, in every direction.
+  for (const o of w.objects) {
+    if (o.origin || o.pairedWith || o.pose || o.grow < 1 || o.state === "tot") continue;
+    const odt = dtOf(o);
+    if (o.liftAdd) {
+      const m = Math.abs(o.liftAdd) < 1e-4 ? o.liftAdd : o.liftAdd * (1 - Math.exp(-odt / o.liftTau));
+      o.liftAdd -= m;
+      moveBy(w, o, 0, m, 0);
+    }
+    const h = objectHeight(o);
+    if (o.lift + h > p.maxTop) { moveBy(w, o, 0, p.maxTop - h - o.lift, 0); if (o.liftAdd > 0) o.liftAdd = 0; }
+    const s = windStrength(o, p);
+    if (s > 0) {
+      if (!o.wind || rng.chance(p.windTurnPerDay, odt)) o.wind = { v: o.wind?.v ?? [0, 0, 0], goal: windGoal(w, o, rng) };
+      const k = 1 - Math.exp(-odt / p.windEaseDays), speed = p.windSpeedPerDay * s, v = o.wind.v;
+      for (let i = 0; i < 3; i++) v[i] += (o.wind.goal[i] * speed - v[i]) * k;
+      let dy = v[1] * odt;
+      const lo = Math.min(0, o.lift), hi = p.maxTop - h; // never into the ground, never over the limit: it turns
+      if (o.lift + dy < lo) { dy = lo - o.lift; o.wind.goal[1] = Math.abs(o.wind.goal[1]); v[1] = 0; }
+      if (o.lift + dy > hi) { dy = Math.min(0, hi - o.lift); o.wind.goal[1] = -Math.abs(o.wind.goal[1]); v[1] = 0; }
+      moveBy(w, o, v[0] * odt, dy, v[2] * odt);
+    } else if (o.liftAdd >= 0 && o.lift + h >= p.maxTop - 0.005) {
+      o.liftAdd = -Math.min(rng.range(p.ceilingDropMin, p.ceilingDropMax), Math.max(0, o.lift));
+      o.liftTau = p.ceilingDriftDays;
+    }
+  }
+
   // An object that can get smaller neither by compression nor by halving dies.
   for (const o of w.objects) {
     if (!o.stuck || o.state === "tot" || o.busy || o.pairedWith || o.id === w.champion) continue;
     if (o.id === w.halvingChain && o.halvings < p.requiredHalvings) continue; // the chain's piece can still be halved
-    o.state = "tot"; o.deadSince = w.eigen;
+    die(w, o);
     log(w, "tod", `${o.id} stirbt: lässt sich weder komprimieren noch halbieren (${o.triangles} Dreiecke)`, o.id);
   }
   // Wilting: texture crush, death, removal.
@@ -748,7 +860,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (o.state === "verwelkend" && !o.busy) {
       const chainRunning = o.id === w.halvingChain && o.halvings < p.requiredHalvings; // the halving chain's piece lives on until its last halving
       if (o.triangles <= p.deathTriangles && !chainRunning) {
-        o.state = "tot"; o.deadSince = w.eigen;
+        die(w, o);
         log(w, "tod", `${o.id} stirbt (${o.triangles} Dreiecke)`, o.id);
       } else if (o.crushLevel < p.maxCrushLevel && w.eigen >= o.nextCrushAt) {
         request(w, { kind: "crush", objectId: o.id, level: o.crushLevel + 1, recipe: "p9" });
@@ -757,30 +869,51 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     }
   }
   // Origin objects mirror the active ecosystem: compressed in the same ratio
-  // as its count falls below the peak, texture crush in the decay, death
-  // together with its last object.
+  // as its count falls below the peak, down to just above the death limit,
+  // texture crush in the decay. Once the last object is dead, one last
+  // compression takes them under the death limit (the clock waits for it):
+  // they die with the ecosystem, the end of the plant.
   if (w.phase === "abstieg" || w.phase === "verfall") {
     const ratio = w.plateauMax > 0 ? Math.min(1, totalTriangles(w) / w.plateauMax) : 1;
+    const over = p.deathTriangles + 1;
+    const allGone = !living(w).length && !w.pairs.length;
+    // jobs still running on them are due at once (the clock waits), so they die right with the last object
+    if (allGone) for (const j of w.jobs) if (j.dueAt > w.eigen && w.objects.some((o) => o.origin && o.id === j.objectId)) j.dueAt = w.eigen;
     for (const o of w.objects) {
       if (!o.origin || o.busy || o.state === "tot") continue;
-      const goal = Math.max(1, Math.floor(o.originalTriangles * ratio));
+      if (allGone) {
+        if (o.triangles > p.deathTriangles && o.failures < p.maxJobFailures) {
+          request(w, { kind: "compress", objectId: o.id, keep: Math.max(1, Math.floor(p.deathTriangles / 2)) / o.triangles, final: true }, 0);
+          continue;
+        }
+        die(w, o);
+        log(w, "tod", o.triangles > p.deathTriangles
+          ? `Ursprungsobjekt ${o.id} (${o.lineage}) stirbt mit dem Ökosystem, obwohl die letzte Komprimierung ${o.failures}-mal gescheitert ist (${o.triangles} Dreiecke)`
+          : `Ursprungsobjekt ${o.id} (${o.lineage}) fällt unter die Todesgrenze (${o.triangles} Dreiecke) und stirbt mit dem Ökosystem`, o.id);
+        continue;
+      }
+      const goal = Math.max(over, Math.floor(over + (o.originalTriangles - over) * ratio));
       if (goal < o.triangles * 0.9) request(w, { kind: "compress", objectId: o.id, keep: goal / o.triangles });
       else if (w.phase === "verfall" && o.crushLevel < p.maxCrushLevel && w.eigen >= o.nextCrushAt) {
         request(w, { kind: "crush", objectId: o.id, level: o.crushLevel + 1, recipe: "p9" });
         o.nextCrushAt = w.eigen + p.crushEveryDays;
       }
     }
-    if (!living(w).length && !w.pairs.length) {
-      for (const o of w.objects) {
-        if (o.origin && o.state !== "tot" && !o.busy) {
-          o.state = "tot"; o.deadSince = w.eigen;
-          log(w, "tod", `Ursprungsobjekt ${o.id} (${o.lineage}) stirbt mit dem Ökosystem`, o.id);
-        }
-      }
-    }
   }
 
-  const removed = w.objects.filter((o) => o.state === "tot" && o.deadSince !== null && w.eigen - o.deadSince >= p.lingerDays);
+  // Failsafe: a wilting object whose jobs keep failing dies early (origin objects at the end: above).
+  for (const o of w.objects) {
+    if (o.state !== "verwelkend" || o.busy || o.failures < p.maxJobFailures) continue;
+    die(w, o);
+    log(w, "tod", `${o.id} stirbt vorzeitig: ${o.failures} Vorgänge sind gescheitert (${o.triangles} Dreiecke)`, o.id);
+  }
+  // The dead sink steadily, until their top is under the ground at the end of their linger time.
+  for (const o of w.objects) {
+    if (o.state !== "tot" || o.deadSince === null || o.sinkFrom === null || o.sinkTo === null) continue;
+    const t = Math.min(1, (w.eigen - o.deadSince) / (0.95 * (o.linger ?? p.lingerDays))); // under the ground a little before it goes
+    moveBy(w, o, 0, o.sinkFrom + (o.sinkTo - o.sinkFrom) * t - o.lift, 0);
+  }
+  const removed = w.objects.filter((o) => o.state === "tot" && o.deadSince !== null && w.eigen - o.deadSince >= (o.linger ?? p.lingerDays));
   if (removed.length) w.objects = w.objects.filter((o) => !removed.includes(o));
   if ((w.phase === "abstieg" || w.phase === "verfall") && !w.objects.length && !w.jobs.length && !w.pairs.length) { w.phase = "ende"; log(w, "phase", "Das Ökosystem ist vergangen"); }
 
@@ -883,6 +1016,14 @@ function mixTint(a: PlantObject["tint"], b: PlantObject["tint"], loss: number, m
 /** Time factor from the boosts now (also right after a command: devices, photos, drawings). */
 export function updateFactor(w: World) {
   const p = w.params;
+  // nobody looked for unwatchedPauseDays: no boosts at all until a device comes again
+  if (w.viewers > 0) w.lastWatched = w.calendar;
+  const paused = w.calendar - w.lastWatched >= p.unwatchedPauseDays;
+  if (paused !== w.boostsPaused) {
+    w.boostsPaused = paused;
+    log(w, "boosts", paused ? `Seit ${p.unwatchedPauseDays} Tagen hat niemand hingeschaut: alle Boosts ausgesetzt, Zeitfaktor 1` : "Jemand schaut hin: Boosts wieder aktiv");
+  }
+  if (paused) { w.factorParts = { inhalt: 0, ereignisse: 0, hinschauen: 0 }; w.factor = 1; w.pioneerFactor = 1; return; }
   const center = ecosystemCenter(w);
   const items =
     w.photos.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length +
@@ -967,7 +1108,7 @@ function placePioneer(w: World, child: PlantObject, rng: Rng) {
   const f = footprint(child);
   const at = (x: number, z: number): Footprint => ({ ...f, x, z });
   const origins = w.objects.filter((o) => o.origin && o.state !== "tot").map(placed);
-  const others = w.objects.filter((o) => o.fast && o !== child && o.state !== "tot" && !o.pose).map(placed);
+  const others = w.objects.filter((o) => o.pioneer && o !== child && o.state !== "tot" && !o.pose).map(placed);
   const clearOfOrigins = (c: Footprint, room = 0) => origins.every((g) => gapOf(c, g) >= p.pioneerOriginGap + room);
   let best: Footprint | null = null, bestD = Infinity;
   if (!others.length) {
@@ -1034,14 +1175,15 @@ export function overlapOf(d: Drawing, o: PlantObject): number {
 function startJourney(w: World, pair: World["pairs"][number], o: PlantObject, partner: PlantObject, fused: ModelVersion, bMatrix: number[] | undefined, triangles: number) {
   const p = w.params, rng = createRng(w.rngState);
   const after: PlantObject = { ...o, glb: fused.glb, triangles, min: fused.min, max: fused.max, pose: null };
-  after.lift = o.lift + (fused.min[1] - o.min[1]) * o.scale;
-  const mult = Math.min(p.riseMaxMult, Math.max(1, p.riseLowPolyRef / Math.max(1, triangles)));
-  after.lift += rng.vary(p.riseStep, p.riseVariance) * mult;
+  // from the higher of both partners (with what is still to come of their rises), so it never ends up lower
+  const base = Math.max(o.lift + Math.max(0, o.liftAdd), partner.lift + Math.max(0, partner.liftAdd));
+  after.lift = base + (fused.min[1] - o.min[1]) * o.scale + rng.vary(p.riseStep, p.riseVariance);
+  after.liftAdd = 0;
   fitSize(after, p);
   w.rngState = rng.state();
   pair.aFrom = decompose(modelMatrix(o));
   pair.aTo = decompose(modelMatrix(after));
-  pair.aLift = after.lift; pair.aScale = after.scale;
+  pair.aLift = after.lift; pair.aMinY = fused.min[1]; pair.aScale = after.scale;
   pair.from = decompose(modelMatrix(partner));
   pair.to = bMatrix ? decompose(multiply(modelMatrix(after), bMatrix)) : pair.from;
   pair.start = w.eigen;
@@ -1088,6 +1230,8 @@ export function applyJob(w: World, result: JobResult) {
     }
     let size = (origin ? objectSize(origin) : objectSize(o)) * grow * rng.vary(1, p.keimSizeVariance);
     size = Math.min(p.originMaxSize + slack, Math.max(p.originMinSize - p.keimSizeSlack, size));
+    // the last generations get smaller again, each by a random step (after the limits, so that it shows)
+    for (let k = p.keimGrowStopGeneration; k <= gen; k++) size *= 1 - rng.range(p.keimShrinkMin, p.keimShrinkMax);
     child.scale = 1;
     child.scale = size / Math.max(1e-6, objectSize(child));
     // a random pure colour, stronger with every generation
@@ -1096,14 +1240,28 @@ export function applyJob(w: World, result: JobResult) {
     const maxTilt = (p.keimTiltPerGeneration * Math.max(0, gen - 1) * Math.PI) / 180;
     if (maxTilt > 0) child.tilt = { angle: rng.range(0, maxTilt), dir: rng.range(0, Math.PI * 2) };
     fitSize(child, p); // copies keep within the size limits too (origin objects keep their size)
-    if (job.pioneer) { child.fast = true; placePioneer(w, child, rng); }
+    if (job.pioneer) { child.fast = child.pioneer = true; placePioneer(w, child, rng); }
+    else if ((o.fast && !o.origin) || rng.next() < p.fastKeimChance) child.fast = true; // passed on, or joins the fast line by chance
     w.rngState = rng.state();
     w.objects.push(child);
-    log(w, "kopie", `${o.id} kopiert sich: ${child.id}, Generation ${child.generation}${child.generation === o.generation ? " (gleiche Generation)" : ""}${child.voxelCells ? `, voxelisiert mit ${child.voxelCells} Zellen` : ""} (${child.triangles} Dreiecke)`, child.id);
+    log(w, "kopie", `${o.id} kopiert sich: ${child.id}, Generation ${child.generation}${child.generation === o.generation ? " (gleiche Generation)" : ""}${child.voxelCells ? `, voxelisiert mit ${child.voxelCells} Zellen` : ""} (${child.triangles} Dreiecke)${child.fast && !child.pioneer ? (o.fast ? ", schnelle Linie geerbt" : ", gehört zur schnellen Linie") : ""}`, child.id);
   } else if (job.kind === "compress" || job.kind === "crush") {
     const p = w.params;
-    // in the descent: too small to halve and the compression hardly took anything away — it cannot get smaller
-    if (job.kind === "compress" && !o.origin && (w.phase === "abstieg" || w.phase === "verfall") && o.triangles < p.minTrianglesToHalve && a.triangles > o.triangles * p.stuckKeep) o.stuck = true;
+    if (job.final && a.triangles > p.deathTriangles) o.stuck = true; // should not happen (the last compression forces it): it dies anyway
+    // in the descent: too small to halve and the compression hardly took anything away — from now on
+    // its compressions are forced; if even a forced one hardly takes anything away, it cannot get smaller
+    if (job.kind === "compress" && !o.origin && (w.phase === "abstieg" || w.phase === "verfall") && o.triangles < p.minTrianglesToHalve && a.triangles > o.triangles * p.stuckKeep) {
+      if (job.force) o.stuck = true;
+      else if (!o.forceCompress) { o.forceCompress = true; log(w, "erzwungen", `${o.id} lässt sich kaum noch komprimieren (${o.triangles} → ${a.triangles}), ab jetzt erzwungen`, o.id); }
+    }
+    // fewer triangles, lighter: it rises, gradually and by a widely scattered amount
+    if (job.kind === "compress" && !o.origin && a.triangles < o.triangles) {
+      const rng = createRng(w.rngState);
+      o.liftAdd += p.compressRise * Math.log2(o.triangles / a.triangles) * Math.exp(rng.range(-p.compressRiseSpread, p.compressRiseSpread));
+      o.liftTau = p.liftEaseDays;
+      w.rngState = rng.state();
+    }
+    o.lift += (a.min[1] - o.min[1]) * o.scale; // the model stays where it is, only its underside moves
     Object.assign(o, { glb: a.glb, triangles: a.triangles, min: a.min, max: a.max });
     if (job.kind === "crush") o.crushLevel = job.level ?? o.crushLevel + 1;
   } else if (job.kind === "split" && b) {
@@ -1117,7 +1275,7 @@ export function applyJob(w: World, result: JobResult) {
     const p = w.params;
     Object.assign(twin, half(b, -1), {
       scale: o.scale, lift: o.lift + (b.min[1] - o.min[1]) * o.scale + rng.vary(p.halvingRise, p.riseVariance),
-      grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, fast: o.fast, shrinkBase: o.shrinkBase, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
+      grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, fast: o.fast, pioneer: o.pioneer, shrinkBase: o.shrinkBase, liftAdd: o.liftAdd, liftTau: o.liftTau, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
       photo: o.photo ? { ...o.photo, halvedSince: true } : null,
     });
     const liftA = o.lift + (a.min[1] - o.min[1]) * o.scale; // keeps its place inside the model

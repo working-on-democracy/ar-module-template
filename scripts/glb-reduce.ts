@@ -43,6 +43,10 @@ Options:
   --max-triangles <n>  raise --error step by step (up to 25 %) until the model has at most n triangles
   --permissive     also simplify across texture seams (meshoptimizer 'Permissive', as in stylize):
                    reaches low counts on fragmented layouts, but smears texels into streaks
+  --prune          also drop small loose pieces (meshoptimizer 'Prune'): with --target and
+                   --permissive it gets a model down to a handful of triangles
+  --force          with --target: if the simplification still stops above it, keep only the
+                   largest triangles (loose fragments of the model) until the target is met
   --snap           snap texture coordinates to texel centres first (merges same-colour faces)
   --compress       compress the result (gltfpack + lossless WebP)
   --out <path>     output file (default generated-assets/<name>-reduced.glb)`;
@@ -59,6 +63,8 @@ async function main(): Promise<void> {
       error: { type: "string", default: "0.01" },
       snap: { type: "boolean", default: false },
       permissive: { type: "boolean", default: false },
+      prune: { type: "boolean", default: false },
+      force: { type: "boolean", default: false },
       "max-triangles": { type: "string" },
       target: { type: "string" },
       compress: { type: "boolean", default: false },
@@ -104,12 +110,13 @@ async function main(): Promise<void> {
   await doc.transform(weld());
   // with --target: a triangle count, not an error limit, decides where to stop
   const prepared = cloneDocument(doc);
-  const simplifier = !values.permissive
+  const extraFlags = [...(values.permissive ? ["Permissive"] : []), ...(values.prune ? ["Prune"] : [])];
+  const simplifier = !extraFlags.length
     ? MeshoptSimplifier
     : {
         ...MeshoptSimplifier,
         simplify: (indices: Uint32Array, positions: Float32Array, stride: number, target: number, err: number, flags: any[] = []) =>
-          MeshoptSimplifier.simplify(indices, positions, stride, target, err, [...flags, "Permissive"])
+          MeshoptSimplifier.simplify(indices, positions, stride, target, err, [...flags, ...extraFlags])
       };
   if (target !== null) {
     // aim a little lower each round until the result fits (seams and part borders stop some parts early)
@@ -118,7 +125,16 @@ async function main(): Promise<void> {
     for (let aim = target; before > target && aim > target * 0.3; aim *= 0.93) {
       doc = cloneDocument(prepared);
       await doc.transform(simplify({ simplifier: simplifier as typeof MeshoptSimplifier, ratio: aim / before, error: 1, lockBorder: false }), prune());
-      if (count() === 0) { doc = lastNonEmpty; break; }
+      if (count() === 0) {
+        // collapsed to nothing: the smallest non-empty result above this aim instead
+        doc = lastNonEmpty;
+        for (let up = aim / 0.8; up < before; up /= 0.8) {
+          const tryDoc = cloneDocument(prepared);
+          await tryDoc.transform(simplify({ simplifier: simplifier as typeof MeshoptSimplifier, ratio: up / before, error: 1, lockBorder: false }), prune());
+          if (tryDoc.getRoot().listMeshes().some((m) => m.listPrimitives().some((pr) => (pr.getIndices()?.getCount() ?? 0) > 0))) { doc = tryDoc; break; }
+        }
+        break;
+      }
       lastNonEmpty = doc;
       if (count() <= target) break;
     }
@@ -127,6 +143,29 @@ async function main(): Promise<void> {
     error = step;
     await doc.transform(simplify({ simplifier: simplifier as typeof MeshoptSimplifier, ratio: 0, error, lockBorder: false }), prune());
     if (count() <= maxTris) break;
+  }
+  if (values.force && target !== null && count() > target) {
+    // still too many: only the largest triangles are left (by area, across all primitives)
+    const tris: { prim: Primitive; at: number; area: number }[] = [];
+    const a = [0, 0, 0], b = [0, 0, 0], c = [0, 0, 0];
+    for (const prim of prims()) {
+      const idx = prim.getIndices(), pos = prim.getAttribute("POSITION");
+      if (!idx || !pos) continue;
+      for (let t = 0; t < idx.getCount(); t += 3) {
+        pos.getElement(idx.getScalar(t), a); pos.getElement(idx.getScalar(t + 1), b); pos.getElement(idx.getScalar(t + 2), c);
+        const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+        tris.push({ prim, at: t, area: Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) });
+      }
+    }
+    const keep = new Set(tris.sort((x, y) => y.area - x.area).slice(0, Math.max(1, Math.floor(target))));
+    for (const prim of prims()) {
+      const idx = prim.getIndices();
+      if (!idx) continue;
+      const kept: number[] = [];
+      for (const t of keep) if (t.prim === prim) kept.push(idx.getScalar(t.at), idx.getScalar(t.at + 1), idx.getScalar(t.at + 2));
+      idx.setArray(new Uint32Array(kept));
+    }
+    await doc.transform(prune());
   }
   for (const e of doc.getRoot().listExtensionsUsed()) if (["EXT_meshopt_compression", "KHR_mesh_quantization"].includes(e.extensionName)) e.dispose();
 
@@ -139,7 +178,7 @@ async function main(): Promise<void> {
   } else {
     await io.write(out, doc);
   }
-  console.log(`\n● reduce ${basename(input)}: ${before} → ${count()} triangles (${target !== null ? `target ${target}` : `error ${error * 100} %`}${values.snap ? ", texels snapped" : ""}${values.permissive ? ", permissive" : ""})`);
+  console.log(`\n● reduce ${basename(input)}: ${before} → ${count()} triangles (${target !== null ? `target ${target}` : `error ${error * 100} %`}${values.snap ? ", texels snapped" : ""}${values.permissive ? ", permissive" : ""}${values.prune ? ", pruned" : ""}${values.force ? ", forced" : ""})`);
   if (count() > maxTris) console.log(`  note: still above ${maxTris} at 25 % — texture seams stop the simplification`);
   if (values.compress && wasQuantized) console.log("  note: the input was already compressed — its geometry is now quantized a second time (intended here)");
   console.log(`  written: ${out}${values.compress ? " (compressed)" : " (uncompressed)"}\n`);

@@ -66,12 +66,27 @@ export interface PlantObject extends ModelVersion {
   pose: Pose | null;
   /** Voxel grid it was copied with (Keimling end stage), null = not voxelized. */
   voxelCells: number | null;
-  /** Fast line: one of the first Keimlinge (Vorläufer) or fused/halved from one — grows, pairs and travels faster, halved likelier. */
+  /** Fast line: a Vorläufer, a Keimling that joined it by chance (fastKeimChance), or copied, fused or halved from one — grows, pairs and travels faster, halved likelier. */
   fast: boolean;
+  /** One of the first Keimlinge (Vorläufer), or fused from one: makes no copies, waits for the opening. */
+  pioneer: boolean;
   /** Scale when it began shrinking in the decay (it shrinks to decayShrinkMin × this); null = not yet. */
   shrinkBase: number | null;
   /** A compression could not make it smaller and it is too small to halve: it dies. */
   stuck: boolean;
+  /** Height change still to come (m, negative = down), spread over time constant liftTau (Eigentage). */
+  liftAdd: number;
+  liftTau: number;
+  /** Wind drift of a light splinter: current velocity and the direction it turns to (m per Eigentag); null = no wind. */
+  wind: { v: Vec3; goal: Vec3 } | null;
+  /** Its compressions are forced (it could hardly be compressed any more). */
+  forceCompress: boolean;
+  /** Jobs of it that failed. */
+  failures: number;
+  /** Dead: Eigentage it stays visible, and its underside at death (it sinks from there until its top is under the ground). */
+  linger: number | null;
+  sinkFrom: number | null;
+  sinkTo: number | null;
 }
 
 /** History of an object, for counting: Keimling, untouched, fused n times, halved. */
@@ -100,6 +115,8 @@ export interface Pair {
   aFrom: Pose | null;
   aTo: Pose | null;
   aLift: number;
+  /** Underside of the model (model frame) A's final height was fitted to: the estimate from the pose. */
+  aMinY: number;
   aScale: number;
   result: ModelVersion | null;
 }
@@ -152,6 +169,10 @@ export interface JobRequest {
   dueAt: number;
   /** copy/compress: keep at most this fraction of the triangles. */
   keep?: number;
+  /** compress: an origin object's last compression, under the death limit whatever it takes (permissive, loose pieces dropped, largest triangles kept). */
+  final?: boolean;
+  /** compress: forced (permissive, loose pieces dropped, largest triangles kept if need be). */
+  force?: boolean;
   /** crush: new crush level. */
   level?: number;
   /** split: seed for the plane. */
@@ -292,4 +313,7 @@ export interface World {
   /** Time factor of the fast line: the boosts act more strongly on it right after planting (pioneerBoost*). */
   pioneerFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
+  /** Calendar day a device was last in the radius; unwatchedPauseDays later all boosts pause. */
+  lastWatched: number;
+  boostsPaused: boolean;
 }

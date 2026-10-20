@@ -1,5 +1,9 @@
 // Viewer of the 3D sandbox: polls the server's state and shows every object
 // with its current .glb version, photos, drawings and the reference points.
+// It plays about PLAY_DELAY seconds behind the simulation: positions come from
+// the server's frames (one per tick in which the clock moved) and are
+// interpolated between them, everything else changes when the playback reaches
+// the moment it happened.
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -20,9 +24,12 @@ const speedOption = (speed: number) => {
   return k ? `echtzeit${k > 1 ? k : ""}` : String(speed);
 };
 interface State {
-  run: { dir: string; commit: string; fuseMode: string | null; speed: number; paused: boolean; waitingFor: { id: number; kind: string; objectId: string; partnerId?: string } | null };
+  run: { dir: string; commit: string; fuseMode: string | null; speed: number; paused: boolean;
+    replay: { progress: number; done: boolean; diverged: boolean } | null; waitingFor: { id: number; kind: string; objectId: string; partnerId?: string } | null };
   phase: string; eigen: number; calendar: number; factor: number; pioneerFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
+  boostsPaused: boolean;
+  lastWatched: number;
   viewers: number; plantingPoint: Vec3; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
   triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
   objects: Obj[]; photos: Photo[]; drawings: Drawing[]; pairs: Pair[];
@@ -233,6 +240,7 @@ interface View {
   grainKey: string;
   data: Obj;
   phase: number;
+  placed: boolean; // root set once (new objects start where they are, not at the origin)
 }
 const views = new Map<string, View>();
 
@@ -243,7 +251,7 @@ function newView(o: Obj): View {
   marker.rotation.x = -Math.PI / 2;
   scene.add(root, marker);
   const grain = { grainStrength: { value: 0 }, grainScale: { value: 300 }, grainSeed: { value: 0 } };
-  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10 };
+  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
   if (o.origin) { v.originRing = circle(1, 0x4d4038); scene.add(v.originRing); }
   root.position.set(o.pos[0], 0, o.pos[2]);
   return v;
@@ -286,10 +294,8 @@ function applyLook(v: View) {
       if (projection === "plane") e.mesh.geometry = planarUv(e.geometry);
     }
   }
-  const dead = o.state === "tot";
   for (const e of v.meshes) {
     for (const m of Array.isArray(e.mesh.material) ? e.mesh.material : [e.mesh.material]) {
-      m.transparent = dead; m.opacity = dead ? 0.3 : 1;
       const sm = m as THREE.MeshStandardMaterial;
       if (sm.emissive) { // emissive tint: the texture stays as it is; the model's own emissive comes back without a tint
         const own = (sm.userData.ownEmissive ??= { color: sm.emissive.clone(), intensity: sm.emissiveIntensity, map: sm.emissiveMap });
@@ -391,7 +397,9 @@ function syncDrawings(drawings: Drawing[]) {
 
 // ---------------------------------------------------------------- state sync
 
-let state: State | null = null;
+let state: State | null = null; // the newest from the server (controls, jobs)
+let shown: State | null = null; // the one the playback has reached (scene, clock, log)
+const pendingStates: State[] = [];
 const samples: Sample[] = [];
 
 async function poll() {
@@ -399,11 +407,92 @@ async function poll() {
     const res = await fetch(`/api/state?since=${samples.length}`);
     const s = (await res.json()) as State;
     samples.push(...s.samples);
+    if (state && s.run.dir !== state.run.dir) { frames.length = 0; pendingStates.length = 0; playCal = null; shown = null; } // restarted
     state = s;
-    sync(s);
-    hud(s);
+    pendingStates.push(s);
+    if (pendingStates.length > 400) pendingStates.splice(0, pendingStates.length - 400);
+    if (shown) hud(shown); // controls and running jobs at once, not only when the playback reaches a state
   } catch { /* server restarting */ }
   setTimeout(poll, 400);
+}
+
+// ---------------------------------------------------------------- playback
+
+interface Frame { seq: number; calendar: number; poses: Record<string, [Vec3, [number, number, number, number], number]>; drawings: Record<string, [Vec3, number]> }
+const frames: Frame[] = [];
+const PLAY_DELAY = 1.5; // real seconds behind the newest frame
+let playCal: number | null = null; // calendar day the scene shows
+let lastFrameAt = 0; // performance.now() when the newest frame came in
+
+async function pollFrames() {
+  try {
+    const res = await fetch(`/api/frames?since=${frames.at(-1)?.seq ?? 0}`);
+    const add = (await res.json()) as Frame[];
+    if (add.length && frames.length && add[0].calendar < frames.at(-1)!.calendar) { frames.length = 0; playCal = null; } // restarted
+    frames.push(...add);
+    if (add.length) lastFrameAt = performance.now();
+    if (frames.length > 900) frames.splice(0, frames.length - 900);
+  } catch { /* server restarting */ }
+  setTimeout(pollFrames, 150);
+}
+
+/** Moves the playback on: at the simulation's speed, pulled gently towards PLAY_DELAY behind the newest frame (slows down smoothly while the clock waits). */
+function play(dt: number) {
+  if (!state || !frames.length) return;
+  const newest = frames.at(-1)!.calendar, rate = state.run.paused ? 0 : state.run.speed / 60; // calendar days per real second
+  // while no new frames come (the clock waits for a job), the delay runs out: the playback
+  // reaches the newest frame and stops there, so the waiting state is shown too
+  // (after a short grace: between two frame polls the newest frame is always a little old)
+  const delay = Math.max(0, PLAY_DELAY - Math.max(0, (performance.now() - lastFrameAt) / 1000 - 0.5));
+  const target = Math.max(frames[0].calendar, newest - rate * delay);
+  if (playCal === null || playCal < frames[0].calendar || target - playCal > rate * PLAY_DELAY * 6 + 1e-9) playCal = target; // start, or far behind
+  else playCal += dt * rate + (target - playCal) * Math.min(1, dt * 0.8);
+  playCal = Math.min(playCal, newest);
+  // the state the playback has reached
+  let next: State | null = null;
+  while (pendingStates.length && pendingStates[0].calendar <= playCal + 1e-9) next = pendingStates.shift()!;
+  if (next) show(next);
+}
+
+function show(s: State) {
+  shown = s;
+  sync(s);
+  hud(s);
+}
+
+/** Index i with frames[i].calendar <= c < frames[i + 1].calendar (clamped). */
+function frameAt(c: number) {
+  let lo = 0, hi = frames.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (frames[mid].calendar <= c) lo = mid; else hi = mid - 1; }
+  return lo;
+}
+const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+/** An object's pose at the playback time: cubic Hermite through the frames (positions, scale), slerp (rotation); null if no frame has it. */
+function poseAt(id: string, i: number, c: number): { p: THREE.Vector3; q: THREE.Quaternion; s: number } | null {
+  const f0 = frames[i]?.poses[id], f1 = frames[i + 1]?.poses[id];
+  if (!f0 && !f1) return null;
+  if (!f0 || !f1) { const f = (f0 ?? f1)!; return { p: new THREE.Vector3(...f[0]), q: new THREE.Quaternion(...f[1]), s: f[2] }; }
+  const t0 = frames[i].calendar, t1 = frames[i + 1].calendar, h = Math.max(1e-12, t1 - t0), u = Math.min(1, Math.max(0, (c - t0) / h));
+  const fm = frames[i - 1]?.poses[id], fp = frames[i + 2]?.poses[id];
+  const tm = fm ? frames[i - 1].calendar : t0, tp = fp ? frames[i + 2].calendar : t1;
+  // a jump (a fused object put down, a swap): straight, no overshoot
+  const far = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) > 0.3;
+  const smooth = !far(f0[0], f1[0]) && (!fm || !far(fm[0], f0[0])) && (!fp || !far(f1[0], fp[0]));
+  const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+  const herm = (a: number, b: number, am: number | undefined, bp: number | undefined) => {
+    if (!smooth) return a + (b - a) * u;
+    const ma = am === undefined ? (b - a) / h : (b - am) / (t1 - tm), mb = bp === undefined ? (b - a) / h : (bp - a) / (tp - t0);
+    return h00 * a + h10 * h * ma + h01 * b + h11 * h * mb;
+  };
+  const p = new THREE.Vector3(...([0, 1, 2].map((k) => herm(f0[0][k], f1[0][k], fm?.[0][k], fp?.[0][k])) as Vec3));
+  const q = new THREE.Quaternion().slerpQuaternions(qa.set(...f0[1]), qb.set(...f1[1]), u);
+  return { p, q, s: herm(f0[2], f1[2], fm?.[2], fp?.[2]) };
+}
+function drawingAt(id: string, i: number, c: number): { pos: THREE.Vector3; scale: number } | null {
+  const d0 = frames[i]?.drawings[id], d1 = frames[i + 1]?.drawings[id];
+  if (!d0 || !d1) return null;
+  const u = Math.min(1, Math.max(0, (c - frames[i].calendar) / Math.max(1e-12, frames[i + 1].calendar - frames[i].calendar)));
+  return { pos: new THREE.Vector3(...d0[0]).lerp(new THREE.Vector3(...d1[0]), u), scale: d0[1] + (d1[1] - d0[1]) * u };
 }
 
 function sync(s: State) {
@@ -415,7 +504,7 @@ function sync(s: State) {
     v.data = o;
     if (v.glb !== o.glb) setModel(v, o.glb);
     else applyLook(v);
-    (v.marker.material as THREE.MeshBasicMaterial).color.setHex(o.origin ? 0x4d4038 : STATE_COLOR[o.state]);
+    (v.marker.material as THREE.MeshBasicMaterial).color.setHex(o.origin && o.state !== "tot" ? 0x4d4038 : STATE_COLOR[o.state]); // the dead: grey
   }
   for (const [id, v] of views) {
     if (seen.has(id)) continue;
@@ -440,38 +529,44 @@ function sync(s: State) {
 // ---------------------------------------------------------------- HUD
 
 function hud(s: State) {
+  const now = state ?? s; // controls and jobs: the newest state, not the played-back one
+  const rp = now.run.replay;
   $("phase").textContent = PHASE[s.phase] ?? s.phase;
-  $("run").textContent = `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode ?? "erste Verschmelzung hart, danach weich"}`;
+  $("run").textContent = rp
+    ? `Wiedergabe ${s.run.dir} · ${fmt(rp.progress * 100)} %${rp.done ? " · zu Ende" : ""}${rp.diverged ? " · weicht ab!" : ""}`
+    : `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode ?? "erste Verschmelzung hart, danach weich"}`;
+  for (const id of ["viewer-add", "viewer-remove", "photo-add", "drawing-add"]) $<HTMLButtonElement>(id).disabled = !!rp;
   const counts = { keimling: 0, aktiv: 0, verwelkend: 0, tot: 0, ursprung: 0 };
   for (const o of s.objects) { if (o.origin) counts.ursprung++; else counts[o.state]++; }
   const fp = s.factorParts;
   $("clock").innerHTML = [
     ["Kalendertag", fmt(s.calendar, 2)], ["Eigenzeit", fmt(s.eigen, 2)],
-    ["Zeitfaktor", `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.pioneerFactor !== s.factor ? `, Vorläufer ${fmt(s.pioneerFactor, 2)} ×` : ""}`],
+    ["Zeitfaktor", s.boostsPaused ? `1 × (Boosts ausgesetzt: seit ${fmt(s.calendar - s.lastWatched, 1)} Tagen hat niemand hingeschaut)` : `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.pioneerFactor !== s.factor ? `, Vorläufer ${fmt(s.pioneerFactor, 2)} ×` : ""}`],
     ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.budget)} (Komprimierung ab ${fmt(s.compressAt)}, Halbieren unter ${fmt(s.halvingAt)})`],
     ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung`],
     ["Geräte", String(s.viewers)],
   ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
   $("budget-bar").style.width = `${Math.min(100, (s.triangles / s.budget) * 100)}%`;
-  $("pause").textContent = s.run.paused ? "Weiter" : "Pause";
-  $("pause").classList.toggle("on", s.run.paused);
+  $("pause").textContent = now.run.paused ? "Weiter" : "Pause";
+  $("pause").classList.toggle("on", now.run.paused);
   const sel = $<HTMLSelectElement>("speed");
   if (document.activeElement !== sel) {
-    const v = speedOption(s.run.speed);
-    if (![...sel.options].some((o) => o.value === v)) sel.add(new Option(`${fmt(s.run.speed, 2)} Tage/min`, v));
+    const v = speedOption(now.run.speed);
+    if (![...sel.options].some((o) => o.value === v)) sel.add(new Option(`${fmt(now.run.speed, 2)} Tage/min`, v));
     sel.value = v;
   }
-  const wf = s.run.waitingFor;
-  $("jobs").innerHTML =
+  const wf = now.run.waitingFor;
+  $("jobs").innerHTML = rp ? `<div class="muted">Wiedergabe: nichts wird gerechnet</div>` :
     (wf ? `<div><b>Uhr wartet auf ${KIND[wf.kind] ?? wf.kind} ${wf.objectId}${wf.partnerId ? " + " + wf.partnerId : ""}</b></div>` : `<div class="muted">Uhr läuft</div>`) +
-    s.jobs.map((j) => `<div>${KIND[j.kind] ?? j.kind} ${j.objectId}${j.partnerId ? " + " + j.partnerId : ""} · ${j.seconds} s</div>`).join("") +
-    (s.queued ? `<div class="muted">${s.queued} weitere fertig oder in der Warteschlange</div>` : "");
+    now.jobs.map((j) => `<div>${KIND[j.kind] ?? j.kind} ${j.objectId}${j.partnerId ? " + " + j.partnerId : ""} · ${j.seconds} s</div>`).join("") +
+    (now.queued ? `<div class="muted">${now.queued} weitere fertig oder in der Warteschlange</div>` : "") +
+    `<div class="muted">Anzeige ${fmt(PLAY_DELAY, 1)} s hinter der Simulation</div>`;
   const photos = s.photos.filter((p) => !p.gone || p.blocked);
   $("photos").innerHTML = photos.length ? photos.map((p) => {
     const user = s.objects.filter((o) => o.photo?.photoId === p.id).map((o) => o.id).join(", ");
     const age = s.calendar - p.createdAt;
     const status = p.blocked ? "gesperrt" : user ? `auf ${user}` : age < s.params.photoWaitDays ? `wartet noch ${fmt(s.params.photoWaitDays - age, 1)} Tage` : "frei";
-    return `<div class="row"><span><b>${p.id}</b> · ${status}</span>${p.gone ? "" : `<span><button data-block="${p.id}">Sperren</button> <button data-delete="${p.id}">Löschen</button></span>`}</div>`;
+    return `<div class="row"><span><b>${p.id}</b> · ${status}</span>${p.gone || rp ? "" : `<span><button data-block="${p.id}">Sperren</button> <button data-delete="${p.id}">Löschen</button></span>`}</div>`;
   }).join("") : `<div class="muted">noch keine</div>`;
   $("log").innerHTML = s.events.slice().reverse().map((e) => `<div><b>${fmt(e.calendar, 2)}</b> ${e.text}</div>`).join("");
   drawChart(s);
@@ -561,19 +656,26 @@ let tmpScale = 1;
 function frame() {
   const dt = clock.getDelta(), t = clock.elapsedTime, k = 0.15;
   walk(dt);
+  play(dt);
+  if (!shown && state) show(state); // nothing played back yet (no step so far)
+  const fi = playCal === null ? -1 : frameAt(playCal);
   for (const v of views.values()) {
     const o = v.data;
     // floating: bobs up from where it stands, never below it
     const sway = o.sway ? o.sway * (1 - Math.cos((t * 2 * Math.PI) / Math.max(0.5, o.swayPeriod) + v.phase)) / 2 : 0;
     // root = the model frame in the world, as the simulation computes it: the
-    // travelling pose, or standing (lift, growing, leaning)
-    const pose = decompose(modelMatrix(o));
-    tmpPos.set(pose.p[0], pose.p[1] + sway, pose.p[2]);
-    tmpQuat.set(...pose.q);
-    tmpScale = pose.s;
-    v.root.position.lerp(tmpPos, k);
-    v.root.quaternion.slerp(tmpQuat, k);
-    v.root.scale.setScalar(v.root.scale.x + (tmpScale - v.root.scale.x) * k);
+    // travelling pose, or standing (lift, growing, leaning) — from the frames
+    // at the playback time, else from the shown state
+    const fp = fi >= 0 ? poseAt(o.id, fi, playCal!) : null;
+    if (fp) { tmpPos.copy(fp.p); tmpQuat.copy(fp.q); tmpScale = fp.s; }
+    else { const pose = decompose(modelMatrix(o)); tmpPos.set(...pose.p); tmpQuat.set(...pose.q); tmpScale = pose.s; }
+    tmpPos.y += sway;
+    if (fp || !v.placed) { v.root.position.copy(tmpPos); v.root.quaternion.copy(tmpQuat); v.root.scale.setScalar(tmpScale); v.placed = true; }
+    else {
+      v.root.position.lerp(tmpPos, k);
+      v.root.quaternion.slerp(tmpQuat, k);
+      v.root.scale.setScalar(v.root.scale.x + (tmpScale - v.root.scale.x) * k);
+    }
     if (v.model) { v.model.scale.setScalar(1); v.model.position.set(0, 0, 0); }
     const r = Math.max(0.15, Math.hypot(o.max[0] - o.min[0], o.max[2] - o.min[2]) / 2 * (o.pose ? o.pose.s : o.scale));
     v.marker.position.set(v.root.position.x, 0.004, v.root.position.z); v.marker.scale.setScalar(r);
@@ -590,7 +692,9 @@ function frame() {
   pairLines.geometry = geo;
   pairLines.visible = pts.length > 0;
   if (pts.length) pairLines.computeLineDistances();
-  for (const dv of drawingViews.values()) {
+  for (const [id, dv] of drawingViews) {
+    const fd = fi >= 0 ? drawingAt(id, fi, playCal!) : null;
+    if (fd) { dv.group.position.copy(fd.pos); dv.group.scale.setScalar(fd.scale); continue; }
     const tg = dv.group.userData.target as { pos: Vec3; scale: number } | undefined;
     if (!tg) continue;
     dv.group.position.lerp(new THREE.Vector3(...tg.pos), k);
@@ -612,3 +716,4 @@ function frame() {
 }
 frame();
 poll();
+pollFrames();

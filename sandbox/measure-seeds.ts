@@ -9,7 +9,7 @@ import type { JobResult } from "./sim/types";
 import { createWorld } from "./sim/world";
 import { STEP_LABEL } from "./sim/recipes";
 
-const STARTERS = ["flamingo", "mango", "muschel-vase", "rucksack", "tarot-figur"];
+const STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
 const over = JSON.parse(process.argv[2] ?? "{}");
 const med = (a: number[]) => { const s = a.filter((x) => !Number.isNaN(x)).sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const P: number[] = [], D: number[] = [], H: number[] = [], V: number[] = [], E: number[] = [], high: number[] = [], drop: number[] = [], copies: number[] = [], gen: number[] = [], objs: number[] = [];

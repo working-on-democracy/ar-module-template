@@ -317,7 +317,8 @@ npm run fuse -- a.glb b.glb --mode voxel --voxel-cells 24 --out generated-assets
 | `--close a\|b\|ab` | — | marks a model as an extreme case no measure catches: repaired as with `--repair`, then enveloped (`--close-radius`, default 0.15 of its size) only if the fill stays below the target |
 | `--measure` | — | print each model's fill, open edge loops and largest opening, then stop |
 | `--overlap` | `0.05-0.6` | accepted overlap, fraction of the smaller model's volume |
-| `--pose-only` | off | only find the pose, print B's matrix and the result's estimated box, then stop (well under a second, a soft fusion takes 30–100 s); the same arguments and seed give the same pose in the full run, so a caller can move B into place while the fusion is still computing |
+| `--pose-only` | off | only find the pose, print B's matrix and the result's estimated box, then stop (well under a second, a soft fusion takes 30–100 s); the same arguments and seed give the same pose in the full run, so a caller can move B into place while the fusion is still computing. A model that has to be enveloped first (a hollow lamp shade) takes tens of seconds here too, see `--cache` |
+| `--cache <dir>` | off | keeps every prepared model (repaired, capped, enveloped) in this folder, keyed by the file's content and the closing options; later runs with the same file read it instead of preparing again, and a run that finds another one preparing the same model waits for it (lock file). Pose and result are identical with and without it. The plant sandbox passes `sandbox-runs/fuse-cache`, shared by all its runs, so a model is prepared once and every later pose or fusion with it reads it |
 | `--fillet` | 0.08 | `weich`: fillet radius as a fraction of A's height |
 | `--max-scale` | – | never scale B by more than this (with `--match` / `--match-height`) |
 | `--voxel-cells` | 40 | `voxel`: grid cells over the largest side; 1–3 count a cell as filled as soon as any part of the model lies in it (1 = a single cube) |
@@ -388,6 +389,8 @@ npm run reduce -- generated-assets/ab-weich.glb --error 0.01 --compress --out sr
 | `--max-triangles` | — | raise `--error` step by step (2, 4, 8, 15, 25 %) until the model has at most this many triangles — e.g. phase 3 of the test track: min(10 000, both inputs' triangles together) per fusion |
 | `--target` | — | simplify to about this many triangles, never far below — no error limit; if seams or part borders leave it above, the aim is lowered in 7 % steps until it fits. A model already at or below it is only compressed. Use when a budget should be used up (error-based reduction dropped a dense enveloped lamp shade from 8 338 to 809) |
 | `--permissive` | off | also simplify across texture seams (meshoptimizer `Permissive`, as in `stylize`): reaches low counts on fragmented layouts, smears texels into streaks |
+| `--prune` | off | also drop small loose pieces (meshoptimizer `Prune`); with `--target` and `--permissive` it reaches a handful of triangles. If a step collapses the model to nothing, the smallest non-empty result above it is kept |
+| `--force` | off | with `--target`: if the simplification still stops above the target, only the largest triangles are kept (loose fragments) until it is met |
 | `--snap` | off | snap texture coordinates to texel centres first |
 | `--compress` | off | gltfpack + lossless WebP (same code as `compress-assets`) |
 | `--out` | `generated-assets/<name>-reduced.glb` | output file |

@@ -67,8 +67,9 @@ const PARAM_GROUPS: Group[] = [
     { key: "voxelTargetDays", label: "Voxel-Generationen ab der Halbierungsgrenze (im Wachstum) bis zum Würfel in", unit: "Eigentagen", step: 0.5 },
     { key: "voxelCopiesPerGeneration", label: "Kopien je Voxel-Generation", unit: "pro Linie", step: 0.5 },
   ] },
-  { title: "Vorläufer", note: "Die ersten Keimlinge: jedes Ursprungsobjekt einmal, zufällig zugeordnet, je zwei pro Generation (1, 1, 2, 2, 3) und direkt von ihm kopiert, kurz nacheinander und dicht beieinander. Sie bilden selbst keine Kopien, zählen aber zum Budget. Sie und alles, was aus ihnen verschmilzt oder halbiert wird, bilden die schnelle Linie.", fields: [
+  { title: "Vorläufer", note: "Die ersten Keimlinge: jedes Ursprungsobjekt einmal, zufällig zugeordnet, je zwei pro Generation (1, 1, 2, 2, 3) und direkt von ihm kopiert, kurz nacheinander und dicht beieinander. Sie bilden selbst keine Kopien, zählen aber zum Budget. Sie und alles, was aus ihnen verschmilzt oder halbiert wird, bilden die schnelle Linie. Jeder andere neue Keimling kommt mit einer kleinen Chance dazu und gibt das an seine Kopien weiter.", fields: [
     { key: "pioneerCount", label: "Anzahl", unit: "0 = keine", step: 1 },
+    { key: "fastKeimChance", label: "Neuer Keimling gehört zur schnellen Linie mit Chance", unit: "Anteil (vererbt sich an Kopien)", step: 0.01 },
     { key: "pioneerStaggerMinutes", label: "nacheinander im Abstand von", unit: "Eigenminuten (der erste beim Pflanzen)", step: 0.5 },
     { key: "pioneerLeadDays", label: "Rechenvorlauf (auch erste Runde normaler Keimlinge und Eröffnung)", unit: "Eigentage (0 = eingesetzt, sobald fertig)", step: 0.05 },
     { key: "pioneerGrowSpeed", label: "wachsen schneller", unit: "fach", step: 0.5 },
@@ -95,12 +96,14 @@ const PARAM_GROUPS: Group[] = [
     { key: "fuseEaseK", label: "Beschleunigung k", unit: "0 = gleichmäßig", step: 0.5 },
     { key: "fuseGap", label: "Endabstand", unit: "Anteil der Radien", step: 0.05 },
   ] },
-  { title: "Größe und Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre längste Seite wird beim Pflanzen in den Bereich unten gebracht. Keimlinge nehmen die Größe ihres Ursprungsobjekts, leicht variiert und mit jeder Generation größer; sie dürfen den Bereich um den Spielraum verlassen, nach oben ab Generation 2 jeweils weiter.", fields: [
+  { title: "Größe und Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre längste Seite wird beim Pflanzen in den Bereich unten gebracht. Keimlinge nehmen die Größe ihres Ursprungsobjekts, leicht variiert und mit jeder Generation größer; sie dürfen den Bereich um den Spielraum verlassen, nach oben ab Generation 2 jeweils weiter. Die letzten Generationen werden wieder kleiner, jede um einen zufälligen Anteil. Höhen gehen nur nach oben: Eine Verschmelzung startet von der Höhe des höheren Partners und steigt, jede Komprimierung hebt ein Stück, nach und nach und unterschiedlich weit. Wer die Höhengrenze erreicht, sinkt danach langsam ein Stück zurück.", fields: [
     { key: "originMinSize", label: "Ursprungsobjekt mindestens", unit: "m, längste Seite", step: 0.05 },
     { key: "originMaxSize", label: "Ursprungsobjekt höchstens", unit: "m, längste Seite", step: 0.05 },
     { key: "keimSizeVariance", label: "Keimling-Größe variiert", unit: "±Anteil", step: 0.05 },
     { key: "keimGrowPerGeneration", label: "je Generation größer um", unit: "Anteil (nach der ersten Voxel-Generation je Generation halbiert)", step: 0.05 },
-    { key: "keimGrowStopGeneration", label: "kein Wachstum mehr ab Generation", step: 1 },
+    { key: "keimGrowStopGeneration", label: "ab Generation kleiner statt größer", step: 1 },
+    { key: "keimShrinkMin", label: "je Generation kleiner, mindestens", unit: "Anteil", step: 0.05 },
+    { key: "keimShrinkMax", label: "je Generation kleiner, höchstens", unit: "Anteil", step: 0.05 },
     { key: "keimSizeSlack", label: "Spielraum über den Bereich hinaus", unit: "m", step: 0.05 },
     { key: "keimSizeSlackPerGeneration", label: "nach oben je weitere Generation", unit: "m (nach der ersten Voxel-Generation je Generation halbiert)", step: 0.05 },
     { key: "keimTiltPerGeneration", label: "Neigung bis", unit: "Grad × (Generation − 1)", step: 0.5 },
@@ -114,16 +117,20 @@ const PARAM_GROUPS: Group[] = [
     { key: "maxGrowFactor", label: "wächst höchstens um", unit: "Faktor", step: 0.5 },
     { key: "riseStep", label: "Steigt pro Verschmelzung", unit: "m", step: 0.05 },
     { key: "riseVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
-    { key: "riseLowPolyRef", label: "Steigt stärker unter", unit: "Dreiecke", step: 500 },
-    { key: "riseMaxMult", label: "höchstens", unit: "fach", step: 0.5 },
     { key: "halvingRise", label: "Hälften schweben auf", unit: "m", step: 0.05 },
+    { key: "compressRise", label: "Komprimierung hebt um", unit: "m je halbierter Dreieckszahl", step: 0.01 },
+    { key: "compressRiseSpread", label: "Streuung", unit: "× e^(zufällig ±Wert)", step: 0.1 },
+    { key: "liftEaseDays", label: "Anheben verteilt über etwa", unit: "Eigentage", step: 0.1 },
     { key: "maxTop", label: "Höhengrenze Oberkante", unit: "m", step: 0.1 },
+    { key: "ceilingDropMin", label: "an der Grenze sinkt es wieder um mindestens", unit: "m", step: 0.05 },
+    { key: "ceilingDropMax", label: "höchstens", unit: "m", step: 0.05 },
+    { key: "ceilingDriftDays", label: "langsam über etwa", unit: "Eigentage", step: 0.5 },
     { key: "maxWidth", label: "Breitengrenze", unit: "m, längere Seite am Boden", step: 0.1 },
     { key: "fusedGrowPerDay", label: "Verschmolzene wachsen um", unit: "Anteil ihrer Größe pro Eigentag", step: 0.01 },
     { key: "fusedGrowMax", label: "bis höchstens", unit: "× Größe nach der Verschmelzung (darüber: Sinken bis zur Einsinkgrenze)", step: 0.05 },
     { key: "maxSink", label: "Einsinken höchstens", unit: "Anteil der Höhe", step: 0.05 },
   ] },
-  { title: "Schweben, Zusammenziehen, Abstoßen", note: "Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab. Im Verfall hört das Zusammenziehen auf, die Hälften stoßen sich stärker ab und verwelkende Objekte schrumpfen langsam.", fields: [
+  { title: "Schweben, Anziehen, Abstoßen, Wind", note: "Aktive verschmolzene Objekte treiben ganz langsam zum nächsten mit gleich vielen Verschmelzungen, bis sie sich fast berühren oder leicht überschneiden; mit dem Verwelken hört das auf. Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab. Im Verfall hört das Zusammenziehen auf, die Hälften stoßen sich stärker ab und verwelkende Objekte schrumpfen langsam. Halbierte Objekte mit wenigen Dreiecken treiben im Wind: sehr langsam, in alle Richtungen, auch hoch und runter, je näher an der Todesgrenze desto schneller; ab und zu dreht der Wind.", fields: [
     { key: "swayFromTriangles", label: "Schweben ab unter", unit: "Dreiecke", step: 1000 },
     { key: "swayAmplitude", label: "Schweben bei einem Dreieck", unit: "m", step: 0.05 },
     { key: "swaySlowSeconds", label: "anfangs ein Auf und Ab in", unit: "Sekunden", step: 0.5 },
@@ -136,6 +143,17 @@ const PARAM_GROUPS: Group[] = [
     { key: "halvingRepelPerDay", label: "Hälften stoßen sich ab mit", unit: "m pro Eigentag", step: 0.01 },
     { key: "halvingRepelRange", label: "Abstoßen bis Abstand", unit: "m", step: 0.1 },
     { key: "decayRepelFactor", label: "Abstoßen im Verfall", unit: "fach", step: 0.5 },
+    { key: "attractFromFusions", label: "Gleiche Verschmelzungsstufe zieht sich an ab", unit: "Verschmelzungen", step: 1 },
+    { key: "attractPerDay", label: "Anziehung", unit: "m pro Eigentag", step: 0.01 },
+    { key: "attractRange", label: "Anziehung bis Abstand", unit: "m", step: 0.5 },
+    { key: "attractGapMin", label: "hält an bei Lücke ab", unit: "m (negativ = Überschneidung)", step: 0.01 },
+    { key: "attractGapMax", label: "bis", unit: "m", step: 0.01 },
+    { key: "windFromTriangles", label: "Wind für Halbierte unter", unit: "Dreiecke", step: 50 },
+    { key: "windSpeedPerDay", label: "Wind an der Todesgrenze", unit: "m pro Eigentag", step: 0.05 },
+    { key: "windVertical", label: "Wind nach oben oder unten bis", unit: "Anteil der Richtung", step: 0.05 },
+    { key: "windTurnPerDay", label: "Wind dreht", unit: "Chance pro Eigentag", step: 0.1 },
+    { key: "windEaseDays", label: "Wind folgt einer Drehung in etwa", unit: "Eigentage", step: 0.1 },
+    { key: "windRange", label: "Wind treibt zurück ab", unit: "m vom Pflanzpunkt", step: 0.5 },
     { key: "decayShrinkPerDay", label: "Verwelkende schrumpfen im Verfall um", unit: "Anteil ihrer Größe pro Eigentag", step: 0.005 },
     { key: "decayShrinkMin", label: "bis auf", unit: "Anteil ihrer Größe", step: 0.05 },
   ] },
@@ -163,12 +181,14 @@ const PARAM_GROUPS: Group[] = [
     { key: "decayCompressEveryDays", label: "Komprimierung alle", unit: "Eigentage", step: 0.05 },
     { key: "decayCompressKeep", label: "Objekt behält", unit: "Anteil Dreiecke", step: 0.05 },
   ] },
-  { title: "Verwelken", fields: [
+  { title: "Verwelken", note: "Ursprungsobjekte werden im Abstieg mit dem Ökosystem komprimiert, bis knapp über die Todesgrenze. Ist das letzte andere Objekt tot, bringt eine letzte Komprimierung sie darunter, notfalls bleiben nur ihre größten Dreiecke: Sie sterben im selben Moment, das Ende der Pflanze. Lässt sich ein kleines Objekt kaum noch komprimieren, werden seine Komprimierungen erzwungen; erst wenn auch das nichts bringt, stirbt es vorzeitig. Tote versinken bis ganz unter die Erde.", fields: [
     { key: "crushEveryDays", label: "Crush-Stufe alle", unit: "Eigentage", step: 0.1 },
     { key: "maxCrushLevel", label: "Höchste Crush-Stufe", step: 1 },
     { key: "deathTriangles", label: "Tod unter", unit: "Dreiecke", step: 10 },
     { key: "stuckKeep", label: "Tod, wenn Komprimieren mehr behält als", unit: "Anteil (nur zu klein zum Halbieren)", step: 0.01 },
-    { key: "lingerDays", label: "Tote bleiben sichtbar", unit: "Eigentage", step: 0.1 },
+    { key: "lingerDays", label: "Tote bleiben sichtbar und versinken dabei", unit: "Eigentage", step: 0.1 },
+    { key: "lingerVariance", label: "Varianz", unit: "± Eigentage", step: 0.1 },
+    { key: "maxJobFailures", label: "Verwelkende sterben vorzeitig nach", unit: "gescheiterten Vorgängen", step: 1 },
   ] },
   { title: "Fotos", fields: [
     { key: "photoWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
@@ -184,7 +204,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "overlapMax", label: "Überschneidung bis", unit: "Anteil", step: 0.01 },
     { key: "drawingLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
   ] },
-  { title: "Zeitmaßstab und Boosts", note: "Faktor = 1 + Fotos und Zeichnungen (Inhalt + Ereignisse, höchstens ihre Grenze) + Hinschauen (höchstens so viele Geräte). Geräte nehmen Fotos und Zeichnungen nichts weg.", fields: [
+  { title: "Zeitmaßstab und Boosts", note: "Faktor = 1 + Fotos und Zeichnungen (Inhalt + Ereignisse, höchstens ihre Grenze) + Hinschauen (höchstens so viele Geräte). Geräte nehmen Fotos und Zeichnungen nichts weg. Schaut ein paar Tage lang niemand hin, ruhen alle Boosts, bis wieder ein Gerät kommt.", fields: [
     { key: "contentBoostPerItem", label: "Inhalt pro Foto/Zeichnung", step: 0.01 },
     { key: "contentBoostMaxItems", label: "Inhalt zählt bis", unit: "Stück", step: 1 },
     { key: "eventBoost", label: "Ereignis-Boost", unit: "neues Foto oder neue Zeichnung im Radius", step: 0.1 },
@@ -195,6 +215,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "earlyFadeFromHours", label: "Extra-Boosts der Anfangszeit sinken ab", unit: "Stunden (bis 0 am Ende der Anfangszeit)", step: 0.05 },
     { key: "contentMaxBoost", label: "Fotos und Zeichnungen höchstens", unit: "+ zum Faktor", step: 0.5 },
     { key: "viewerMaxDevices", label: "Geräte gezählt höchstens", unit: "Stück", step: 1 },
+    { key: "unwatchedPauseDays", label: "Boosts ausgesetzt nach", unit: "Kalendertagen ohne Gerät, bis wieder jemand hinschaut", step: 0.5 },
   ] },
   { title: "Raum", fields: [
     { key: "feedRadius", label: "Radius Hinschauen und Füttern", unit: "m", step: 1 },
@@ -202,13 +223,13 @@ const PARAM_GROUPS: Group[] = [
   ] },
 ];
 
-const DEFAULT_STARTERS = ["flamingo", "mango", "muschel-vase", "rucksack", "tarot-figur"];
+const DEFAULT_STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
 
 // ---------------------------------------------------------------- state
 
 type Inputs = { params: Params; scenario: ScenarioValues; starters: string[] };
 
-const STORE_KEY = "lebenszyklus-rechner-v1";
+const STORE_KEY = "lebenszyklus-rechner-v2";
 
 function loadInputs(): Inputs {
   const base: Inputs = { params: { ...PARAMS }, scenario: { ...SCENARIO_DEFAULTS }, starters: [...DEFAULT_STARTERS] };

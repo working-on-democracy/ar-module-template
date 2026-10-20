@@ -32,7 +32,8 @@
 // `npm run reduce` (look kept) or `npm run stylize` (re-stylized).
 // See cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md.
 import { parseArgs } from "node:util";
-import { existsSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeIO, type Document, type Material } from "@gltf-transform/core";
@@ -65,6 +66,10 @@ Options:
                        umbrella), radius --close-radius × their largest side (default 0.15)
   --repair             repair every model's edges shared by more than two faces (faces removed, holes
                        capped), so it fuses as an exact solid instead of a coarse distance-field rebuild
+  --cache <dir>        keep every prepared model (repaired, capped, enveloped) in this folder, keyed by
+                       its file's content and the closing options; later runs with the same file — and a
+                       --pose-only run next to the full one — prepare it only once (a process preparing
+                       the same model is waited for)
   --measure            only print each model's fill (volume / convex hull volume) and stop
   --overlap <a-b>      accepted overlap of the smaller model, fraction of its volume (default 0.05-0.6)
   --pose-only          only find the pose and print B's matrix and the result's estimated box (seconds,
@@ -98,6 +103,7 @@ interface Model {
   sdf(x: number, y: number, z: number): number; // > 0 inside
   udf(x: number, y: number, z: number): number; // distance to the surface
   wrapped?: boolean; // sdf replaced by an enveloping field — always rebuilt from it
+  grid?: WrapGrid; // that field's grid (kept for --cache)
   uvMatAt(x: number, y: number, z: number): [number, number, number];
 }
 
@@ -302,7 +308,13 @@ function repairEdges(m: Model): { model: Model; edges: number } {
 // result shrinks back by `radius` — openings narrower than about 2 × radius
 // are closed, the rest of the shape stays. Texture from the nearest point of
 // the original surface.
+interface WrapGrid { min: number[]; h: number; nx: number; ny: number; nz: number; radius: number; dist: Float32Array }
+
 function wrapModel(m: Model, radius: number, cells = 80): Model {
+  return wrappedFrom(m, wrapGrid(m, radius, cells));
+}
+
+function wrapGrid(m: Model, radius: number, cells: number): WrapGrid {
   const pad = radius + 0.05 * Math.max(...m.box.getSize(new THREE.Vector3()).toArray());
   const min = m.box.min.clone().subScalar(pad), size = m.box.getSize(new THREE.Vector3()).addScalar(2 * pad);
   const h = Math.max(size.x, size.y, size.z) / cells;
@@ -349,6 +361,12 @@ function wrapModel(m: Model, radius: number, cells = 80): Model {
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) line(nz, (t) => d2[idx(i, j, t)], (t, x) => { d2[idx(i, j, t)] = x; });
   const dist = new Float32Array(N);
   for (let c = 0; c < N; c++) dist[c] = Math.sqrt(d2[c]);
+  return { min: min.toArray(), h, nx, ny, nz, radius, dist };
+}
+
+function wrappedFrom(m: Model, g: WrapGrid): Model {
+  const { h, nx, ny, nz, radius, dist } = g, min = new THREE.Vector3(...g.min);
+  const idx = (i: number, j: number, k: number) => i + nx * (j + ny * k);
   const field = (x: number, y: number, z: number) => {
     const fx = Math.min(nx - 1.001, Math.max(0, (x - min.x) / h)), fy = Math.min(ny - 1.001, Math.max(0, (y - min.y) / h)), fz = Math.min(nz - 1.001, Math.max(0, (z - min.z) / h));
     const i = fx | 0, j = fy | 0, k = fz | 0, u = fx - i, v = fy - j, t = fz - k;
@@ -358,7 +376,7 @@ function wrapModel(m: Model, radius: number, cells = 80): Model {
     }
     return r * h - radius; // > 0 inside the wrapped shape
   };
-  const w = { ...m, wrapped: true } as Model;
+  const w = { ...m, wrapped: true, grid: g } as Model;
   w.sdf = field;
   w.inside = (x, y, z) => field(x, y, z) > 0;
   w.box = m.box.clone().expandByScalar(h);
@@ -537,6 +555,7 @@ async function main(): Promise<void> {
       opening: { type: "string", default: "0.25" },
       close: { type: "string", default: "" },
       repair: { type: "boolean", default: false },
+      cache: { type: "string" },
       "close-radius": { type: "string", default: "0.15" },
       measure: { type: "boolean", default: false },
       overlap: { type: "string", default: "0.05-0.6" },
@@ -565,7 +584,7 @@ async function main(): Promise<void> {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
   const wasm: any = await (ManifoldModule as any)();
   wasm.setup();
-  const { Manifold } = wasm, solid = makeSolids(wasm);
+  const { Manifold, Mesh } = wasm, solid = makeSolids(wasm);
 
   const t0 = performance.now();
   let A = await load(io, fileA), B = single ? A : await load(io, fileB);
@@ -576,32 +595,34 @@ async function main(): Promise<void> {
   const fillOf = (S: any) => S.volume() / Math.max(1e-12, S.hull().volume());
   const fillTarget = values["fill-target"] !== undefined ? parseFloat(values["fill-target"]) : 2 * minFill;
   const opening = parseFloat(values.opening!);
-  const prepare = (m: Model, force: boolean): { m: Model; S: any } => {
+  type Prepared = { m: Model; S: any; recipe: { repaired: boolean; capped: boolean } };
+  const prepare = (m: Model, force: boolean): Prepared => {
+    const recipe = { repaired: false, capped: false }, done = (m: Model, S: any): Prepared => ({ m, S, recipe });
     const rep = repairEdges(m);
     // only where those edges keep the model from being an exact solid
     if (rep.edges && (values.repair || force) && !values.measure && !solid.isClosed(m)) {
-      m = rep.model;
+      m = rep.model; recipe.repaired = true;
       console.log(`   ${m.name}: ${rep.edges} edge(s) with more than two faces repaired`);
     }
     let S = solid(m), f = fillOf(S);
     const big = Math.max(...m.box.getSize(new THREE.Vector3()).toArray());
     const capped = capHoles(m), open = capped.largest / big;
     console.log(`   ${m.name}: fill ${(f * 100).toFixed(1)} %, ${capped.loops} open edge loop(s), largest ${(open * 100).toFixed(0)} % of its size${values.measure ? `, ${rep.edges} edge(s) with more than two faces` : ""}`);
-    if (values.measure) return { m, S };
+    if (values.measure) return done(m, S);
     if (force) {
-      if (f >= fillTarget) return { m, S };
+      if (f >= fillTarget) return done(m, S);
       const r = parseFloat(values["close-radius"]!), wm = wrapModel(m, r * big), S2 = solid(wm);
       console.log(`   ${m.name}: marked as extreme case → enveloped, radius ${(r * 100).toFixed(0)} % of its size → fill ${(fillOf(S2) * 100).toFixed(1)} %`);
-      return { m: wm, S: S2 };
+      return done(wm, S2);
     }
-    if (!(minFill > 0)) return { m, S };
+    if (!(minFill > 0)) return done(m, S);
     // 1. a large opening (an umbrella's rim) is always capped; small holes only when the fill is too low
     if (capped.loops && (open >= opening || f < minFill)) {
       const S2 = solid(capped.model), f2 = fillOf(S2);
       console.log(`   ${m.name}: open edges capped → fill ${(f2 * 100).toFixed(1)} %`);
-      if (open >= opening || f2 > f) { m = capped.model; S = S2; f = f2; }
+      if (open >= opening || f2 > f) { m = capped.model; S = S2; f = f2; recipe.capped = true; }
     }
-    if (f >= minFill) return { m, S };
+    if (f >= minFill) return done(m, S);
     // 2. still hollow (a closed lamp shade): envelop with a growing radius until the fill reaches the target
     for (const r of [0.03, 0.06, 0.1, 0.15, 0.2, 0.3]) {
       const wm = wrapModel(m, r * big), S2 = solid(wm), f2 = fillOf(S2);
@@ -609,9 +630,57 @@ async function main(): Promise<void> {
       m = wm; S = S2;
       if (f2 >= fillTarget) break;
     }
-    return { m, S };
+    return done(m, S);
   };
-  const pa = prepare(A, values.close!.includes("a")), pb = single ? pa : prepare(B, values.close!.includes("b"));
+  // --cache: a prepared model under its file's content and the options prepare() reads; the stored
+  // solid is used by the process that made it too (round trip), so every run gets the same pose
+  const fromMesh = (g: any) => new Manifold(new Mesh({ numProp: g.numProp, vertProperties: g.vertProperties, triVerts: g.triVerts, mergeFromVert: g.mergeFromVert, mergeToVert: g.mergeToVert }));
+  const BLOBS = { vertProperties: Float32Array, triVerts: Uint32Array, mergeFromVert: Uint32Array, mergeToVert: Uint32Array, dist: Float32Array } as const;
+  const cached = async (file: string, m: Model, force: boolean): Promise<Prepared> => {
+    if (!values.cache || values.measure) return prepare(m, force);
+    const key = createHash("sha1").update(readFileSync(file)).update(JSON.stringify([2, force, values.repair, minFill, fillTarget, opening, values["close-radius"]])).digest("hex");
+    const base = join(values.cache, key), lock = `${base}.lock`;
+    const read = (): Prepared => {
+      const head = JSON.parse(readFileSync(`${base}.json`, "utf8")), bin = readFileSync(`${base}.bin`), arr: Record<string, any> = {};
+      for (const [k, [off, len]] of Object.entries(head.parts as Record<string, [number, number]>)) {
+        arr[k] = new BLOBS[k as keyof typeof BLOBS](bin.buffer.slice(bin.byteOffset + off, bin.byteOffset + off + len));
+      }
+      if (head.recipe.repaired) m = repairEdges(m).model;
+      if (head.recipe.capped) m = capHoles(m).model;
+      if (head.grid) m = wrappedFrom(m, { ...head.grid, dist: arr.dist });
+      m.box = new THREE.Box3(new THREE.Vector3(...head.box[0]), new THREE.Vector3(...head.box[1]));
+      console.log(`   ${m.name}: prepared model from the cache`);
+      return { m, S: fromMesh({ numProp: head.numProp, ...arr }), recipe: head.recipe };
+    };
+    mkdirSync(values.cache, { recursive: true });
+    for (;;) {
+      if (existsSync(`${base}.json`)) return read();
+      try { closeSync(openSync(lock, "wx")); } catch {
+        // another process is preparing it: wait, unless its lock is stale (a crashed run)
+        try { if (Date.now() - statSync(lock).mtimeMs > 10 * 60_000) rmSync(lock, { force: true }); } catch { /* just released */ }
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      }
+      if (existsSync(`${base}.json`)) { rmSync(lock, { force: true }); return read(); }
+      break;
+    }
+    try {
+      const p = prepare(m, force), g = p.S.getMesh(), grid = p.m.grid;
+      const blobs: Record<string, ArrayBufferView> = { vertProperties: g.vertProperties, triVerts: g.triVerts, mergeFromVert: g.mergeFromVert, mergeToVert: g.mergeToVert };
+      if (grid) blobs.dist = grid.dist;
+      const parts: Record<string, [number, number]> = {};
+      let off = 0;
+      for (const [k, v] of Object.entries(blobs)) { parts[k] = [off, v.byteLength]; off += v.byteLength; }
+      writeFileSync(`${base}.bin`, Buffer.concat(Object.values(blobs).map((v) => Buffer.from(v.buffer, v.byteOffset, v.byteLength))));
+      writeFileSync(`${base}.json.tmp`, JSON.stringify({
+        recipe: p.recipe, numProp: g.numProp, box: [p.m.box.min.toArray(), p.m.box.max.toArray()], parts,
+        grid: grid ? { min: grid.min, h: grid.h, nx: grid.nx, ny: grid.ny, nz: grid.nz, radius: grid.radius } : null,
+      }));
+      renameSync(`${base}.json.tmp`, `${base}.json`); // complete only now
+      return { ...p, S: fromMesh(g) };
+    } finally { rmSync(lock, { force: true }); }
+  };
+  const pa = await cached(fileA, A, values.close!.includes("a")), pb = single ? pa : await cached(fileB, B, values.close!.includes("b"));
   if (values.measure) return;
   A = pa.m; B = pb.m;
   const MA = pa.S.asOriginal(), idA = MA.originalID(), MB0 = pb.S.asOriginal();

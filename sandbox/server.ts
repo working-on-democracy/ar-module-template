@@ -7,14 +7,16 @@
 //   --fuse <mode>         force one mode for every fusion: hart (~5–15 s) | weich (rounded, 30–100 s) | voxel;
 //                         default: an object's first fusion hard, later ones soft
 //   --port <n>            default 5180
+//   --replay <run folder> plays a recorded run again (its tape.jsonl), without computing
+//                         and without waiting, at --speed (default: the run's starting speed)
 //
 // Every run gets a folder sandbox-runs/<time>-seed<n>/ (gitignored): run.json
-// (values, seed, commit), events.jsonl, state.json, every .glb version and
-// the test photos with their crushed versions.
+// (values, seed, commit), events.jsonl, state.json, tape.jsonl (everything
+// --replay needs), every .glb version and the test photos with their crushed versions.
 import { execSync } from "node:child_process";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import sharp from "sharp";
@@ -26,9 +28,10 @@ import { buildScenario, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenari
 import models from "./scenarios/starter-models.json";
 import { createRng } from "./sim/rng";
 import { advance, QUANTUM } from "./sim/schedule";
+import { decompose } from "./sim/pose";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
 import {
-  addDrawing, addPhoto, createWorld, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
+  addDrawing, addPhoto, applyJob, createWorld, jobFailed, modelMatrix, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
 } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -37,41 +40,49 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const { values: args } = parseArgs({
   options: {
     values: { type: "string" }, seed: { type: "string" }, speed: { type: "string" },
-    fuse: { type: "string" }, port: { type: "string" },
+    fuse: { type: "string" }, port: { type: "string" }, replay: { type: "string" },
   },
 });
 
 // ---------------------------------------------------------------- inputs
 
-const DEFAULT_STARTERS = ["flamingo", "mango", "muschel-vase", "rucksack", "tarot-figur"];
-const input = args.values ? JSON.parse(readFileSync(args.values, "utf8")) : {};
+const DEFAULT_STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
+// a replay takes everything from the recorded run
+const replayDir = args.replay ? resolve(args.replay) : null;
+const recorded = replayDir ? JSON.parse(readFileSync(join(replayDir, "run.json"), "utf8")) : null;
+if (replayDir && !existsSync(join(replayDir, "tape.jsonl"))) {
+  console.error(`✖ ${replayDir} hat keine tape.jsonl (aufgezeichnet wird erst seit der Wiedergabe-Funktion)`);
+  process.exit(1);
+}
+const input = recorded ?? (args.values ? JSON.parse(readFileSync(args.values, "utf8")) : {});
 const params: Params = { ...PARAMS, ...(input.params ?? {}) };
 const scenarioValues: ScenarioValues = { ...SCENARIO_DEFAULTS, ...(input.scenario ?? {}) };
-if (args.seed) scenarioValues.seed = Number(args.seed);
+if (args.seed && !recorded) scenarioValues.seed = Number(args.seed);
 const starters: string[] = input.starters ?? DEFAULT_STARTERS;
 const fuseMode = (args.fuse ?? null) as "hart" | "weich" | "voxel" | null; // null: first fusion hard, later ones soft (params)
 const REALTIME = 1 / 1440; // one calendar day per day
 // calendar days per real minute; echtzeit (default), echtzeit2, echtzeit4, echtzeit8 = that many times real time
-const rt = /^(?:echtzeit|realtime)(\d*)$/.exec(args.speed ?? "echtzeit");
-let speed = rt ? REALTIME * Number(rt[1] || 1) : Number(args.speed);
+const rt = recorded && !args.speed ? null : /^(?:echtzeit|realtime)(\d*)$/.exec(args.speed ?? "echtzeit");
+let speed = recorded && !args.speed ? recorded.speed : rt ? REALTIME * Number(rt[1] || 1) : Number(args.speed);
 let paused = false;
 const port = Number(args.port ?? 5180);
 
 // ---------------------------------------------------------------- run folder
 
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
-const runDir = join(HERE, "..", "sandbox-runs", `${stamp}-seed${scenarioValues.seed}`);
+const runDir = replayDir ?? join(HERE, "..", "sandbox-runs", `${stamp}-seed${scenarioValues.seed}`);
 for (const d of ["glb", "photos"]) mkdirSync(join(runDir, d), { recursive: true });
 
 const library = models as unknown as Record<string, ModelVersion>;
 const scenario = buildScenario({ scenario: scenarioValues, starters });
 for (const s of scenario.starters) {
   const src = join(ROOT, "generated-assets", library[s.name].glb);
-  if (!existsSync(src)) {
+  if (!replayDir && !existsSync(src)) {
     console.error(`✖ Startmodell fehlt: ${src}\n  (generated-assets/ ist lokal; die Testreihe Phase 1 muss dort liegen)`);
     process.exit(1);
   }
   const rel = `glb/${s.name}.glb`;
+  if (replayDir) { s.model = { glb: rel, ...(({ triangles, min, max }) => ({ triangles, min, max }))(await glbInfo(join(runDir, rel))) }; continue; }
   copyFileSync(src, join(runDir, rel));
   let info = await glbInfo(join(runDir, rel));
   if (info.triangles > params.originMaxTriangles) { // too heavy for an origin object: reduced to the limit when planted
@@ -85,7 +96,8 @@ for (const s of scenario.starters) {
 
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
-writeFileSync(join(runDir, "run.json"), JSON.stringify({
+if (recorded && recorded.commit !== commit) console.warn(`⚠ aufgezeichnet mit ${recorded.commit}, jetzt ${commit}: hat sich die Simulation seitdem geändert, weicht die Wiedergabe ab`);
+if (!replayDir) writeFileSync(join(runDir, "run.json"), JSON.stringify({
   started: new Date().toISOString(), commit, fuseMode, jobLeadDays: params.jobLeadDays, speed, params, scenario: scenarioValues, starters,
 }, null, 2));
 
@@ -100,8 +112,65 @@ const CONCURRENCY = 3; // jobs computed at the same time (6 cores: soft fusions 
 let loggedEvents = 0;
 
 function enqueue(jobs: JobRequest[]) {
+  if (replayDir) return; // the results come from the tape
   queue.push(...jobs);
   pump();
+}
+
+// ---------------------------------------------------------------- tape (--replay)
+// Everything that decides a run, in order: the size of every step (equal steps
+// in a row as one line), every result when it arrives, results used while the
+// clock waits for another one, failed jobs, commands that change the world, and
+// a checksum with every write. The simulation itself is deterministic, so this
+// gives the same run again, at any speed and without computing.
+type TapeEntry =
+  | { s: number; n: number } // n steps of s calendar days
+  | { r: JobResult } // a result arrived
+  | { a: number[] } // these results were used while the clock waited
+  | { d: number } // this job failed
+  | { c: Record<string, unknown> } // a command, with its random parts resolved
+  | { k: [number, number, number] }; // checksum: Eigenzeit, triangles, objects
+const TAPE = join(runDir, "tape.jsonl");
+const tapeOut: TapeEntry[] = [];
+let stepRun: { s: number; n: number } | null = null;
+const checksum = (): [number, number, number] => [w.eigen, totalTriangles(w), w.objects.length];
+function record(e: TapeEntry) {
+  if (replayDir) return;
+  if ("s" in e && stepRun?.s === e.s) { stepRun.n++; return; }
+  stepRun = "s" in e ? e : null;
+  tapeOut.push(e);
+}
+function flushTape() {
+  if (replayDir || !tapeOut.length) return;
+  tapeOut.push({ k: checksum() });
+  appendFileSync(TAPE, tapeOut.map((e) => JSON.stringify(e)).join("\n") + "\n");
+  tapeOut.length = 0; stepRun = null;
+}
+// replay: the whole tape; every result is "ready" from the start, used at its due time as recorded
+const tape: TapeEntry[] = replayDir ? readFileSync(TAPE, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+let tapeAt = 0, tapeStepsLeft = 0, replayDone = false, diverged = false;
+if (replayDir) for (const e of tape) if ("r" in e) ready.set(e.r.jobId, e.r);
+const totalStepDays = tape.reduce((t, e) => t + ("s" in e ? e.s * e.n : 0), 0);
+/** Plays the tape up to the next step; returns its size, or null at the end. */
+function nextReplayStep(): number | null {
+  for (; tapeAt < tape.length; tapeAt++) {
+    const e = tape[tapeAt];
+    if ("s" in e) {
+      if (!tapeStepsLeft) tapeStepsLeft = e.n;
+      return e.s;
+    }
+    if ("a" in e) for (const id of e.a) { const r = ready.get(id); if (r) { ready.delete(id); applyJob(w, r); } }
+    else if ("d" in e) { const job = w.jobs.find((j) => j.id === e.d); if (job) dropJob(job); }
+    else if ("c" in e) applyCommand(e.c);
+    else if ("k" in e && !diverged && (Math.abs(e.k[0] - w.eigen) > 1e-9 || e.k[1] !== totalTriangles(w) || e.k[2] !== w.objects.length)) {
+      diverged = true;
+      console.warn(`⚠ Wiedergabe weicht ab bei Kalendertag ${w.calendar.toFixed(3)}: aufgezeichnet ${JSON.stringify(e.k)}, jetzt ${JSON.stringify(checksum())}`);
+    }
+  }
+  return null;
+}
+function replayStepDone() {
+  if (--tapeStepsLeft === 0) tapeAt++;
 }
 
 function pump() {
@@ -111,32 +180,22 @@ function pump() {
     const job = queue.shift()!;
     running.set(job.id, { job, since: Date.now() });
     runGlbJob(w, job, { runDir, fuseMode })
-      .then((res) => { if (w.jobs.some((j) => j.id === job.id)) ready.set(job.id, res); })
+      .then((res) => { if (w.jobs.some((j) => j.id === job.id)) { ready.set(job.id, res); record({ r: res }); } })
       .catch((err: Error) => {
         console.error(`Job ${job.id} (${job.kind}) fehlgeschlagen:\n${err.message.slice(0, 2000)}`);
+        record({ d: job.id });
         dropJob(job);
       })
       .finally(() => { running.delete(job.id); pump(); });
   }
 }
 
-/** A failed job: the objects are released unchanged, a fusion pair dissolves (with its other job). */
+/** A failed job: the world releases the objects unchanged (a fusion pair dissolves with its other job);
+ *  a failed copy is simply not made. Repeated failures let a wilting object die early (sim). */
 function dropJob(job: JobRequest) {
-  const pair = w.pairs.find((p) => p.jobId === job.id || p.poseJobId === job.id);
-  const ids = pair ? [pair.jobId, pair.poseJobId] : [job.id];
-  w.jobs = w.jobs.filter((j) => !ids.includes(j.id));
+  const ids = jobFailed(w, job);
   for (const id of ids) ready.delete(id);
   for (let i = queue.length - 1; i >= 0; i--) if (ids.includes(queue[i].id)) queue.splice(i, 1);
-  for (const id of [job.objectId, job.partnerId]) {
-    const o = w.objects.find((x) => x.id === id);
-    if (o) { o.busy = false; o.pairedWith = null; }
-  }
-  if (pair) {
-    w.pairs = w.pairs.filter((p) => p !== pair);
-    for (const id of [pair.a, pair.b]) { const o = w.objects.find((x) => x.id === id); if (o) { o.busy = false; o.pairedWith = null; o.pose = null; } }
-  }
-  w.events.push({ eigen: w.eigen, calendar: w.calendar, type: "fehler", text: `Job ${job.id} (${job.kind}) fehlgeschlagen, Objekt bleibt unverändert` });
-  // a failed copy is simply not made; a failed fusion leaves both objects as they were
 }
 
 // Photos are generated when they appear (scenario or button).
@@ -145,6 +204,7 @@ async function ensurePhotos() {
   for (const ph of w.photos) {
     if (madePhotos.has(ph.id)) continue;
     madePhotos.add(ph.id);
+    if (existsSync(join(runDir, "photos", `${ph.id}-0.jpg`))) continue; // a replay: made when recorded
     await makeTestPhoto(ph.id, join(runDir, "photos", `${ph.id}-0.jpg`));
   }
 }
@@ -194,28 +254,62 @@ const STEP_SECONDS = 1; // real seconds per step at most
 const stepDays = () => Math.min(QUANTUM, (speed / 60) * STEP_SECONDS);
 let budget = 0; // calendar days the clock may still advance
 setInterval(() => {
-  if (paused || w.phase === "ende") return;
+  if (paused || w.phase === "ende" || replayDone) return;
   budget += (speed / 60) * (TICK_MS / 1000);
   waitingFor = null;
-  const q = stepDays();
-  while (budget >= q) {
-    const r = advance(w, ready, q);
-    if ("waiting" in r) { waitingFor = r.waiting; budget = Math.min(budget, q); break; }
-    enqueue(r.jobs);
-    budget -= q;
+  const before = w.calendar;
+  if (replayDir) {
+    // the recorded step sizes, as fast as the chosen speed asks for
+    for (let q = nextReplayStep(); ; q = nextReplayStep()) {
+      if (q === null) { replayDone = true; console.log("\nAufzeichnung zu Ende."); break; }
+      if (budget < q) break;
+      if ("waiting" in advance(w, ready, q)) { replayDone = true; console.log("\nAufzeichnung endet hier (ein Ergebnis fehlt)."); break; }
+      replayStepDone();
+      budget -= q;
+    }
+  } else {
+    const q = stepDays();
+    while (budget >= q) {
+      const pending = w.jobs.map((j) => j.id);
+      const r = advance(w, ready, q);
+      if ("waiting" in r) {
+        const used = pending.filter((id) => !w.jobs.some((j) => j.id === id));
+        if (used.length) record({ a: used });
+        waitingFor = r.waiting; budget = Math.min(budget, q); break;
+      }
+      record({ s: q, n: 1 });
+      enqueue(r.jobs);
+      budget -= q;
+    }
   }
+  if (w.calendar !== before) pushFrame();
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
 }, TICK_MS);
+setInterval(flushTape, 5000);
+
+// The viewer plays a little behind the simulation and interpolates between
+// these frames (one per tick in which the clock moved), so the motion stays
+// smooth however large the steps are.
+interface Frame { seq: number; calendar: number; poses: Record<string, [number[], number[], number]>; drawings: Record<string, [number[], number]> }
+const frames: Frame[] = [];
+let frameSeq = 0;
+function pushFrame() {
+  const poses: Frame["poses"] = {}, drawings: Frame["drawings"] = {};
+  for (const o of w.objects) { const p = decompose(modelMatrix(o)); poses[o.id] = [p.p, p.q, p.s]; }
+  for (const d of w.drawings) if (!d.gone) drawings[d.id] = [d.pos, d.scale];
+  frames.push({ seq: ++frameSeq, calendar: w.calendar, poses, drawings });
+  if (frames.length > 600) frames.splice(0, frames.length - 600);
+}
 
 function flushEvents() {
   if (w.events.length > loggedEvents) {
-    appendFileSync(join(runDir, "events.jsonl"), w.events.slice(loggedEvents).map((e) => JSON.stringify(e)).join("\n") + "\n");
+    if (!replayDir) appendFileSync(join(runDir, "events.jsonl"), w.events.slice(loggedEvents).map((e) => JSON.stringify(e)).join("\n") + "\n");
     for (const e of w.events.slice(loggedEvents)) console.log(`K ${e.calendar.toFixed(2).padStart(6)}  E ${e.eigen.toFixed(2).padStart(6)}  ${e.text}`);
     loggedEvents = w.events.length;
   }
 }
-setInterval(() => writeFileSync(join(runDir, "state.json"), JSON.stringify(stateFor(0))), 5000);
+if (!replayDir) setInterval(() => writeFileSync(join(runDir, "state.json"), JSON.stringify(stateFor(0))), 5000);
 
 // ---------------------------------------------------------------- HTTP
 
@@ -223,9 +317,10 @@ function stateFor(sinceSample: number) {
   return {
     run: {
       dir: runDir.replace(ROOT, ""), commit, fuseMode, speed, paused,
+      replay: replayDir ? { progress: totalStepDays ? w.calendar / totalStepDays : 1, done: replayDone, diverged } : null,
       waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
     },
-    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, pioneerFactor: w.pioneerFactor, factorParts: w.factorParts,
+    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, pioneerFactor: w.pioneerFactor, factorParts: w.factorParts, boostsPaused: w.boostsPaused, lastWatched: w.lastWatched,
     viewers: w.viewers, plantingPoint: w.plantingPoint, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
     budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,
@@ -246,12 +341,23 @@ function randomSpot(): Vec3 {
 
 function command(cmd: Record<string, unknown>) {
   switch (cmd.type) {
-    case "pause": paused = true; break;
-    case "resume": paused = false; break;
-    case "speed": speed = Math.max(REALTIME, Number(cmd.value) || speed); break;
+    case "pause": paused = true; return;
+    case "resume": paused = false; return;
+    case "speed": speed = Math.max(REALTIME, Number(cmd.value) || speed); return;
+  }
+  if (replayDir) throw new Error("In der Wiedergabe lässt sich nichts hinzufügen");
+  // random parts resolved here, so the tape holds exactly what happened
+  const c = cmd.type === "addPhoto" || cmd.type === "addDrawing" ? { ...cmd, pos: randomSpot() } : cmd;
+  applyCommand(c);
+  record({ c });
+}
+
+/** A command that changes the world (live, or from the tape). */
+function applyCommand(cmd: Record<string, unknown>) {
+  switch (cmd.type) {
     case "viewers": setViewers(w, w.viewers + Number(cmd.delta ?? 0)); break;
-    case "addPhoto": addPhoto(w, randomSpot()); break;
-    case "addDrawing": addDrawing(w, randomSpot()); break;
+    case "addPhoto": addPhoto(w, cmd.pos as Vec3); break;
+    case "addDrawing": addDrawing(w, cmd.pos as Vec3); break;
     case "block": removePhoto(w, String(cmd.photoId), "gesperrt"); break;
     case "delete": removePhoto(w, String(cmd.photoId), "gelöscht"); break;
     default: throw new Error(`unbekannter Befehl ${String(cmd.type)}`);
@@ -270,6 +376,11 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
 
 async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? "/", "http://x");
+  if (url.pathname === "/api/frames") {
+    const since = Number(url.searchParams.get("since") ?? 0);
+    send(res, 200, JSON.stringify(frames.filter((f) => f.seq > since)));
+    return true;
+  }
   if (url.pathname === "/api/state") { send(res, 200, JSON.stringify(stateFor(Number(url.searchParams.get("since") ?? 0)))); return true; }
   if (url.pathname === "/api/cmd" && req.method === "POST") {
     let body = "";
@@ -312,6 +423,9 @@ vite = await createViteServer({
   logLevel: "warn",
 });
 http.listen(port, () => {
-  console.log(`\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : `${speed} Kalendertage pro Minute`}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
+  const tempo = rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : Math.abs(speed / REALTIME - Math.round(speed / REALTIME)) < 1e-9 ? `${Math.round(speed / REALTIME)}× Echtzeit` : `${speed} Kalendertage pro Minute`;
+  console.log(replayDir
+    ? `\nWiedergabe läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${tempo}, ${totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
+    : `\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
 });
 enqueue(w.jobs.slice());
