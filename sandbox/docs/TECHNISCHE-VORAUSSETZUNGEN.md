@@ -209,7 +209,9 @@ werden, wie `deploy.sh` es schon vorsieht.
 
 **5. Darstellung in der AR-App.** Eine Komponente im Frontend, die die Objekte am
 Ort der Pflanze darstellt, Bewegungen zwischen zwei Abfragen glättet wie der Viewer
-der Sandbox und Modelle erst lädt, wenn sie gebraucht werden.
+der Sandbox und Modelle erst lädt, wenn sie gebraucht werden. Zum Look gehört die
+Körnung von `grain-shimmer` (`src/a-frame-components/grain-shimmer.ts`), dieselbe wie
+im Viewer der Sandbox.
 
 **6. Vorbereitung beim Erstellen eines Ursprungsobjekts.** Ein Objekt wird mit
 Sloyd erstellt, lange bevor es gepflanzt wird. In dieser Zeit lassen sich alle
