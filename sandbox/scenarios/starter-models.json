@@ -1,0 +1,114 @@
+{
+  "flamingo": {
+    "glb": "flamingo-3d.glb",
+    "triangles": 4996,
+    "min": [
+      -0.453,
+      -0.475,
+      -0.65
+    ],
+    "max": [
+      0.453,
+      0.475,
+      0.65
+    ]
+  },
+  "mango": {
+    "glb": "mango-3d.glb",
+    "triangles": 5000,
+    "min": [
+      -0.05,
+      -0.033,
+      -0.05
+    ],
+    "max": [
+      0.05,
+      0.042,
+      0.034
+    ]
+  },
+  "muschel-vase": {
+    "glb": "muschel-vase-3d.glb",
+    "triangles": 9364,
+    "min": [
+      -0.098,
+      0.001,
+      -0.094
+    ],
+    "max": [
+      0.086,
+      0.35,
+      0.098
+    ]
+  },
+  "naehmaschine": {
+    "glb": "naehmaschine-3d.glb",
+    "triangles": 4998,
+    "min": [
+      -0.19,
+      0,
+      -0.104
+    ],
+    "max": [
+      0.19,
+      0.258,
+      0.106
+    ]
+  },
+  "regenschirm": {
+    "glb": "regenschirm-3d.glb",
+    "triangles": 5000,
+    "min": [
+      -0.497,
+      0,
+      -0.504
+    ],
+    "max": [
+      0.503,
+      0.86,
+      0.494
+    ]
+  },
+  "rucksack": {
+    "glb": "rucksack-3d.glb",
+    "triangles": 7618,
+    "min": [
+      -0.257,
+      0.001,
+      -0.15
+    ],
+    "max": [
+      0.192,
+      0.368,
+      0.201
+    ]
+  },
+  "tarot-figur": {
+    "glb": "tarot-figur-3d.glb",
+    "triangles": 4996,
+    "min": [
+      -1.216,
+      0.001,
+      -2.245
+    ],
+    "max": [
+      1.222,
+      3.109,
+      2.244
+    ]
+  },
+  "tiffany-lampe": {
+    "glb": "tiffany-lampe-3d.glb",
+    "triangles": 5000,
+    "min": [
+      -0.164,
+      0,
+      -0.166
+    ],
+    "max": [
+      0.168,
+      0.55,
+      0.169
+    ]
+  }
+}

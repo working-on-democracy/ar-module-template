@@ -1,0 +1,243 @@
+<title>Lebenszyklus-Rechner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: form column on the left (stacks first on phones), results on the right: summary, curve, states, top view, log. */
+:root {
+  --bg: #f4f5f1;
+  --surface: #ffffff;
+  --fg: #1c221e;
+  --muted: #5f6a63;
+  --line: #d9ddd5;
+  --grid: #e6e9e2;
+  --accent: #2e6a4c;
+  --feed-fill: rgba(46, 106, 76, 0.07);
+  --st-keimling: #8fbf72;
+  --st-aktiv: #2e6a4c;
+  --st-verwelkend: #c08a2c;
+  --st-tot: #9aa19c;
+  --photo: #3466a8;
+  --drawing: #c2410c;
+  --pair: #e0218a;
+  --kd-ursprung: #4d4038;
+  --kd-voxelkeimling: #4fa89a;
+  --kd-unveraendert: #b9c2b8;
+  --kd-v1: #9cc3d9;
+  --kd-v2: #5c9cc4;
+  --kd-v3: #2f6fa3;
+  --kd-v4: #1b406b;
+  --font-display: "Barlow Semi Condensed", "Barlow", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Barlow", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
+    --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
+    --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
+    --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
+    --kd-ursprung: #cbbcae; --kd-voxelkeimling: #6cc4b5; --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
+  --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
+  --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
+  --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
+    --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font-body); padding-inline: 16px; padding-block: 20px 40px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 { font: 600 30px/1.1 var(--font-display); margin: 0; letter-spacing: 0.005em; text-wrap: balance; }
+h2 { font: 600 17px/1.2 var(--font-display); margin: 0; letter-spacing: 0.02em; text-transform: uppercase; }
+.lead { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.layout { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* form */
+.form { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; }
+@media (max-width: 880px) { .form { position: static; max-height: none; } }
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 4px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; align-items: center; }
+button { font: 500 14px var(--font-body); color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#copy-state { color: var(--muted); font-size: 13px; }
+#copy-fallback { width: 100%; height: 120px; font: 12px monospace; }
+details.group { border-bottom: 1px solid var(--line); padding: 6px 4px; }
+details.group:last-child { border-bottom: 0; }
+summary { cursor: pointer; font: 600 15px var(--font-display); letter-spacing: 0.02em; padding: 4px 0; }
+.group-note { margin: 2px 0 8px; color: var(--muted); font-size: 13px; }
+.fields { display: grid; gap: 6px; padding-bottom: 6px; }
+.field { display: grid; grid-template-columns: minmax(0, 1fr) 86px; grid-template-areas: "label input" "unit input"; column-gap: 10px; align-items: center; }
+.field-label { grid-area: label; font-size: 14px; }
+.field-unit { grid-area: unit; font-size: 12px; color: var(--muted); }
+.field input { grid-area: input; width: 100%; font: 14px var(--font-data); font-variant-numeric: tabular-nums; text-align: right; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); }
+.starters { display: grid; gap: 4px; padding-bottom: 6px; }
+.starter { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 14px; }
+.starter-meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* results */
+.results { display: grid; gap: 20px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.panel-note { color: var(--muted); font-size: 13px; }
+#summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+@media (max-width: 640px) { #summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat:last-child { grid-column: span 2; } }
+.stat { background: var(--surface); padding: 10px 12px; display: grid; gap: 2px; align-content: start; }
+.stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat b { font: 600 21px var(--font-display); font-variant-numeric: tabular-nums; }
+.stat span:last-child:not(.stat-label) { font-size: 13px; color: var(--muted); }
+.chart { overflow-x: auto; cursor: crosshair; touch-action: pan-y; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; font-family: var(--font-data); }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.axis-label, .ref-label { fill: var(--muted); font-size: 12px; }
+.ref { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 5 4; opacity: 0.55; }
+.ref-soft { opacity: 0.3; }
+.phase-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.6; }
+.area { fill: var(--accent); opacity: 0.12; }
+.line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.cursor { stroke: var(--drawing); stroke-width: 1.5; }
+.factor { fill: none; stroke: var(--fg); stroke-width: 1.25; opacity: 0.7; }
+.st, .kd { stroke: none; }
+.kd-ursprung { fill: var(--kd-ursprung); } .kd-keimling { fill: var(--st-keimling); } .kd-voxelkeimling { fill: var(--kd-voxelkeimling); } .kd-unveraendert { fill: var(--kd-unveraendert); } .kd-v1 { fill: var(--kd-v1); } .kd-v2 { fill: var(--kd-v2); } .kd-v3 { fill: var(--kd-v3); } .kd-v4 { fill: var(--kd-v4); } .kd-halbiert { fill: var(--st-verwelkend); }
+.st-keimling { fill: var(--st-keimling); } .st-aktiv { fill: var(--st-aktiv); } .st-verwelkend { fill: var(--st-verwelkend); } .st-tot { fill: var(--st-tot); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.map-wrap { display: grid; gap: 8px; }
+#side { width: 100%; aspect-ratio: 3 / 1; min-height: 220px; max-width: 100%; background: var(--bg); border-radius: 6px; display: block; }
+#map { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; background: var(--bg); border-radius: 6px; display: block; }
+.scrub-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#scrub { flex: 1 1 200px; accent-color: var(--accent); }
+#frame-label { font-variant-numeric: tabular-nums; font-size: 14px; }
+.log-wrap { max-height: 380px; overflow: auto; border-top: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td { padding: 4px 6px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { text-align: left; font-weight: 600; font-size: 12px; color: var(--muted); padding: 6px; position: sticky; top: 0; background: var(--surface); }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; width: 1%; color: var(--muted); }
+td.more { color: var(--muted); text-align: center; }
+select { font: 14px var(--font-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 4px 6px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Lebenszyklus-Rechner</h1>
+      <p class="lead">Simuliert ein Ökosystem der AI-Slop-Pflanze mit den Regeln aus dem Sandbox-Plan. Alle Werte sind spekulative Platzhalter. Geometrie wird hier nur als Zahl gerechnet: Komprimieren senkt die Dreieckszahl, Halbieren teilt sie auf.</p>
+    </div>
+    <span class="panel-note" id="run-meta"></span>
+  </header>
+
+  <div class="layout">
+    <form class="form" id="form" onsubmit="return false">
+      <div class="form-actions">
+        <button type="button" class="primary" id="copy">Werte kopieren</button>
+        <button type="button" id="reset">Standardwerte</button>
+        <span id="copy-state" aria-live="polite"></span>
+        <textarea id="copy-fallback" hidden aria-label="Werte als Text"></textarea>
+      </div>
+      <div id="form-body"></div>
+    </form>
+
+    <main class="results">
+      <section id="summary" aria-label="Ergebnis"></section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Dreiecke im Ökosystem</h2>
+          <span class="panel-note">gestrichelt: Phasenwechsel · rot: gewählter Tag, zum Ändern ins Diagramm klicken oder ziehen</span>
+        </div>
+        <div class="chart" id="curve"></div>
+        <div class="chart" id="states"></div>
+        <div class="legend">
+          <span><i class="sw" style="background: var(--st-keimling)"></i>Keimling</span>
+          <span><i class="sw" style="background: var(--st-aktiv)"></i>Aktiv</span>
+          <span><i class="sw" style="background: var(--st-verwelkend)"></i>Verwelkend</span>
+          <span><i class="sw" style="background: var(--st-tot)"></i>Tot</span>
+        </div>
+        <div class="chart" id="kinds"></div>
+        <div class="legend">
+          <span><i class="sw" style="background: var(--kd-ursprung)"></i>Ursprungsobjekt</span>
+          <span><i class="sw" style="background: var(--st-keimling)"></i>Keimling</span>
+          <span><i class="sw" style="background: var(--kd-voxelkeimling)"></i>Voxel-Keimling</span>
+          <span><i class="sw" style="background: var(--kd-unveraendert)"></i>Weder verschmolzen noch halbiert</span>
+          <span><i class="sw" style="background: var(--kd-v1)"></i>1 Verschmelzung</span>
+          <span><i class="sw" style="background: var(--kd-v2)"></i>2</span>
+          <span><i class="sw" style="background: var(--kd-v3)"></i>3</span>
+          <span><i class="sw" style="background: var(--kd-v4)"></i>4 und mehr</span>
+          <span><i class="sw" style="background: var(--st-verwelkend)"></i>Halbiert (auch wenn vorher verschmolzen)</span>
+        </div>
+        <div class="chart" id="factor"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Draufsicht</h2>
+          <span class="panel-note" id="frame-label"></span>
+        </div>
+        <div class="map-wrap">
+          <canvas id="map" aria-label="Draufsicht auf das Ökosystem zum gewählten Zeitpunkt"></canvas>
+          <div class="scrub-row">
+            <button type="button" id="play">Abspielen</button>
+            <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Zeitpunkt">
+          </div>
+          <div class="legend">
+            <span><i class="sw" style="border: 2px solid var(--fg); background: transparent"></i>Pflanzort × · Ring: Ursprungsobjekt</span>
+            <span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M0 7H14M7 0V14" stroke="var(--accent)" stroke-width="1.5"/><circle cx="7" cy="7" r="4" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>Wandernder Mittelpunkt und Radius Hinschauen/Füttern</span>
+            <span><i class="sw" style="border: 1.5px solid var(--photo)"></i>Foto (gefüllt: übernommen, durchgestrichen: gesperrt)</span>
+            <span><i class="sw" style="background: var(--drawing); height: 3px"></i>Zeichnung (grün: hat Textur geerbt)</span>
+            <span><i class="sw" style="border: 1px dashed var(--muted)"></i>Bounding Box</span>
+            <span><i class="sw" style="border-top: 3px dashed var(--pair); height: 0"></i>Paar, das sich aufeinander zubewegt (Zahl im Objekt: Verschmelzungen)</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Seitenansicht</h2>
+          <span class="panel-note">Blick nach Norden, gleicher Zeitpunkt wie die Draufsicht · <span id="side-label"></span></span>
+        </div>
+        <canvas id="side" aria-label="Seitenansicht mit den Höhen der Objekte zum gewählten Zeitpunkt"></canvas>
+        <div class="legend">
+          <span><i class="sw" style="background: var(--kd-ursprung)"></i>Ursprungsobjekt</span>
+          <span><i class="sw" style="background: var(--st-aktiv); opacity: 0.25"></i>heller Rand: Schwanken</span>
+          <span><i class="sw" style="border-top: 2px dashed var(--drawing); height: 0"></i>Höhengrenze</span>
+          <span><i class="sw" style="background: var(--grid)"></i>unter dem Boden (eingesunken oder noch im Wachsen)</span>
+          <span>Figur: 1,75 m</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Ereignisse</h2>
+          <label for="log-filter" class="panel-note">Zeigen
+            <select id="log-filter">
+              <option value="">alle</option>
+              <option value="phase">Phasen</option>
+              <option value="kopie">Kopien</option>
+              <option value="verschmelzung">Verschmelzen</option>
+              <option value="komprimierung">Verstärkte Komprimierung</option>
+              <option value="halbierung">Halbierungen</option>
+              <option value="tod">Tod</option>
+              <option value="foto">Fotos</option>
+              <option value="zeichnung">Zeichnungen</option>
+              <option value="anziehung">Anziehung</option>
+              <option value="besucher">Besuche</option>
+            </select>
+          </label>
+        </div>
+        <div class="log-wrap">
+          <table><thead><tr><th>Kalendertag</th><th>Eigenzeit</th><th>Ereignis</th></tr></thead><tbody id="log"></tbody></table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>/*BUNDLE*/</script>

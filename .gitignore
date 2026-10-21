@@ -5,10 +5,23 @@ dist-ar/
 *.log
 .DS_Store
 
+# Local secrets (API keys for asset-generation scripts) — never committed
+.env.local
+.env.*.local
+
 # IDE / editor config
 .idea/
 
-# Pristine, uncompressed originals preserved by scripts/compress-assets.ts —
-# local-only, never shipped, never scanned by the Vite build (see
-# cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
+# Pristine, uncompressed originals written by scripts/stylize-glb.ts next to its
+# compressed output — local-only, never shipped, never scanned by the Vite build
+# (see cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md).
 uncompressed-assets/
+
+# Raw downloads + job log of scripts/sloyd-generate.ts — local-only, never
+# shipped; scripts/stylize-glb.ts turns them into src/assets/ files.
+generated-assets/
+.sloyd-jobs.jsonl
+
+# Sandbox output: built lifecycle page, run folders (models, logs, fuse cache)
+sandbox/lifecycle-page/lebenszyklus-rechner.html
+sandbox-runs/

@@ -38,8 +38,7 @@ defineProps<{ arModule: ArModuleData }>();
 // by this Vue wrapper's own onMounted/onUnmounted lifecycle rather than
 // any entity's — there's no 3D content for a component to attach to until
 // the very thing this UI is covering for has already finished. See
-// QUICK_START_GUIDE.md for the short version of why this lives here rather
-// than in src/a-frame-components/.
+// cross-feature-reference-docs/AR-MODULE-TEMPLATE.md for the module baseline.
 const loadProgress = ref(0);
 const assetsLoaded = ref(false);
 let stopAssetTracking: (() => void) | null = null;
@@ -99,11 +98,9 @@ onUnmounted(() => {
 
   <!-- Assets are declared in the manifest (derived from src/assets/) and injected
        into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `jellyfish-video.mp4` → id
-       "jellyfish-video". Do NOT declare your own <a-assets> here. -->
+       them here by id (file name without extension): `model.glb` → id "model". Do NOT declare your own <a-assets> here. -->
   <a-entity
       position="0 -2 0"
-      no-frustum-cull
       :visible="assetsLoaded"
   >
     <!-- What the directional light below aims at — move this entity to
