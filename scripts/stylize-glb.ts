@@ -15,7 +15,7 @@
 //   - Writes NEAREST min/mag filters into the glTF samplers: no smoothing,
 //     no mipmaps, so texel edges stay hard up close and the surface
 //     flickers/sparkles from afar. three.js reads these on load — no
-//     component needed. The template's grain-shimmer component adds grain on top.
+//     component needed. `grain-shimmer="filter: nearest"` adds grain on top.
 //   - Drops normal/metal-roughness/occlusion maps and makes materials matte
 //     non-metal (--keep-maps keeps them, shrunk and nearest-filtered too):
 //     at a few pixels they only add noise, and metal without an env map

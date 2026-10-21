@@ -10,7 +10,9 @@ simulation of an ecosystem of 3D objects, the GLB scripts that compute every
 change to an object, a local sandbox (server + three.js viewer + lifecycle
 page), its documentation, and the AR-module template baseline (`lib/`, `src/`,
 `npm run dev:ar`) kept for AR tests on phones. All template features,
-examples, guides and assets were removed; they live on `feature_template`.
+examples, guides and assets the plant does not use were removed (they live on
+`feature_template`); `grain-shimmer` stays, it is a fixed part of the plant's
+look.
 History of the work so far: branches `ai-asset-tools` and `plant-sandbox`
 (archive, read-only).
 
@@ -46,7 +48,8 @@ sandbox/lifecycle-page/  lifecycle calculator (same sim, plain-number jobs), bui
 sandbox/models/       starter .glb models (from Sloyd, uncompressed)
 sandbox/docs/         documentation (German), mirrored as online Claude Docs (links at the top of each)
 scripts/              GLB tools; jimp-image.ts = texture work without native libs
-src/, lib/            AR-module template baseline (no components registered yet)
+src/, lib/            AR-module template baseline; src/a-frame-components/grain-shimmer.ts = the plant's grain look
+guides/, examples/    guide + example for grain-shimmer (the only template feature kept)
 sandbox-runs/         gitignored: run folders + shared fuse cache (sandbox-runs/fuse-cache)
 ```
 

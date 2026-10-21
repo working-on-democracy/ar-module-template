@@ -179,7 +179,7 @@ let grainOn = true;
 
 // Grain shimmer (concept: per object from its own triangles, 0.4 · 2^(−n/1000),
 // 0 from 10 000; grainScale 2400 / model height; textures nearest, no mipmaps) —
-// the shader of the template's grain-shimmer component (feature_template), for plain three.js.
+// the shader of src/a-frame-components/grain-shimmer.ts, for plain three.js.
 const grainOf = (triangles: number) => (triangles >= 10000 ? 0 : 0.4 * Math.pow(2, -triangles / 1000));
 type GrainUniforms = { grainStrength: { value: number }; grainScale: { value: number }; grainSeed: { value: number } };
 function grainMaterial(original: THREE.Material, u: GrainUniforms): THREE.Material {

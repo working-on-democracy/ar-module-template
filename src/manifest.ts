@@ -25,6 +25,7 @@
 //     these a feature prefix even if only one feature currently uses them.
 import { manifest as assetManifest } from "virtual:ar-manifest";
 
+import grainShimmer from "./a-frame-components/grain-shimmer";
 import type { Manifest } from "../lib/manifest.types";
 import { patchGLTFLoaderWithMeshoptDecoder } from "../lib/gltf-meshopt-setup";
 
@@ -41,8 +42,11 @@ export const manifest: Manifest = {
   // Auto-scanned from src/assets/; file name (sans extension) is the asset id.
   assets: assetManifest.assets,
 
-  // No A-Frame components yet: the plant's AR test registers its own here.
-  components: {}
+  components: {
+    // The plant's grainy, glittering skin — a fixed part of its look (the
+    // sandbox viewer uses the same shader). See guides/GRAIN-SHIMMER-FEATURE-GUIDE.md.
+    "grain-shimmer": grainShimmer
+  }
 
   // No image targets registered by default — add an
   // `imageTargets: [yourTarget]` entry here, importing your own

@@ -15,10 +15,13 @@ Hier liegt alles, was die Pflanze braucht, und nichts sonst:
   Modellen laufen lässt, dazu der Lebenszyklus-Rechner
 - die **Dokumentation** für Entwicklung und Server
 - das **Grundgerüst des AR-Modul-Templates** (`lib/`, `src/`, `npm run dev:ar`), mit
-  dem die Pflanze als Nächstes auf Telefonen in AR getestet wird
+  dem die Pflanze als Nächstes auf Telefonen in AR getestet wird, und die Komponente
+  **`grain-shimmer`**: die körnige, glitzernde Oberfläche ist ein fester Teil des
+  Looks der Pflanze (der Viewer der Sandbox nutzt denselben Shader)
 
 Der Branch zweigt von `main` ab. Alle Features, Beispiele, Guides und Assets des
-Templates, die die Pflanze nicht nutzt, sind entfernt. Die Entwicklung bis hierher
+Templates, die die Pflanze nicht nutzt, sind entfernt. `grain-shimmer` ist das
+einzige Template-Feature, das bleibt. Die Entwicklung bis hierher
 liegt als Archiv in den Branches `ai-asset-tools` und `plant-sandbox`.
 
 ## Für den Admin: hier anfangen
@@ -67,7 +70,9 @@ sandbox/
   docs/             Dokumentation der Pflanze
 scripts/            Rechenschritte und Werkzeuge: glb-fuse, glb-reduce, glb-split, stylize-glb,
                     glb-texture-crush, jimp-image, sloyd-generate, glb-compression, compress-assets
-src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test
+src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test,
+                    src/a-frame-components/grain-shimmer.ts: der Körnungs-Look der Pflanze
+guides/, examples/  Guide und Beispiel zu grain-shimmer
 cross-feature-reference-docs/
                     Referenzen: Asset-Erzeugung und GLB-Werkzeuge, Komprimierung, Template-Grundgerüst
 ```
@@ -82,6 +87,7 @@ cross-feature-reference-docs/
 | [`sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md`](sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor und Time Boosts |
 | [`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md) | Sloyd und die GLB-Werkzeuge im Detail (englisch) |
 | [`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md) | Komprimierung für die Auslieferung, nie doppelt komprimieren (englisch) |
+| [`guides/GRAIN-SHIMMER-FEATURE-GUIDE.md`](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) | die Körnung der Pflanze: Attribute, Werte, Fallstricke (englisch) |
 | [`cross-feature-reference-docs/AR-MODULE-TEMPLATE.md`](cross-feature-reference-docs/AR-MODULE-TEMPLATE.md) | Build, Vorschau und Host-Vertrag des Template-Grundgerüsts (englisch) |
 
 Die Dokumente in `sandbox/docs/` gibt es auch online zum Kommentieren, die Links
@@ -94,7 +100,7 @@ Drei Spuren laufen parallel:
 1. **Feintuning** der Parameter in der Sandbox und im Lebenszyklus-Rechner, wie bisher.
 2. **AR-Test auf Telefonen, lokal:** eine Darstellung der Pflanze als A-Frame-Komponente,
    die den Zustand der laufenden Sandbox über das WLAN holt und ihn mit `npm run dev:ar`
-   am Telefon in AR zeigt. Sie wird so gebaut, dass sie später in die Plattform-App
+   am Telefon in AR zeigt, mit `grain-shimmer` wie im Viewer. Sie wird so gebaut, dass sie später in die Plattform-App
    wandern kann (8frame 1.3.0, three r137, kein Vue).
 3. **Server und Plattform, der Admin:** die Schritte aus
    [`ADMIN-AUFGABEN.md`](sandbox/docs/ADMIN-AUFGABEN.md).
