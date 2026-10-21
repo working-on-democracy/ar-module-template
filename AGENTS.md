@@ -17,8 +17,8 @@ History of the work so far: branches `ai-asset-tools` and `plant-sandbox`
 (archive, read-only).
 
 The plant is a **platform feature**, not an AR module: on the platform the
-simulation runs server-side (backend repo `TobiasStill/ar-demo-backend`,
-private, read via `gh api`, read-only unless asked) and the host app renders
+simulation runs server-side (the platform's backend repo is private; ask the
+user for access, read-only unless asked) and the host app renders
 it. `src/ArModule.vue` here is only a vehicle for local AR tests.
 
 ## 2. Read order

@@ -38,8 +38,8 @@ Die größten offenen Punkte:
 5. **Telefon:** Ob ein Telefon bis zu 70 Modelle gleichzeitig flüssig darstellt,
    ist nicht getestet.
 
-Grundlage: das Backend-Repo `TobiasStill/ar-demo-backend` (Stand 5. Oktober 2026),
-ein lesender Blick auf den Server `alnilam.uberspace.de` am 21. Oktober 2026 und
+Grundlage: das Backend-Repo der Plattform (Stand 5. Oktober 2026), ein lesender
+Blick auf den Server der Plattform am 21. Oktober 2026 und
 die Sandbox im Branch `plant` des Repos `working-on-democracy/ar-module-template`.
 
 ## Wie die Sandbox funktioniert
@@ -133,15 +133,15 @@ Simulation (`sandbox/sim/`) ist reines TypeScript ohne Abhängigkeiten.
 
 ## Die Plattform heute
 
-an-alle.net läuft auf dem Uberspace `alnilam.uberspace.de` unter dem Konto
-`allean`. Das Backend ist im Repo `TobiasStill/ar-demo-backend`.
+an-alle.net läuft auf einem Uberspace. Das Backend liegt in einem eigenen, privaten
+Repo.
 
 | Teil | Stand |
 | --- | --- |
-| Server | CentOS 7.9, glibc 2.17, 20 Kerne und 17,8 GB Arbeitsspeicher, geteilt mit anderen Konten, kein Swap |
-| Backend | Node 20, TypeScript, Express, Apollo GraphQL, Socket.IO, als supervisor-Dienst `geo-backend` auf Port 4000, erreichbar unter `/graphql` |
+| Server | CentOS 7, glibc 2.17, geteilt mit anderen Konten, kein Swap |
+| Backend | Node 20, TypeScript, Express, Apollo GraphQL, Socket.IO, als supervisor-Dienst, erreichbar unter `/graphql` |
 | Datenbank | MongoDB 6.0 als supervisor-Dienst `mongodb`, Fotos als JPEG direkt in der Datenbank |
-| Frontend | Vue und 8frame 1.3.0, statisch in `~/html`, daneben `admin`, `ar-modules`, `standalones` und `wiki` |
+| Frontend | Vue und 8frame 1.3.0, statisch unter `~/html`, daneben Admin-Oberfläche und weitere statische Seiten |
 | Bilder im Backend | `jimp` (reines JavaScript), kein `sharp` |
 | Inhalte | Text-Posts, Fotos (höchstens 1 024 px, JPEG-Qualität 70) und Zeichnungen (Linien mit Punkten, keine Modelle), jeweils mit Ort |
 | Lebensdauer | pro Verfügbarkeitsgebiet einstellbar, Standard 90 Tage, berechnet aus Erstellzeit und Gebiet, ein Sweeper löscht Abgelaufenes |
@@ -168,7 +168,7 @@ Ein Vorschlag in sechs Teilen. Alle Teile passen in das bestehende Muster aus
 supervisor-Diensten, statischen Dateien unter `~/html` und `deploy.sh`.
 
 **1. Simulationsdienst.** Ein eigener supervisor-Dienst, etwa
-`~/etc/services.d/plant.ini`, getrennt von `geo-backend`. Er führt die Simulation
+`~/etc/services.d/plant.ini`, getrennt vom Backend-Dienst. Er führt die Simulation
 in Echtzeit aus, wie die Sandbox mit `--speed echtzeit`, und schreibt den Zustand
 regelmäßig weg. Getrennt deshalb, damit ein Absturz oder Neustart der Pflanze die
 übrige Plattform nicht mitnimmt und umgekehrt. Er braucht:

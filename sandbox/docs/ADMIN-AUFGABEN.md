@@ -3,8 +3,7 @@
 Stand: 21. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/KoFCGVuWSXaCxviELw37uu
 
-Was am Uberspace `alnilam.uberspace.de` (Konto `allean`) zu tun ist, damit die
-Pflanze dort laufen kann, wichtigstes zuerst. Hintergrund und Begründungen stehen
+Was auf dem Uberspace der Plattform zu tun ist, damit die Pflanze dort laufen kann, wichtigstes zuerst. Hintergrund und Begründungen stehen
 in [Technische Voraussetzungen](TECHNISCHE-VORAUSSETZUNGEN.md).
 
 ## 1. Zuerst: Laufen die Skripte auf dem Server?
@@ -16,7 +15,7 @@ auf die `sharp` von selbst ausweicht.
 - [ ] Testordner anlegen, getrennt von der laufenden Plattform:
 
 ```bash
-git clone -b plant https://github.com/working-on-democracy/ar-module-template.git ~/plant-test
+git clone --single-branch --depth 1 -b plant https://github.com/working-on-democracy/ar-module-template.git ~/plant-test
 cd ~/plant-test
 npm install
 npm install --cpu=wasm32 sharp
@@ -42,7 +41,7 @@ $T npx tsx scripts/glb-fuse.ts s.glb r.glb --mode voxel --voxel-cells 12 --out v
   („Maximum resident set size“). Zum Vergleich auf dem Mac: 2 bis 4 Sekunden je
   Skript, die weiche Verschmelzung 34 Sekunden.
 - [ ] Dasselbe mit Node 22 wiederholen. Achtung: `uberspace tools version use node 22`
-  gilt für das ganze Konto, also nach dem nächsten Neustart auch für `geo-backend`.
+  gilt für das ganze Konto, also nach dem nächsten Neustart auch für den Backend-Dienst.
   Danach wieder auf 20 stellen oder bewusst wechseln.
 
 Für das Klonen braucht das Konto Lesezugriff auf das Repo. Fehlt `/usr/bin/time`,
@@ -87,7 +86,7 @@ Container mit neuerem System. Dann bitte melden, bevor weiter gebaut wird.
 
 ## 3. Beim Einrichten
 
-- [ ] supervisor-Dienst für die Pflanze, getrennt von `geo-backend`, mit
+- [ ] supervisor-Dienst für die Pflanze, getrennt vom Backend-Dienst, mit
   `autorestart=yes`, etwa `~/etc/services.d/plant.ini`.
 - [ ] Die Skripte im Rechendienst mit `nice` starten, höchstens 2 bis 3
   gleichzeitig, Zeitlimit 15 Minuten.
