@@ -2,14 +2,13 @@
 // jobs and prints the medians of the phase days and a few shape figures.
 // `npx tsx sandbox/measure-seeds.ts ['{"budget": 90000}']` — JSON overrides the params.
 import { PARAMS } from "./params";
-import { buildScenario, SCENARIO_DEFAULTS } from "./scenarios/generate";
+import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS } from "./scenarios/generate";
 import { runAbstractJob } from "./sim/abstract-jobs";
 import { advance } from "./sim/schedule";
 import type { JobResult } from "./sim/types";
 import { createWorld } from "./sim/world";
 import { STEP_LABEL } from "./sim/recipes";
 
-const STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
 const over = JSON.parse(process.argv[2] ?? "{}");
 const med = (a: number[]) => { const s = a.filter((x) => !Number.isNaN(x)).sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const P: number[] = [], D: number[] = [], H: number[] = [], V: number[] = [], E: number[] = [], high: number[] = [], drop: number[] = [], copies: number[] = [], gen: number[] = [], objs: number[] = [];
@@ -18,7 +17,7 @@ const plainC: number[] = [], voxelC: number[] = [], firstVoxelAfterPlateau: numb
 const stepRuns: Record<string, number> = {};
 for (let seed = 1; seed <= 10; seed++) {
   const p = { ...PARAMS, ...over };
-  const w = createWorld(buildScenario({ scenario: { ...SCENARIO_DEFAULTS, seed, days: 200 }, starters: STARTERS }), p);
+  const w = createWorld(buildScenario({ scenario: { ...SCENARIO_DEFAULTS, seed, days: 200 }, starters: DEFAULT_STARTERS }), p);
   const ready = new Map<number, JobResult>();
   let maxObj = 0, maxGen = 0;
   const lineMax: Record<string, number> = {};

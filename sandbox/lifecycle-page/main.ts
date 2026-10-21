@@ -3,7 +3,7 @@
 // HTML file by sandbox/lifecycle-page/build.ts.
 import { PARAMS, type Params } from "../params";
 import models from "../scenarios/starter-models.json";
-import { buildScenario, SCENARIO_DEFAULTS, type ScenarioValues } from "../scenarios/generate";
+import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "../scenarios/generate";
 import { runAbstractJob } from "../sim/abstract-jobs";
 import { advance } from "../sim/schedule";
 import { createRng } from "../sim/rng";
@@ -71,30 +71,25 @@ const PARAM_GROUPS: Group[] = [
     { key: "pioneerCount", label: "Anzahl", unit: "0 = keine", step: 1 },
     { key: "fastKeimChance", label: "Neuer Keimling gehört zur schnellen Linie mit Chance", unit: "Anteil (vererbt sich an Kopien)", step: 0.01 },
     { key: "pioneerStaggerMinutes", label: "nacheinander im Abstand von", unit: "Eigenminuten (der erste beim Pflanzen)", step: 0.5 },
-    { key: "pioneerLeadDays", label: "Rechenvorlauf (auch erste Runde normaler Keimlinge und Eröffnung)", unit: "Eigentage (0 = eingesetzt, sobald fertig)", step: 0.05 },
-    { key: "pioneerGrowSpeed", label: "wachsen schneller", unit: "fach", step: 0.5 },
-    { key: "pioneerFuseSpeed", label: "Paarbildung und Weg zum Partner schneller", unit: "fach", step: 0.5 },
-    { key: "pioneerBoostHours", label: "Boosts wirken auf sie stärker in den ersten", unit: "Stunden nach dem Pflanzen (Kalenderzeit)", step: 0.25 },
-    { key: "pioneerBoostFactor", label: "dort", unit: "× Boost-Anteil des Zeitfaktors", step: 0.5 },
-    { key: "pioneerEarlyContentMax", label: "Fotos und Zeichnungen dort höchstens", unit: "+ zum Faktor", step: 0.5 },
-    { key: "pioneerContentMaxItems", label: "schnelle Linie zählt dauerhaft bis zu", unit: "Fotos und Zeichnungen", step: 1 },
-    { key: "fastEventFactor", label: "Ereignisse wirken auf die schnelle Linie", unit: "fach (immer, 1 = wie überall)", step: 0.5 },
+    { key: "fastGrowSpeed", label: "wachsen schneller", unit: "fach", step: 0.5 },
+    { key: "fastFuseSpeed", label: "Paarbildung und Weg zum Partner schneller", unit: "fach", step: 0.5 },
+    { key: "fastEarlyBoostFactor", label: "In der Anfangszeit wirken alle Boosts auf sie", unit: "fach (Boost-Anteil des Zeitfaktors, auch Hinschauen)", step: 0.5 },
+    { key: "fastEarlyContentMax", label: "Fotos und Zeichnungen in der Anfangszeit höchstens", unit: "+ zum Faktor", step: 0.5 },
+    { key: "fastContentMaxItems", label: "schnelle Linie zählt dauerhaft bis zu", unit: "Fotos und Zeichnungen", step: 1 },
     { key: "fastContentMaxBoost", label: "Fotos und Zeichnungen für die schnelle Linie höchstens", unit: "+ zum Faktor", step: 1 },
     { key: "firstFuseSpeed", label: "Eröffnung (drei Verschmelzungen der Vorläufer) zusätzlich schneller", unit: "fach", step: 0.5 },
     { key: "firstFuseEaseK", label: "Eröffnung: Beschleunigung k", unit: "0 = gleichmäßig", step: 0.5 },
-    { key: "pioneerHalvingAffinity", label: "werden eher halbiert", unit: "fach", step: 0.5 },
+    { key: "fastHalvingAffinity", label: "werden eher halbiert", unit: "fach", step: 0.5 },
     { key: "pioneerOriginGap", label: "Abstand zu Ursprungsobjekten mindestens", unit: "m", step: 0.05 },
     { key: "pioneerGap", label: "Abstand zum nächsten Vorläufer höchstens", unit: "m", step: 0.05 },
   ] },
-  { title: "Verschmelzen", note: "Aktive Objekte und ausgewachsene Keimlinge. Das erste Paar bildet sich sofort, sobald zwei in Reichweite ausgewachsen sind; danach gilt die Rate. Ein Paar steht fest; das niedrigere Objekt wandert zum höheren.", fields: [
+  { title: "Verschmelzen", note: "Aktive Objekte und ausgewachsene Keimlinge. Freie Paare bilden sich nach der Rate, sobald die Eröffnung der Vorläufer begonnen hat (ohne Vorläufer sofort). Ein Paar steht fest; das niedrigere Objekt wandert zum höheren.", fields: [
     { key: "requiredFusions", label: "Ein Objekt durchläuft mindestens", unit: "Verschmelzungen (Phase 3, 4, 7, 8, 10)", step: 1 },
     { key: "chainEveryDays", label: "Kette verschmilzt höchstens alle", unit: "Eigentage", step: 0.1 },
     { key: "requiredHalvings", label: "Ein Teil wird mindestens", unit: "mal halbiert (Phase 11 … 13)", step: 1 },
-    { key: "softAfterFirstFusion", label: "Erste Verschmelzung hart, danach weich", unit: "1 = ja, 0 = immer hart", step: 1 },
     { key: "fusePerDay", label: "Paarbildungs-Rate", unit: "pro Eigentag und Objekt", step: 0.05 },
     { key: "fuseTravelDays", label: "Weg zum Partner", unit: "Eigentage", step: 0.1 },
     { key: "fuseEaseK", label: "Beschleunigung k", unit: "0 = gleichmäßig", step: 0.5 },
-    { key: "fuseGap", label: "Endabstand", unit: "Anteil der Radien", step: 0.05 },
   ] },
   { title: "Größe und Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre längste Seite wird beim Pflanzen in den Bereich unten gebracht. Keimlinge nehmen die Größe ihres Ursprungsobjekts, leicht variiert und mit jeder Generation größer; sie dürfen den Bereich um den Spielraum verlassen, nach oben ab Generation 2 jeweils weiter. Die letzten Generationen werden wieder kleiner, jede um einen zufälligen Anteil. Höhen gehen nur nach oben: Eine Verschmelzung startet von der Höhe des höheren Partners und steigt, jede Komprimierung hebt ein Stück, nach und nach und unterschiedlich weit. Wer die Höhengrenze erreicht, sinkt danach langsam ein Stück zurück.", fields: [
     { key: "originMinSize", label: "Ursprungsobjekt mindestens", unit: "m, längste Seite", step: 0.05 },
@@ -113,8 +108,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "tintMin", label: "Leuchtfarbe mindestens", unit: "Stärke, nur bei der ersten Verschmelzung (auch nach dem Verblassen)", step: 0.01 },
     { key: "tintMax", label: "Leuchtfarbe höchstens", unit: "Stärke", step: 0.01 },
     { key: "keimStartScale", label: "Keimling wächst ab", unit: "Anteil seiner Größe", step: 0.05 },
-    { key: "fuseMatchHeight", label: "Kleineres wächst auf Höhe des größeren", unit: "1 = ja, 0 = nein", step: 1 },
-    { key: "maxGrowFactor", label: "wächst höchstens um", unit: "Faktor", step: 0.5 },
+    { key: "maxGrowFactor", label: "Beim Verschmelzen wächst das kleinere auf die Höhe des größeren, höchstens um", unit: "Faktor", step: 0.5 },
     { key: "riseStep", label: "Steigt pro Verschmelzung", unit: "m", step: 0.05 },
     { key: "riseVariance", label: "Varianz", unit: "±Anteil", step: 0.05 },
     { key: "halvingRise", label: "Hälften schweben auf", unit: "m", step: 0.05 },
@@ -209,13 +203,16 @@ const PARAM_GROUPS: Group[] = [
     { key: "contentBoostMaxItems", label: "Inhalt zählt bis", unit: "Stück", step: 1 },
     { key: "eventBoost", label: "Ereignis-Boost", unit: "neues Foto oder neue Zeichnung im Radius", step: 0.1 },
     { key: "eventBoostDays", label: "Ereignis klingt ab in", unit: "Kalendertage", step: 0.05 },
-    { key: "viewerBoost", label: "Hinschauen pro Gerät", step: 0.1 },
-    { key: "earlyContentHours", label: "Fotos und Zeichnungen wirken stärker in den ersten", unit: "Stunden nach dem Pflanzen (Kalenderzeit)", step: 0.25 },
-    { key: "earlyContentFactor", label: "dort", unit: "fach", step: 0.5 },
+    { key: "firstViewerBoost", label: "Hinschauen erstes Gerät", step: 0.1 },
+    { key: "viewerBoost", label: "Hinschauen jedes weitere Gerät", step: 0.1 },
+    { key: "earlyBoostHours", label: "Anfangszeit mit Extra-Boosts", unit: "Stunden nach dem Pflanzen (Kalenderzeit, auch für die schnelle Linie)", step: 0.25 },
+    { key: "earlyContentFactor", label: "Fotos und Zeichnungen wirken dort", unit: "fach", step: 0.5 },
     { key: "earlyFadeFromHours", label: "Extra-Boosts der Anfangszeit sinken ab", unit: "Stunden (bis 0 am Ende der Anfangszeit)", step: 0.05 },
     { key: "contentMaxBoost", label: "Fotos und Zeichnungen höchstens", unit: "+ zum Faktor", step: 0.5 },
     { key: "viewerMaxDevices", label: "Geräte gezählt höchstens", unit: "Stück", step: 1 },
     { key: "unwatchedPauseDays", label: "Boosts ausgesetzt nach", unit: "Kalendertagen ohne Gerät, bis wieder jemand hinschaut", step: 0.5 },
+    { key: "unwatchedSlowDays", label: "verlangsamt nach", unit: "Kalendertagen ohne Gerät, bis wieder jemand hinschaut", step: 0.5 },
+    { key: "unwatchedSlowFactor", label: "Zeitfaktor dann", unit: "× (unter 1: langsamer als die echte Zeit)", step: 0.05 },
   ] },
   { title: "Raum", fields: [
     { key: "feedRadius", label: "Radius Hinschauen und Füttern", unit: "m", step: 1 },
@@ -223,7 +220,6 @@ const PARAM_GROUPS: Group[] = [
   ] },
 ];
 
-const DEFAULT_STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
 
 // ---------------------------------------------------------------- state
 

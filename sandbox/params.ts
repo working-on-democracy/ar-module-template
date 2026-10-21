@@ -42,32 +42,28 @@ export const PARAMS = {
   pioneerCount: 5, // 0 = none
   fastKeimChance: 0.04, // any other new Keimling joins the fast line by chance (its values and boost rules) and passes it on to its copies
   pioneerStaggerMinutes: 0.67, // Eigenminuten between two of them (0.67: 40 real seconds at factor 1); the first right at planting
-  pioneerLeadDays: 0, // computing lead of the Vorläufer, of every line's first plain Keimling and of the Vorläufer's opening fusions: used as soon as the model is ready (the clock waits for it)
-  pioneerGrowSpeed: 2, // × faster rising out of the ground
-  pioneerFuseSpeed: 2, // × the pairing rate and × faster to the partner, whenever one of the pair is of the fast line
-  pioneerHalvingAffinity: 2, // × weight when choosing what is halved
-  firstFuseSpeed: 16, // the Vorläufer's opening (their three fusions among themselves): × faster to the partner on top of pioneerFuseSpeed …
+  firstFuseSpeed: 16, // the Vorläufer's opening (their three fusions among themselves, used as soon as ready): × faster to the partner on top of fastFuseSpeed …
   firstFuseEaseK: 1, // … on a flatter curve (fuseEaseK otherwise): movement shows earlier
-  pioneerBoostHours: 0.5, // CALENDAR hours after planting in which the boosts act on the fast line …
-  pioneerBoostFactor: 8, // … this many times as strongly (growing, deciding on a partner)
-  pioneerEarlyContentMax: 30, // … and photos and drawings may add up to this for them (instead of fastContentMaxBoost), fading back with the other extra boosts
-  pioneerContentMaxItems: 20, // the fast line counts up to this many photos and drawings for the continuous boost, always
-  fastEventFactor: 1, // event boosts (a new photo or drawing) count this many times for the fast line, always
-  fastContentMaxBoost: 21, // photos and drawings may add up to this for the fast line (contentMaxBoost for everything else): it takes in more events before its cap
   pioneerOriginGap: 0.5, // m at least between their footprints and any origin object's
   pioneerGap: 0.2, // m at most between their footprint and the nearest other Vorläufer's
+  // the fast line (Vorläufer, everything fused or halved from them, and Keimlinge that joined by chance)
+  fastGrowSpeed: 2, // × faster rising out of the ground
+  fastFuseSpeed: 2, // × the pairing rate and × faster to the partner, whenever one of the pair is of the fast line
+  fastHalvingAffinity: 2, // × weight when choosing what is halved
+  fastContentMaxItems: 20, // it counts up to this many photos and drawings for the continuous boost (contentBoostMaxItems for everything else) …
+  fastContentMaxBoost: 21, // … and photos and drawings may add up to this (contentMaxBoost for everything else): it takes in more events before its cap
+  fastEarlyContentMax: 30, // in the first earlyBoostHours that cap is this, fading back to fastContentMaxBoost …
+  fastEarlyBoostFactor: 8, // … and all its boosts count this many times, devices too, fading back to once
 
   // --- computing: a result is used this long after its job was requested (the
   // clock keeps running meanwhile and only stops if it is not ready by then)
-  jobLeadDays: 0.4,
+  jobLeadDays: 0.4, // the Vorläufer, every line's first plain Keimling and the Vorläufer's opening fusions have none (the clock waits for them)
   softFuseLeadDays: 2.5, // soft fusions take 30–100 s instead of ~5–15 s: a longer lead, so the clock rarely waits
 
   // --- fusion (active objects and grown Keimlinge; pairs are irrevocable)
-  softAfterFirstFusion: 1, // 1 = an object's first fusion is hard, every fusion with an already fused partner soft (as in the test track: phase 3 hard, from phase 4 soft); 0 = all hard
   fusePerDay: 0.075, // chance per Eigentag that a free object picks the nearest free partner in its radius
   fuseTravelDays: 0.4, // Eigentage the smaller object needs to reach the larger one
   fuseEaseK: 7.42, // easing s(t) = (e^kt − 1)/(e^k − 1): half the way at 91 % of the time
-  fuseGap: 0.5, // final distance between both centres, fraction of their summed footprint radii (overlap)
   // every test track step at least once per lifecycle (sim/recipes.ts):
   requiredFusions: 5, // one object goes through this many fusions (Phase 3, 4, 7, 8, 10) …
   chainEveryDays: 0.67, // … pairing again at most this often (Eigentage), regardless of the rate
@@ -96,8 +92,7 @@ export const PARAMS = {
   keimStartScale: 0.5, // a Keimling rises out of the ground growing from this fraction of its size to its full size
 
   // --- height (side view): growing, rising, sinking, swaying
-  fuseMatchHeight: 1, // 1 = the smaller partner grows to the larger one's height (only ever grows), 0 = keeps its size
-  maxGrowFactor: 4.0, // it grows at most by this factor
+  maxGrowFactor: 4.0, // in a fusion the smaller partner grows to the larger one's height (only ever grows), at most by this factor
   // heights only ever go up, except at the height limit and in the wind (below): a fusion starts
   // from the higher of both partners and rises by riseStep; every compression lifts gradually
   riseStep: 0.3, // m an object rises with each fusion
@@ -106,7 +101,7 @@ export const PARAMS = {
   compressRise: 0.06, // m per halving of the triangle count by a compression (fewer triangles, lighter) …
   compressRiseSpread: 1.6, // … × e^(random ±this): from about a fifth to five times
   liftEaseDays: 1.5, // Eigentage: a compression's rise is spread over about this long (time constant), never at once
-  maxTop: 2.8, // m: no top edge above this (stays in view, not far above heads) …
+  maxTop: 3, // m: no top edge above this (stays in view, not far above heads) …
   ceilingDropMin: 0.1, // … an object that reaches it drifts down again by a random amount between this …
   ceilingDropMax: 0.75, // … and this (m) …
   ceilingDriftDays: 3.5, // … slowly (time constant in Eigentage)
@@ -203,13 +198,16 @@ export const PARAMS = {
   contentBoostMaxItems: 10,
   eventBoost: 2, // a photo or drawing made in the feed radius, from the moment it is made
   eventBoostDays: 0.25, // calendar days, decays linearly
-  viewerBoost: 1.5, // per device in the feed radius, only while present
+  firstViewerBoost: 3, // the first device in the feed radius (whichever it is), only while present …
+  viewerBoost: 1.5, // … every further one
   viewerMaxDevices: 10, // no more devices counted than this
-  earlyContentHours: 0.5, // CALENDAR hours after planting in which the boosts from photos and drawings (content + events) count …
-  earlyContentFactor: 2, // … this many times
-  earlyFadeFromHours: 1 / 3, // CALENDAR hours: from here the extra boosts of the first half hour (earlyContent*, pioneerBoost*) fade out linearly, gone at their end
+  earlyBoostHours: 0.5, // CALENDAR hours after planting with extra boosts: photos and drawings (content + events) count …
+  earlyContentFactor: 2, // … this many times (for the fast line see fastEarly*)
+  earlyFadeFromHours: 1 / 3, // CALENDAR hours: from here the extra boosts fade out linearly, gone at earlyBoostHours
   contentMaxBoost: 7, // photos and drawings (continuous + events) add at most this to the factor
   unwatchedPauseDays: 3, // CALENDAR days without a device in the radius: all boosts pause (factor exactly 1) until a device comes again
+  unwatchedSlowDays: 7, // CALENDAR days without a device: the time factor drops to unwatchedSlowFactor (below 1, slower than real time) until a device comes again
+  unwatchedSlowFactor: 0.5,
 };
 
 export type Params = typeof PARAMS;

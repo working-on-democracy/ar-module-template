@@ -7,6 +7,9 @@ import type { ModelVersion, Scenario, ScheduledEntry, Vec3 } from "../sim/types"
 
 const MODELS = models as unknown as Record<string, ModelVersion>;
 
+/** Origin objects planted when none are given (sandbox, lifecycle page, measure-seeds). */
+export const DEFAULT_STARTERS = ["flamingo", "mango", "muschel-vase", "regenschirm", "tarot-figur"];
+
 export const SCENARIO_DEFAULTS = {
   seed: 7,
   days: 200,

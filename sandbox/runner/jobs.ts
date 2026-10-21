@@ -23,6 +23,8 @@ export interface JobOptions {
 
 /** A script that hangs is stopped after this long and its job counts as failed (the clock would wait for it forever). */
 const SCRIPT_TIMEOUT_MS = 15 * 60_000;
+/** Texture seams can stop a reduction far above its target: above this × the target it runs again, permissive. */
+const PERMISSIVE_RETRY = 1.5;
 
 export function script(name: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -61,7 +63,7 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     if (job.recipe === "p2") { // Phase 2; texture seams can stop it far above the target (Muschel-Vase, Rucksack): then permissive
       const faces = job.faces ?? STYLIZE_COPY.faces; // a Vorläufer of generation 2 gets fewer
       await stylize(o.glb, rel, faces);
-      if ((await glbInfo(abs(rel))).triangles > faces * 1.5) await stylize(o.glb, rel, faces, ["--permissive"]);
+      if ((await glbInfo(abs(rel))).triangles > faces * PERMISSIVE_RETRY) await stylize(o.glb, rel, faces, ["--permissive"]);
     } else if (job.recipe === "copy") copyFileSync(abs(o.glb), abs(rel)); // same generation: a plain copy
     else await reduce(o.glb, rel, o.triangles * (job.keep ?? 1));
     return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
@@ -75,7 +77,7 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     else {
       await reduce(o.glb, rel, target);
       // origin objects must keep up with the ecosystem: texture seams stop them far above the target, then permissive
-      if (o.origin && (await glbInfo(abs(rel))).triangles > target * 1.5) await reduce(o.glb, rel, target, ["--permissive"]);
+      if (o.origin && (await glbInfo(abs(rel))).triangles > target * PERMISSIVE_RETRY) await reduce(o.glb, rel, target, ["--permissive"]);
     }
     return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
   }
@@ -111,7 +113,7 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
     "--overlap", job.overlap ?? "0.05-0.6", "--min-fill", "0.15", "--repair", "--out", abs(raw),
     "--cache", FUSE_CACHE]; // every model is prepared only once, across all runs
   // B grows to A's height (after its rotation), but never more than maxGrowFactor in the world
-  if (w.params.fuseMatchHeight) args.push("--match-height", "--max-scale", String((w.params.maxGrowFactor * b.scale) / o.scale));
+  args.push("--match-height", "--max-scale", String((w.params.maxGrowFactor * b.scale) / o.scale));
   const matrixOf = (log: string) => {
     const m = log.match(/B matrix \(column-major[^)]*\): (\[[^\]]+\])/);
     return m ? (JSON.parse(m[1]) as number[]) : undefined;

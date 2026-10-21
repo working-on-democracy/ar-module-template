@@ -24,7 +24,7 @@ import { createServer as createViteServer } from "vite";
 import { PARAMS, type Params } from "./params";
 import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
-import { buildScenario, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
+import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import models from "./scenarios/starter-models.json";
 import { createRng } from "./sim/rng";
 import { advance, QUANTUM } from "./sim/schedule";
@@ -46,7 +46,6 @@ const { values: args } = parseArgs({
 
 // ---------------------------------------------------------------- inputs
 
-const DEFAULT_STARTERS = ["mango", "muschel-vase", "naehmaschine", "rucksack", "tiffany-lampe"];
 // a replay takes everything from the recorded run
 const replayDir = args.replay ? resolve(args.replay) : null;
 const recorded = replayDir ? JSON.parse(readFileSync(join(replayDir, "run.json"), "utf8")) : null;
@@ -320,7 +319,7 @@ function stateFor(sinceSample: number) {
       replay: replayDir ? { progress: totalStepDays ? w.calendar / totalStepDays : 1, done: replayDone, diverged } : null,
       waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
     },
-    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, pioneerFactor: w.pioneerFactor, factorParts: w.factorParts, boostsPaused: w.boostsPaused, lastWatched: w.lastWatched,
+    phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, fastFactor: w.fastFactor, factorParts: w.factorParts, boostsPaused: w.boostsPaused, slowed: w.slowed, lastWatched: w.lastWatched,
     viewers: w.viewers, plantingPoint: w.plantingPoint, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
     budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,

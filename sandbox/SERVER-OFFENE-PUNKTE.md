@@ -52,7 +52,7 @@ Plattform-Fassung braucht.
    (Modelle, Fotos, Zeichnungen, Aufzeichnung), steht noch nicht fest.
 9. **Geräte zählen.** Die Sandbox zählt Geräte über einen Knopf. Auf dem Server
    muss festgelegt werden, was als Hinschauen zählt: im Radius, mit offener
-   App, wie lange. Davon hängt die Pause der Boosts nach 3 Tagen ab.
+   App, wie lange. Davon hängen die Pause der Boosts nach 3 Tagen und die Verlangsamung auf 0,5 nach 7 Tagen ab.
 10. **Mehrere Pflanzen.** Die Sandbox rechnet eine Pflanze mit 3 Jobs
     gleichzeitig. Mehrere Pflanzen teilen sich Rechenzeit, die Reihenfolge der
     Jobs muss dann über alle Pflanzen geregelt werden.

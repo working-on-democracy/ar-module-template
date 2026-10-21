@@ -2,7 +2,7 @@
 // the triangle counts and bounds change the way the real scripts roughly
 // change them (reduce keeps a fraction, split divides along a plane).
 import { compose, multiply, randomQuat, transformPoint } from "./pose";
-import { fusePostTriangles, STYLIZE_COPY } from "./recipes";
+import { fusePostTriangles, STYLIZE_COPY, voxelTriangles } from "./recipes";
 import { createRng } from "./rng";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./types";
 
@@ -11,8 +11,7 @@ export function runAbstractJob(w: World, job: JobRequest): JobResult {
   if (!o) return { jobId: job.id, outputs: [] };
   const base: ModelVersion = { glb: o.glb, triangles: o.triangles, min: [...o.min], max: [...o.max] };
   if (job.kind === "copy" && job.voxelCells) {
-    // measured with glb-fuse --mode voxel: about 4.2 × cells² triangles, a single cube 12
-    return { jobId: job.id, outputs: [{ ...base, triangles: Math.max(12, Math.round(4.2 * job.voxelCells * job.voxelCells)) }] };
+    return { jobId: job.id, outputs: [{ ...base, triangles: voxelTriangles(job.voxelCells) }] };
   }
   if (job.kind === "copy" && job.recipe === "p2") {
     // Phase 2 stylize: about STYLIZE_COPY.faces triangles (more where seams stay)
@@ -37,7 +36,7 @@ export function runAbstractJob(w: World, job: JobRequest): JobResult {
       const v = transformPoint(rot, [x, y, z]); y0 = Math.min(y0, v[1]); y1 = Math.max(y1, v[1]);
     }
     const hA = o.max[1] - o.min[1], hB = Math.max(1e-6, y1 - y0);
-    const worldGrow = w.params.fuseMatchHeight ? Math.min(w.params.maxGrowFactor, Math.max(1, (hA * o.scale) / (hB * b.scale))) : 1;
+    const worldGrow = Math.min(w.params.maxGrowFactor, Math.max(1, (hA * o.scale) / (hB * b.scale)));
     const sRel = (b.scale * worldGrow) / o.scale; // B's file units → A's file units
     const cA = [0, 1, 2].map((k) => (o.min[k] + o.max[k]) / 2), cB = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2);
     const off = [0, 1, 2].map((k) => cA[k] + rng.range(-0.35, 0.35) * (o.max[k] - o.min[k])) as Vec3;

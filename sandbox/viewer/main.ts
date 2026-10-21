@@ -26,9 +26,10 @@ const speedOption = (speed: number) => {
 interface State {
   run: { dir: string; commit: string; fuseMode: string | null; speed: number; paused: boolean;
     replay: { progress: number; done: boolean; diverged: boolean } | null; waitingFor: { id: number; kind: string; objectId: string; partnerId?: string } | null };
-  phase: string; eigen: number; calendar: number; factor: number; pioneerFactor: number;
+  phase: string; eigen: number; calendar: number; factor: number; fastFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
   boostsPaused: boolean;
+  slowed: boolean;
   lastWatched: number;
   viewers: number; plantingPoint: Vec3; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
   triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
@@ -541,7 +542,7 @@ function hud(s: State) {
   const fp = s.factorParts;
   $("clock").innerHTML = [
     ["Kalendertag", fmt(s.calendar, 2)], ["Eigenzeit", fmt(s.eigen, 2)],
-    ["Zeitfaktor", s.boostsPaused ? `1 × (Boosts ausgesetzt: seit ${fmt(s.calendar - s.lastWatched, 1)} Tagen hat niemand hingeschaut)` : `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.pioneerFactor !== s.factor ? `, Vorläufer ${fmt(s.pioneerFactor, 2)} ×` : ""}`],
+    ["Zeitfaktor", s.boostsPaused ? `${s.slowed ? fmt(s.factor, 2) : 1} × (Boosts ausgesetzt${s.slowed ? ", verlangsamt" : ""}: seit ${fmt(s.calendar - s.lastWatched, 1)} Tagen hat niemand hingeschaut)` : `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.fastFactor !== s.factor ? `, Vorläufer ${fmt(s.fastFactor, 2)} ×` : ""}`],
     ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.budget)} (Komprimierung ab ${fmt(s.compressAt)}, Halbieren unter ${fmt(s.halvingAt)})`],
     ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung`],
     ["Geräte", String(s.viewers)],

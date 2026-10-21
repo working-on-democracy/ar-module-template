@@ -28,7 +28,6 @@ export interface PlantObject extends ModelVersion {
   pos: Vec3;
   rotY: number; // radians
   state: ObjectState;
-  bornAt: number; // Eigenzeit
   grow: number; // 0…1, rising out of the ground
   /** Fraction of its size a Keimling starts at; it grows to full size while rising. */
   startScale: number;
@@ -197,7 +196,6 @@ export interface JobRequest {
   /** fuse: the object that travels to objectId and merges into it. */
   partnerId?: string;
   /** fuse: scale of the partner after growing to the larger one's height. */
-  partnerScale?: number;
   /** copy: one of the first Keimlinge (Vorläufer), placed close to the others when it arrives. */
   pioneer?: boolean;
   /** copy: used as soon as it is ready, no computing lead (Vorläufer, first round of plain Keimlinge). */
@@ -293,8 +291,6 @@ export interface World {
   /** Eigenzeit halving began (null before): its rate rises from there. */
   halvingSince: number | null;
   pairs: Pair[];
-  /** The first pair forms without waiting for chance; from then on the pairing rate applies. */
-  firstPairFormed: boolean;
   /** How often each test track step was applied in this run. */
   stepsSeen: Record<string, number>;
   /** The object carried through the whole fusion chain (Phase 3 … 10), protected until done. */
@@ -310,10 +306,12 @@ export interface World {
   /** Scenario entries still waiting for their calendar day. */
   scheduled: ScheduledEntry[];
   factor: number;
-  /** Time factor of the fast line: the boosts act more strongly on it right after planting (pioneerBoost*). */
-  pioneerFactor: number;
+  /** Time factor of the fast line: the boosts act more strongly on it right after planting (fastEarly*, fastContent*). */
+  fastFactor: number;
   factorParts: { inhalt: number; ereignisse: number; hinschauen: number };
   /** Calendar day a device was last in the radius; unwatchedPauseDays later all boosts pause. */
   lastWatched: number;
   boostsPaused: boolean;
+  /** unwatchedSlowDays without a device: time factor unwatchedSlowFactor. */
+  slowed: boolean;
 }

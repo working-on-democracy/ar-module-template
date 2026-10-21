@@ -31,18 +31,17 @@ export interface FuseRecipe {
   post: FusePost;
 }
 
-/** Phase 3 for an object's first fusion, then 4, 7, 8 and 10 with every further
- *  fusion (counted by the more experienced partner); with a voxel partner Phase 6. */
-export function fuseRecipe(a: PlantObject, b: PlantObject, softAfterFirst: boolean): FuseRecipe {
+/** Phase 3 for an object's first fusion, hard, then 4, 7, 8 and 10 with every further
+ *  fusion, soft (counted by the more experienced partner); with a voxel partner Phase 6, soft. */
+export function fuseRecipe(a: PlantObject, b: PlantObject): FuseRecipe {
   const sum = a.triangles + b.triangles;
   const n = Math.max(a.fusions, b.fusions) + 1;
-  const soft = softAfterFirst ? "weich" : "hart";
-  if (a.voxelCells || b.voxelCells) return { step: "p6", mode: soft, overlap: "0.2-0.6", post: { kind: "reduceError", error: 0.01, max: 5000 } };
+  if (a.voxelCells || b.voxelCells) return { step: "p6", mode: "weich", overlap: "0.2-0.6", post: { kind: "reduceError", error: 0.01, max: 5000 } };
   if (n === 1) return { step: "p3", mode: "hart", overlap: "0.05-0.6", post: { kind: "reduce", target: Math.min(10000, sum) } };
-  if (n === 2) return { step: "p4", mode: soft, overlap: "0.2-0.6", post: { kind: "reduce", target: Math.min(10000, sum) } };
-  if (n === 3) return { step: "p7", mode: soft, overlap: "0.2-0.4", post: { kind: "stylize", faces: 2500 } };
-  if (n === 4) return { step: "p8", mode: soft, overlap: "0.1-0.3", post: { kind: "stylize", faces: 1000 } };
-  return { step: "p10", mode: soft, overlap: "0.1-0.2", post: { kind: "reduce", target: Math.max(4, Math.floor(sum / 4)) } };
+  if (n === 2) return { step: "p4", mode: "weich", overlap: "0.2-0.6", post: { kind: "reduce", target: Math.min(10000, sum) } };
+  if (n === 3) return { step: "p7", mode: "weich", overlap: "0.2-0.4", post: { kind: "stylize", faces: 2500 } };
+  if (n === 4) return { step: "p8", mode: "weich", overlap: "0.1-0.3", post: { kind: "stylize", faces: 1000 } };
+  return { step: "p10", mode: "weich", overlap: "0.1-0.2", post: { kind: "reduce", target: Math.max(4, Math.floor(sum / 4)) } };
 }
 
 /** Triangles the post step leaves (for the plain-number model). */
@@ -66,3 +65,6 @@ export function halvingRecipe(o: PlantObject): HalvingRecipe {
 export const STYLIZE_COPY = { faces: 1500, texture: 128, saturation: 1.3 };
 /** Phase 9 texture crush. */
 export const CRUSH = { quality: 2, passes: 3, saturation: 1.5 };
+
+/** Triangles of a voxel copy (measured with glb-fuse --mode voxel: about 4.2 × cells², a single cube 12). */
+export const voxelTriangles = (cells: number) => Math.max(12, Math.round(4.2 * cells * cells));
