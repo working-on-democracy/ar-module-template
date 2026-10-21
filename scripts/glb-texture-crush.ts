@@ -18,7 +18,7 @@ import { NodeIO } from "@gltf-transform/core";
 import { listTextureSlots } from "@gltf-transform/functions";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
-import sharp from "sharp";
+import { decodeImage, encodeJpeg, encodePng, saturateBitmap, subsampleChroma } from "./jimp-image";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -71,18 +71,20 @@ async function main(): Promise<void> {
 
   let n = 0;
   for (const texture of root.listTextures()) {
-    let image = texture.getImage();
-    if (!image) continue;
+    const original = texture.getImage();
+    if (!original) continue;
+    let image: Uint8Array = original;
     const isColor = listTextureSlots(texture).some((slot) => slot === "baseColorTexture" || slot === "emissiveTexture");
-    if (isColor && saturation !== 1) image = new Uint8Array(await sharp(image).modulate({ saturation }).png().toBuffer());
+    if (isColor && saturation !== 1) image = await encodePng(saturateBitmap(await decodeImage(image), saturation));
     for (let p = 0; p < passes; p++) {
       const q = Math.max(1, Math.round(quality * (1 - p / (passes + 1))));
-      const pipe = sharp(image).removeAlpha();
-      image = new Uint8Array(format === "jpeg"
-        ? await pipe.jpeg({ quality: q, chromaSubsampling: "4:2:0", mozjpeg: false }).toBuffer()
-        : await pipe.webp({ quality: q }).toBuffer());
+      if (format === "jpeg") image = await encodeJpeg(subsampleChroma(await decodeImage(image)), q); // jimp, no native library
+      else { // WebP has no plain-JavaScript encoder: sharp, loaded only for it
+        const sharp = (await import("sharp")).default;
+        image = new Uint8Array(await sharp(image).removeAlpha().webp({ quality: q }).toBuffer());
+      }
     }
-    texture.setImage(image).setMimeType(format === "jpeg" ? "image/jpeg" : "image/webp");
+    texture.setImage(new Uint8Array(image)).setMimeType(format === "jpeg" ? "image/jpeg" : "image/webp");
     if (texture.getURI()) texture.setURI(texture.getURI().replace(/\.[^.]+$/, format === "jpeg" ? ".jpg" : ".webp"));
     n++;
   }

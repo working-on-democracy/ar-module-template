@@ -450,6 +450,9 @@ loss); `--saturation` boosts colour textures first (1.5 = +50 %). Quality 5
 in one pass stayed subtle at photo size; quality 2 × 3 passes + 1.5 reads clearly. Geometry, materials and samplers are untouched and an already
 meshopt-compressed mesh is written back without a second quantization.
 Normal and metal-roughness maps are crushed too, which adds lighting noise.
+JPEG is encoded with jimp (plain JavaScript, `scripts/jimp-image.ts`); the
+4:2:0 colour bleeding is done there before encoding, since jimp's encoder
+keeps full chroma. WebP still needs sharp, loaded only for `--format webp`.
 
 ### Splitting a model in two — `scripts/glb-split.ts`
 
@@ -516,6 +519,16 @@ comparing shapes and textures, not for judging the model in AR.
   (step 2) — accept it, or `--permissive` for near-uniform textures.
 - **Fewer triangles than asked for:** many separate small parts in an
   animated model, see step 1.
+- **`Could not load the sharp module` on an older Linux** (glibc below
+  2.26, e.g. CentOS 7): every script that imports `@gltf-transform/functions`
+  loads sharp at start (through `ndarray-pixels`), even when it never touches
+  an image. `stylize` and `texture-crush` do their own texture work with jimp,
+  but that does not avoid the import. Install sharp's WebAssembly build there
+  (`npm install --cpu=wasm32 sharp`); sharp falls back to it on its own. If that
+  fails too, a stub package named `sharp` that only throws when called is enough
+  for every script except WebP output (`texture-crush --format webp`, the WebP
+  step of `stylize`/`compress-assets`): declare it as `"sharp": "file:./shims/sharp"`
+  plus `"overrides": { "sharp": "$sharp" }` so `ndarray-pixels` resolves to it too.
 - **Name-dependent features** (e.g. `mesh-render-order` by mesh name) won't
   find their meshes after stylizing: merging renames and flattens nodes.
   Stylize such models with care or not at all.

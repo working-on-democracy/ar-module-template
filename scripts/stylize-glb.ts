@@ -39,8 +39,7 @@ import { Document, NodeIO, Primitive, TextureInfo } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, flatten, join as joinParts, listTextureSlots, normals, prune, simplify, unweld, weld } from "@gltf-transform/functions";
 import { MeshoptDecoder, MeshoptSimplifier } from "meshoptimizer";
-import sharp from "sharp";
-import { compressGlbFile } from "./glb-compression";
+import { decodeImage, encodePng, saturateBitmap, shrinkInside } from "./jimp-image";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const ASSETS_DIR = join(ROOT, "src/assets");
@@ -233,14 +232,14 @@ async function main(): Promise<void> {
   }
   await doc.transform(prune(), dedup());
 
-  // Textures: shrink (averaging), saturate colour textures, PNG (lossless).
+  // Textures: shrink (averaging), saturate colour textures, PNG (lossless) — jimp, no native library.
   for (const texture of root.listTextures()) {
     const image = texture.getImage();
     if (!image) continue;
     const isColor = listTextureSlots(texture).some((s) => COLOR_SLOTS.includes(s));
-    let pipeline = sharp(image).resize(texturePx, texturePx, { fit: "inside", withoutEnlargement: true });
-    if (isColor && saturation !== 1) pipeline = pipeline.modulate({ saturation });
-    texture.setImage(new Uint8Array(await pipeline.png().toBuffer())).setMimeType("image/png");
+    let bitmap = shrinkInside(await decodeImage(image), texturePx);
+    if (isColor && saturation !== 1) bitmap = saturateBitmap(bitmap, saturation);
+    texture.setImage(await encodePng(bitmap)).setMimeType("image/png");
     if (texture.getURI()) texture.setURI(texture.getURI().replace(/\.[^.]+$/, ".png"));
   }
 
@@ -255,6 +254,8 @@ async function main(): Promise<void> {
     const uncompressedPath = values.out ? `${outPath}.uncompressed-tmp.glb` : pristinePath;
     if (!values.out) mkdirSync(UNCOMPRESSED_DIR, { recursive: true });
     await io.write(uncompressedPath, doc);
+    // loaded only here: the WebP step needs sharp, which --no-compress (the plant's jobs) does without
+    const { compressGlbFile } = await import("./glb-compression");
     await compressGlbFile(uncompressedPath, outPath, { lossless: true });
     if (values.out) unlinkSync(uncompressedPath);
   }

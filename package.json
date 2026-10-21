@@ -46,5 +46,8 @@
     "vite-plugin-static-copy": "^1.0.0",
     "vue": "^3.4.0",
     "vue-tsc": "^2.0.0"
+  },
+  "dependencies": {
+    "jimp": "^1.6.1"
   }
 }

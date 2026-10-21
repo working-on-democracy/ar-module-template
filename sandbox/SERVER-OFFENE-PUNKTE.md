@@ -1,8 +1,26 @@
 # Offene Punkte für die Server-Fassung der Pflanze
 
-Stand 2026-10-20. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
+Stand 2026-10-21. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
 lokalen Server. Die Liste sammelt, was sie noch nicht abdeckt und was die
 Plattform-Fassung braucht.
+
+Ausführlicher, mit dem Stand des Servers: [docs/TECHNISCHE-VORAUSSETZUNGEN.md](docs/TECHNISCHE-VORAUSSETZUNGEN.md),
+die Schritte für den Admin: [docs/ADMIN-AUFGABEN.md](docs/ADMIN-AUFGABEN.md).
+
+## Zuerst testen
+
+**`sharp` als WebAssembly-Variante auf dem Uberspace.** Der Server läuft auf
+CentOS 7 mit glibc 2.17, die nativen Pakete von `sharp` brauchen 2.26. Alle
+GLB-Skripte laden `sharp` beim Start, über `@gltf-transform/functions`, auch
+wenn sie keine Bilder bearbeiten. Auf dem Server `npm install --cpu=wasm32
+sharp` und jedes Skript einmal laufen lassen (`glb-fuse` hart, weich und
+voxel, `glb-reduce` auch erzwungen, `glb-split`, `stylize-glb`,
+`glb-texture-crush`). Lokal mit ausgeblendetem nativem `sharp` getestet
+(2026-10-21), auf dem Server nicht. Das muss der Admin vor allem anderen prüfen.
+Scheitert es, reicht ein Platzhalter-Paket für `sharp` (`file:./shims/sharp` plus
+`"overrides": { "sharp": "$sharp" }`), weil die Pflanze seit der Umstellung auf
+`jimp` keine `sharp`-Funktion aufruft. Lokal getestet, es fehlt nur WebP. Erst wenn
+auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
 
 ## Schon abgesichert
 
@@ -55,4 +73,20 @@ Plattform-Fassung braucht.
    App, wie lange. Davon hängen die Pause der Boosts nach 3 Tagen und die Verlangsamung auf 0,5 nach 7 Tagen ab.
 10. **Mehrere Pflanzen.** Die Sandbox rechnet eine Pflanze mit 3 Jobs
     gleichzeitig. Mehrere Pflanzen teilen sich Rechenzeit, die Reihenfolge der
-    Jobs muss dann über alle Pflanzen geregelt werden.
+. **Keimling-Varianten vorbereiten.** Zwischen Erstellen (Sloyd) und Pflanzen
+    vergeht Zeit. Darin lassen sich alle Varianten einer Linie rechnen:
+    Arbeitsfassung des Ursprungsobjekts (höchstens 7 500 Dreiecke), die
+    Vorläufer-Varianten (Phase 2 mit 1 500 und 1 275, Voxel 24 vom Ursprung),
+    Generation 1 (Phase 2), Generation 2 (Reduktion), Generation 3 bis 8 (Voxel
+    24 bis 1, jede aus der vorigen), danach die Fuse-Vorbereitung jeder
+    Variante. Frühe Generationen zuerst. Größe, Neigung und Leuchtfarbe sind
+    Werte der Simulation, deshalb reicht eine Datei pro Generation. Eine Kopie
+    wird dann zum Nachschlagen, die Uhr wartet am Anfang nicht mehr. Wird
+    vor dem Ende der Vorbereitung gepflanzt, wird vorgezogen, was die
+    Simulation braucht. Kopien mit einem Elternteil, das nicht die vorige
+    Generation ist, bleiben normale Jobs.
+12. **Sloyd-Rohdatei löschen.** Bei Objekten über 7 500 Dreiecken kann die
+    Rohdatei (0,8 bis 1,7 MB) nach der Vorbereitung weg. Ab dann ist die
+    Arbeitsfassung mit 7 500 Dreiecken das Ursprungsobjekt: Sie steht in der
+    Pflanze und wird im Abstieg komprimiert. Objekte mit höchstens 7 500
+    Dreiecken werden nicht reduziert, ihre Rohdatei bleibt.
