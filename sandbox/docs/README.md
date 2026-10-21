@@ -8,6 +8,7 @@ Bei Änderungen beide Fassungen nachziehen.
 | --- | --- |
 | [ADMIN-AUFGABEN.md](ADMIN-AUFGABEN.md) | was der Admin am Server tun soll, nach Priorität |
 | [TECHNISCHE-VORAUSSETZUNGEN.md](TECHNISCHE-VORAUSSETZUNGEN.md) | Skripte, Werkzeuge, Server, Sandbox gegenüber Produkt, Pitfalls, Bottlenecks, ungetestete Funktionen |
+| [SCHNITTSTELLEN.md](SCHNITTSTELLEN.md) | was die AR-App vom Server bekommt und wie Simulation und Rechendienst Aufträge austauschen, mit Erklärung |
 | [PHASEN.md](PHASEN.md) | die Phasen und was in ihnen gerechnet und verwandelt wird, Keimling-Generationen, Vorläufer, schnelle Linie |
 | [ZEITMASSSTAB-UND-BOOSTS.md](ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor, Time Boosts und worauf sie wirken |
 | [../SERVER-OFFENE-PUNKTE.md](../SERVER-OFFENE-PUNKTE.md) | laufende Liste der offenen Punkte für die Server-Fassung |

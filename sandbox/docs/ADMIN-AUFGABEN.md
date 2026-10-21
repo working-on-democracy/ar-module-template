@@ -95,6 +95,9 @@ Container mit neuerem System. Dann bitte melden, bevor weiter gebaut wird.
   `~/plant-data/fuse-cache`.
 - [ ] Neue Werte in `.env`: Speicherort der Modelle, Zahl der gleichzeitigen
   Skripte, Zeitlimit, Speichergrenze für Modelle.
+- [ ] Die Abfrage `plantNearby` im Backend genau in der Form aus
+  [SCHNITTSTELLEN.md](SCHNITTSTELLEN.md) bauen. Dort steht auch, wie der Rechendienst
+  Aufträge und Ergebnisse austauscht, falls er auf einen anderen Rechner muss.
 - [ ] `deploy.sh` um den neuen Dienst erweitern. Backend und Frontend weiter
   zusammen ausliefern, weil das GraphQL-Schema neue Felder bekommt.
 - [ ] `~/plant-data` in die Datensicherung aufnehmen, falls es eine gibt.

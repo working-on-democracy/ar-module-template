@@ -26,13 +26,17 @@ it. `src/ArModule.vue` here is only a vehicle for local AR tests.
 1. `README.md` — what lives where, quick start, next steps.
 2. `sandbox/docs/PHASEN.md` and `sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md` —
    how the simulation behaves (German).
-3. `sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`, `sandbox/docs/ADMIN-AUFGABEN.md`,
+3. `sandbox/docs/SCHNITTSTELLEN.md` — the contract between server and AR app
+   (`/api/plant` in the sandbox, `plantNearby` on the server) and between
+   simulation and compute service (German). Change it only deliberately: the
+   admin builds against it.
+4. `sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`, `sandbox/docs/ADMIN-AUFGABEN.md`,
    `sandbox/SERVER-OFFENE-PUNKTE.md` — server/platform side (German).
-4. `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md` before touching
+5. `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md` before touching
    any `scripts/glb-*`, `stylize-glb`, `sloyd-generate`.
-5. `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md` before compressing
+6. `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md` before compressing
    anything for delivery.
-6. `cross-feature-reference-docs/AR-MODULE-TEMPLATE.md` before touching `lib/`,
+7. `cross-feature-reference-docs/AR-MODULE-TEMPLATE.md` before touching `lib/`,
    `src/`, `vite.config.ts` or the AR previews.
 
 ## 3. Layout

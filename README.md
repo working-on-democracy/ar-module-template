@@ -33,10 +33,12 @@ liegt als Archiv in den Branches `ai-asset-tools` und `plant-sandbox`.
    2.26. Getestet wird die WebAssembly-Variante von `sharp`. Scheitert sie, gibt es
    einen lokal getesteten Ausweichweg mit einem Platzhalter-Paket. Beides steht
    in den Admin-Aufgaben.
-3. Hintergrund und Begründungen: **[`sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`](sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md)**
+3. Was die AR-App vom Server bekommt (die Abfrage `plantNearby`):
+   **[`sandbox/docs/SCHNITTSTELLEN.md`](sandbox/docs/SCHNITTSTELLEN.md)**.
+4. Hintergrund und Begründungen: **[`sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`](sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md)**
    (Skripte, Werkzeuge, nötige Dienste, Unterschiede zwischen Sandbox und Produkt,
    Pitfalls, Bottlenecks, ungetestete Funktionen).
-4. Offene Punkte für die Server-Fassung: [`sandbox/SERVER-OFFENE-PUNKTE.md`](sandbox/SERVER-OFFENE-PUNKTE.md).
+5. Offene Punkte für die Server-Fassung: [`sandbox/SERVER-OFFENE-PUNKTE.md`](sandbox/SERVER-OFFENE-PUNKTE.md).
 
 ## Schnellstart
 
@@ -83,6 +85,7 @@ cross-feature-reference-docs/
 | --- | --- |
 | [`sandbox/docs/ADMIN-AUFGABEN.md`](sandbox/docs/ADMIN-AUFGABEN.md) | Aufgaben am Server nach Priorität |
 | [`sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`](sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md) | technische Referenz für Server und Plattform |
+| [`sandbox/docs/SCHNITTSTELLEN.md`](sandbox/docs/SCHNITTSTELLEN.md) | was die AR-App vom Server bekommt, was der Rechendienst bekommt, mit Erklärung |
 | [`sandbox/docs/PHASEN.md`](sandbox/docs/PHASEN.md) | die Phasen der Pflanze und was in ihnen passiert |
 | [`sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md`](sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor und Time Boosts |
 | [`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md) | Sloyd und die GLB-Werkzeuge im Detail (englisch) |
@@ -105,6 +108,6 @@ Drei Spuren laufen parallel:
 3. **Server und Plattform, der Admin:** die Schritte aus
    [`ADMIN-AUFGABEN.md`](sandbox/docs/ADMIN-AUFGABEN.md).
 
-Damit Spur 2 und 3 zusammenpassen, wird die Schnittstelle (welche Felder ein Objekt
-der Pflanze hat) als eigenes Dokument festgeschrieben. Sie entspricht im Kern dem,
-was `/api/state` der Sandbox heute liefert.
+Damit Spur 2 und 3 zusammenpassen, steht in [`SCHNITTSTELLEN.md`](sandbox/docs/SCHNITTSTELLEN.md)
+fest, welche Daten die AR-App über eine Pflanze bekommt. Die Sandbox liefert diese Form
+unter `/api/plant`, der Server später unter `plantNearby`.

@@ -204,6 +204,7 @@ sonst zählen sie gegen die 7-GB-Grenze, die Fotos und Zeichnungen löscht.
 **4. Schnittstelle.** Eine GraphQL-Abfrage im bestehenden Backend, etwa
 `plantNearby(lat, lng)`, die Objekte mit Datei-URL, Lage, Größe, Neigung,
 Leuchtfarbe, Schweben und laufenden Reisen liefert, dazu angehängte Zeichnungen.
+Die genaue Form der Felder steht in [SCHNITTSTELLEN.md](SCHNITTSTELLEN.md).
 Neue Felder im Schema heißen: Backend und Frontend müssen zusammen ausgeliefert
 werden, wie `deploy.sh` es schon vorsieht.
 

@@ -71,6 +71,8 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
 9. **Geräte zählen.** Die Sandbox zählt Geräte über einen Knopf. Auf dem Server
    muss festgelegt werden, was als Hinschauen zählt: im Radius, mit offener
    App, wie lange. Davon hängen die Pause der Boosts nach 3 Tagen und die Verlangsamung auf 0,5 nach 7 Tagen ab.
+   Vorschlag: Jede Abfrage `plantNearby` zählt als Hinschauen, mit einer anonymen
+   Kennung pro Sitzung, die einige Minuten gilt (siehe `docs/SCHNITTSTELLEN.md`).
 10. **Mehrere Pflanzen.** Die Sandbox rechnet eine Pflanze mit 3 Jobs
     gleichzeitig. Mehrere Pflanzen teilen sich Rechenzeit, die Reihenfolge der
 . **Keimling-Varianten vorbereiten.** Zwischen Erstellen (Sloyd) und Pflanzen
