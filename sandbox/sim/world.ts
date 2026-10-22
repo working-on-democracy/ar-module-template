@@ -8,7 +8,7 @@ import { gatherTriangle } from "./gather";
 import { createRng, type Rng } from "./rng";
 import { fusePostTriangles, fuseRecipe, halvingRecipe, STEP_LABEL, STYLIZE_COPY, voxelTriangles } from "./recipes";
 import type {
-  Drawing, JobRequest, JobResult, ModelVersion, ObjectKind, ObjectState, Photo, PlantObject, Scenario, ScheduledEntry, Vec3, World,
+  Drawing, JobRequest, JobResult, ModelVersion, ObjectKind, ObjectState, Photo, PhotoFrame, PlantObject, Scenario, ScheduledEntry, Vec3, World,
 } from "./types";
 
 const SAMPLE_EVERY = 0.05; // Eigentage between two samples of the curve
@@ -420,6 +420,30 @@ export function addDrawing(w: World, pos: Vec3, lifetime?: number, color?: strin
   return d;
 }
 
+/** Where a photo comes from, seen from the object: from its centre towards the
+ *  photo (hanging photoHeight above the ground), turned into the model's own
+ *  frame, and the image's frame around the model's bounding box as seen from there. */
+function aimPhoto(w: World, o: PlantObject, ph: Photo): PhotoFrame {
+  const m = modelMatrix(o), c = objectCenter(o);
+  const world: Vec3 = [ph.pos[0] - c[0], w.params.photoHeight - c[1], ph.pos[2] - c[2]];
+  // world → model: the matrix's columns are the model's axes in the world (uniform scale)
+  const toModel = (v: Vec3): Vec3 => [0, 1, 2].map((k) => (m[k * 4] * v[0] + m[k * 4 + 1] * v[1] + m[k * 4 + 2] * v[2]) / Math.hypot(m[k * 4], m[k * 4 + 1], m[k * 4 + 2])) as Vec3;
+  const unit = (v: Vec3): Vec3 => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const dir = unit(toModel(Math.hypot(...world) > 1e-6 ? world : [0, 0, 1]));
+  let upWorld = unit(toModel([0, 1, 0]));
+  if (Math.abs(dot(upWorld, dir)) > 0.99) upWorld = unit(toModel([0, 0, -1])); // straight above or below
+  // seen from the photo (looking along −dir): right and up of the image
+  const right = unit(cross([-dir[0], -dir[1], -dir[2]], upWorld)), up = cross(right, [-dir[0], -dir[1], -dir[2]]);
+  const min: [number, number] = [Infinity, Infinity], max: [number, number] = [-Infinity, -Infinity];
+  for (const x of [o.min[0], o.max[0]]) for (const y of [o.min[1], o.max[1]]) for (const z of [o.min[2], o.max[2]]) {
+    const u = dot([x, y, z], right), v = dot([x, y, z], up);
+    min[0] = Math.min(min[0], u); max[0] = Math.max(max[0], u); min[1] = Math.min(min[1], v); max[1] = Math.max(max[1], v);
+  }
+  return { dir, right, up, min, max };
+}
+
 /** Blocked, deleted or expired: the photo is gone, plant objects drop it. */
 export function removePhoto(w: World, photoId: string, reason: "gesperrt" | "gelöscht" | "abgelaufen") {
   const ph = w.photos.find((x) => x.id === photoId);
@@ -429,10 +453,8 @@ export function removePhoto(w: World, photoId: string, reason: "gesperrt" | "gel
   log(w, "foto-weg", `Foto ${ph.id} ${reason}`);
   for (const o of w.objects) {
     if (o.photo?.photoId !== photoId) continue;
-    const back = !o.photo.halvedSince && o.state === "verwelkend";
     o.photo = null;
-    if (back) o.state = "aktiv";
-    log(w, "foto-zurueck", `${o.id}: Fototextur entfernt, alte Textur zurück${back ? ", wieder aktiv" : ""}`, o.id);
+    log(w, "foto-zurueck", `${o.id}: Fototextur entfernt, alte Textur zurück`, o.id);
   }
 }
 
@@ -516,7 +538,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (w.voxelSince === null && totalTriangles(w) >= w.halvingAt) { w.voxelSince = w.eigen; log(w, "phase", `Über ${w.halvingAt} Dreiecken: Voxel-Generationen beginnen`); }
     const voxelStart = w.voxelSince ?? w.plateauSince ?? (w.eigen >= p.growthMaxDays - p.voxelTargetDays ? p.growthMaxDays - p.voxelTargetDays : null);
     // the Vorläufer make no copies; an origin object may copy while it is busy with another copy (a Vorläufer)
-    const free = (o: PlantObject) => o.grow >= 1 && (!o.busy || o.origin) && !o.pairedWith && !o.photo && !o.pioneer && (o.origin || o.state === "keimling");
+    const free = (o: PlantObject) => o.grow >= 1 && (!o.busy || o.origin) && !o.pairedWith && !o.pioneer && (o.origin || o.state === "keimling");
     const spawn = (parent: PlantObject, gen: number, max: number, immediate = false): boolean => {
       const voxelCells = gen >= p.voxelFromGeneration
         ? Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, gen - p.voxelFromGeneration)))
@@ -578,7 +600,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // larger one while the fused model is computed; swap once both are done.
   // (the fast line only once the Vorläufer's opening fusions are over)
   const canFuse = (o: PlantObject) =>
-    o.grow >= 1 && !o.origin && !o.busy && !o.pairedWith && !o.photo && (o.state === "aktiv" || o.state === "keimling") &&
+    o.grow >= 1 && !o.origin && !o.busy && !o.pairedWith && (o.state === "aktiv" || o.state === "keimling") &&
     (!o.pioneer || w.opening.stage === "fertig");
   const pairUp = (o: PlantObject, q: PlantObject, why: string, opening = false): number => {
     // the lower one travels and grows to the taller one's height
@@ -651,10 +673,10 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   // fusion chain. It is chosen among the most fused objects and pairs again
   // regularly, with a plain (non-voxel) partner, until it has requiredFusions.
   let champ = w.champion ? w.objects.find((o) => o.id === w.champion) ?? null : null;
-  if (!champ || champ.state === "tot" || champ.state === "verwelkend" || champ.photo) {
+  if (!champ || champ.state === "tot" || champ.state === "verwelkend") {
     champ = null; w.champion = null;
     for (const o of w.objects) {
-      if (o.origin || o.voxelCells || o.state === "tot" || o.state === "verwelkend" || o.photo || o.grow < 1) continue;
+      if (o.origin || o.voxelCells || o.state === "tot" || o.state === "verwelkend" || o.grow < 1) continue;
       if (!champ || o.fusions > champ.fusions || (o.fusions === champ.fusions && o.triangles > champ.triangles)) champ = o;
     }
     if (champ && champ.fusions < p.requiredFusions && w.opening.stage !== "warten") w.champion = champ.id;
@@ -707,9 +729,15 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
       tint: mixTint(a.tint, b.tint, p.tintFuseLoss, a.tintFusions + b.tintFusions === 0 ? p.tintMin : 0, p.tintMax),
     });
     a.tintFusions = a.tint ? a.tintFusions + b.tintFusions + 1 : 0; // faded out: the next fusion counts as a first one again
+    // the photo is projected onto the fused model anew; with two photos A keeps
+    // its own and B's is free to be taken again
+    const photoFreed = a.photo && b.photo ? b.photo.photoId : null;
+    a.photo = a.photo ?? b.photo;
+    const aimed = a.photo && w.photos.find((x) => x.id === a.photo!.photoId);
+    if (a.photo && aimed) a.photo.frame = aimPhoto(w, a, aimed);
     w.objects = w.objects.filter((x) => x !== b);
     w.pairs.splice(w.pairs.indexOf(pair), 1);
-    log(w, "verschmelzung", `${a.id} und ${b.id} verschmelzen: ${before} → ${a.triangles} Dreiecke (${a.fusions}. Verschmelzung)`, a.id);
+    log(w, "verschmelzung", `${a.id} und ${b.id} verschmelzen: ${before} → ${a.triangles} Dreiecke (${a.fusions}. Verschmelzung)${a.photo ? `, Foto ${a.photo.photoId} neu projiziert` : ""}${photoFreed ? `, Foto ${photoFreed} wieder frei` : ""}`, a.id);
   }
 
   const copying = keimPhase || w.jobs.some((j) => j.kind === "copy") || w.objects.some((o) => o.state === "keimling" && !o.origin);
@@ -947,12 +975,11 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (dist2d(ph.pos, center) > p.feedRadius) continue;
     if (w.objects.some((o) => o.photo?.photoId === ph.id)) continue; // one object per photo
     if (!rng.chance(p.photoTakePerDay, dt)) continue;
-    const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.photo && o.id !== w.champion);
+    const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.pairedWith && !o.photo);
     const o = nearest(candidates, ph.pos);
     if (!o) continue;
-    o.photo = { photoId: ph.id, since: w.eigen, halvedSince: false };
-    wilt(w, o);
-    log(w, "foto-uebernahme", `${o.id} übernimmt Foto ${ph.id} und verwelkt`, o.id);
+    o.photo = { photoId: ph.id, since: w.eigen, frame: aimPhoto(w, o, ph) };
+    log(w, "foto-uebernahme", `${o.id} übernimmt Foto ${ph.id}, projiziert aus seiner Richtung`, o.id);
   }
 
   // Drawings: attracted by the nearest object in reach, rest at a small overlap.
@@ -1304,7 +1331,7 @@ export function applyJob(w: World, result: JobResult) {
     Object.assign(twin, half(b, -1), {
       scale: o.scale, lift: o.lift + (b.min[1] - o.min[1]) * o.scale + rng.vary(p.halvingRise, p.riseVariance),
       grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, fast: o.fast, pioneer: o.pioneer, shrinkBase: o.shrinkBase, liftAdd: o.liftAdd, liftTau: o.liftTau, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
-      photo: o.photo ? { ...o.photo, halvedSince: true } : null,
+      photo: o.photo ? { ...o.photo } : null, // the same projection: together the halves still show the whole photo
     });
     const liftA = o.lift + (a.min[1] - o.min[1]) * o.scale; // keeps its place inside the model
     Object.assign(o, half(a, 1), { halvings: o.halvings + 1, sibling: twin.id, state: "verwelkend", nextCrushAt: w.eigen + w.params.crushEveryDays });
@@ -1313,7 +1340,6 @@ export function applyJob(w: World, result: JobResult) {
     o.lift = liftA + rng.vary(p.halvingRise, p.riseVariance); // splinters float
     w.rngState = rng.state();
     fitSize(o, p); fitSize(twin, p);
-    if (o.photo) o.photo.halvedSince = true;
     w.objects.push(twin);
   }
 }

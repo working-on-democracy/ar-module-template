@@ -10,7 +10,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { Drawing, Pair, Photo, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
+import type { Drawing, Pair, Photo, PhotoFrame, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
 import type { Params } from "../params";
 import { modelMatrix } from "../sim/world";
 import { decompose } from "../sim/pose";
@@ -184,15 +184,22 @@ const loadGlb = (rel: string) => {
   return p;
 };
 const texLoader = new THREE.TextureLoader();
-const photoTex = new Map<string, THREE.Texture>();
+const photoTex = new Map<string, { tex: THREE.Texture; loaded: Promise<void> }>();
 function photoTexture(id: string, level: number) {
   const key = `${id}-${level}`;
   let t = photoTex.get(key);
-  if (!t) { t = texLoader.load(`/api/photo/${id}/${level}`); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; photoTex.set(key, t); }
+  if (!t) {
+    let done = () => {};
+    const loaded = new Promise<void>((resolve) => { done = resolve; });
+    const tex = texLoader.load(`/api/photo/${id}/${level}`, () => done());
+    tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
+    t = { tex, loaded };
+    photoTex.set(key, t);
+  }
   return t;
 }
 
-let projection: "uv" | "plane" = "uv";
+let projection: "uv" | "plane" = "plane";
 let grainOn = true;
 
 // Grain shimmer (concept: per object from its own triangles, 0.4 · 2^(−n/1000),
@@ -297,20 +304,26 @@ async function setModel(v: View, rel: string) {
   applyLook(v);
 }
 
-/** Photo texture (reference only, the model keeps its own) and fading when dead. */
+/** Photo texture (reference only, the model keeps its own) and fading when dead.
+ *  The photo is projected from where it hangs, its shadow keeps the own material. */
 function applyLook(v: View) {
   const o = v.data;
   v.grain.grainStrength.value = grainOf(o.triangles);
-  const key = (o.photo ? `${o.photo.photoId}-${o.crushLevel}-${projection}` : "") + (grainOn ? "|grain" : "");
+  const key = (o.photo && v.model ? `${o.photo.photoId}-${o.crushLevel}-${projection}-${JSON.stringify(o.photo.frame)}` : "") + (grainOn ? "|grain" : "");
   if (key !== v.photoKey) {
     v.photoKey = key;
+    const ph = v.model ? o.photo : null, lit = ph ? litTriangles(v.model!, ph.frame) : null;
+    const tex = ph ? photoTexture(ph.photoId, o.crushLevel) : null;
+    const map = ph && tex && projection === "plane" ? fitPhoto(tex.tex, tex.loaded, ph.frame) : tex?.tex;
     for (const e of v.meshes) {
       e.mesh.geometry = e.geometry;
-      if (!o.photo) { e.mesh.material = grainOn ? e.grainy : e.material; continue; }
-      const tex = photoTexture(o.photo.photoId, o.crushLevel);
-      const swap = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.map = tex; c.color?.set(0xffffff); return grainOn ? grainMaterial(c, v.grain) : c; };
-      e.mesh.material = Array.isArray(e.material) ? e.material.map(swap) : swap(e.material);
-      if (projection === "plane") e.mesh.geometry = planarUv(e.geometry);
+      const own = grainOn ? e.grainy : e.material;
+      if (!ph || !lit) { e.mesh.material = own; continue; }
+      const swap = (m: THREE.Material) => { const c = m.clone() as THREE.MeshStandardMaterial; c.map = map ?? null; c.color?.set(0xffffff); return grainOn ? grainMaterial(c, v.grain) : c; };
+      const base = projection === "plane" ? projectedUv(e.geometry, e.mesh, v.model!, ph.frame) : e.geometry;
+      if (Array.isArray(e.material) || Array.isArray(own)) { e.mesh.material = Array.isArray(e.material) ? e.material.map(swap) : swap(e.material); e.mesh.geometry = base; continue; } // several materials: photo all over
+      e.mesh.geometry = splitLit(base, lit.get(e.mesh)!);
+      e.mesh.material = [own, swap(e.material)];
     }
   }
   for (const e of v.meshes) {
@@ -331,22 +344,111 @@ function applyLook(v: View) {
   }
 }
 
-const planarCache = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
-/** The photo projected from the front: u, v from the model's x and y. */
-function planarUv(g: THREE.BufferGeometry) {
-  let p = planarCache.get(g);
-  if (p) return p;
-  p = g.clone();
-  p.computeBoundingBox();
-  const b = p.boundingBox!, pos = p.getAttribute("position");
+// The photo is projected from where it hangs (PhotoFrame, in the model's own
+// frame). Only triangles the projection reaches get it; the ones in its shadow
+// (facing away or behind another part of the model) keep their own material.
+// The shadow comes from a small depth buffer seen from the photo.
+const SHADOW_RES = 256;
+const meshToModel = (mesh: THREE.Mesh, model: THREE.Object3D) => {
+  model.updateMatrixWorld(true);
+  return new THREE.Matrix4().copy(model.matrixWorld).invert().multiply(mesh.matrixWorld);
+};
+const along = (p: THREE.Vector3, d: Vec3) => p.x * d[0] + p.y * d[1] + p.z * d[2];
+/** Per mesh, per triangle: 1 = the projection reaches it. */
+function litTriangles(model: THREE.Object3D, f: PhotoFrame): Map<THREE.Mesh, Uint8Array> {
+  // every triangle as seen from the photo: pixel x, y and depth (larger = nearer the photo) per corner
+  const meshes: { mesh: THREE.Mesh; tris: Float32Array }[] = [];
+  const sx = SHADOW_RES / Math.max(1e-6, f.max[0] - f.min[0]), sy = SHADOW_RES / Math.max(1e-6, f.max[1] - f.min[1]);
+  let dMin = Infinity, dMax = -Infinity;
+  const p = new THREE.Vector3();
+  model.traverse((n) => {
+    const mesh = n as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const g = mesh.geometry, pos = g.getAttribute("position"), idx = g.getIndex(), m = meshToModel(mesh, model);
+    const count = (idx ? idx.count : pos.count) / 3, tris = new Float32Array(count * 9);
+    for (let i = 0; i < count * 3; i++) {
+      p.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m);
+      const d = along(p, f.dir);
+      tris[i * 3] = (along(p, f.right) - f.min[0]) * sx; tris[i * 3 + 1] = (along(p, f.up) - f.min[1]) * sy; tris[i * 3 + 2] = d;
+      dMin = Math.min(dMin, d); dMax = Math.max(dMax, d);
+    }
+    meshes.push({ mesh, tris });
+  });
+  const depth = new Float32Array(SHADOW_RES * SHADOW_RES).fill(-Infinity), owner = new Int32Array(SHADOW_RES * SHADOW_RES).fill(-1);
+  const covered: boolean[] = [];
+  const pixel = (x: number, y: number) => Math.min(SHADOW_RES - 1, Math.max(0, Math.floor(y))) * SHADOW_RES + Math.min(SHADOW_RES - 1, Math.max(0, Math.floor(x)));
+  let id = 0;
+  for (const { tris } of meshes) for (let t = 0; t < tris.length; t += 9, id++) {
+    const [ax, ay, ad, bx, by, bd, cx, cy, cd] = tris.subarray(t, t + 9);
+    const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    covered[id] = false;
+    if (Math.abs(area) < 1e-9) continue;
+    const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(SHADOW_RES - 1, Math.ceil(Math.max(ax, bx, cx)));
+    const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), y1 = Math.min(SHADOW_RES - 1, Math.ceil(Math.max(ay, by, cy)));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const px = x + 0.5, py = y + 0.5;
+      const wa = ((bx - px) * (cy - py) - (by - py) * (cx - px)) / area, wb = ((cx - px) * (ay - py) - (cy - py) * (ax - px)) / area, wc = 1 - wa - wb;
+      if (wa < 0 || wb < 0 || wc < 0) continue;
+      covered[id] = true;
+      const d = wa * ad + wb * bd + wc * cd, k = y * SHADOW_RES + x;
+      if (d > depth[k]) { depth[k] = d; owner[k] = id; }
+    }
+  }
+  const owns = new Uint8Array(id);
+  for (const k of owner) if (k >= 0) owns[k] = 1;
+  // a triangle smaller than a pixel: lit if its centre is not behind what the buffer holds there
+  const eps = (dMax - dMin) * 0.01;
+  const lit = new Map<THREE.Mesh, Uint8Array>();
+  id = 0;
+  for (const { mesh, tris } of meshes) {
+    const out = new Uint8Array(tris.length / 9);
+    for (let t = 0; t < out.length; t++, id++) {
+      if (owns[id]) { out[t] = 1; continue; }
+      if (covered[id]) continue;
+      const q = tris.subarray(t * 9, t * 9 + 9), k = pixel((q[0] + q[3] + q[6]) / 3, (q[1] + q[4] + q[7]) / 3);
+      if ((q[2] + q[5] + q[8]) / 3 >= depth[k] - eps) out[t] = 1;
+    }
+    lit.set(mesh, out);
+  }
+  return lit;
+}
+/** The geometry with two groups: 0 = in the shadow (own material), 1 = lit (photo). */
+function splitLit(base: THREE.BufferGeometry, lit: Uint8Array) {
+  const shade: number[] = [], light: number[] = [], idx = base.getIndex();
+  for (let t = 0; t < lit.length; t++) {
+    const list = lit[t] ? light : shade;
+    for (let k = 0; k < 3; k++) list.push(idx ? idx.getX(t * 3 + k) : t * 3 + k);
+  }
+  const g = base.clone();
+  g.setIndex([...shade, ...light]);
+  g.clearGroups();
+  g.addGroup(0, shade.length, 0);
+  g.addGroup(shade.length, light.length, 1);
+  return g;
+}
+/** UVs of the projection: the image spread over the frame, as seen from the photo. */
+function projectedUv(g: THREE.BufferGeometry, mesh: THREE.Mesh, model: THREE.Object3D, f: PhotoFrame) {
+  const out = g.clone(), pos = out.getAttribute("position"), m = meshToModel(mesh, model), p = new THREE.Vector3();
   const uv = new Float32Array(pos.count * 2);
   for (let i = 0; i < pos.count; i++) {
-    uv[i * 2] = (pos.getX(i) - b.min.x) / Math.max(1e-6, b.max.x - b.min.x);
-    uv[i * 2 + 1] = 1 - (pos.getY(i) - b.min.y) / Math.max(1e-6, b.max.y - b.min.y);
+    p.fromBufferAttribute(pos, i).applyMatrix4(m);
+    uv[i * 2] = (along(p, f.right) - f.min[0]) / Math.max(1e-6, f.max[0] - f.min[0]);
+    uv[i * 2 + 1] = 1 - (along(p, f.up) - f.min[1]) / Math.max(1e-6, f.max[1] - f.min[1]);
   }
-  p.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  planarCache.set(g, p);
-  return p;
+  out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  return out;
+}
+/** The photo fills the frame and keeps its proportions: what sticks out is cut off. */
+function fitPhoto(tex: THREE.Texture, loaded: Promise<void>, f: PhotoFrame) {
+  const t = tex.clone(); // shares the image
+  const frame = (f.max[0] - f.min[0]) / Math.max(1e-6, f.max[1] - f.min[1]);
+  void loaded.then(() => {
+    const img = t.image as { width: number; height: number }, photo = img.width / Math.max(1, img.height);
+    if (photo > frame) { t.repeat.set(frame / photo, 1); t.offset.set((1 - frame / photo) / 2, 0); }
+    else { t.repeat.set(1, photo / frame); t.offset.set(0, (1 - photo / frame) / 2); }
+    t.needsUpdate = true;
+  });
+  return t;
 }
 
 // ---------------------------------------------------------------- photos and drawings

@@ -187,6 +187,7 @@ export const PARAMS = {
   photoWaitDays: 1, // CALENDAR days before a photo can be taken (moderation time)
   photoTakePerDay: 0.5, // chance per Eigentag that an eligible photo is taken
   photoLifetimeDays: 14, // calendar
+  photoHeight: 1.5, // m above the ground: where the photo hangs, the projection onto an object comes from there
 
   // --- drawings
   objectRadiusBase: 2.0, // object radius = this + half the object's diagonal

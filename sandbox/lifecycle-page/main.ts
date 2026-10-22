@@ -192,10 +192,11 @@ const PARAM_GROUPS: Group[] = [
     { key: "lingerVariance", label: "Varianz", unit: "± Eigentage", step: 0.1 },
     { key: "maxJobFailures", label: "Verwelkende sterben vorzeitig nach", unit: "gescheiterten Vorgängen", step: 1 },
   ] },
-  { title: "Fotos", fields: [
+  { title: "Fotos", note: "Ein Objekt, das ein Foto übernimmt, bleibt aktiv. Das Foto wird aus seiner Richtung auf das Objekt projiziert, was im Schatten liegt, behält die eigene Textur. Nach einer Verschmelzung wird neu projiziert, beim Halbieren behalten beide Hälften dieselbe Projektion.", fields: [
     { key: "photoWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
     { key: "photoTakePerDay", label: "Übernahme-Rate", unit: "pro Eigentag", step: 0.1 },
     { key: "photoLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
+    { key: "photoHeight", label: "Höhe des Fotos", unit: "m, von dort kommt die Projektion", step: 0.1 },
   ] },
   { title: "Zeichnungen", fields: [
     { key: "objectRadiusBase", label: "Objektradius", unit: "m + halbe Diagonale", step: 0.1 },

@@ -1,6 +1,6 @@
 # Pflanze: Schnittstellen
 
-Stand: 21. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 22. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/PGTvwXn1meUdcQd3fFuXYs
 
 ## Kurz erklärt
@@ -132,7 +132,7 @@ nicht, und an dem, was man sieht, ändern sie nichts.
 | `tint` | `{ color: [r, g, b], intensity }` oder leer | Leuchtfarbe: Farbe 0 bis 1 (sRGB), `intensity` geht direkt als Leuchtstärke ins Material |
 | `grain` | `{ strength, scale }` | Werte für `grain-shimmer`: `grain` und `grainScale` |
 | `sway` | `{ height, period }` | Schweben: Höhe in Metern, Takt in Sekunden, 0 = ruhig |
-| `photo` | `{ url }` oder leer | Foto, das die Grundtextur ersetzt, schon in der passenden Stufe zerdrückt |
+| `photo` | `{ url, frame }` oder leer | Foto, schon in der passenden Stufe zerdrückt, und seine Projektion `frame` im Koordinatensystem des Modells: `dir` (Einheitsvektor zum Foto), `right` und `up` (Achsen des Bildes), `min` und `max` (Ausdehnung des Bildes entlang `right` und `up`) |
 
 **Alles steckt in `pose`:** Aus dem Boden wachsen, Höhe über dem Boden, Neigung,
 Größe nach dem Verschmelzen, Schrumpfen im Verfall, Einsinken nach dem Tod und die
@@ -242,7 +242,25 @@ nicht in der Liste und erscheint wie gewohnt an ihrem Ort. Wie die übernommene
 Textur auf einer Linie aussehen soll, ist noch offen: In der Sandbox sind
 Zeichnungen nur Punktfolgen.
 
-**Fotos** kommen als fertige Bilddatei im Feld `photo.url` eines Objekts. Der Server
+**Fotos** kommen als fertige Bilddatei im Feld `photo.url` eines Objekts. Die App
+projiziert sie aus der Richtung `photo.frame.dir` auf das Modell:
+
+- Ein Punkt `p` des Modells bekommt die UV-Koordinaten
+  `u = (p·right − min[0]) / (max[0] − min[0])` und
+  `v = 1 − (p·up − min[1]) / (max[1] − min[1])`.
+- Das Bild füllt diesen Rahmen und behält seine Proportionen. Was übersteht, wird
+  abgeschnitten.
+- Nur Dreiecke, die die Projektion direkt trifft, zeigen das Foto. Die anderen
+  liegen im Schatten und behalten die eigene Textur. Das prüft ein Tiefenpuffer von
+  256 × 256 aus Sicht des Fotos: Ein Dreieck ist getroffen, wenn es dort
+  mindestens ein Pixel vorne liegt.
+- Weil alles aus Modell und Rahmen folgt, sieht es auf jedem Gerät gleich aus.
+
+Den Rahmen rechnet der Server bei der Übernahme und nach jeder Verschmelzung neu.
+Beim Halbieren bekommen beide Hälften denselben Rahmen, zusammen zeigen sie das
+ganze Bild. Die Sandbox macht die Projektion in `litTriangles`, `splitLit`,
+`projectedUv` und `fitPhoto` (`viewer/main.ts`), den Rahmen in `aimPhoto`
+(`sim/world.ts`). Der Server
 erzeugt die zerdrückten Stufen selbst aus dem Foto in der Datenbank und legt sie
 neben die Modelle, wie die Sandbox es heute tut (`/api/photo/<foto>/<stufe>`). Wird
 ein Foto gesperrt oder läuft es ab, fällt `photo` bei der nächsten Antwort weg, und

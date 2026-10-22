@@ -7,7 +7,7 @@ import type { FusePost, HalvingRecipe } from "./recipes";
 export type Vec3 = [number, number, number];
 
 /** Keimling = copy phase, aktiv = may take photos (later: attract + fuse),
- *  verwelkend = halved or carrying a photo, tot = lingers, then removed. */
+ *  verwelkend = halved, tot = lingers, then removed. */
 export type ObjectState = "keimling" | "aktiv" | "verwelkend" | "tot";
 
 export interface ModelVersion {
@@ -36,7 +36,8 @@ export interface PlantObject extends ModelVersion {
   /** Lean about a pivot on the ground under the centre (later Keimling generations): angle and direction, radians. */
   tilt: { angle: number; dir: number } | null;
   busy: boolean; // a geometry job for this object is running
-  photo: { photoId: string; since: number; halvedSince: boolean } | null;
+  /** Photo layer, projected from where the photo hangs; parts in its shadow keep their own texture. */
+  photo: { photoId: string; since: number; frame: PhotoFrame } | null;
   crushLevel: number;
   nextCrushAt: number;
   deadSince: number | null;
@@ -119,6 +120,11 @@ export interface Pair {
   aScale: number;
   result: ModelVersion | null;
 }
+
+/** A photo's projection onto an object, in the model's own frame: it comes from
+ *  `dir` (unit, towards the photo); `right` and `up` span the image, `min`/`max`
+ *  its extent along them (the model's bounding box as seen from the photo). */
+export interface PhotoFrame { dir: Vec3; right: Vec3; up: Vec3; min: [number, number]; max: [number, number] }
 
 export interface Photo {
   id: string;
