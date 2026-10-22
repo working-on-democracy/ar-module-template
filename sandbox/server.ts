@@ -342,7 +342,7 @@ function stateFor(sinceSample: number) {
       waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
     },
     phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, fastFactor: w.fastFactor, factorParts: w.factorParts, boostsPaused: w.boostsPaused, slowed: w.slowed, lastWatched: w.lastWatched,
-    viewers: w.viewers, plantingPoint: w.plantingPoint, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
+    viewers: w.viewers, plantingPoint: w.plantingPoint, gatherPoints: w.gatherPoints, center: ecosystemCenter(w), bounds: ecosystemBounds(w),
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
     budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,
     objects: w.objects.map((o) => ({ ...o, sway: swayOf(o, w.params), swayPeriod: swayPeriodOf(o, w.params) })),

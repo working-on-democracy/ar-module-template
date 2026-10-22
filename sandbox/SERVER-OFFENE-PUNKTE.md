@@ -1,6 +1,6 @@
 # Offene Punkte für die Server-Fassung der Pflanze
 
-Stand 2026-10-21. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
+Stand 2026-10-22. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
 lokalen Server. Die Liste sammelt, was sie noch nicht abdeckt und was die
 Plattform-Fassung braucht.
 
@@ -92,3 +92,10 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     Arbeitsfassung mit 7 500 Dreiecken das Ursprungsobjekt: Sie steht in der
     Pflanze und wird im Abstieg komprimiert. Objekte mit höchstens 7 500
     Dreiecken werden nicht reduziert, ihre Rohdatei bleibt.
+13. **Pflanzabstand begrenzen.** Wenn Besucher die Ursprungsobjekte selbst
+    pflanzen, dürfen deren Mitten höchstens 6 m auseinander liegen
+    (`originMaxSpread`). Die App muss das beim Pflanzen durchsetzen. Die
+    Simulation rückt zu weit verteilte Objekte nur als Notlösung zusammen, dann
+    stehen sie nicht mehr dort, wo sie gepflanzt wurden. Das Dreieck der
+    Magnetpunkte wächst mit dem Abstand mit (Ecken bei 6 m Abstand bis rund 11 m
+    vom Pflanzpunkt).

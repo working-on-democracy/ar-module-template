@@ -4,6 +4,7 @@
 // with plain numbers (lifecycle page). Rules: see the sandbox doc.
 import type { Params } from "../params";
 import { compose, decompose, lerpPose, multiply, quatTilt, quatY, rotateAbout, transformPoint, type Mat4 } from "./pose";
+import { gatherTriangle } from "./gather";
 import { createRng, type Rng } from "./rng";
 import { fusePostTriangles, fuseRecipe, halvingRecipe, STEP_LABEL, STYLIZE_COPY, voxelTriangles } from "./recipes";
 import type {
@@ -13,7 +14,7 @@ import type {
 const SAMPLE_EVERY = 0.05; // Eigentage between two samples of the curve
 const FUSE_TRAVEL_VARIANCE = 0.2; // ± fraction of a fusion's travel time, random
 const ATTRACT_EASE = 0.3; // m: kin slow down within this gap of their goal …
-const GATHER_EASE = 1; // m: … the drift to the planting point within this of its stop
+const GATHER_EASE = 1; // m: … the drift to a magnetic point within this of its stop
 const HALVING_APART = 0.15; // m: the halves of a halving start this far from the middle, each
 const CHAIN_MIN_TRIANGLES = 24; // the halving chain's piece is halved again only above this
 const ORIGIN_COMPRESS_STEP = 0.9; // an origin object is compressed once its goal is below this share of its triangles
@@ -216,6 +217,7 @@ export function createWorld(scenario: Scenario, params: Params): World {
     boosts: [],
     viewers: 0,
     plantingPoint: [0, 0, 0],
+    gatherPoints: [],
     budget: params.budgetBase,
     compressAt: 0,
     halvingAt: 0,
@@ -252,9 +254,16 @@ export function createWorld(scenario: Scenario, params: Params): World {
     boostsPaused: false,
     slowed: false,
   };
+  // origin objects planted further apart than originMaxSpread move closer to their middle, in proportion
+  const n = Math.max(1, scenario.starters.length);
+  const mx = scenario.starters.reduce((t, s) => t + s.pos[0], 0) / n, mz = scenario.starters.reduce((t, s) => t + s.pos[2], 0) / n;
+  let spread = 0;
+  for (const a of scenario.starters) for (const b of scenario.starters) spread = Math.max(spread, Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]));
+  const pull = spread > params.originMaxSpread ? params.originMaxSpread / spread : 1;
+  if (pull < 1) log(w, "start", `Ursprungsobjekte ${spread.toFixed(1)} m auseinander gepflanzt, auf ${params.originMaxSpread} m zusammengerückt`);
   let px = 0, pz = 0;
   for (const s of scenario.starters) {
-    const pos: Vec3 = [s.pos[0], 0, s.pos[2]]; // standing on the ground (lift 0)
+    const pos: Vec3 = [mx + (s.pos[0] - mx) * pull, 0, mz + (s.pos[2] - mz) * pull]; // standing on the ground (lift 0)
     // an origin object above originMaxTriangles is reduced to it (the server reduces the file first)
     const model = { ...s.model, triangles: Math.min(s.model.triangles, params.originMaxTriangles) };
     const o = newObject(w, rng, model, s.name, null, 0, pos, s.rotY ?? rng.range(0, Math.PI * 2));
@@ -263,10 +272,14 @@ export function createWorld(scenario: Scenario, params: Params): World {
     if (side > 0) o.scale = Math.min(params.originMaxSize, Math.max(params.originMinSize, side)) / side;
     o.grow = 1; // planted objects stand from the start, no growing time before their first copy
     w.objects.push(o);
-    px += s.pos[0]; pz += s.pos[2];
+    px += pos[0]; pz += pos[2];
   }
-  const n = Math.max(1, scenario.starters.length);
   w.plantingPoint = [px / n, 0, pz / n]; // never changes again
+  // the descent's magnetic points, from their own random numbers (the rest of the run does not depend on them)
+  w.gatherPoints = gatherTriangle(
+    w.objects.map((o) => ({ pos: o.pos, r: (Math.hypot(o.max[0] - o.min[0], o.max[2] - o.min[2]) / 2) * o.scale })),
+    createRng((scenario.seed ^ 0x5bd1e995) >>> 0), params,
+  );
   // the budget adapts to the origin objects: 5 × 5 000 → budgetBase, more triangles → more budget
   const sum = w.objects.reduce((t, o) => t + o.triangles, 0);
   w.budget = Math.round(Math.min(params.budgetMax, Math.max(params.budgetMin, params.budgetBase + params.budgetSlope * (sum - params.budgetRefOrigins))));
@@ -806,7 +819,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   }
 
   // Descent: everything not on its way to a fusion drifts slowly towards the
-  // planting point, and the two halves of a halving push each other away —
+  // nearest magnetic point, and the two halves of a halving push each other away —
   // both added up (resting drawings move along). Decay: no more drift, the
   // halves push apart more strongly, and wilting objects shrink slowly.
   if (descending(w)) {
@@ -814,7 +827,9 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     for (const o of w.objects) {
       if (o.origin || o.state === "tot" || o.pairedWith || o.pose) continue;
       let mx = 0, mz = 0;
-      const dx = w.plantingPoint[0] - o.pos[0], dz = w.plantingPoint[2] - o.pos[2], d = Math.hypot(dx, dz);
+      let g = w.gatherPoints[0] ?? w.plantingPoint;
+      for (const q of w.gatherPoints) if (dist2d(o.pos, q) < dist2d(o.pos, g)) g = q;
+      const dx = g[0] - o.pos[0], dz = g[2] - o.pos[2], d = Math.hypot(dx, dz);
       const room = d - (p.gatherStop + objectWidth(o) / 2);
       if (!decay && room > 0) {
         const move = Math.min(room, p.gatherPerDay * Math.min(1, room / GATHER_EASE) * dt);

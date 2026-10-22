@@ -35,6 +35,7 @@ const SCENARIO_GROUP: Group = {
     { key: "visitDevices", label: "Geräte pro Besuch", step: 1 },
     { key: "visitHours", label: "Dauer eines Besuchs", unit: "Stunden", step: 0.25 },
     { key: "contentDistance", label: "Fotos und Zeichnungen bis", unit: "m vom Pflanzort", step: 1 },
+    { key: "starterRing", label: "Ursprungsobjekte im Ring mit Radius", unit: "m", step: 0.1 },
   ],
 };
 
@@ -94,6 +95,7 @@ const PARAM_GROUPS: Group[] = [
   { title: "Größe und Höhe", note: "Seitenansicht. Ursprungsobjekte stehen am Boden; ihre längste Seite wird beim Pflanzen in den Bereich unten gebracht. Keimlinge nehmen die Größe ihres Ursprungsobjekts, leicht variiert und mit jeder Generation größer; sie dürfen den Bereich um den Spielraum verlassen, nach oben ab Generation 2 jeweils weiter. Die letzten Generationen werden wieder kleiner, jede um einen zufälligen Anteil. Höhen gehen nur nach oben: Eine Verschmelzung startet von der Höhe des höheren Partners und steigt, jede Komprimierung hebt ein Stück, nach und nach und unterschiedlich weit. Wer die Höhengrenze erreicht, sinkt danach langsam ein Stück zurück.", fields: [
     { key: "originMinSize", label: "Ursprungsobjekt mindestens", unit: "m, längste Seite", step: 0.05 },
     { key: "originMaxSize", label: "Ursprungsobjekt höchstens", unit: "m, längste Seite", step: 0.05 },
+    { key: "originMaxSpread", label: "Ursprungsobjekte höchstens auseinander", unit: "m zwischen den Mitten, sonst zusammengerückt", step: 0.5 },
     { key: "keimSizeVariance", label: "Keimling-Größe variiert", unit: "±Anteil", step: 0.05 },
     { key: "keimGrowPerGeneration", label: "je Generation größer um", unit: "Anteil (nach der ersten Voxel-Generation je Generation halbiert)", step: 0.05 },
     { key: "keimGrowStopGeneration", label: "ab Generation kleiner statt größer", step: 1 },
@@ -124,7 +126,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "fusedGrowMax", label: "bis höchstens", unit: "× Größe nach der Verschmelzung (darüber: Sinken bis zur Einsinkgrenze)", step: 0.05 },
     { key: "maxSink", label: "Einsinken höchstens", unit: "Anteil der Höhe", step: 0.05 },
   ] },
-  { title: "Schweben, Anziehen, Abstoßen, Wind", note: "Aktive verschmolzene Objekte treiben ganz langsam zum nächsten mit gleich vielen Verschmelzungen, bis sie sich fast berühren oder leicht überschneiden; mit dem Verwelken hört das auf. Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum Pflanzpunkt, die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab. Im Verfall hört das Zusammenziehen auf, die Hälften stoßen sich stärker ab und verwelkende Objekte schrumpfen langsam. Halbierte Objekte mit wenigen Dreiecken treiben im Wind: sehr langsam, in alle Richtungen, auch hoch und runter, je näher an der Todesgrenze desto schneller; ab und zu dreht der Wind.", fields: [
+  { title: "Schweben, Anziehen, Abstoßen, Wind", note: "Aktive verschmolzene Objekte treiben ganz langsam zum nächsten mit gleich vielen Verschmelzungen, bis sie sich fast berühren oder leicht überschneiden; mit dem Verwelken hört das auf. Schweben geht vom Standort nach oben, nie in den Boden: schon unter vielen Dreiecken ganz leicht und langsam, je weniger Dreiecke desto stärker und schneller; in Bodennähe schwächer, höher stärker. Im Abstieg ziehen alle Objekte, die nicht gerade verschmelzen, langsam zum nächsten von drei Magnetpunkten (Ecken eines Dreiecks mit zufälligen Winkeln um die Ursprungsobjekte, beim Pflanzen festgelegt; seine Kanten schneiden kein Ursprungsobjekt; stehen die Ursprungsobjekte weiter auseinander, wird es größer), die beiden Hälften einer Halbierung stoßen sich dazu langsam voneinander ab. Im Verfall hört das Zusammenziehen auf, die Hälften stoßen sich stärker ab und verwelkende Objekte schrumpfen langsam. Halbierte Objekte mit wenigen Dreiecken treiben im Wind: sehr langsam, in alle Richtungen, auch hoch und runter, je näher an der Todesgrenze desto schneller; ab und zu dreht der Wind.", fields: [
     { key: "swayFromTriangles", label: "Schweben ab unter", unit: "Dreiecke", step: 1000 },
     { key: "swayAmplitude", label: "Schweben bei einem Dreieck", unit: "m", step: 0.05 },
     { key: "swaySlowSeconds", label: "anfangs ein Auf und Ab in", unit: "Sekunden", step: 0.5 },
@@ -133,7 +135,13 @@ const PARAM_GROUPS: Group[] = [
     { key: "swayPerMetre", label: "+ pro Meter Höhe", unit: "× Schweben", step: 0.1 },
     { key: "swayMaxFactor", label: "höchstens", unit: "× Schweben", step: 0.1 },
     { key: "gatherPerDay", label: "Zusammenziehen im Abstieg", unit: "m pro Eigentag", step: 0.01 },
-    { key: "gatherStop", label: "bis zum Pflanzpunkt höchstens", unit: "m + halbe Breite", step: 0.05 },
+    { key: "gatherStop", label: "bis zum Magnetpunkt höchstens", unit: "m + halbe Breite", step: 0.05 },
+    { key: "gatherCornerMinDist", label: "Magnetpunkt mindestens", unit: "m vom Pflanzpunkt", step: 0.25 },
+    { key: "gatherCornerMaxDist", label: "Magnetpunkt höchstens", unit: "m vom nächsten Ursprungsobjekt", step: 0.25 },
+    { key: "gatherSpreadRef", label: "solange Ursprungsobjekte höchstens", unit: "m vom Pflanzpunkt", step: 0.1 },
+    { key: "gatherCornerPerSpread", label: "darüber hinaus mehr um", unit: "m pro m weiter draußen", step: 0.25 },
+    { key: "gatherEdgeGap", label: "Dreieckskanten mindestens", unit: "m von den Ursprungsobjekten", step: 0.05 },
+    { key: "gatherMinAngle", label: "Dreieckswinkel mindestens", unit: "Grad", step: 5 },
     { key: "halvingRepelPerDay", label: "Hälften stoßen sich ab mit", unit: "m pro Eigentag", step: 0.01 },
     { key: "halvingRepelRange", label: "Abstoßen bis Abstand", unit: "m", step: 0.1 },
     { key: "decayRepelFactor", label: "Abstoßen im Verfall", unit: "fach", step: 0.5 },
@@ -260,6 +268,7 @@ interface Frame {
   pairs: { ax: number; az: number; bx: number; bz: number }[];
   center: Vec3;
   bounds: { min: Vec3; max: Vec3 } | null;
+  gatherPoints: Vec3[];
 }
 
 interface RunResult { world: World; frames: Frame[]; ms: number }
@@ -299,6 +308,7 @@ function snapshot(w: World): Frame {
     }),
     center: ecosystemCenter(w),
     bounds: ecosystemBounds(w),
+    gatherPoints: w.gatherPoints,
   };
 }
 
@@ -475,6 +485,7 @@ function renderMap() {
   let reach = p.feedRadius + 2;
   for (const o of f.objects) reach = Math.max(reach, Math.hypot(o.x, o.z) + o.r + 1);
   for (const ph of f.photos) reach = Math.max(reach, Math.hypot(ph.x, ph.z) + 1);
+  for (const q of f.gatherPoints) reach = Math.max(reach, Math.hypot(q[0], q[2]) + 1);
   const s = Math.min(box.width, box.height) / 2 / reach;
   const cx = box.width / 2, cy = box.height / 2;
   const P = (x: number, z: number) => [cx + x * s, cy + z * s] as const;
@@ -507,12 +518,20 @@ function renderMap() {
   for (const o of f.objects) {
     const [x, y] = P(o.x, o.z);
     ctx.fillStyle = css(`--st-${o.state}`);
-    ctx.globalAlpha = o.state === "tot" ? 0.45 : 0.9;
+    ctx.globalAlpha = o.state === "tot" ? 0.25 : 0.5; // see-through, so the triangle and what lies under stay visible
     ctx.beginPath(); ctx.arc(x, y, Math.max(2.5, o.r * s), 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
     if (o.photo) { ctx.strokeStyle = css("--photo"); ctx.lineWidth = 2; ctx.stroke(); }
     if (o.origin) { ctx.strokeStyle = css("--fg"); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, Math.max(2.5, o.r * s) + 3, 0, Math.PI * 2); ctx.stroke(); }
     if (o.fusions > 0) { ctx.fillStyle = css("--surface"); ctx.font = `600 10px ${css("--font-data")}`; ctx.textAlign = "center"; ctx.fillText(String(o.fusions), x, y + 3.5); ctx.textAlign = "start"; }
+  }
+  // the descent's magnetic points, over the objects: the triangle's edges and a ring at each corner
+  if (f.gatherPoints.length) {
+    ctx.strokeStyle = css("--magnet"); ctx.lineWidth = 2;
+    ctx.beginPath();
+    f.gatherPoints.forEach((q, i) => { const [x, y] = P(q[0], q[2]); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    ctx.closePath(); ctx.stroke();
+    for (const q of f.gatherPoints) { const [x, y] = P(q[0], q[2]); ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.stroke(); }
   }
   // photos
   for (const ph of f.photos) {

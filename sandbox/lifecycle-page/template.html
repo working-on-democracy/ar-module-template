@@ -20,6 +20,7 @@
   --photo: #3466a8;
   --drawing: #c2410c;
   --pair: #e0218a;
+  --magnet: #3b5bd6;
   --kd-ursprung: #4d4038;
   --kd-voxelkeimling: #4fa89a;
   --kd-unveraendert: #b9c2b8;
@@ -36,7 +37,7 @@
     --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
     --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
     --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
-    --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
+    --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8; --magnet: #8fa6f5;
     --kd-ursprung: #cbbcae; --kd-voxelkeimling: #6cc4b5; --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
   }
 }
@@ -44,7 +45,7 @@
   --bg: #131714; --surface: #1b201c; --fg: #e5ebe6; --muted: #9aa69e; --line: #2c342e; --grid: #242b26;
   --accent: #6fc196; --feed-fill: rgba(111, 193, 150, 0.08);
   --st-keimling: #9fd17f; --st-aktiv: #4fa57a; --st-verwelkend: #d9a443; --st-tot: #6c746e;
-  --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8;
+  --photo: #6f9be0; --drawing: #f07a45; --pair: #ff6fb8; --magnet: #8fa6f5;
     --kd-unveraendert: #4a544c; --kd-v1: #2a4f6a; --kd-v2: #3d78a3; --kd-v3: #64a3d3; --kd-v4: #a9d2ef; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -189,6 +190,7 @@ select { font: 14px var(--font-body); color: var(--fg); background: var(--bg); b
           </div>
           <div class="legend">
             <span><i class="sw" style="border: 2px solid var(--fg); background: transparent"></i>Pflanzort × · Ring: Ursprungsobjekt</span>
+            <span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1L13 12H1Z" fill="none" stroke="var(--magnet)" stroke-width="1.5"/></svg>Magnetpunkte im Abstieg</span>
             <span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M0 7H14M7 0V14" stroke="var(--accent)" stroke-width="1.5"/><circle cx="7" cy="7" r="4" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>Wandernder Mittelpunkt und Radius Hinschauen/Füttern</span>
             <span><i class="sw" style="border: 1.5px solid var(--photo)"></i>Foto (gefüllt: übernommen, durchgestrichen: gesperrt)</span>
             <span><i class="sw" style="background: var(--drawing); height: 3px"></i>Zeichnung (grün: hat Textur geerbt)</span>

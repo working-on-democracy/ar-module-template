@@ -1,12 +1,12 @@
 # Phasen der Pflanze
 
-Stand: 21. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 22. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/RNvesde8hFhazDVdYV9fHN
 
 ## Überblick
 
 Eine Pflanze lebt im Median rund 40 Kalendertage, in vier Phasen. Das Wachstum ist
-kurz, Plateau und Abstieg dauern je etwa 10 Tage, der Verfall rund 17. Wie lange
+kurz, Plateau und Abstieg dauern je etwa 9 Tage, der Verfall rund 16. Wie lange
 genau, hängt vom Zeitfaktor ab, also davon, wie oft jemand hinschaut und Inhalte
 beiträgt.
 
@@ -16,8 +16,8 @@ Kalendertage, Median über 10 Seeds im Standardszenario:
 | --- | --- | --- | --- |
 | Wachstum | 0 | 4,2 | Vorläufer und Eröffnung kurz nach dem Pflanzen, Keimlinge entstehen |
 | Plateau | 4,2 | 13,6 | Keimlinge füllen auf, verstärkte Komprimierung |
-| Abstieg | 13,6 | 23,1 | stetige Komprimierung, ab Tag 17,0 Halbieren |
-| Verfall | 23,1 | 39,8 | häufige Komprimierung, Sterben, Ende |
+| Abstieg | 13,6 | 22,0 | stetige Komprimierung, ab Tag 16,6 Halbieren |
+| Verfall | 22,0 | 38,3 | häufige Komprimierung, Sterben, Ende |
 
 Im Code heißen die Phasen `wachstum`, `plateau`, `abstieg`, `verfall` und `ende`.
 Das Halbieren ist ein Abschnitt des Abstiegs, der beginnt, sobald die Dreiecke unter
@@ -71,6 +71,10 @@ der Pflanzpunkt, der sich nie mehr ändert.
 - Ein Ursprungsobjekt mit mehr als 7 500 Dreiecken wird auf 7 500 reduziert
   (`glb-reduce.ts`, bei Texturnähten permissiv).
 - Seine längste Seite wird auf 0,2 bis 0,6 m gebracht.
+- Die Mitten zweier Ursprungsobjekte liegen höchstens 6 m auseinander. Wurden sie
+  weiter auseinander gepflanzt, rücken alle im selben Verhältnis zu ihrer Mitte
+  zusammen. Auf der Plattform soll die App so weit auseinander gar nicht erst
+  pflanzen lassen.
 
 **Was festgelegt wird:**
 
@@ -82,6 +86,16 @@ der Pflanzpunkt, der sich nie mehr ändert.
 - Unter 73 % des Budgets beginnt im Abstieg das Halbieren. Auf dem Weg nach oben
   starten bei derselben Grenze die Voxel-Generationen.
 - Die Reihenfolge der Vorläufer wird ausgelost.
+- Die drei Magnetpunkte für den Abstieg werden ausgelost: die Ecken eines Dreiecks
+  mit zufälligen Winkeln, das alle Ursprungsobjekte umschließt. Seine Kanten bleiben
+  mindestens 0,1 m von jedem Ursprungsobjekt weg, und kein Winkel ist kleiner als
+  25°. Jede Ecke liegt mindestens 2,5 m vom Pflanzpunkt entfernt und höchstens 3 m
+  von der Mitte des nächsten Ursprungsobjekts. Steht ein Ursprungsobjekt weiter als
+  1,2 m vom Pflanzpunkt (so weit wie im Standardszenario), wächst diese Grenze um
+  1,5 m pro Meter darüber. So bleibt das Dreieck bei eng gepflanzten Objekten etwa
+  so groß wie im Standardszenario (Ecken 2,5 bis 4,2 m vom Pflanzpunkt) und wächst
+  mit, wenn sie weiter auseinander stehen (bei 6 m Abstand bis rund 11 m). Die
+  Auslosung hat eigene Zufallszahlen, der übrige Lauf hängt nicht davon ab.
 
 Die Ursprungsobjekte zählen nicht zum Budget und nicht zum aktiven Ökosystem. Sie
 bilden Keimlinge, verschmelzen aber nie und werden erst im Abstieg verändert.
@@ -264,8 +278,9 @@ Der Abstieg beginnt, wenn die Keimlingsphase vorbei ist, im Median an Kalenderta
 
 **Bewegung:**
 
-- Alles, was nicht unterwegs zu einer Verschmelzung ist, driftet mit 0,04 m pro
-  Eigentag zum Pflanzpunkt, bis es 0,65 m davon entfernt ist (plus halbe Breite).
+- Alles, was nicht unterwegs zu einer Verschmelzung ist, driftet mit 0,07 m pro
+  Eigentag zum nächsten der drei Magnetpunkte, bis es 0,65 m davon entfernt ist
+  (plus halbe Breite). So sammeln sich die Objekte an den drei Ecken des Dreiecks.
 - Die Anziehung unter gleich oft verschmolzenen Objekten läuft weiter, bis sie
   verwelken.
 
@@ -273,7 +288,7 @@ Der Abstieg beginnt, wenn die Keimlingsphase vorbei ist, im Median an Kalenderta
 
 Das Halbieren ist ein Abschnitt des Abstiegs, keine eigene Phase im Code. Es
 beginnt, sobald die Dreiecke unter 73 % des Budgets fallen, im Median an
-Kalendertag 17,0. Alles aus dem Abstieg läuft weiter.
+Kalendertag 16,6. Alles aus dem Abstieg läuft weiter.
 
 **Wer halbiert wird:** etwa alle 0,5 Eigentage (±30 %) ein Objekt, und die Abstände
 werden kürzer: Sie werden geteilt durch 1 + 0,075 × Eigentage seit Beginn, nach 10
@@ -310,8 +325,8 @@ offen und zackig.
 ## Verfall und Ende
 
 Der Verfall beginnt, wenn es nur noch verwelkende Objekte gibt und kein Paar mehr
-unterwegs ist, im Median an Kalendertag 23,1. Er dauert etwa 17 Kalendertage, bis
-zum Ende an Kalendertag 39,8.
+unterwegs ist, im Median an Kalendertag 22,0. Er dauert etwa 16 Kalendertage, bis
+zum Ende an Kalendertag 38,3.
 
 **Transformationen:**
 
@@ -323,7 +338,7 @@ zum Ende an Kalendertag 39,8.
 
 **Bewegung:**
 
-- Die Drift zum Pflanzpunkt hört auf.
+- Die Drift zu den Magnetpunkten hört auf.
 - Halbierte Stücke stoßen sich doppelt so stark ab.
 - Verwelkende Objekte schrumpfen um 2,25 % pro Eigentag, bis auf 70 % ihrer Größe
   bei Beginn des Verfalls.

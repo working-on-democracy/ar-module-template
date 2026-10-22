@@ -31,7 +31,7 @@ interface State {
   boostsPaused: boolean;
   slowed: boolean;
   lastWatched: number;
-  viewers: number; plantingPoint: Vec3; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
+  viewers: number; plantingPoint: Vec3; gatherPoints: Vec3[]; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
   triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
   objects: Obj[]; photos: Photo[]; drawings: Drawing[]; pairs: Pair[];
   jobs: { id: number; kind: string; objectId: string; partnerId?: string; seconds: number }[]; queued: number;
@@ -122,7 +122,7 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// helpers: planting point, moving centre, feed radius, bounding box, exclusion radius, pairs
+// helpers: planting point, magnetic points, moving centre, feed radius, bounding box, exclusion radius, pairs
 const helpers = new THREE.Group();
 scene.add(helpers);
 const lineMat = (color: number, opacity = 1) => new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity });
@@ -146,6 +146,24 @@ let exclusionRing = circle(1, 0x5f6a63, 0.35);
 helpers.add(exclusionRing);
 const bboxHelper = new THREE.Box3Helper(new THREE.Box3(), new THREE.Color(0x8a948c));
 helpers.add(bboxHelper);
+// the descent's three magnetic points: a ring and a post at each corner, the triangle's edges on the ground
+const GATHER_COLOR = 0x3b5bd6;
+const gatherMark = new THREE.Group();
+helpers.add(gatherMark);
+let gatherKey = "";
+function setGatherPoints(pts: Vec3[]) {
+  const key = JSON.stringify(pts);
+  if (key === gatherKey) return; // fixed when planted: rebuilt only for another run
+  gatherKey = key;
+  gatherMark.clear();
+  if (!pts.length) return;
+  gatherMark.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts.map((q) => new THREE.Vector3(q[0], 0.012, q[2]))), lineMat(GATHER_COLOR, 0.7)));
+  for (const q of pts) {
+    const ring = circle(0.15, GATHER_COLOR); ring.position.set(q[0], 0.012, q[2]);
+    const post = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(q[0], 0, q[2]), new THREE.Vector3(q[0], 0.6, q[2])]), lineMat(GATHER_COLOR));
+    gatherMark.add(ring, post);
+  }
+}
 // dashed line between two objects of a pair while they move towards each other
 // (fat lines: WebGL draws ordinary lines 1 px wide whatever their width)
 pairMaterial = new LineMaterial({ color: 0xe0218a, linewidth: 4, dashed: true, dashSize: 0.14, gapSize: 0.09, depthTest: false, transparent: true });
@@ -518,6 +536,7 @@ function sync(s: State) {
 
   centerMark.position.set(s.center[0], 0, s.center[2]);
   plantMark.position.set(s.plantingPoint[0], 0, s.plantingPoint[2]);
+  setGatherPoints(s.gatherPoints ?? []);
   helpers.remove(feedRing, exclusionRing);
   feedRing = circle(s.params.feedRadius, 0x2e6a4c, 0.8); feedRing.position.set(s.center[0], 0.01, s.center[2]);
   exclusionRing = circle(s.params.exclusionRadius, 0x5f6a63, 0.35); exclusionRing.position.set(s.plantingPoint[0], 0.01, s.plantingPoint[2]);
@@ -537,14 +556,17 @@ function hud(s: State) {
     ? `Wiedergabe ${s.run.dir} · ${fmt(rp.progress * 100)} %${rp.done ? " · zu Ende" : ""}${rp.diverged ? " · weicht ab!" : ""}`
     : `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode ?? "erste Verschmelzung hart, danach weich"}`;
   for (const id of ["viewer-add", "viewer-remove", "photo-add", "drawing-add"]) $<HTMLButtonElement>(id).disabled = !!rp;
-  const counts = { keimling: 0, aktiv: 0, verwelkend: 0, tot: 0, ursprung: 0 };
-  for (const o of s.objects) { if (o.origin) counts.ursprung++; else counts[o.state]++; }
+  const counts = { keimling: 0, aktiv: 0, verwelkend: 0, tot: 0, ursprung: 0, halbiert: 0 };
+  for (const o of s.objects) {
+    if (o.origin) counts.ursprung++; else counts[o.state]++;
+    if (!o.origin && o.state !== "tot" && o.halvings > 0) counts.halbiert++; // living pieces of a halving (also counted by state)
+  }
   const fp = s.factorParts;
   $("clock").innerHTML = [
     ["Kalendertag", fmt(s.calendar, 2)], ["Eigenzeit", fmt(s.eigen, 2)],
     ["Zeitfaktor", s.boostsPaused ? `${s.slowed ? fmt(s.factor, 2) : 1} × (Boosts ausgesetzt${s.slowed ? ", verlangsamt" : ""}: seit ${fmt(s.calendar - s.lastWatched, 1)} Tagen hat niemand hingeschaut)` : `${fmt(s.factor, 2)} × (Inhalt ${fmt(fp.inhalt, 2)}, Ereignisse ${fmt(fp.ereignisse, 2)}, Hinschauen ${fmt(fp.hinschauen, 2)})${s.fastFactor !== s.factor ? `, Vorläufer ${fmt(s.fastFactor, 2)} ×` : ""}`],
     ["Dreiecke", `${fmt(s.triangles)} von ${fmt(s.budget)} (Komprimierung ab ${fmt(s.compressAt)}, Halbieren unter ${fmt(s.halvingAt)})`],
-    ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung`],
+    ["Objekte", `${counts.keimling} Keimlinge, ${counts.aktiv} aktiv, ${counts.verwelkend} verwelkend, ${counts.ursprung} Ursprung · ${counts.halbiert} halbiert`],
     ["Geräte", String(s.viewers)],
   ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
   $("budget-bar").style.width = `${Math.min(100, (s.triangles / s.budget) * 100)}%`;

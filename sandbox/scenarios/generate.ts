@@ -20,6 +20,7 @@ export const SCENARIO_DEFAULTS = {
   visitDevices: 2,
   visitHours: 0.5,
   contentDistance: 12,
+  starterRing: 1.2, // m: radius of the ring the origin objects are planted on
 };
 export type ScenarioValues = typeof SCENARIO_DEFAULTS;
 
@@ -28,7 +29,7 @@ export function buildScenario(i: { scenario: ScenarioValues; starters: string[] 
   const rng = createRng(s.seed * 7919 + 13);
   const starters = i.starters.map((name, k) => {
     const a = (k / i.starters.length) * Math.PI * 2;
-    const r = i.starters.length > 1 ? 1.2 : 0;
+    const r = i.starters.length > 1 ? s.starterRing : 0;
     return { name, model: MODELS[name], pos: [Math.cos(a) * r, 0, Math.sin(a) * r] as Vec3 };
   });
   const timeline: ScheduledEntry[] = [];

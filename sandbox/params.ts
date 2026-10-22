@@ -72,6 +72,7 @@ export const PARAMS = {
   // --- size of the planted origin objects (longest side), scaled into this range when planted
   originMinSize: 0.2,
   originMaxSize: 0.6,
+  originMaxSpread: 6, // m at most between the centres of any two origin objects; planted further apart, they are moved closer to their middle
   // Keimlinge: the origin's size, a little varied and larger with every generation; the range above
   // may be left by keimSizeSlack, from generation 2 on upwards by keimSizeSlackPerGeneration more each
   keimSizeVariance: 0.15, // ± fraction, random per Keimling
@@ -118,9 +119,16 @@ export const PARAMS = {
   swayGroundFactor: 0.1, // on the ground the bobbing is this much of it …
   swayPerMetre: 0.4, // … plus this per metre of height above the ground …
   swayMaxFactor: 1.2, // … at most
-  // descent: every object not on its way to a fusion drifts slowly towards the planting point
-  gatherPerDay: 0.04, // m per Eigentag (slower within the last metre)
-  gatherStop: 0.65, // m from the planting point (plus half the object's width)
+  // descent: every object not on its way to a fusion drifts slowly towards the nearest of three magnetic
+  // points, the corners of a triangle with random angles around the origin objects (chosen when planted)
+  gatherPerDay: 0.07, // m per Eigentag (slower within the last metre)
+  gatherStop: 0.65, // m from its magnetic point (plus half the object's width)
+  gatherCornerMinDist: 2.5, // m: every corner at least this far from the planting point
+  gatherCornerMaxDist: 3, // m: every corner at most this far from the nearest origin object's centre …
+  gatherSpreadRef: 1.2, // … while no origin object stands further than this from the planting point …
+  gatherCornerPerSpread: 1.5, // … beyond, that limit grows by this many m per m further out
+  gatherEdgeGap: 0.1, // m: the triangle's edges keep at least this off every origin object's footprint
+  gatherMinAngle: 25, // degrees: no angle of the triangle smaller
   halvingRepelPerDay: 0.07, // m per Eigentag: the two halves of a halving push each other away (added to the drift) …
   halvingRepelRange: 1.5, // … weaker with distance, none beyond this many metres
   // kinship: fused, active objects not on their way to a fusion drift slowly towards the nearest one

@@ -263,6 +263,8 @@ export interface World {
   boosts: Boost[];
   viewers: number;
   plantingPoint: Vec3;
+  /** The descent's three magnetic points: corners of a triangle around the origin objects, fixed when planted. */
+  gatherPoints: Vec3[];
   /** Polygon budget and the two thresholds, from the planted origin objects' triangles (params budget*). */
   budget: number;
   compressAt: number;
