@@ -172,6 +172,46 @@ const pairLines = new LineSegments2(new LineSegmentsGeometry(), pairMaterial);
 pairLines.renderOrder = 10; // drawn over the models, so it stays visible
 pairLines.frustumCulled = false;
 scene.add(pairLines); // not under helpers: always shown
+// state discs and origin rings under the objects
+const markers = new THREE.Group();
+scene.add(markers);
+
+// Preview: no GUI, no markers or helper lines. A dark grey ground hides what
+// sinks into it and fades into a horizon (fog of the horizon's colour), above
+// it the sky darkens upwards. P toggles it, Esc leaves it.
+const HORIZON = 0x3d3d3d, ZENITH = 0x1c1c1c;
+const previewGround = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x2f2f2f, roughness: 1 }));
+previewGround.rotation.x = -Math.PI / 2;
+previewGround.receiveShadow = true;
+// sky dome: horizon colour at and below the horizon, darker towards the top; follows the camera
+const skyGeometry = new THREE.SphereGeometry(400, 32, 16);
+const skyColors: number[] = [], horizon = new THREE.Color(HORIZON), zenith = new THREE.Color(ZENITH), c = new THREE.Color();
+const skyPos = skyGeometry.getAttribute("position");
+for (let i = 0; i < skyPos.count; i++) {
+  c.copy(horizon).lerp(zenith, Math.pow(Math.max(0, skyPos.getY(i) / 400), 0.6));
+  skyColors.push(c.r, c.g, c.b);
+}
+skyGeometry.setAttribute("color", new THREE.Float32BufferAttribute(skyColors, 3));
+const sky = new THREE.Mesh(skyGeometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+sky.renderOrder = -1;
+const previewFog = new THREE.FogExp2(HORIZON, 0.014);
+let preview = false;
+function setPreview(on: boolean) {
+  preview = on;
+  document.body.classList.toggle("preview", on);
+  if (on) scene.add(previewGround, sky); else scene.remove(previewGround, sky);
+  scene.background = on ? horizon : new THREE.Color(0xe9ece6);
+  scene.fog = on ? previewFog : null;
+  ground.visible = !on;
+  grid.visible = pairLines.visible = markers.visible = !on;
+  helpers.visible = !on && $("helpers").classList.contains("on");
+  $("preview").classList.toggle("on", on);
+}
+window.addEventListener("keydown", (e) => {
+  if ((e.target as HTMLElement).closest("input, select, textarea")) return;
+  if (e.code === "KeyP") setPreview(!preview);
+  else if (e.code === "Escape" && preview) setPreview(false);
+});
 let movingPairs: Pair[] = [];
 
 // ---------------------------------------------------------------- models
@@ -275,10 +315,10 @@ function newView(o: Obj): View {
   root.userData.objectId = o.id;
   const marker = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: STATE_COLOR[o.state], transparent: true, opacity: 0.35 }));
   marker.rotation.x = -Math.PI / 2;
-  scene.add(root, marker);
+  scene.add(root); markers.add(marker);
   const grain = { grainStrength: { value: 0 }, grainScale: { value: 300 }, grainSeed: { value: 0 } };
   const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
-  if (o.origin) { v.originRing = circle(1, 0x4d4038); scene.add(v.originRing); }
+  if (o.origin) { v.originRing = circle(1, 0x4d4038); markers.add(v.originRing); }
   root.position.set(o.pos[0], 0, o.pos[2]);
   return v;
 }
@@ -466,7 +506,7 @@ function syncPhotos(photos: Photo[]) {
     if (!pv) {
       const group = new THREE.Group();
       const t = texLoader.load(`/api/photo/${ph.id}/0`); t.colorSpace = THREE.SRGBColorSpace;
-      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.6), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
       plate.position.y = 1.5;
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.2), new THREE.MeshBasicMaterial({ color: 0x8a948c }));
       pole.position.y = 0.6;
@@ -629,8 +669,8 @@ function sync(s: State) {
   }
   for (const [id, v] of views) {
     if (seen.has(id)) continue;
-    scene.remove(v.root, v.marker);
-    if (v.originRing) scene.remove(v.originRing);
+    scene.remove(v.root); markers.remove(v.marker);
+    if (v.originRing) markers.remove(v.originRing);
     views.delete(id);
   }
   syncPhotos(s.photos);
@@ -740,6 +780,7 @@ $("grain").addEventListener("click", () => {
   for (const v of views.values()) applyLook(v);
 });
 $("helpers").addEventListener("click", () => { helpers.visible = !helpers.visible; $("helpers").classList.toggle("on", helpers.visible); });
+$("preview").addEventListener("click", () => setPreview(true));
 
 // hover: what is this object
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
@@ -836,6 +877,7 @@ function frame() {
     if (u >= 1) flight = null;
   }
   controls.update();
+  if (preview) sky.position.copy(camera.position);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }

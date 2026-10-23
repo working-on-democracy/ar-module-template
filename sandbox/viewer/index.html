@@ -38,6 +38,7 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); o
 .muted { color: var(--muted); font-size: 12.5px; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+body.preview #hud, body.preview #tip { display: none !important; }
 #tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; display: none; max-width: 260px; }
 </style>
 </head>
@@ -69,6 +70,10 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); o
       <span class="muted">Foto auf Objekt:</span>
       <button id="proj-uv">auf UVs</button><button id="proj-plane" class="on">projiziert</button>
       <button id="grain" class="on">Grain</button><button id="helpers" class="on">Hilfslinien</button>
+    </div>
+    <div class="row">
+      <button id="preview">Vorschau</button>
+      <span class="muted">ohne Oberfläche und Markierungen, mit Horizont; P schaltet um, Esc beendet</span>
     </div>
   </div>
   <div class="card"><h2>Rechenjobs</h2><div class="jobs" id="jobs"></div></div>

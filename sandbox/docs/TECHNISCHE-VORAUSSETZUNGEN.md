@@ -1,6 +1,6 @@
 # Pflanze auf an-alle.net: technische Voraussetzungen
 
-Stand: 21. Oktober 2026. Referenz für den Betrieb der Pflanze auf der Plattform.
+Stand: 23. Oktober 2026. Referenz für den Betrieb der Pflanze auf der Plattform.
 Online-Fassung zum Kommentieren: https://claude.ai/artifact/9wTdGyYU9gNCuD2QaL6grA
 
 Die konkreten Schritte am Server nach Priorität: [Aufgaben für den Admin](ADMIN-AUFGABEN.md).
@@ -265,7 +265,7 @@ Code.
 | Ort | ein Mac, eine Pflanze, Viewer im Browser auf localhost | Uberspace, Darstellung in der AR-App am echten Ort, eventuell mehrere Pflanzen |
 | Koordinaten | Meter um einen Pflanzpunkt bei 0, 0, 0 | Pflanzpunkt als Breite und Länge, Objekte als Versatz nach Osten, oben und Norden, wie bei den Zeichnungen (`Stroke`) |
 | Zeit | Tempo wählbar, bis zu vielen Tagen pro Minute | nur Echtzeit, ein Lebenszyklus dauert rund 40 Tage, ohne Besucher viel länger |
-| Fotos und Zeichnungen | aus einem Szenario erzeugt: Testfotos und zufällige Linien an zufälligen Orten | echte Inhalte aus MongoDB, mit Moderation, Sperrung und Ablauf pro Gebiet |
+| Fotos und Zeichnungen | aus einem Szenario erzeugt: gemeinfreie Stadt- und Parkfotos (`sandbox/test-photos`) und zufällige Linien an zufälligen Orten | echte Inhalte aus MongoDB, mit Moderation, Sperrung und Ablauf pro Gebiet |
 | Zeichnungen in der Pflanze | eine Punktfolge, deren Mitte angezogen wird | echte `Stroke`-Dokumente mit mehreren Linien und Dicke je Punkt |
 | Geräte | ein Knopf im Viewer oder Besuche im Szenario | echte Zählung im Umkreis, Regel noch offen |
 | Startobjekte | fünf feste Modelle aus `sandbox/models/` | offen: wer pflanzt, womit, und wo |

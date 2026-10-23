@@ -55,7 +55,10 @@ npm run typecheck                         # Typprüfung für alles
 
 Läuft gerade eine Sandbox, braucht eine zweite einen anderen Port (`-- --port 5181`).
 Jeder Lauf legt einen Ordner unter `sandbox-runs/` an (von Git ignoriert): Modelle,
-Protokoll, Aufzeichnung. Die Startmodelle liegen in `sandbox/models/`.
+Protokoll, Aufzeichnung. Die Startmodelle liegen in `sandbox/models/`, die Testfotos
+(gemeinfreie Stadt- und Parkaufnahmen im Hochformat, Quellen in `QUELLEN.md`) in `sandbox/test-photos/`.
+Im Viewer blendet **Vorschau** (Taste P, Esc beendet) Oberfläche, Markierungen und
+Hilfslinien aus: dunkelgrauer Boden, der Eingesunkenes verdeckt, mit Horizont im Dunst.
 
 ## Was wo liegt
 

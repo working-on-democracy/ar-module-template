@@ -12,15 +12,13 @@
 //
 // Every run gets a folder sandbox-runs/<time>-seed<n>/ (gitignored): run.json
 // (values, seed, commit), events.jsonl, state.json, tape.jsonl (everything
-// --replay needs), every .glb version and the test photos with their crushed versions.
+// --replay needs), every .glb version and the test photos (from sandbox/test-photos) with their crushed versions.
 import { execSync } from "node:child_process";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { Jimp, loadFont } from "jimp";
-import { SANS_64_WHITE } from "jimp/fonts";
 import { createServer as createViteServer } from "vite";
 import { PARAMS, type Params } from "./params";
 import { decodeImage, encodeJpeg, subsampleChroma } from "../scripts/jimp-image";
@@ -28,7 +26,6 @@ import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import models from "./scenarios/starter-models.json";
-import { createRng } from "./sim/rng";
 import { advance, QUANTUM } from "./sim/schedule";
 import { decompose } from "./sim/pose";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
@@ -38,6 +35,7 @@ import {
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const HERE = fileURLToPath(new URL(".", import.meta.url));
+const TEST_PHOTOS = readdirSync(join(HERE, "test-photos")).filter((f) => f.endsWith(".jpg")).sort();
 
 const { values: args } = parseArgs({
   options: {
@@ -211,41 +209,11 @@ async function ensurePhotos() {
 }
 
 async function makeTestPhoto(id: string, file: string) {
+  // a public-domain outdoor photo (sandbox/test-photos), the same one for the same id
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const rng = createRng(h);
-  const hue = Math.floor(rng.range(0, 360));
-  const img = new Jimp({ width: 800, height: 600, color: hsl(hue, 45, 85) });
-  for (let k = 0; k < 9; k++) {
-    const x = rng.range(0, 800), y = rng.range(0, 600), r = rng.range(30, 160), hh = (hue + rng.range(-60, 60) + 360) % 360;
-    if (rng.next() < 0.5) fill(img, (px, py) => (px - x) ** 2 + (py - y) ** 2 <= r * r, hsl(hh, 70, rng.range(35, 70)));
-    else {
-      const c = hsl(hh, 60, rng.range(30, 75)), a = (rng.range(-40, 40) * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
-      // a rectangle 2r × r, turned about its centre
-      fill(img, (px, py) => { const dx = px - x, dy = py - y; return Math.abs(dx * cos + dy * sin) <= r && Math.abs(-dx * sin + dy * cos) <= r / 2; }, c);
-    }
-  }
-  fill(img, (px, py) => px >= 40 && px < 460 && py >= 470 && py < 560, 0x0000008c);
-  img.print({ font: await loadFont(SANS_64_WHITE), x: 60, y: 482, text: `Testfoto ${id}` });
-  writeFileSync(file, await img.getBuffer("image/jpeg", { quality: 90 }));
-}
-
-/** Colour of hue h (degrees), saturation s and lightness l (percent), as jimp's RGBA number. */
-function hsl(h: number, s: number, l: number): number {
-  const k = (n: number) => (n + h / 30) % 12, a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-  const f = (n: number) => Math.round(255 * (l / 100 - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
-  return ((f(0) << 24) | (f(8) << 16) | (f(4) << 8) | 0xff) >>> 0;
-}
-
-/** Paints every pixel where `inside` holds, blended by the colour's alpha. */
-function fill(img: InstanceType<typeof Jimp>, inside: (x: number, y: number) => boolean, rgba: number) {
-  const { data, width, height } = img.bitmap, alpha = (rgba & 0xff) / 255;
-  const rgb = [(rgba >>> 24) & 0xff, (rgba >>> 16) & 0xff, (rgba >>> 8) & 0xff];
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    if (!inside(x, y)) continue;
-    const i = (y * width + x) * 4;
-    for (let c = 0; c < 3; c++) data[i + c] = Math.round(data[i + c] * (1 - alpha) + rgb[c] * alpha);
-  }
+  const pick = TEST_PHOTOS[h % TEST_PHOTOS.length];
+  copyFileSync(join(HERE, "test-photos", pick), file);
 }
 
 /** Crushed version of a photo for an object's crush level, made on first request (server-side, as planned). */

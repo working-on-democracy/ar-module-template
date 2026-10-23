@@ -50,6 +50,7 @@ sandbox/server.ts     sandbox server: speed, tape (tape.jsonl), replay, viewer A
 sandbox/viewer/       three.js viewer, buffered playback
 sandbox/lifecycle-page/  lifecycle calculator (same sim, plain-number jobs), built to a single HTML file
 sandbox/models/       starter .glb models (from Sloyd, uncompressed)
+sandbox/test-photos/  public-domain (CC0) outdoor photos the sandbox uses as uploaded photos, sources in QUELLEN.md
 sandbox/docs/         documentation (German), mirrored as online Claude Docs (links at the top of each)
 scripts/              GLB tools; jimp-image.ts = texture work without native libs
 src/, lib/            AR-module template baseline; src/a-frame-components/grain-shimmer.ts = the plant's grain look
