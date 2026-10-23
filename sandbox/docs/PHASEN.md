@@ -1,6 +1,6 @@
 # Phasen der Pflanze
 
-Stand: 22. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 23. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/RNvesde8hFhazDVdYV9fHN
 
 ## Überblick
@@ -298,7 +298,10 @@ Verschmelzungen wird nicht halbiert.
 
 **Halbierungskette:** Damit jeder Schritt vorkommt, wird das erste halbierte Stück
 immer wieder halbiert, bis es vier Halbierungen hinter sich hat. Es lebt so lange
-weiter, auch wenn es die Todesgrenze erreicht.
+weiter, auch wenn es die Todesgrenze erreicht. Fällt es vorher unter 24 Dreiecke,
+lässt es sich nicht mehr halbieren: Dann gibt die Kette auf, das Stück wird wie
+jedes andere komprimiert und stirbt, und ein größeres Stück kann eine neue Kette
+beginnen.
 
 **Transformationen**, je nachdem, wie oft das Stück schon halbiert wurde:
 

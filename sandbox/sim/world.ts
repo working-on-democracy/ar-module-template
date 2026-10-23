@@ -790,7 +790,13 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (w.nextHalvingAt !== null && w.eigen >= w.nextHalvingAt) {
       // every step at least once: one piece is halved again and again (down to
       // thirds) until requiredHalvings; otherwise the largest object
-      const chain = w.halvingChain && w.halvingChain !== "fertig" ? w.objects.find((x) => x.id === w.halvingChain && x.state !== "tot") : undefined;
+      let chain = w.halvingChain && w.halvingChain !== "fertig" ? w.objects.find((x) => x.id === w.halvingChain && x.state !== "tot") : undefined;
+      // the chain's piece got too small before its last halving: the chain gives up, the piece
+      // is compressed and dies like any other, and a larger piece may start a new chain
+      if (chain && !chain.busy && chain.halvings < p.requiredHalvings && chain.triangles < CHAIN_MIN_TRIANGLES) {
+        log(w, "halbierung", `Halbierungskette gibt auf: ${chain.id} ist nach ${chain.halvings} Halbierungen zu klein (${chain.triangles} Dreiecke)`, chain.id);
+        w.halvingChain = null; chain = undefined;
+      }
       const o = chain && !chain.busy && chain.halvings < p.requiredHalvings && chain.triangles >= CHAIN_MIN_TRIANGLES
         ? chain
         : largest(w, (x) => x.triangles >= p.minTrianglesToHalve && x.id !== w.champion, (x) => (x.fast ? p.fastHalvingAffinity : 1));
