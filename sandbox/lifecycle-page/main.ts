@@ -193,7 +193,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "lingerVariance", label: "Varianz", unit: "± Eigentage", step: 0.1 },
     { key: "maxJobFailures", label: "Verwelkende sterben vorzeitig nach", unit: "gescheiterten Vorgängen", step: 1 },
   ] },
-  { title: "Fotos", note: "Ein Objekt, das ein Foto übernimmt, bleibt aktiv. Das Foto wird aus seiner Richtung auf das Objekt projiziert, was im Schatten liegt, behält die eigene Textur. Nach einer Verschmelzung wird neu projiziert, beim Halbieren behalten beide Hälften dieselbe Projektion.", fields: [
+  { title: "Fotos", note: "Aktive Objekte übernehmen Fotos, bis zum Verfall auch verwelkende. Ein Objekt, das ein Foto übernimmt, bleibt aktiv. Das Foto wird aus seiner Richtung auf das Objekt projiziert, was im Schatten liegt, behält die eigene Textur. Nach einer Verschmelzung wird neu projiziert, beim Halbieren behalten beide Hälften dieselbe Projektion.", fields: [
     { key: "photoWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
     { key: "photoTakePerDay", label: "Übernahme-Rate", unit: "pro Eigentag", step: 0.1 },
     { key: "photoLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
@@ -201,7 +201,7 @@ const PARAM_GROUPS: Group[] = [
     { key: "photoSaturateMax", label: "Foto höchstens gesättigter", unit: "× insgesamt", step: 0.5 },
     { key: "photoHeight", label: "Höhe von Fotos und Kommentaren", unit: "m (Mitte), von dort kommt die Projektion", step: 0.1 },
   ] },
-  { title: "Kommentare", note: "Kommentare zählen für den Zeitfaktor wie Fotos und Zeichnungen. Ein zufälliges aktives Objekt in der Nähe übernimmt einen Kommentar: Sein Text wird in einer Farbe der Zeichen-Palette aus seiner Richtung auf das Objekt projiziert, wie ein Foto.", fields: [
+  { title: "Kommentare", note: "Kommentare zählen für den Zeitfaktor wie Fotos und Zeichnungen. Ein zufälliges aktives Objekt in der Nähe übernimmt einen Kommentar (bis zum Verfall auch ein verwelkendes): Sein Text wird in einer Farbe der Zeichen-Palette aus seiner Richtung auf das Objekt projiziert, wie ein Foto.", fields: [
     { key: "commentWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
     { key: "commentTakePerDay", label: "Übernahme-Rate", unit: "pro Eigentag", step: 0.1 },
     { key: "commentReach", label: "Objekte in der Nähe bis", unit: "m vom Kommentar (sonst das nächste)", step: 0.5 },

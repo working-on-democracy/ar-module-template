@@ -17,7 +17,7 @@ Kalendertage, Median über 10 Seeds im Standardszenario:
 | Wachstum | 0 | 3,9 | Vorläufer und Eröffnung kurz nach dem Pflanzen, Keimlinge entstehen |
 | Plateau | 3,9 | 12,0 | Keimlinge füllen auf, verstärkte Komprimierung |
 | Abstieg | 12,0 | 21,2 | stetige Komprimierung, ab Tag 14,8 Halbieren |
-| Verfall | 21,2 | 34,8 | häufige Komprimierung, Sterben, Ende |
+| Verfall | 21,2 | 34,7 | häufige Komprimierung, Sterben, Ende |
 
 Im Code heißen die Phasen `wachstum`, `plateau`, `abstieg`, `verfall` und `ende`.
 Das Halbieren ist ein Abschnitt des Abstiegs, der beginnt, sobald die Dreiecke unter
@@ -329,7 +329,7 @@ offen und zackig.
 
 Der Verfall beginnt, wenn es nur noch verwelkende Objekte gibt und kein Paar mehr
 unterwegs ist, im Median an Kalendertag 21,2. Er dauert etwa 14 Kalendertage, bis
-zum Ende an Kalendertag 34,8.
+zum Ende an Kalendertag 34,7.
 
 **Transformationen:**
 
@@ -411,7 +411,7 @@ mit Besuchen, Fotos, Zeichnungen und Kommentaren (je Woche 2 Fotos, 3 Zeichnunge
 
 **Fotos.** Ein Foto im Umkreis von 15 m kann nach einem Kalendertag Wartezeit
 genommen werden, mit 50 % Chance pro Eigentag. Das nächste aktive Objekt übernimmt
-es und bleibt aktiv. Das Foto wird aus der Richtung, in der es schwebt (Mitte 0,6 m
+es und bleibt aktiv. Bis zum Verfall kommen auch verwelkende Objekte in Frage. Das Foto wird aus der Richtung, in der es schwebt (Mitte 0,6 m
 über dem Boden), auf das Objekt projiziert. Nur was die Projektion direkt trifft, zeigt
 das Foto. Was abgewandt ist oder hinter einem anderen Teil liegt, behält die
 eigene Textur. Nach einer Verschmelzung wird das Foto neu auf das verschmolzene
@@ -426,6 +426,7 @@ bekommt das Objekt seine eigene Textur zurück.
 Zeichen an einem Ort). Ein Kommentar im Umkreis von 15 m kann nach einem
 Kalendertag Wartezeit genommen werden, mit 50 % Chance pro Eigentag. Ein zufälliges
 aktives Objekt im Umkreis von 4 m übernimmt ihn, gibt es dort keins, das nächste.
+Bis zum Verfall kommen auch verwelkende Objekte in Frage.
 Sein Text wird wie ein Foto aus der Richtung des Kommentars auf das Objekt
 projiziert, nur auf die Dreiecke, die die Projektion trifft. Die Schrift ist dieselbe
 wie bei Kommentaren in der App (fett, `NeueMontreal, Helvetica`), die Farbe eine

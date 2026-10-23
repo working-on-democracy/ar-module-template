@@ -1004,14 +1004,16 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
   if (removed.length) w.objects = w.objects.filter((o) => !removed.includes(o));
   if (descending(w) && !w.objects.length && !w.jobs.length && !w.pairs.length) { w.phase = "ende"; log(w, "phase", "Das Ökosystem ist vergangen"); }
 
-  // Photos: taken after the (calendar) waiting time, by chance.
+  // Photos: taken after the (calendar) waiting time, by chance. Active objects take
+  // photos and comments, and wilting ones too until the decay.
   const center = ecosystemCenter(w);
+  const takes = (o: PlantObject) => (o.state === "aktiv" || (o.state === "verwelkend" && w.phase !== "verfall")) && !o.origin && !o.busy && !o.pairedWith;
   for (const ph of w.photos) {
     if (ph.gone || w.calendar - ph.createdAt < p.photoWaitDays) continue;
     if (dist2d(ph.pos, center) > p.feedRadius) continue;
     if (w.objects.some((o) => o.photo?.photoId === ph.id)) continue; // one object per photo
     if (!rng.chance(p.photoTakePerDay, dt)) continue;
-    const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.pairedWith && !o.photo);
+    const candidates = w.objects.filter((o) => takes(o) && !o.photo);
     const o = nearest(candidates, ph.pos);
     if (!o) continue;
     o.photo = { photoId: ph.id, since: w.eigen, frame: aimPhoto(w, o, ph), changes: 0 };
@@ -1024,7 +1026,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     if (dist2d(c.pos, center) > p.feedRadius) continue;
     if (w.objects.some((o) => o.comment?.commentId === c.id)) continue; // one object per comment
     if (!rng.chance(p.commentTakePerDay, dt)) continue;
-    const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.pairedWith && !o.comment);
+    const candidates = w.objects.filter((o) => takes(o) && !o.comment);
     const near = candidates.filter((o) => dist2d(o.pos, c.pos) <= p.commentReach);
     const o = near.length ? near[Math.floor(rng.next() * near.length)] : nearest(candidates, c.pos);
     if (!o) continue;
