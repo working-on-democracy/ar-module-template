@@ -2,7 +2,7 @@
 
 Der Branch `plant` enthält die **Pflanze**: ein digitales Ökosystem aus 3D-Objekten,
 das an einem Ort auf der Plattform an-alle.net wächst, sich kopiert, verschmilzt,
-halbiert, verwelkt und nach rund 40 Tagen vergeht. Fotos, Zeichnungen und
+halbiert, verwelkt und nach rund 35 Tagen vergeht. Fotos, Zeichnungen, Kommentare und
 Besucher in der Nähe beschleunigen es. Jede Veränderung an einem Objekt ist ein
 echter Rechenschritt auf einer GLB-Datei.
 
@@ -66,7 +66,7 @@ Hilfslinien aus: dunkelgrauer Boden, der Eingesunkenes verdeckt, mit Horizont im
 sandbox/
   sim/              Simulation: Regeln, Phasen, Zeitfaktor (reines TypeScript, ohne Abhängigkeiten)
   params.ts         alle Parameter mit Standardwerten
-  scenarios/        Startobjekte, Szenario (Fotos, Zeichnungen, Besuche nach Zeitplan)
+  scenarios/        Startobjekte, Szenario (Fotos, Zeichnungen, Kommentare, Besuche nach Zeitplan)
   runner/           führt die Jobs der Simulation mit den Skripten aus
   server.ts         Sandbox-Server: Tempo, Protokoll, Aufzeichnung, Viewer
   viewer/           3D-Viewer im Browser (three.js)

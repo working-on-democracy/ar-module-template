@@ -1,6 +1,6 @@
 # Pflanze: Schnittstellen
 
-Stand: 22. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 24. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/PGTvwXn1meUdcQd3fFuXYs
 
 ## Kurz erklärt
@@ -132,7 +132,8 @@ nicht, und an dem, was man sieht, ändern sie nichts.
 | `tint` | `{ color: [r, g, b], intensity }` oder leer | Leuchtfarbe: Farbe 0 bis 1 (sRGB), `intensity` geht direkt als Leuchtstärke ins Material |
 | `grain` | `{ strength, scale }` | Werte für `grain-shimmer`: `grain` und `grainScale` |
 | `sway` | `{ height, period }` | Schweben: Höhe in Metern, Takt in Sekunden, 0 = ruhig |
-| `photo` | `{ url, frame }` oder leer | Foto, schon in der passenden Stufe zerdrückt, und seine Projektion `frame` im Koordinatensystem des Modells: `dir` (Einheitsvektor zum Foto), `right` und `up` (Achsen des Bildes), `min` und `max` (Ausdehnung des Bildes entlang `right` und `up`) |
+| `photo` | `{ url, frame }` oder leer | Foto, schon in der passenden Stufe zerdrückt und gesättigt (stärker mit jeder Verschmelzung, Halbierung und Komprimierung des Objekts), und seine Projektion `frame` im Koordinatensystem des Modells: `dir` (Einheitsvektor zum Foto), `right` und `up` (Achsen des Bildes), `min` und `max` (Ausdehnung des Bildes entlang `right` und `up`) |
+| `comment` | `{ text, color, frame }` oder leer | Kommentar, den das Objekt übernommen hat: sein Text, die Schriftfarbe und die Projektion `frame` wie bei `photo` |
 
 **Alles steckt in `pose`:** Aus dem Boden wachsen, Höhe über dem Boden, Neigung,
 Größe nach dem Verschmelzen, Schrumpfen im Verfall, Einsinken nach dem Tod und die
@@ -221,7 +222,7 @@ nicht mehr in der Antwort steht, verschwindet.
 Deshalb schickt sie einen kleineren `pollSeconds`-Wert. Der Viewer nutzt dort weiter
 die feineren Bewegungsframes (`/api/frames`), die AR-Testfassung die Schnittstelle.
 
-## Zeichnungen und Fotos
+## Zeichnungen, Fotos und Kommentare
 
 **Zeichnungen** gibt es auf der Plattform schon als eigene Inhalte (`Stroke`: Linien
 mit Punkten, Farbe und Dicke, an einem Ort). Die App zeichnet sie heute schon
@@ -239,8 +240,9 @@ verweist die Schnittstelle nur auf die Zeichnung und sagt, wo sie gerade ist:
 Die App zeichnet eine Zeichnung, die hier steht, an dieser Stelle statt an ihrem
 eigenen Ort. Eine freie Zeichnung, die die Pflanze noch nicht angezogen hat, steht
 nicht in der Liste und erscheint wie gewohnt an ihrem Ort. Wie die übernommene
-Textur auf einer Linie aussehen soll, ist noch offen: In der Sandbox sind
-Zeichnungen nur Punktfolgen.
+Textur auf einer Linie aussehen soll, ist noch offen. Die Sandbox legt sie auf die
+Röhre der Linie, mit demselben Material wie die Plattform (`render/stroke-tube.ts`),
+in Längsrichtung achtmal wiederholt.
 
 **Fotos** kommen als fertige Bilddatei im Feld `photo.url` eines Objekts. Die App
 projiziert sie aus der Richtung `photo.frame.dir` auf das Modell:
@@ -261,11 +263,24 @@ Beim Halbieren bekommen beide Hälften denselben Rahmen, zusammen zeigen sie das
 ganze Bild. Die Sandbox macht die Projektion in `litTriangles`, `splitLit`,
 `projectedUv` und `fitPhoto` (`viewer/main.ts`), den Rahmen in `aimPhoto`
 (`sim/world.ts`). Der Server
-erzeugt die zerdrückten Stufen selbst aus dem Foto in der Datenbank und legt sie
-neben die Modelle, wie die Sandbox es heute tut (`/api/photo/<foto>/<stufe>`). Wird
+erzeugt die gesättigten und zerdrückten Fassungen selbst aus dem Foto in der
+Datenbank und legt sie neben die Modelle, wie die Sandbox es heute tut
+(`/api/photo/<foto>/<stufe>/<veränderungen>`). Wird
 ein Foto gesperrt oder läuft es ab, fällt `photo` bei der nächsten Antwort weg, und
 das Objekt zeigt wieder seine eigene Textur. Die Sandbox kennt diesen Ablauf schon,
 auf dem Server fehlt noch die Verbindung zur Moderation.
+
+**Kommentare** sind die Textbeiträge der Plattform (`Post`, über `postsNearby`).
+Die App stellt sie wie gewohnt an ihrem Ort dar. Hat ein Objekt einen Kommentar
+übernommen, steht er in seinem Feld `comment`: Die App schreibt den Text auf eine
+Leinwand, so wie sie es für Kommentare tut (`canvastext`: fett,
+`NeueMontreal, Helvetica`, umbrochen), mit dem Seitenverhältnis des Rahmens. Die
+Schrift ist halb so groß, wie sie den Rahmen füllen würde, steht in der Mitte und
+ist leicht durchsichtig (Deckkraft 0,7). Sie legt die Leinwand als Alpha-Maske in der Farbe
+`color` mit derselben Projektion und demselben Schatten wie ein Foto über das
+Objekt, unbeleuchtet wie die Kommentare in der App. Die Sandbox macht es so in
+`render/comment-text.ts` und `applyComment` (`viewer/main.ts`). Wird ein Kommentar
+gesperrt oder läuft er ab, fällt `comment` bei der nächsten Antwort weg.
 
 ## Schnittstelle 2: Simulation ↔ Rechendienst
 

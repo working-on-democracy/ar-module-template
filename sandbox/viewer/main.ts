@@ -10,10 +10,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { Drawing, Pair, Photo, PhotoFrame, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
+import type { Comment, Drawing, Pair, Photo, PhotoFrame, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
+import { COMMENT_ON_OBJECT_OPACITY, COMMENT_ON_OBJECT_SCALE, commentCanvas } from "../render/comment-text";
 import type { Params } from "../params";
 import { modelMatrix } from "../sim/world";
 import { decompose } from "../sim/pose";
+import { strokeTubes } from "../render/stroke-tube";
 
 type Obj = PlantObject & { sway: number; swayPeriod: number };
 const REALTIME = 1 / 1440; // one calendar day per day (npm run sandbox -- --speed echtzeit)
@@ -33,7 +35,7 @@ interface State {
   lastWatched: number;
   viewers: number; plantingPoint: Vec3; gatherPoints: Vec3[]; center: Vec3; bounds: { min: Vec3; max: Vec3 } | null;
   triangles: number; plateauMax: number; params: Params; budget: number; compressAt: number; halvingAt: number;
-  objects: Obj[]; photos: Photo[]; drawings: Drawing[]; pairs: Pair[];
+  objects: Obj[]; photos: Photo[]; comments: Comment[]; drawings: Drawing[]; pairs: Pair[];
   jobs: { id: number; kind: string; objectId: string; partnerId?: string; seconds: number }[]; queued: number;
   samples: Sample[]; sampleCount: number; events: SimEvent[];
 }
@@ -92,9 +94,13 @@ function walk(dt: number) {
   flight = null;
 }
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9a88, 1.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1.8);
-sun.position.set(-6, 12, 8);
+// The platform's light (ar-demo-backend ArScene.vue, #host-lights, checked at 0651352):
+// ambient #BBB at 1 and a white directional light at 0.6 from (−0.5, 1, 1), casting
+// shadows. Its three.js (r137, 8frame 1.3) still uses the old light units; since r155
+// the same picture needs the intensities × π.
+scene.add(new THREE.AmbientLight(0xbbbbbb, 1 * Math.PI));
+const sun = new THREE.DirectionalLight(0xffffff, 0.6 * Math.PI);
+sun.position.set(-0.5, 1, 1).normalize().multiplyScalar(15); // its direction; the distance only frames the shadow
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 // tight depth range and both biases against shadow acne (stripes on the models' own faces)
@@ -225,13 +231,13 @@ const loadGlb = (rel: string) => {
 };
 const texLoader = new THREE.TextureLoader();
 const photoTex = new Map<string, { tex: THREE.Texture; loaded: Promise<void> }>();
-function photoTexture(id: string, level: number) {
-  const key = `${id}-${level}`;
+function photoTexture(id: string, level: number, changes: number) {
+  const key = `${id}-${level}-${changes}`;
   let t = photoTex.get(key);
   if (!t) {
     let done = () => {};
     const loaded = new Promise<void>((resolve) => { done = resolve; });
-    const tex = texLoader.load(`/api/photo/${id}/${level}`, () => done());
+    const tex = texLoader.load(`/api/photo/${id}/${level}/${changes}`, () => done());
     tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
     t = { tex, loaded };
     photoTex.set(key, t);
@@ -301,6 +307,7 @@ interface View {
   marker: THREE.Mesh; // state disc on the ground
   originRing: THREE.Line | null;
   photoKey: string;
+  commentKey: string; // the comment layer was made for this
   meshes: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; grainy: THREE.Material | THREE.Material[]; geometry: THREE.BufferGeometry }[];
   grain: GrainUniforms;
   grainKey: string;
@@ -317,7 +324,7 @@ function newView(o: Obj): View {
   marker.rotation.x = -Math.PI / 2;
   scene.add(root); markers.add(marker);
   const grain = { grainStrength: { value: 0 }, grainScale: { value: 300 }, grainSeed: { value: 0 } };
-  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
+  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", commentKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
   if (o.origin) { v.originRing = circle(1, 0x4d4038); markers.add(v.originRing); }
   root.position.set(o.pos[0], 0, o.pos[2]);
   return v;
@@ -341,6 +348,7 @@ async function setModel(v: View, rel: string) {
   v.model = model;
   v.root.add(model);
   v.photoKey = "";
+  v.commentKey = "";
   applyLook(v);
 }
 
@@ -349,11 +357,11 @@ async function setModel(v: View, rel: string) {
 function applyLook(v: View) {
   const o = v.data;
   v.grain.grainStrength.value = grainOf(o.triangles);
-  const key = (o.photo && v.model ? `${o.photo.photoId}-${o.crushLevel}-${projection}-${JSON.stringify(o.photo.frame)}` : "") + (grainOn ? "|grain" : "");
+  const key = (o.photo && v.model ? `${o.photo.photoId}-${o.crushLevel}-${o.photo.changes}-${projection}-${JSON.stringify(o.photo.frame)}` : "") + (grainOn ? "|grain" : "");
   if (key !== v.photoKey) {
     v.photoKey = key;
     const ph = v.model ? o.photo : null, lit = ph ? litTriangles(v.model!, ph.frame) : null;
-    const tex = ph ? photoTexture(ph.photoId, o.crushLevel) : null;
+    const tex = ph ? photoTexture(ph.photoId, o.crushLevel, ph.changes) : null;
     const map = ph && tex && projection === "plane" ? fitPhoto(tex.tex, tex.loaded, ph.frame) : tex?.tex;
     for (const e of v.meshes) {
       e.mesh.geometry = e.geometry;
@@ -366,6 +374,7 @@ function applyLook(v: View) {
       e.mesh.material = [own, swap(e.material)];
     }
   }
+  applyComment(v);
   for (const e of v.meshes) {
     for (const m of Array.isArray(e.mesh.material) ? e.mesh.material : [e.mesh.material]) {
       const sm = m as THREE.MeshStandardMaterial;
@@ -381,6 +390,28 @@ function applyLook(v: View) {
         }
       }
     }
+  }
+}
+
+/** A comment's text, projected like a photo: a see-through layer over the triangles the
+ *  projection reaches, its letters in the comment's colour (unlit, as the platform's text). */
+const hiddenMaterial = new THREE.MeshBasicMaterial({ visible: false });
+function applyComment(v: View) {
+  const o = v.data, c = o.comment && state?.comments.find((x) => x.id === o.comment!.commentId);
+  const key = c && v.model ? `${c.id}-${JSON.stringify(o.comment!.frame)}` : "";
+  if (key === v.commentKey) return;
+  v.commentKey = key;
+  for (const e of v.meshes) for (const child of [...e.mesh.children]) if (child.userData.comment) e.mesh.remove(child);
+  if (!c || !v.model) return;
+  const f = o.comment!.frame, lit = litTriangles(v.model, f);
+  const tex = new THREE.CanvasTexture(commentCanvas(c.text, (f.max[0] - f.min[0]) / Math.max(1e-6, f.max[1] - f.min[1]), 1024, COMMENT_ON_OBJECT_SCALE));
+  tex.flipY = false; // as the photo: v = 0 at the top of the frame
+  const text = new THREE.MeshBasicMaterial({ color: c.color, alphaMap: tex, transparent: true, opacity: COMMENT_ON_OBJECT_OPACITY, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  for (const e of v.meshes) {
+    const overlay = new THREE.Mesh(splitLit(projectedUv(e.geometry, e.mesh, v.model, f), lit.get(e.mesh)!), [hiddenMaterial, text]);
+    overlay.userData.comment = true;
+    overlay.renderOrder = 1;
+    e.mesh.add(overlay);
   }
 }
 
@@ -507,10 +538,8 @@ function syncPhotos(photos: Photo[]) {
       const group = new THREE.Group();
       const t = texLoader.load(`/api/photo/${ph.id}/0`); t.colorSpace = THREE.SRGBColorSpace;
       const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
-      plate.position.y = 1.5;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.2), new THREE.MeshBasicMaterial({ color: 0x8a948c }));
-      pole.position.y = 0.6;
-      group.add(plate, pole);
+      plate.position.y = state?.params.photoHeight ?? 0.6; // floating a little above the ground
+      group.add(plate);
       group.position.set(ph.pos[0], 0, ph.pos[2]);
       scene.add(group);
       pv = { group, plate, blocked: false };
@@ -521,7 +550,34 @@ function syncPhotos(photos: Photo[]) {
   for (const [id, pv] of photoViews) if (!seen.has(id)) { scene.remove(pv.group); photoViews.delete(id); }
 }
 
-interface DrawingView { group: THREE.Group; mesh: THREE.Mesh; texture: string }
+// comments at their place: the text on a plate, black as on the platform (blocked: grey)
+interface CommentView { group: THREE.Group; plate: THREE.Mesh; blocked: boolean }
+const commentViews = new Map<string, CommentView>();
+function syncComments(comments: Comment[]) {
+  const seen = new Set<string>();
+  for (const c of comments) {
+    if (c.gone && !c.blocked) continue;
+    seen.add(c.id);
+    let cv = commentViews.get(c.id);
+    if (!cv) {
+      const group = new THREE.Group();
+      const tex = new THREE.CanvasTexture(commentCanvas(c.text, 1.5));
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex, transparent: true, side: THREE.DoubleSide }));
+      plate.position.y = state?.params.photoHeight ?? 0.6; // floating a little above the ground, like a photo
+      group.add(plate);
+      group.position.set(c.pos[0], 0, c.pos[2]);
+      scene.add(group);
+      cv = { group, plate, blocked: false };
+      commentViews.set(c.id, cv);
+    }
+    if (c.blocked && !cv.blocked) { cv.plate.material = placeholder; cv.blocked = true; }
+  }
+  for (const [id, cv] of commentViews) if (!seen.has(id)) { scene.remove(cv.group); commentViews.delete(id); }
+}
+
+// drawings as the platform draws them (render/stroke-tube.ts): tubes with the same material
+const tubes = strokeTubes(THREE);
+interface DrawingView { group: THREE.Group; meshes: THREE.Mesh[]; texture: string }
 const drawingViews = new Map<string, DrawingView>();
 
 function syncDrawings(drawings: Drawing[]) {
@@ -530,13 +586,11 @@ function syncDrawings(drawings: Drawing[]) {
     seen.add(d.id);
     let dv = drawingViews.get(d.id);
     if (!dv) {
-      const curve = new THREE.CatmullRomCurve3(d.points.map((q) => new THREE.Vector3(q[0], q[1], q[2])));
-      const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.015, 8), new THREE.MeshStandardMaterial({ color: d.color, roughness: 0.4 }));
-      mesh.castShadow = true;
+      const meshes = d.lines.map((l) => tubes.lineMesh(l)).filter((m): m is THREE.Mesh => !!m);
       const group = new THREE.Group();
-      group.add(mesh);
+      group.add(...meshes);
       scene.add(group);
-      dv = { group, mesh, texture: "" };
+      dv = { group, meshes, texture: "" };
       drawingViews.set(d.id, dv);
     }
     dv.group.userData.target = { pos: d.pos, scale: d.scale };
@@ -549,7 +603,8 @@ function syncDrawings(drawings: Drawing[]) {
         if (!map) return;
         const t = (map as THREE.Texture).clone();
         t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(8, 1); t.needsUpdate = true;
-        view.mesh.material = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 });
+        const mat = tubes.texturedMaterial(t);
+        for (const m of view.meshes) m.traverse((n) => { if ((n as THREE.Mesh).isMesh) (n as THREE.Mesh).material = mat; });
       });
     }
   }
@@ -674,6 +729,7 @@ function sync(s: State) {
     views.delete(id);
   }
   syncPhotos(s.photos);
+  syncComments(s.comments);
   syncDrawings(s.drawings);
 
   centerMark.position.set(s.center[0], 0, s.center[2]);
@@ -697,7 +753,7 @@ function hud(s: State) {
   $("run").textContent = rp
     ? `Wiedergabe ${s.run.dir} · ${fmt(rp.progress * 100)} %${rp.done ? " · zu Ende" : ""}${rp.diverged ? " · weicht ab!" : ""}`
     : `${s.run.dir} · ${s.run.commit} · ${s.run.fuseMode ?? "erste Verschmelzung hart, danach weich"}`;
-  for (const id of ["viewer-add", "viewer-remove", "photo-add", "drawing-add"]) $<HTMLButtonElement>(id).disabled = !!rp;
+  for (const id of ["viewer-add", "viewer-remove", "photo-add", "drawing-add", "comment-add"]) $<HTMLButtonElement>(id).disabled = !!rp;
   const counts = { keimling: 0, aktiv: 0, verwelkend: 0, tot: 0, ursprung: 0, halbiert: 0 };
   for (const o of s.objects) {
     if (o.origin) counts.ursprung++; else counts[o.state]++;
@@ -733,6 +789,13 @@ function hud(s: State) {
     const status = p.blocked ? "gesperrt" : user ? `auf ${user}` : age < s.params.photoWaitDays ? `wartet noch ${fmt(s.params.photoWaitDays - age, 1)} Tage` : "frei";
     return `<div class="row"><span><b>${p.id}</b> · ${status}</span>${p.gone || rp ? "" : `<span><button data-block="${p.id}">Sperren</button> <button data-delete="${p.id}">Löschen</button></span>`}</div>`;
   }).join("") : `<div class="muted">noch keine</div>`;
+  const comments = s.comments.filter((c) => !c.gone || c.blocked);
+  $("comments").innerHTML = comments.length ? comments.map((c) => {
+    const user = s.objects.filter((o) => o.comment?.commentId === c.id).map((o) => o.id).join(", ");
+    const age = s.calendar - c.createdAt;
+    const status = c.blocked ? "gesperrt" : user ? `auf ${user}` : age < s.params.commentWaitDays ? `wartet noch ${fmt(s.params.commentWaitDays - age, 1)} Tage` : "frei";
+    return `<div class="row"><span><b style="color:${c.color}">■</b> <b>${c.id}</b> · ${status}<br><span class="muted">${c.text.replace(/[<&]/g, (ch) => (ch === "<" ? "&lt;" : "&amp;"))}</span></span>${c.gone || rp ? "" : `<span><button data-block="${c.id}">Sperren</button> <button data-delete="${c.id}">Löschen</button></span>`}</div>`;
+  }).join("") : `<div class="muted">noch keine</div>`;
   $("log").innerHTML = s.events.slice().reverse().map((e) => `<div><b>${fmt(e.calendar, 2)}</b> ${e.text}</div>`).join("");
   drawChart(s);
 }
@@ -763,6 +826,12 @@ $("viewer-add").addEventListener("click", () => cmd({ type: "viewers", delta: 1 
 $("viewer-remove").addEventListener("click", () => cmd({ type: "viewers", delta: -1 }));
 $("photo-add").addEventListener("click", () => cmd({ type: "addPhoto" }));
 $("drawing-add").addEventListener("click", () => cmd({ type: "addDrawing" }));
+$("comment-add").addEventListener("click", () => cmd({ type: "addComment" }));
+$("comments").addEventListener("click", (e) => {
+  const t = e.target as HTMLElement;
+  if (t.dataset.block) cmd({ type: "blockComment", commentId: t.dataset.block });
+  if (t.dataset.delete) cmd({ type: "deleteComment", commentId: t.dataset.delete });
+});
 $("photos").addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
   if (t.dataset.block) cmd({ type: "block", photoId: t.dataset.block });
@@ -796,7 +865,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   tip.style.display = "block"; tip.style.left = `${e.clientX + 14}px`; tip.style.top = `${e.clientY + 14}px`;
   tip.innerHTML = `<b>${o.id}</b> · ${o.lineage}${o.origin ? " · Ursprung" : ""}${o.fast ? " · schnelle Linie" : ""}<br>${o.state}, ${fmt(o.triangles)} Dreiecke<br>` +
     `Generation ${o.generation}${o.voxelCells ? ` (Voxel, ${o.voxelCells} Zellen)` : ""}, ${o.fusions} Verschmelzungen, ${o.halvings} Halbierungen<br>Crush ${o.crushLevel}, Höhe über Boden ${fmt(o.lift, 2)} m, Skalierung ${fmt(o.scale, 2)}${o.tilt ? `, Neigung ${fmt((o.tilt.angle * 180) / Math.PI, 1)}°` : ""}<br>${o.tint ? `Leuchtfarbe <span style="color:rgb(${o.tint.color.map((c) => Math.round(c * 255)).join(",")})">■</span> ${fmt(o.tint.strength * 100)} % (Intensität ${fmt(tintIntensity(o.tint), 3)}), ` : ""}Grain ${fmt(grainOf(o.triangles), 3)}, Schweben ${fmt(o.sway * 100, 1)} cm alle ${fmt(o.swayPeriod, 1)} s` +
-    (o.photo ? `<br>Foto ${o.photo.photoId}` : "") + `<br><span class="muted">${o.glb}</span>`;
+    (o.photo ? `<br>Foto ${o.photo.photoId}` : "") + (o.comment ? `<br>Kommentar ${o.comment.commentId}` : "") + `<br><span class="muted">${o.glb}</span>`;
 });
 
 // double-click: pivot on what is under the cursor, camera ~2 m away from it
@@ -856,7 +925,7 @@ function frame() {
   const geo = new LineSegmentsGeometry();
   geo.setPositions(pts.flatMap((v) => [v.x, v.y, v.z]));
   pairLines.geometry = geo;
-  pairLines.visible = pts.length > 0;
+  pairLines.visible = pts.length > 0 && !preview;
   if (pts.length) pairLines.computeLineDistances();
   for (const [id, dv] of drawingViews) {
     const fd = fi >= 0 ? drawingAt(id, fi, playCal!) : null;

@@ -187,7 +187,15 @@ export const PARAMS = {
   photoWaitDays: 1, // CALENDAR days before a photo can be taken (moderation time)
   photoTakePerDay: 0.5, // chance per Eigentag that an eligible photo is taken
   photoLifetimeDays: 14, // calendar
-  photoHeight: 1.5, // m above the ground: where the photo hangs, the projection onto an object comes from there
+  photoSaturatePerChange: 1.25, // a photo on an object gets this × more saturated with every fusion, halving and compression of the object …
+  photoSaturateMax: 4, // … up to this × in all
+  photoHeight: 0.6, // m above the ground: the middle of a photo or comment, floating a little above it; the projection onto an object comes from there
+
+  // --- comments (the platform's text posts): projected as coloured text onto an object nearby, like a photo
+  commentWaitDays: 1, // CALENDAR days before a comment can be taken (moderation time)
+  commentTakePerDay: 0.5, // chance per Eigentag that an eligible comment is taken …
+  commentReach: 4, // … by a random active object within this many m of it (the nearest, if none is that close)
+  commentLifetimeDays: 14, // calendar
 
   // --- drawings
   objectRadiusBase: 2.0, // object radius = this + half the object's diagonal
@@ -197,6 +205,10 @@ export const PARAMS = {
   overlapMin: 0.08,
   overlapMax: 0.12,
   drawingLifetimeDays: 90, // calendar
+  // the sandbox's drawings are made like the platform's (sim/drawing-shape.ts): 1 … this many lines …
+  drawingLinesMax: 3,
+  drawingGestureMinSeconds: 1, // … each a hand gesture this long
+  drawingGestureMaxSeconds: 3,
 
   // --- space
   feedRadius: 15, // around the moving centre: watching + feeding

@@ -1,6 +1,6 @@
 # Offene Punkte für die Server-Fassung der Pflanze
 
-Stand 2026-10-22. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
+Stand 2026-10-24. Die Sandbox (`sandbox/`) simuliert die Pflanze auf einem
 lokalen Server. Die Liste sammelt, was sie noch nicht abdeckt und was die
 Plattform-Fassung braucht.
 
@@ -99,3 +99,9 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     stehen sie nicht mehr dort, wo sie gepflanzt wurden. Das Dreieck der
     Magnetpunkte wächst mit dem Abstand mit (Ecken bei 6 m Abstand bis rund 11 m
     vom Pflanzpunkt).
+14. **Kommentare anbinden.** Die Sandbox erzeugt Kommentare aus einer Liste von
+    Beispieltexten. Auf dem Server liest die Pflanze die Textbeiträge (`Post`) im
+    Umkreis aus der Datenbank, wie Fotos und Zeichnungen, und braucht von der
+    Moderation, wenn einer gesperrt oder gelöscht wird. Wie lange ein Beitrag lebt,
+    rechnet die Plattform aus Gebiet und Votes (`src/utils/expiry.ts`); die Sandbox
+    nimmt pauschal 14 Kalendertage.

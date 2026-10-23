@@ -1,23 +1,23 @@
 # Phasen der Pflanze
 
-Stand: 23. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 24. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/RNvesde8hFhazDVdYV9fHN
 
 ## Überblick
 
-Eine Pflanze lebt im Median rund 40 Kalendertage, in vier Phasen. Das Wachstum ist
-kurz, Plateau und Abstieg dauern je etwa 9 Tage, der Verfall rund 15. Wie lange
+Eine Pflanze lebt im Median rund 35 Kalendertage, in vier Phasen. Das Wachstum ist
+kurz, Plateau und Abstieg dauern je etwa 8 bis 9 Tage, der Verfall rund 14. Wie lange
 genau, hängt vom Zeitfaktor ab, also davon, wie oft jemand hinschaut und Inhalte
-beiträgt.
+beiträgt (Fotos, Zeichnungen, Kommentare).
 
 Kalendertage, Median über 10 Seeds im Standardszenario:
 
 | Phase | von Tag | bis Tag | wichtigste Vorgänge |
 | --- | --- | --- | --- |
-| Wachstum | 0 | 4,2 | Vorläufer und Eröffnung kurz nach dem Pflanzen, Keimlinge entstehen |
-| Plateau | 4,2 | 13,4 | Keimlinge füllen auf, verstärkte Komprimierung |
-| Abstieg | 13,4 | 22,7 | stetige Komprimierung, ab Tag 16,1 Halbieren |
-| Verfall | 22,7 | 37,4 | häufige Komprimierung, Sterben, Ende |
+| Wachstum | 0 | 3,9 | Vorläufer und Eröffnung kurz nach dem Pflanzen, Keimlinge entstehen |
+| Plateau | 3,9 | 12,0 | Keimlinge füllen auf, verstärkte Komprimierung |
+| Abstieg | 12,0 | 21,2 | stetige Komprimierung, ab Tag 14,8 Halbieren |
+| Verfall | 21,2 | 34,8 | häufige Komprimierung, Sterben, Ende |
 
 Im Code heißen die Phasen `wachstum`, `plateau`, `abstieg`, `verfall` und `ende`.
 Das Halbieren ist ein Abschnitt des Abstiegs, der beginnt, sobald die Dreiecke unter
@@ -194,7 +194,7 @@ Mitglied der Generation davor.
 ## Wachstum
 
 Das Wachstum dauert vom Pflanzen, bis die Dreiecke 91,5 % des Budgets erreichen, im
-Median etwa 4,2 Kalendertage. Wird diese Grenze nie erreicht, endet die
+Median etwa 3,9 Kalendertage. Wird diese Grenze nie erreicht, endet die
 Keimlingsphase nach 16,7 Eigentagen.
 
 **Was entsteht:**
@@ -228,7 +228,7 @@ Keimlingsphase nach 16,7 Eigentagen.
 ## Plateau
 
 Das Plateau beginnt, wenn die Dreiecke 91,5 % des Budgets erreichen, und hält 10,7
-Eigentage. Im Median liegt es zwischen Kalendertag 4,2 und 13,4.
+Eigentage. Im Median liegt es zwischen Kalendertag 3,9 und 12,0.
 
 **Was sich gegenüber dem Wachstum ändert:**
 
@@ -252,7 +252,7 @@ beginnt.
 ## Abstieg
 
 Der Abstieg beginnt, wenn die Keimlingsphase vorbei ist, im Median an Kalendertag
-13,4. Es entstehen keine Keimlinge mehr, und die Dreiecke nehmen ab.
+12,0. Es entstehen keine Keimlinge mehr, und die Dreiecke nehmen ab.
 
 **Transformationen:**
 
@@ -288,7 +288,7 @@ Der Abstieg beginnt, wenn die Keimlingsphase vorbei ist, im Median an Kalenderta
 
 Das Halbieren ist ein Abschnitt des Abstiegs, keine eigene Phase im Code. Es
 beginnt, sobald die Dreiecke unter 73 % des Budgets fallen, im Median an
-Kalendertag 16,1. Alles aus dem Abstieg läuft weiter.
+Kalendertag 14,8. Alles aus dem Abstieg läuft weiter.
 
 **Wer halbiert wird:** etwa alle 0,5 Eigentage (±30 %) ein Objekt, und die Abstände
 werden kürzer: Sie werden geteilt durch 1 + 0,075 × Eigentage seit Beginn, nach 10
@@ -328,8 +328,8 @@ offen und zackig.
 ## Verfall und Ende
 
 Der Verfall beginnt, wenn es nur noch verwelkende Objekte gibt und kein Paar mehr
-unterwegs ist, im Median an Kalendertag 22,7. Er dauert etwa 15 Kalendertage, bis
-zum Ende an Kalendertag 37,4.
+unterwegs ist, im Median an Kalendertag 21,2. Er dauert etwa 14 Kalendertage, bis
+zum Ende an Kalendertag 34,8.
 
 **Transformationen:**
 
@@ -388,7 +388,7 @@ durch alle Phasen und macht einen Teil der Pflanze lebendiger.
 | Partner wählen | doppelte Rate |
 | Weg zum Partner | halb so lang, wenn einer der beiden zur schnellen Linie gehört |
 | Halbieren | zählt bei der Auswahl doppelt |
-| Zeitfaktor | eigener Faktor: bis zu 20 Fotos und Zeichnungen zählen, Deckel 21 statt 7 |
+| Zeitfaktor | eigener Faktor: bis zu 20 Fotos, Zeichnungen und Kommentare zählen, Deckel 21 statt 7 |
 | erste halbe Stunde | Deckel 30, alle Boosts zählen 8-mal, auch Hinschauen |
 
 Der eigene Zeitfaktor wirkt auf das, was ein einzelnes Objekt tut: aus dem Boden
@@ -406,24 +406,42 @@ Die Vorläufer bilden keine Kopien. Andere Keimlinge der schnellen Linie schon.
 **Zeitfaktor.** Alles hier und in den Phasen läuft in Eigenzeit, die Boosts
 beschleunigen sie. Wie, steht in [Zeitmaßstab und Time Boosts](ZEITMASSSTAB-UND-BOOSTS.md).
 Die Kalendertage in diesem Dokument sind Mediane über 10 Seeds im Standardszenario
-mit Besuchen, Fotos und Zeichnungen.
+mit Besuchen, Fotos, Zeichnungen und Kommentaren (je Woche 2 Fotos, 3 Zeichnungen,
+3 Kommentare).
 
 **Fotos.** Ein Foto im Umkreis von 15 m kann nach einem Kalendertag Wartezeit
 genommen werden, mit 50 % Chance pro Eigentag. Das nächste aktive Objekt übernimmt
-es und bleibt aktiv. Das Foto wird aus der Richtung, in der es hängt (1,5 m über
-dem Boden), auf das Objekt projiziert. Nur was die Projektion direkt trifft, zeigt
+es und bleibt aktiv. Das Foto wird aus der Richtung, in der es schwebt (Mitte 0,6 m
+über dem Boden), auf das Objekt projiziert. Nur was die Projektion direkt trifft, zeigt
 das Foto. Was abgewandt ist oder hinter einem anderen Teil liegt, behält die
 eigene Textur. Nach einer Verschmelzung wird das Foto neu auf das verschmolzene
 Objekt projiziert. Tragen beide Partner ein Foto, behält das Ziel seines, und das
 andere kann wieder genommen werden. Beim Halbieren behalten beide Hälften das Foto
-mit derselben Projektion, zusammen zeigen sie weiter das ganze Bild. Läuft das Foto ab (nach 14 Kalendertagen) oder wird es gesperrt,
+mit derselben Projektion, zusammen zeigen sie weiter das ganze Bild. Mit jeder
+Verschmelzung, Halbierung und Komprimierung des Objekts wird das Foto 1,25-mal so
+gesättigt, insgesamt höchstens 4-mal. Läuft das Foto ab (nach 14 Kalendertagen) oder wird es gesperrt,
 bekommt das Objekt seine eigene Textur zurück.
+
+**Kommentare.** Kommentare sind die Textbeiträge der Plattform (höchstens 250
+Zeichen an einem Ort). Ein Kommentar im Umkreis von 15 m kann nach einem
+Kalendertag Wartezeit genommen werden, mit 50 % Chance pro Eigentag. Ein zufälliges
+aktives Objekt im Umkreis von 4 m übernimmt ihn, gibt es dort keins, das nächste.
+Sein Text wird wie ein Foto aus der Richtung des Kommentars auf das Objekt
+projiziert, nur auf die Dreiecke, die die Projektion trifft. Die Schrift ist dieselbe
+wie bei Kommentaren in der App (fett, `NeueMontreal, Helvetica`), die Farbe eine
+feste, zufällige aus der Farbauswahl für Zeichnungen. Verschmelzen und Halbieren
+behandeln ihn wie ein Foto. Läuft er ab (nach 14 Kalendertagen) oder wird er
+gesperrt, verschwindet die Schrift.
 
 **Zeichnungen.** Eine Zeichnung wird von einem Objekt in Reichweite angezogen
 (Chance 1,2 pro Eigentag), fliegt mit 2,25 m pro Eigentag zu ihm, schrumpft dabei bis
 auf die Hälfte und bleibt mit 8–12 % Überschneidung an ihm hängen. Dann übernimmt
 sie die Textur des Objekts und bewegt sich mit ihm. Nach 90 Kalendertagen
-verschwindet sie.
+verschwindet sie. In der Sandbox entstehen Zeichnungen wie auf der Plattform: 1 bis
+3 Linien, jede eine Handgeste von 1 bis 3 Sekunden mit einem Punkt je Zentimeter.
+Die Dicke kommt aus der Zeichengeschwindigkeit (0,6 bis 2,2 cm Radius), die Farben
+aus der Farbauswahl der Plattform. Der Viewer zeichnet sie als Röhren mit
+abgerundeten Enden und demselben Material wie die Plattform (`render/stroke-tube.ts`).
 
 **Höhen.** Objekte steigen mit Verschmelzungen, Halbierungen und Komprimierungen.
 Keine Oberkante kommt über 3 m. Wer an die Grenze stößt, sinkt danach über etwa 3,5

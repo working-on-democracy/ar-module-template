@@ -37,7 +37,9 @@ export interface PlantObject extends ModelVersion {
   tilt: { angle: number; dir: number } | null;
   busy: boolean; // a geometry job for this object is running
   /** Photo layer, projected from where the photo hangs; parts in its shadow keep their own texture. */
-  photo: { photoId: string; since: number; frame: PhotoFrame } | null;
+  photo: { photoId: string; since: number; frame: PhotoFrame; changes: number } | null; // changes: fusions, halvings and compressions since it was taken (saturation)
+  /** Comment text projected like a photo (from where the comment is), on the triangles the projection reaches. */
+  comment: { commentId: string; since: number; frame: PhotoFrame } | null;
   crushLevel: number;
   nextCrushAt: number;
   deadSince: number | null;
@@ -126,6 +128,18 @@ export interface Pair {
  *  its extent along them (the model's bounding box as seen from the photo). */
 export interface PhotoFrame { dir: Vec3; right: Vec3; up: Vec3; min: [number, number]; max: [number, number] }
 
+/** A comment (the platform's text post): text at a place, shown in a colour from the drawing palette. */
+export interface Comment {
+  id: string;
+  pos: Vec3;
+  text: string;
+  color: string;
+  createdAt: number; // calendar day
+  lifetime: number;
+  blocked: boolean;
+  gone: boolean; // deleted, expired or blocked: no longer usable
+}
+
 export interface Photo {
   id: string;
   pos: Vec3;
@@ -137,11 +151,13 @@ export interface Photo {
 
 export type DrawingMode = "frei" | "angezogen" | "ruhend";
 
+/** A line of a drawing as the platform stores it: a colour and points [x, y, z, tube radius] (m). */
+export interface DrawingLine { color: string; points: [number, number, number, number][] }
+
 export interface Drawing {
   id: string;
   pos: Vec3; // anchor
-  points: Vec3[]; // relative to the anchor, at scale 1
-  color: string;
+  lines: DrawingLine[]; // points relative to the anchor, at scale 1
   createdAt: number; // calendar day
   lifetime: number;
   gone: boolean;
@@ -157,7 +173,7 @@ export interface Drawing {
 }
 
 export interface Boost {
-  kind: "foto" | "zeichnung";
+  kind: "foto" | "zeichnung" | "kommentar";
   strength: number;
   start: number; // calendar day
   until: number;
@@ -240,6 +256,8 @@ export type ScheduledEntry =
   | { at: number; type: "foto"; id?: string; pos: Vec3; lifetime?: number }
   | { at: number; type: "zeichnung"; id?: string; pos: Vec3; lifetime?: number; color?: string }
   | { at: number; type: "sperren" | "loeschen"; photoId: string }
+  | { at: number; type: "kommentar"; id?: string; pos: Vec3; text: string; lifetime?: number }
+  | { at: number; type: "kommentar-sperren"; commentId: string }
   | { at: number; type: "besucher"; count: number };
 
 export interface Starter {
@@ -265,6 +283,7 @@ export interface World {
   calendar: number;
   objects: PlantObject[];
   photos: Photo[];
+  comments: Comment[];
   drawings: Drawing[];
   boosts: Boost[];
   viewers: number;

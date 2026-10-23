@@ -1,6 +1,6 @@
 # Zeitmaßstab und Time Boosts der Pflanze
 
-Stand: 21. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 24. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/BiNMahM2fMoUSM5PFsnvJy
 
 ## Überblick
@@ -9,12 +9,12 @@ Die Pflanze lebt in ihrer eigenen Zeit, der Eigenzeit. Der Zeitfaktor sagt, wie
 viele Eigentage in einem Kalendertag vergehen. Bei Faktor 1 laufen beide Uhren
 gleich schnell, bei Faktor 4 erlebt die Pflanze an einem Kalendertag vier Tage.
 
-Der Faktor ist ohne Zutun 1. Time Boosts heben ihn an: Fotos und Zeichnungen in der
+Der Faktor ist ohne Zutun 1. Time Boosts heben ihn an: Fotos, Zeichnungen und Kommentare in der
 Nähe, frisch entstandene Inhalte und Geräte, die gerade hinschauen. Schaut lange
 niemand hin, fallen die Boosts weg, und nach 7 Tagen sinkt der Faktor auf 0,5.
 
 Der Faktor wird bei jedem Simulationsschritt neu berechnet und sofort, wenn ein
-Gerät kommt oder geht oder ein Foto oder eine Zeichnung entsteht. Die Rechnung
+Gerät kommt oder geht oder ein Foto, eine Zeichnung oder ein Kommentar entsteht. Die Rechnung
 steht in `updateFactor` in `sandbox/sim/world.ts`.
 
 ## Wie der Zeitfaktor berechnet wird
@@ -25,11 +25,12 @@ Der Faktor setzt sich aus einem Grundwert von 1 und drei Boosts zusammen:
 Faktor = 1 + min(7, Inhalt + Ereignisse) + Hinschauen
 ```
 
-**Inhalt.** Jedes Foto und jede Zeichnung im Umkreis von 15 m um die Mitte der
-Pflanze zählt 0,05. Es zählen höchstens 10 Stück, also höchstens 0,5. Fotos
-verschwinden nach 14, Zeichnungen nach 90 Kalendertagen und zählen dann nicht mehr.
+**Inhalt.** Jedes Foto, jede Zeichnung und jeder Kommentar im Umkreis von 15 m um
+die Mitte der Pflanze zählt 0,05. Es zählen höchstens 10 Stück, also höchstens 0,5.
+Fotos und Kommentare verschwinden nach 14, Zeichnungen nach 90 Kalendertagen und
+zählen dann nicht mehr.
 
-**Ereignisse.** Entsteht ein neues Foto oder eine neue Zeichnung im Umkreis, gibt
+**Ereignisse.** Entsteht ein neues Foto, eine neue Zeichnung oder ein neuer Kommentar im Umkreis, gibt
 das einen Stoß von 2. Er läuft über 0,25 Kalendertage (6 Stunden) gleichmäßig auf 0
 aus. Mehrere Stöße addieren sich.
 
@@ -55,7 +56,7 @@ Vorläufer, alle ihre Nachkommen und jeder neue Keimling, der mit 4 % Chance in 
 schnelle Linie fällt. Ihr Faktor wird aus denselben Boosts berechnet, mit drei
 Unterschieden:
 
-1. Es zählen bis zu 20 Fotos und Zeichnungen statt 10, also bis zu 1,0 Inhalt.
+1. Es zählen bis zu 20 Fotos, Zeichnungen und Kommentare statt 10, also bis zu 1,0 Inhalt.
 2. Der Deckel für Inhalt und Ereignisse liegt bei 21 statt 7. In der ersten halben
    Stunde steigt er bis auf 30.
 3. In der ersten halben Stunde zählen alle Boosts 8-mal, auch das Hinschauen. Voll
@@ -85,7 +86,7 @@ Kalendertagen.
 | 3 bis 7 Tage | genau 1, alle Boosts ausgesetzt | genau 1 |
 | ab 7 Tagen | 0,5 | 0,5 |
 
-Ab 3 Tagen zählen auch neue Fotos und Zeichnungen nicht mehr. Ab 7 Tagen läuft die
+Ab 3 Tagen zählen auch neue Fotos, Zeichnungen und Kommentare nicht mehr. Ab 7 Tagen läuft die
 Pflanze halb so schnell wie die echte Zeit.
 
 Sobald wieder ein Gerät im Umkreis ist, gilt sofort wieder die normale Berechnung,
@@ -113,7 +114,7 @@ in Kalenderzeit und bleibt unberührt.
 | verschmolzene Objekte wachsen, Objekte schrumpfen im Verfall | Pflanze | `fusedGrowPerDay`, `decayShrinkPerDay` |
 | Zusammenrücken, Abstoßen beim Halbieren | Pflanze | `gatherPerDay`, `halvingRepelPerDay` |
 | Anziehung, Aufsteigen, Absinken unter der Decke, Wind | eigener Faktor des Objekts | `attractPerDay`, `liftEaseDays`, `ceilingDriftDays`, `windSpeedPerDay` |
-| Fotos nehmen, Zeichnungen anziehen und heranholen | Pflanze | `photoTakePerDay`, `drawingAttractPerDay`, `drawingSpeed` |
+| Fotos und Kommentare nehmen, Zeichnungen anziehen und heranholen | Pflanze | `photoTakePerDay`, `commentTakePerDay`, `drawingAttractPerDay`, `drawingSpeed` |
 | Rechenvorlauf der Jobs | Pflanze | `jobLeadDays` |
 
 „Pflanze“ heißt der normale Faktor. „Eigener Faktor des Objekts“ heißt: Objekte der
@@ -121,8 +122,8 @@ schnellen Linie nutzen ihren Faktor, alle anderen den normalen.
 
 **Läuft in Kalenderzeit (bleibt gleich):**
 
-- Lebensdauer von Fotos (14 Tage) und Zeichnungen (90 Tage)
-- Wartezeit, bevor ein Foto genommen werden darf (1 Tag, Moderation)
+- Lebensdauer von Fotos und Kommentaren (14 Tage) und Zeichnungen (90 Tage)
+- Wartezeit, bevor ein Foto oder Kommentar genommen werden darf (1 Tag, Moderation)
 - Dauer eines Ereignis-Stoßes (6 Stunden)
 - die erste halbe Stunde nach dem Pflanzen
 - die 3 und 7 Tage ohne Hinschauen
@@ -164,7 +165,7 @@ verstellen.
 | Parameter | Standard | Bedeutung |
 | --- | --- | --- |
 | `feedRadius` | 15 m | Umkreis, in dem Inhalte und Ereignisse zählen |
-| `contentBoostPerItem` | 0,05 | Boost je Foto oder Zeichnung |
+| `contentBoostPerItem` | 0,05 | Boost je Foto, Zeichnung oder Kommentar |
 | `contentBoostMaxItems` | 10 | so viele zählen höchstens |
 | `eventBoost` | 2 | Stoß bei einem neuen Inhalt |
 | `eventBoostDays` | 0,25 Kalendertage | so lange läuft der Stoß aus |

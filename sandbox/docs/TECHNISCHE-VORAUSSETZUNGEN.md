@@ -1,6 +1,6 @@
 # Pflanze auf an-alle.net: technische Voraussetzungen
 
-Stand: 23. Oktober 2026. Referenz für den Betrieb der Pflanze auf der Plattform.
+Stand: 24. Oktober 2026. Referenz für den Betrieb der Pflanze auf der Plattform.
 Online-Fassung zum Kommentieren: https://claude.ai/artifact/9wTdGyYU9gNCuD2QaL6grA
 
 Die konkreten Schritte am Server nach Priorität: [Aufgaben für den Admin](ADMIN-AUFGABEN.md).
@@ -52,7 +52,7 @@ Lauf-Ordner unter `sandbox-runs/` ablegt. Ein Viewer im Browser zeigt sie in 3D.
 flowchart LR
   Viewer["Viewer<br/>viewer/main.ts, three.js<br/>1,5 s Puffer, glättet"]
   HTTP["HTTP-Server<br/>server.ts<br/>/api/state, /api/frames, /api/cmd, GLB-Dateien"]
-  Szenario["Szenario<br/>scenarios/generate.ts<br/>Fotos, Zeichnungen, Besuche nach Zeitplan"]
+  Szenario["Szenario<br/>scenarios/generate.ts<br/>Fotos, Zeichnungen, Kommentare, Besuche nach Zeitplan"]
   Sim["Simulation<br/>sim/world.ts, schedule.ts<br/>Eigenzeit, Phasen, Regeln<br/>wartet auf fällige Jobs"]
   Tape["Aufzeichnung<br/>tape.jsonl, events.jsonl<br/>state.json alle 5 s"]
   Runner["Job-Runner<br/>runner/jobs.ts<br/>3 Skripte gleichzeitig, 15 min Zeitlimit"]
@@ -264,8 +264,8 @@ Code.
 | --- | --- | --- |
 | Ort | ein Mac, eine Pflanze, Viewer im Browser auf localhost | Uberspace, Darstellung in der AR-App am echten Ort, eventuell mehrere Pflanzen |
 | Koordinaten | Meter um einen Pflanzpunkt bei 0, 0, 0 | Pflanzpunkt als Breite und Länge, Objekte als Versatz nach Osten, oben und Norden, wie bei den Zeichnungen (`Stroke`) |
-| Zeit | Tempo wählbar, bis zu vielen Tagen pro Minute | nur Echtzeit, ein Lebenszyklus dauert rund 40 Tage, ohne Besucher viel länger |
-| Fotos und Zeichnungen | aus einem Szenario erzeugt: gemeinfreie Stadt- und Parkfotos (`sandbox/test-photos`) und zufällige Linien an zufälligen Orten | echte Inhalte aus MongoDB, mit Moderation, Sperrung und Ablauf pro Gebiet |
+| Zeit | Tempo wählbar, bis zu vielen Tagen pro Minute | nur Echtzeit, ein Lebenszyklus dauert rund 35 Tage, ohne Besucher viel länger |
+| Fotos, Zeichnungen, Kommentare | aus einem Szenario erzeugt: gemeinfreie Stadt- und Parkfotos (`sandbox/test-photos`), Zeichnungen wie aus dem Zeichenwerkzeug der Plattform (Linien mit Radius je Punkt) und Kommentare aus Beispieltexten (`sandbox/scenarios/comments.ts`) an zufälligen Orten | echte Inhalte aus MongoDB, mit Moderation, Sperrung und Ablauf pro Gebiet |
 | Zeichnungen in der Pflanze | eine Punktfolge, deren Mitte angezogen wird | echte `Stroke`-Dokumente mit mehreren Linien und Dicke je Punkt |
 | Geräte | ein Knopf im Viewer oder Besuche im Szenario | echte Zählung im Umkreis, Regel noch offen |
 | Startobjekte | fünf feste Modelle aus `sandbox/models/` | offen: wer pflanzt, womit, und wo |

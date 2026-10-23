@@ -24,17 +24,18 @@ type Group = { title: string; note?: string; fields: Field[] };
 
 const SCENARIO_GROUP: Group = {
   title: "Szenario",
-  note: "Fotos, Zeichnungen und Besuche werden aus dem Seed zufällig verteilt.",
+  note: "Fotos, Zeichnungen, Kommentare und Besuche werden aus dem Seed zufällig verteilt.",
   fields: [
     { key: "seed", label: "Seed", step: 1 },
     { key: "days", label: "Dauer", unit: "Kalendertage", step: 1 },
     { key: "photosPerWeek", label: "Neue Fotos", unit: "pro Woche", step: 0.5 },
     { key: "drawingsPerWeek", label: "Neue Zeichnungen", unit: "pro Woche", step: 0.5 },
-    { key: "blockShare", label: "Anteil gesperrter Fotos", unit: "0–1", step: 0.05 },
+    { key: "commentsPerWeek", label: "Neue Kommentare", unit: "pro Woche", step: 0.5 },
+    { key: "blockShare", label: "Anteil gesperrter Fotos und Kommentare", unit: "0–1", step: 0.05 },
     { key: "visitsPerWeek", label: "Besuche", unit: "pro Woche", step: 0.5 },
     { key: "visitDevices", label: "Geräte pro Besuch", step: 1 },
     { key: "visitHours", label: "Dauer eines Besuchs", unit: "Stunden", step: 0.25 },
-    { key: "contentDistance", label: "Fotos und Zeichnungen bis", unit: "m vom Pflanzort", step: 1 },
+    { key: "contentDistance", label: "Fotos, Zeichnungen und Kommentare bis", unit: "m vom Pflanzort", step: 1 },
     { key: "starterRing", label: "Ursprungsobjekte im Ring mit Radius", unit: "m", step: 0.1 },
   ],
 };
@@ -196,7 +197,15 @@ const PARAM_GROUPS: Group[] = [
     { key: "photoWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
     { key: "photoTakePerDay", label: "Übernahme-Rate", unit: "pro Eigentag", step: 0.1 },
     { key: "photoLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
-    { key: "photoHeight", label: "Höhe des Fotos", unit: "m, von dort kommt die Projektion", step: 0.1 },
+    { key: "photoSaturatePerChange", label: "Foto gesättigter je Veränderung", unit: "× bei Verschmelzung, Halbierung, Komprimierung", step: 0.05 },
+    { key: "photoSaturateMax", label: "Foto höchstens gesättigter", unit: "× insgesamt", step: 0.5 },
+    { key: "photoHeight", label: "Höhe von Fotos und Kommentaren", unit: "m (Mitte), von dort kommt die Projektion", step: 0.1 },
+  ] },
+  { title: "Kommentare", note: "Kommentare zählen für den Zeitfaktor wie Fotos und Zeichnungen. Ein zufälliges aktives Objekt in der Nähe übernimmt einen Kommentar: Sein Text wird in einer Farbe der Zeichen-Palette aus seiner Richtung auf das Objekt projiziert, wie ein Foto.", fields: [
+    { key: "commentWaitDays", label: "Wartezeit", unit: "Kalendertage", step: 0.5 },
+    { key: "commentTakePerDay", label: "Übernahme-Rate", unit: "pro Eigentag", step: 0.1 },
+    { key: "commentReach", label: "Objekte in der Nähe bis", unit: "m vom Kommentar (sonst das nächste)", step: 0.5 },
+    { key: "commentLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
   ] },
   { title: "Zeichnungen", fields: [
     { key: "objectRadiusBase", label: "Objektradius", unit: "m + halbe Diagonale", step: 0.1 },
@@ -206,6 +215,9 @@ const PARAM_GROUPS: Group[] = [
     { key: "overlapMin", label: "Überschneidung von", unit: "Anteil", step: 0.01 },
     { key: "overlapMax", label: "Überschneidung bis", unit: "Anteil", step: 0.01 },
     { key: "drawingLifetimeDays", label: "Lebensdauer", unit: "Kalendertage", step: 1 },
+    { key: "drawingLinesMax", label: "Linien je Zeichnung höchstens", unit: "(1 bis so viele, wie auf der Plattform)", step: 1 },
+    { key: "drawingGestureMinSeconds", label: "Geste je Linie mindestens", unit: "Sekunden", step: 0.5 },
+    { key: "drawingGestureMaxSeconds", label: "Geste je Linie höchstens", unit: "Sekunden", step: 0.5 },
   ] },
   { title: "Zeitmaßstab und Boosts", note: "Faktor = 1 + Fotos und Zeichnungen (Inhalt + Ereignisse, höchstens ihre Grenze) + Hinschauen (höchstens so viele Geräte). Geräte nehmen Fotos und Zeichnungen nichts weg. Schaut ein paar Tage lang niemand hin, ruhen alle Boosts, bis wieder ein Gerät kommt.", fields: [
     { key: "contentBoostPerItem", label: "Inhalt pro Foto/Zeichnung", step: 0.01 },
@@ -388,7 +400,7 @@ function renderSummary(r: RunResult) {
     <div class="stat"><span class="stat-label">${end ? "Vergangen" : "Stand am Ende"}</span>${end ? when(end) : `<b>Tag ${fmt(w.calendar, 0)}</b><span>${fmt(w.objects.length)} Objekte, Phase ${w.phase}</span>`}</div>
     <div class="stat"><span class="stat-label">Objekte höchstens</span><b>${fmt(maxObjects)}</b><span>${count("kopie")} Kopien, ${count("verschmelzung")} Verschmelzungen, ${count("halbierung")} Halbierungen</span></div>
     <div class="stat"><span class="stat-label">Zeitfaktor im Mittel</span><b>${fmt(avgFactor, 2)} ×</b><span>Eigenzeit ${fmt(w.eigen, 0)} in ${fmt(w.calendar, 0)} Kalendertagen</span></div>
-    <div class="stat"><span class="stat-label">Fotos und Zeichnungen</span><b>${count("foto-uebernahme")} · ${count("zeichnung-ruht")}</b><span>Fotos übernommen · Zeichnungen ruhen</span></div>`;
+    <div class="stat"><span class="stat-label">Fotos, Zeichnungen, Kommentare</span><b>${count("foto-uebernahme")} · ${count("zeichnung-ruht")} · ${count("kommentar-uebernahme")}</b><span>Fotos übernommen · Zeichnungen ruhen · Kommentare übernommen</span></div>`;
   $("#run-meta").textContent = `${fmt(w.samples.length)} Messpunkte, ${fmt(w.events.length)} Ereignisse, gerechnet in ${fmt(r.ms)} ms`;
 }
 

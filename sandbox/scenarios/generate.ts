@@ -3,6 +3,7 @@
 // over the calendar days at random from the seed.
 import models from "./starter-models.json";
 import { createRng } from "../sim/rng";
+import { SAMPLE_COMMENTS } from "./comments";
 import type { ModelVersion, Scenario, ScheduledEntry, Vec3 } from "../sim/types";
 
 const MODELS = models as unknown as Record<string, ModelVersion>;
@@ -15,6 +16,7 @@ export const SCENARIO_DEFAULTS = {
   days: 200,
   photosPerWeek: 2,
   drawingsPerWeek: 3,
+  commentsPerWeek: 3,
   blockShare: 0.2,
   visitsPerWeek: 4,
   visitDevices: 2,
@@ -54,6 +56,12 @@ export function buildScenario(i: { scenario: ScenarioValues; starters: string[] 
   });
   let drawNo = 0;
   poisson(s.drawingsPerWeek, (at) => timeline.push({ at, type: "zeichnung", id: `z${++drawNo}`, pos: spot() }));
+  let commentNo = 0;
+  poisson(s.commentsPerWeek, (at) => {
+    const id = `k${++commentNo}`;
+    timeline.push({ at, type: "kommentar", id, pos: spot(), text: SAMPLE_COMMENTS[Math.floor(rng.next() * SAMPLE_COMMENTS.length)] });
+    if (rng.next() < s.blockShare) timeline.push({ at: at + rng.range(0.2, 6), type: "kommentar-sperren", commentId: id });
+  });
   // Visits: devices arrive and leave; overlapping visits add up.
   const changes: { at: number; d: number }[] = [];
   poisson(s.visitsPerWeek, (at) => {

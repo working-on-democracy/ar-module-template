@@ -21,16 +21,17 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { PARAMS, type Params } from "./params";
-import { decodeImage, encodeJpeg, subsampleChroma } from "../scripts/jimp-image";
+import { decodeImage, encodeJpeg, saturateBitmap, subsampleChroma } from "../scripts/jimp-image";
 import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import models from "./scenarios/starter-models.json";
+import { SAMPLE_COMMENTS } from "./scenarios/comments";
 import { advance, QUANTUM } from "./sim/schedule";
 import { decompose } from "./sim/pose";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
 import {
-  addDrawing, addPhoto, applyJob, createWorld, jobFailed, modelMatrix, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
+  addComment, addDrawing, addPhoto, applyJob, removeComment, createWorld, jobFailed, modelMatrix, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
 } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -216,15 +217,18 @@ async function makeTestPhoto(id: string, file: string) {
   copyFileSync(join(HERE, "test-photos", pick), file);
 }
 
-/** Crushed version of a photo for an object's crush level, made on first request (server-side, as planned). */
-async function photoFile(id: string, level: number): Promise<string | null> {
+/** A photo as an object shows it, made on first request (server-side, as planned): saturated
+ *  for the object's changes since it took the photo, then crushed for its crush level. */
+async function photoFile(id: string, level: number, changes = 0): Promise<string | null> {
   const base = join(runDir, "photos", `${id}-0.jpg`);
   if (!existsSync(base)) return null;
-  if (level <= 0) return base;
-  const file = join(runDir, "photos", `${id}-${level}.jpg`);
+  if (level <= 0 && changes <= 0) return base;
+  const file = join(runDir, "photos", `${id}-${level}${changes > 0 ? `-s${changes}` : ""}.jpg`);
   if (!existsSync(file)) {
-    const q = [30, 15, 8, 4, 2][Math.min(5, level) - 1];
     let buf: Uint8Array = readFileSync(base);
+    const amount = Math.min(params.photoSaturateMax, Math.pow(params.photoSaturatePerChange, changes));
+    if (changes > 0) buf = await encodeJpeg(saturateBitmap(await decodeImage(buf), amount), 90);
+    const q = [30, 15, 8, 4, 2][Math.min(5, Math.max(1, level)) - 1];
     for (let i = 0; i < level; i++) buf = await encodeJpeg(subsampleChroma(await decodeImage(buf)), q);
     writeFileSync(file, buf);
   }
@@ -314,7 +318,7 @@ function stateFor(sinceSample: number) {
     triangles: totalTriangles(w), plateauMax: w.plateauMax, params: w.params,
     budget: w.budget, compressAt: w.compressAt, halvingAt: w.halvingAt,
     objects: w.objects.map((o) => ({ ...o, sway: swayOf(o, w.params), swayPeriod: swayPeriodOf(o, w.params) })),
-    photos: w.photos, drawings: w.drawings.filter((d) => !d.gone), pairs: w.pairs,
+    photos: w.photos, comments: w.comments.filter((c) => !c.gone || c.blocked), drawings: w.drawings.filter((d) => !d.gone), pairs: w.pairs,
     jobs: [...running.values()].map(({ job, since }) => ({ id: job.id, kind: job.kind, objectId: job.objectId, partnerId: job.partnerId, seconds: Math.round((Date.now() - since) / 1000) })),
     queued: Math.max(0, w.jobs.length - running.size),
     samples: w.samples.slice(sinceSample), sampleCount: w.samples.length,
@@ -336,7 +340,8 @@ function command(cmd: Record<string, unknown>) {
   }
   if (replayDir) throw new Error("In der Wiedergabe lässt sich nichts hinzufügen");
   // random parts resolved here, so the tape holds exactly what happened
-  const c = cmd.type === "addPhoto" || cmd.type === "addDrawing" ? { ...cmd, pos: randomSpot() } : cmd;
+  const c = cmd.type === "addPhoto" || cmd.type === "addDrawing" ? { ...cmd, pos: randomSpot() }
+    : cmd.type === "addComment" ? { ...cmd, pos: randomSpot(), text: SAMPLE_COMMENTS[Math.floor(Math.random() * SAMPLE_COMMENTS.length)] } : cmd;
   applyCommand(c);
   record({ c });
 }
@@ -349,9 +354,12 @@ function applyCommand(cmd: Record<string, unknown>) {
     case "addDrawing": addDrawing(w, cmd.pos as Vec3); break;
     case "block": removePhoto(w, String(cmd.photoId), "gesperrt"); break;
     case "delete": removePhoto(w, String(cmd.photoId), "gelöscht"); break;
+    case "addComment": addComment(w, cmd.pos as Vec3, String(cmd.text)); break;
+    case "blockComment": removeComment(w, String(cmd.commentId), "gesperrt"); break;
+    case "deleteComment": removeComment(w, String(cmd.commentId), "gelöscht"); break;
     default: throw new Error(`unbekannter Befehl ${String(cmd.type)}`);
   }
-  updateFactor(w); // devices, photos and drawings count at once, not only at the next step
+  updateFactor(w); // devices, photos, drawings and comments count at once, not only at the next step
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
 }
@@ -377,9 +385,9 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     try { command(JSON.parse(body)); send(res, 200, "{}"); } catch (e) { send(res, 400, JSON.stringify({ error: (e as Error).message })); }
     return true;
   }
-  const photo = url.pathname.match(/^\/api\/photo\/([\w-]+)\/(\d+)$/);
+  const photo = url.pathname.match(/^\/api\/photo\/([\w-]+)\/(\d+)(?:\/(\d+))?$/); // id / crush level / changes (saturation)
   if (photo) {
-    const file = await photoFile(photo[1], Number(photo[2]));
+    const file = await photoFile(photo[1], Number(photo[2]), Number(photo[3] ?? 0));
     if (!file) send(res, 404, "{}");
     else send(res, 200, readFileSync(file), "image/jpeg");
     return true;

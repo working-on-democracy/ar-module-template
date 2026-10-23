@@ -5,10 +5,11 @@
 import type { Params } from "../params";
 import { compose, decompose, lerpPose, multiply, quatTilt, quatY, rotateAbout, transformPoint, type Mat4 } from "./pose";
 import { gatherTriangle } from "./gather";
+import { drawingLines, STROKE_COLORS } from "./drawing-shape";
 import { createRng, type Rng } from "./rng";
 import { fusePostTriangles, fuseRecipe, halvingRecipe, STEP_LABEL, STYLIZE_COPY, voxelTriangles } from "./recipes";
 import type {
-  Drawing, JobRequest, JobResult, ModelVersion, ObjectKind, ObjectState, Photo, PhotoFrame, PlantObject, Scenario, ScheduledEntry, Vec3, World,
+  Comment, Drawing, JobRequest, JobResult, ModelVersion, ObjectKind, ObjectState, Photo, PhotoFrame, PlantObject, Scenario, ScheduledEntry, Vec3, World,
 } from "./types";
 
 const SAMPLE_EVERY = 0.05; // Eigentage between two samples of the curve
@@ -213,6 +214,7 @@ export function createWorld(scenario: Scenario, params: Params): World {
     calendar: 0,
     objects: [],
     photos: [],
+    comments: [],
     drawings: [],
     boosts: [],
     viewers: 0,
@@ -316,6 +318,7 @@ function newObject(
     growBase: null,
     busy: false,
     photo: null,
+    comment: null,
     crushLevel: 0,
     nextCrushAt: 0,
     deadSince: null,
@@ -399,16 +402,8 @@ export function addPhoto(w: World, pos: Vec3, lifetime?: number, id?: string): P
 
 export function addDrawing(w: World, pos: Vec3, lifetime?: number, color?: string, id?: string): Drawing {
   const rng = createRng(w.rngState);
-  const points: Vec3[] = [];
-  let x = 0, y = rng.range(0.9, 1.6), z = 0;
-  const n = 8 + Math.floor(rng.range(0, 8));
-  for (let i = 0; i < n; i++) {
-    points.push([x, y, z]);
-    x += rng.range(-0.15, 0.25); y += rng.range(-0.12, 0.12); z += rng.range(-0.15, 0.15);
-  }
   const d: Drawing = {
-    id: id ?? `z${w.nextId++}`, pos, points,
-    color: color ?? ["#eab308", "#e11d48", "#2563eb", "#16a34a"][Math.floor(rng.range(0, 4))],
+    id: id ?? `z${w.nextId++}`, pos, lines: drawingLines(rng, w.params, color),
     createdAt: w.calendar, lifetime: lifetime ?? w.params.drawingLifetimeDays, gone: false,
     mode: "frei", target: null, startDist: 0, travelled: 0, scale: 1,
     overlapGoal: rng.range(w.params.overlapMin, w.params.overlapMax), overlap: 0, texture: null,
@@ -420,10 +415,37 @@ export function addDrawing(w: World, pos: Vec3, lifetime?: number, color?: strin
   return d;
 }
 
+export function addComment(w: World, pos: Vec3, text: string, lifetime?: number, id?: string): Comment {
+  const rng = createRng(w.rngState);
+  const c: Comment = {
+    id: id ?? `k${w.nextId++}`, pos, text: text.slice(0, 250), color: STROKE_COLORS[Math.floor(rng.range(0, STROKE_COLORS.length))],
+    createdAt: w.calendar, lifetime: lifetime ?? w.params.commentLifetimeDays, blocked: false, gone: false,
+  };
+  w.rngState = rng.state();
+  w.comments.push(c);
+  log(w, "kommentar", `Kommentar ${c.id} geschrieben`);
+  boost(w, "kommentar", pos);
+  return c;
+}
+
+/** Blocked, deleted or expired: the comment is gone, plant objects drop it. */
+export function removeComment(w: World, commentId: string, reason: "gesperrt" | "gelöscht" | "abgelaufen") {
+  const c = w.comments.find((x) => x.id === commentId);
+  if (!c || c.gone) return;
+  c.gone = true;
+  if (reason === "gesperrt") c.blocked = true;
+  log(w, "kommentar-weg", `Kommentar ${c.id} ${reason}`);
+  for (const o of w.objects) {
+    if (o.comment?.commentId !== commentId) continue;
+    o.comment = null;
+    log(w, "kommentar-zurueck", `${o.id}: Kommentar entfernt`, o.id);
+  }
+}
+
 /** Where a photo comes from, seen from the object: from its centre towards the
  *  photo (hanging photoHeight above the ground), turned into the model's own
  *  frame, and the image's frame around the model's bounding box as seen from there. */
-function aimPhoto(w: World, o: PlantObject, ph: Photo): PhotoFrame {
+function aimPhoto(w: World, o: PlantObject, ph: { pos: Vec3 }): PhotoFrame {
   const m = modelMatrix(o), c = objectCenter(o);
   const world: Vec3 = [ph.pos[0] - c[0], w.params.photoHeight - c[1], ph.pos[2] - c[2]];
   // world → model: the matrix's columns are the model's axes in the world (uniform scale)
@@ -469,6 +491,8 @@ function runScheduled(w: World, e: ScheduledEntry) {
   else if (e.type === "sperren") removePhoto(w, e.photoId, "gesperrt");
   else if (e.type === "loeschen") removePhoto(w, e.photoId, "gelöscht");
   else if (e.type === "besucher") setViewers(w, e.count);
+  else if (e.type === "kommentar") addComment(w, e.pos, e.text, e.lifetime, e.id);
+  else if (e.type === "kommentar-sperren") removeComment(w, e.commentId, "gesperrt");
 }
 
 // ---------------------------------------------------------------- the step
@@ -490,6 +514,7 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
 
   while (w.scheduled.length && w.scheduled[0].at <= w.calendar) runScheduled(w, w.scheduled.shift()!);
   for (const ph of w.photos) if (!ph.gone && w.calendar >= ph.createdAt + ph.lifetime) removePhoto(w, ph.id, "abgelaufen");
+  for (const c of w.comments) if (!c.gone && w.calendar >= c.createdAt + c.lifetime) removeComment(w, c.id, "abgelaufen");
   for (const d of w.drawings) {
     if (!d.gone && w.calendar >= d.createdAt + d.lifetime) { d.gone = true; log(w, "zeichnung-weg", `Zeichnung ${d.id} abgelaufen`); }
   }
@@ -734,10 +759,15 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     const photoFreed = a.photo && b.photo ? b.photo.photoId : null;
     a.photo = a.photo ?? b.photo;
     const aimed = a.photo && w.photos.find((x) => x.id === a.photo!.photoId);
-    if (a.photo && aimed) a.photo.frame = aimPhoto(w, a, aimed);
+    if (a.photo && aimed) { a.photo.frame = aimPhoto(w, a, aimed); a.photo.changes++; } // and more saturated
+    // the same for a comment
+    const commentFreed = a.comment && b.comment ? b.comment.commentId : null;
+    a.comment = a.comment ?? b.comment;
+    const said = a.comment && w.comments.find((x) => x.id === a.comment!.commentId);
+    if (a.comment && said) a.comment.frame = aimPhoto(w, a, said);
     w.objects = w.objects.filter((x) => x !== b);
     w.pairs.splice(w.pairs.indexOf(pair), 1);
-    log(w, "verschmelzung", `${a.id} und ${b.id} verschmelzen: ${before} → ${a.triangles} Dreiecke (${a.fusions}. Verschmelzung)${a.photo ? `, Foto ${a.photo.photoId} neu projiziert` : ""}${photoFreed ? `, Foto ${photoFreed} wieder frei` : ""}`, a.id);
+    log(w, "verschmelzung", `${a.id} und ${b.id} verschmelzen: ${before} → ${a.triangles} Dreiecke (${a.fusions}. Verschmelzung)${a.photo ? `, Foto ${a.photo.photoId} neu projiziert` : ""}${photoFreed ? `, Foto ${photoFreed} wieder frei` : ""}${commentFreed ? `, Kommentar ${commentFreed} wieder frei` : ""}`, a.id);
   }
 
   const copying = keimPhase || w.jobs.some((j) => j.kind === "copy") || w.objects.some((o) => o.state === "keimling" && !o.origin);
@@ -984,8 +1014,22 @@ export function step(w: World, dtCalendar: number): JobRequest[] {
     const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.pairedWith && !o.photo);
     const o = nearest(candidates, ph.pos);
     if (!o) continue;
-    o.photo = { photoId: ph.id, since: w.eigen, frame: aimPhoto(w, o, ph) };
+    o.photo = { photoId: ph.id, since: w.eigen, frame: aimPhoto(w, o, ph), changes: 0 };
     log(w, "foto-uebernahme", `${o.id} übernimmt Foto ${ph.id}, projiziert aus seiner Richtung`, o.id);
+  }
+
+  // Comments: like photos, but onto a random active object near the comment.
+  for (const c of w.comments) {
+    if (c.gone || w.calendar - c.createdAt < p.commentWaitDays) continue;
+    if (dist2d(c.pos, center) > p.feedRadius) continue;
+    if (w.objects.some((o) => o.comment?.commentId === c.id)) continue; // one object per comment
+    if (!rng.chance(p.commentTakePerDay, dt)) continue;
+    const candidates = w.objects.filter((o) => o.state === "aktiv" && !o.origin && !o.busy && !o.pairedWith && !o.comment);
+    const near = candidates.filter((o) => dist2d(o.pos, c.pos) <= p.commentReach);
+    const o = near.length ? near[Math.floor(rng.next() * near.length)] : nearest(candidates, c.pos);
+    if (!o) continue;
+    o.comment = { commentId: c.id, since: w.eigen, frame: aimPhoto(w, o, c) };
+    log(w, "kommentar-uebernahme", `${o.id} übernimmt Kommentar ${c.id}, projiziert aus seiner Richtung`, o.id);
   }
 
   // Drawings: attracted by the nearest object in reach, rest at a small overlap.
@@ -1088,7 +1132,8 @@ export function updateFactor(w: World) {
   const center = ecosystemCenter(w);
   const items =
     w.photos.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length +
-    w.drawings.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length;
+    w.drawings.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length +
+    w.comments.filter((x) => !x.gone && dist2d(x.pos, center) <= p.feedRadius).length;
   // right after planting, photos and drawings speed the plant up more
   const early = 1 + (p.earlyContentFactor - 1) * earlyShare(w, p.earlyBoostHours);
   const inhalt = Math.min(items, p.contentBoostMaxItems) * p.contentBoostPerItem * early;
@@ -1118,8 +1163,8 @@ function earlyShare(w: World, hours: number): number {
   return (hours - h) / (hours - from);
 }
 
-/** A new photo or drawing in the feed radius speeds the ecosystem up the moment it is made. */
-function boost(w: World, kind: "foto" | "zeichnung", pos: Vec3) {
+/** A new photo, drawing or comment in the feed radius speeds the ecosystem up the moment it is made. */
+function boost(w: World, kind: "foto" | "zeichnung" | "kommentar", pos: Vec3) {
   const p = w.params;
   if (w.phase === "ende" || dist2d(pos, ecosystemCenter(w)) > p.feedRadius) return;
   w.boosts.push({ kind, strength: p.eventBoost, start: w.calendar, until: w.calendar + p.eventBoostDays });
@@ -1209,10 +1254,13 @@ function nearest(objs: PlantObject[], pos: Vec3): PlantObject | null {
   return best;
 }
 
+const drawingPoints = (d: Drawing) => d.lines.flatMap((l) => l.points);
+
 export function drawingCenter(d: Drawing): Vec3 {
   let x = 0, y = 0, z = 0;
-  for (const q of d.points) { x += q[0]; y += q[1]; z += q[2]; }
-  const n = Math.max(1, d.points.length);
+  const pts = drawingPoints(d);
+  for (const q of pts) { x += q[0]; y += q[1]; z += q[2]; }
+  const n = Math.max(1, pts.length);
   return [d.pos[0] + (x / n) * d.scale, d.pos[1] + (y / n) * d.scale, d.pos[2] + (z / n) * d.scale];
 }
 
@@ -1220,11 +1268,12 @@ export function drawingCenter(d: Drawing): Vec3 {
 export function overlapOf(d: Drawing, o: PlantObject): number {
   const b = worldBounds(o);
   let inside = 0;
-  for (const q of d.points) {
+  const pts = drawingPoints(d);
+  for (const q of pts) {
     const x = d.pos[0] + q[0] * d.scale, y = d.pos[1] + q[1] * d.scale, z = d.pos[2] + q[2] * d.scale;
     if (x >= b.min[0] && x <= b.max[0] && y >= b.min[1] && y <= b.max[1] && z >= b.min[2] && z <= b.max[2]) inside++;
   }
-  return d.points.length ? inside / d.points.length : 0;
+  return pts.length ? inside / pts.length : 0;
 }
 
 // ---------------------------------------------------------------- job results
@@ -1325,6 +1374,7 @@ export function applyJob(w: World, result: JobResult) {
     o.lift += (a.min[1] - o.min[1]) * o.scale; // the model stays where it is, only its underside moves
     Object.assign(o, { glb: a.glb, triangles: a.triangles, min: a.min, max: a.max });
     if (job.kind === "crush") o.crushLevel = job.level ?? o.crushLevel + 1;
+    if (job.kind === "compress" && o.photo) o.photo.changes++; // its photo gets more saturated
   } else if (job.kind === "split" && b) {
     const ang = job.apart ?? 0, push = HALVING_APART;
     const half = (m: typeof a, sign: number): Partial<PlantObject> => ({
@@ -1337,13 +1387,15 @@ export function applyJob(w: World, result: JobResult) {
     Object.assign(twin, half(b, -1), {
       scale: o.scale, lift: o.lift + (b.min[1] - o.min[1]) * o.scale + rng.vary(p.halvingRise, p.riseVariance),
       grow: 1, tilt: o.tilt, tint: o.tint, tintFusions: o.tintFusions, fast: o.fast, pioneer: o.pioneer, shrinkBase: o.shrinkBase, liftAdd: o.liftAdd, liftTau: o.liftTau, sibling: o.id, state: "verwelkend", crushLevel: o.crushLevel, fusions: o.fusions, halvings: o.halvings + 1, nextCrushAt: w.eigen + w.params.crushEveryDays,
-      photo: o.photo ? { ...o.photo } : null, // the same projection: together the halves still show the whole photo
+      photo: o.photo ? { ...o.photo, changes: o.photo.changes + 1 } : null, // the same projection: together the halves still show the whole photo (more saturated)
+      comment: o.comment ? { ...o.comment } : null, // the same for the comment
     });
     const liftA = o.lift + (a.min[1] - o.min[1]) * o.scale; // keeps its place inside the model
     Object.assign(o, half(a, 1), { halvings: o.halvings + 1, sibling: twin.id, state: "verwelkend", nextCrushAt: w.eigen + w.params.crushEveryDays });
     if (job.halving?.crush) { o.crushLevel++; twin.crushLevel++; } // Phase 13: the halves' textures are crushed
     if (w.halvingChain === o.id && o.halvings >= w.params.requiredHalvings) w.halvingChain = "fertig";
     o.lift = liftA + rng.vary(p.halvingRise, p.riseVariance); // splinters float
+    if (o.photo) o.photo.changes++;
     w.rngState = rng.state();
     fitSize(o, p); fitSize(twin, p);
     w.objects.push(twin);
