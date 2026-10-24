@@ -91,7 +91,12 @@ let mayCreate = false;
 function showAccess(a: Access) {
   const state = $("access-state"), form = $("code-form");
   form.hidden = a.mode !== "none" && !a.error;
-  if (a.mode === "key") { state.textContent = "Eigener Sloyd-Zugang (.env.local), ohne Begrenzung."; mayCreate = true; }
+  if (a.mode === "key") {
+    // a code still wins over the key: the team can try the workshop path from here
+    state.innerHTML = `Eigener Sloyd-Zugang (.env.local), ohne Begrenzung. <button type="button" class="link" id="code-use">Stattdessen einen Zugangscode verwenden</button>`;
+    $("code-use").addEventListener("click", () => { form.hidden = false; $("code").focus(); });
+    mayCreate = true;
+  }
   else if (a.mode === "none") { state.textContent = "Um Objekte zu erstellen, brauchst du einen Zugangscode vom Workshop-Team."; mayCreate = false; }
   else {
     const left = a.limit === null || a.limit === undefined ? null : a.limit - (a.used ?? 0);
