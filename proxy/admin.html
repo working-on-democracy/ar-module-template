@@ -65,6 +65,7 @@ tr.blocked td:last-child { text-decoration: none; }
         <h2>Alle Codes</h2>
         <span class="muted" id="summary"></span>
       </div>
+      <p class="error" id="table-error" role="alert" hidden></p>
       <table>
         <thead><tr><th>Code</th><th>Bezeichnung</th><th>Rolle</th><th>Objekte</th><th>Angelegt</th><th></th></tr></thead>
         <tbody id="codes"></tbody>
@@ -96,7 +97,7 @@ async function load() {
     <td class="muted">${new Date(c.createdAt).toLocaleDateString("de-DE")}</td>
     <td style="white-space:nowrap">
       <button data-act="${c.blocked ? "unblock" : "block"}" data-code="${esc(c.code)}">${c.blocked ? "Entsperren" : "Sperren"}</button>
-      ${c.limit === null ? "" : `<button data-act="more" data-code="${esc(c.code)}" title="erlaubt 1 Objekt mehr">+1</button>`}
+      ${c.limit === null ? "" : `<button data-act="more" data-code="${esc(c.code)}" data-limit="${c.limit}" title="erlaubt 1 Objekt mehr">+1</button>`}
       <button data-act="reset" data-code="${esc(c.code)}" title="Zähler auf 0">Zurücksetzen</button>
       <button data-act="delete" data-code="${esc(c.code)}">Löschen</button>
     </td></tr>`).join("") || `<tr><td colspan="6" class="muted">noch keine</td></tr>`;
@@ -109,25 +110,33 @@ $("login").onsubmit = async (e) => {
   catch (x) { $("login-error").textContent = x.message; $("login-error").hidden = false; }
 };
 $("role").onchange = () => { $("limit-field").hidden = $("role").value === "admin"; };
-$("create").onsubmit = async (e) => {
+/** Runs an action and redraws the table; a failure shows above the table instead of stalling. */
+async function act(run) {
+  $("table-error").hidden = true;
+  try { await run(); await load(); }
+  catch (x) { $("table-error").textContent = `Das hat nicht geklappt: ${x.message}`; $("table-error").hidden = false; }
+}
+$("create").onsubmit = (e) => {
   e.preventDefault();
-  const { codes } = await api("POST", "/v1/admin/codes", { count: Number($("count").value), role: $("role").value, limit: Number($("limit").value), label: $("label").value });
-  $("made").textContent = codes.map((c) => `${c.code}  ${c.label}`).join("\n");
-  $("made-box").hidden = false;
-  load();
+  act(async () => {
+    const { codes } = await api("POST", "/v1/admin/codes", { count: Number($("count").value), role: $("role").value, limit: Number($("limit").value), label: $("label").value });
+    $("made").textContent = codes.map((c) => `${c.code}  ${c.label}`).join("\n");
+    $("made-box").hidden = false;
+  });
 };
-$("codes").onclick = async (e) => {
+$("codes").onclick = (e) => {
   const b = e.target.closest("button");
   if (!b) return;
-  const code = b.dataset.code, act = b.dataset.act;
-  if (act === "delete" && !confirm(`Code ${code} löschen? Wer ihn hat, kann danach nichts mehr erstellen.`)) return;
-  const row = (await api("GET", "/v1/admin/codes")).codes.find((c) => c.code === code);
-  if (act === "block") await api("PATCH", `/v1/admin/codes/${code}`, { blocked: true });
-  if (act === "unblock") await api("PATCH", `/v1/admin/codes/${code}`, { blocked: false });
-  if (act === "reset") await api("PATCH", `/v1/admin/codes/${code}`, { used: 0 });
-  if (act === "more") await api("PATCH", `/v1/admin/codes/${code}`, { limit: (row?.limit ?? 0) + 1 });
-  if (act === "delete") await api("DELETE", `/v1/admin/codes/${code}`);
-  load();
+  const code = b.dataset.code, what = b.dataset.act, path = `/v1/admin/codes/${code}`;
+  if (what === "delete" && !confirm(`Code ${code} löschen? Wer ihn hat, kann danach nichts mehr erstellen.`)) return;
+  b.disabled = true;
+  act(async () => {
+    if (what === "block") await api("PATCH", path, { blocked: true });
+    if (what === "unblock") await api("PATCH", path, { blocked: false });
+    if (what === "reset") await api("PATCH", path, { used: 0 });
+    if (what === "more") await api("PATCH", path, { limit: Number(b.dataset.limit) + 1 });
+    if (what === "delete") await api("DELETE", path);
+  }).finally(() => { b.disabled = false; });
 };
 if (password) { $("password").value = password; $("login").requestSubmit(); }
 </script>

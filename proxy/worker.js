@@ -13,7 +13,7 @@
 //   GET|POST /v1/admin/codes, PATCH|DELETE /v1/admin/codes/<code>
 //
 // Codes live in KV (binding CODES) as code:<CODE> → { role, label, limit, used,
-// blocked, createdAt, jobs }. Roles: "teilnehmer" (limit objects, plants only
+// blocked, createdAt, jobs }, their list as index:codes. Roles: "teilnehmer" (limit objects, plants only
 // their own), "admin" (no limit, plants everything).
 //
 // Secrets: SLOYD_CLIENT_ID, SLOYD_CLIENT_SECRET, ADMIN_PASSWORD.
@@ -48,6 +48,22 @@ export default {
 const normal = (code) => String(code || "").trim().toUpperCase();
 const load = async (env, code) => { const v = await env.CODES.get(`code:${normal(code)}`); return v ? JSON.parse(v) : null; };
 const save = (env, code, data) => env.CODES.put(`code:${normal(code)}`, JSON.stringify(data));
+// The admin's list of codes. KV's own list() lags up to a minute behind writes (a deleted
+// code still listed, a new one missing), a single key is current where it was written.
+async function index(env) {
+  const v = await env.CODES.get("index:codes");
+  if (v) return JSON.parse(v);
+  const codes = []; // first use: from list()
+  let cursor;
+  do {
+    const page = await env.CODES.list({ prefix: "code:", cursor });
+    codes.push(...page.keys.map((k) => k.name.slice(5)));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  await setIndex(env, codes);
+  return codes;
+}
+const setIndex = (env, codes) => env.CODES.put("index:codes", JSON.stringify([...new Set(codes)]));
 const view = (code, c) => ({ code, role: c.role, label: c.label, limit: c.limit, used: c.used, blocked: c.blocked, createdAt: c.createdAt });
 
 /** PFL-XXXX-XXXX from an alphabet without look-alikes */
@@ -117,13 +133,9 @@ async function admin(req, env, path) {
   const given = req.headers.get("x-admin-password") || "";
   if (!env.ADMIN_PASSWORD || !(await same(given, env.ADMIN_PASSWORD))) return fail(401, "Falsches Admin-Passwort.");
   if (path === "/v1/admin/codes" && req.method === "GET") {
-    const codes = [];
-    let cursor;
-    do {
-      const page = await env.CODES.list({ prefix: "code:", cursor });
-      for (const k of page.keys) { const c = JSON.parse(await env.CODES.get(k.name)); codes.push(view(k.name.slice(5), c)); }
-      cursor = page.list_complete ? undefined : page.cursor;
-    } while (cursor);
+    const codes = [], known = await index(env);
+    for (const code of known) { const c = await load(env, code); if (c) codes.push(view(code, c)); }
+    if (codes.length < known.length) await setIndex(env, codes.map((c) => c.code)); // gone meanwhile
     codes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return json({ codes });
   }
@@ -137,13 +149,18 @@ async function admin(req, env, path) {
       await save(env, code, c);
       made.push(view(code, c));
     }
+    await setIndex(env, [...(await index(env)), ...made.map((m) => m.code)]);
     return json({ codes: made });
   }
   const one = path.match(/^\/v1\/admin\/codes\/([\w-]+)$/);
   if (one) {
     const code = normal(one[1]), c = await load(env, code);
     if (!c) return fail(404, "Unbekannter Code.");
-    if (req.method === "DELETE") { await env.CODES.delete(`code:${code}`); return json({ deleted: code }); }
+    if (req.method === "DELETE") {
+      await env.CODES.delete(`code:${code}`);
+      await setIndex(env, (await index(env)).filter((x) => x !== code));
+      return json({ deleted: code });
+    }
     if (req.method === "PATCH") {
       const p = await req.json();
       if ("blocked" in p) c.blocked = !!p.blocked;
