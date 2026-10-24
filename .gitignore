@@ -25,3 +25,6 @@ generated-assets/
 # Sandbox output: built lifecycle page, run folders (models, logs, fuse cache)
 sandbox/lifecycle-page/lebenszyklus-rechner.html
 sandbox-runs/
+# New objects from the upload page (sandbox/objects): sources, Sloyd files, working versions,
+# Keimling variants and their catalog — local until the platform stores them
+sandbox-objects/

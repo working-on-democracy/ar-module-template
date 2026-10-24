@@ -48,6 +48,7 @@ npm run sandbox                           # neuer Lauf: erst pflanzen, Viewer au
 npm run sandbox -- --values pflanzung.json   # denselben Lauf noch einmal (Datei aus der Pflanzszene)
 npm run sandbox -- --ohne-pflanzen        # sofort mit den fünf Standardobjekten im Ring
 npm run dev:ar                            # AR-Testszene am Telefon, pflanzt in die laufende Sandbox
+                                          # neue Objekte: http://localhost:5180/objekte.html
 npm run sandbox -- --seed 12              # bestimmter Seed
 npm run sandbox -- --speed echtzeit4      # viermal so schnell wie die echte Zeit
 npm run sandbox -- --replay sandbox-runs/<Ordner>   # aufgezeichneten Lauf wieder abspielen
@@ -68,6 +69,14 @@ Die AR-Testszene (`npm run dev:ar`) erreicht die Sandbox über den Vite-Server
 (`PLANT_SANDBOX=http://host:port`, sonst Port 5180) und zeigt danach die Pflanze
 live über `GET /api/plant`.
 
+**Neue Objekte** entstehen auf http://localhost:5180/objekte.html: Bild oder
+Beschreibung und einen Namen eingeben, die Sandbox schickt beides an Sloyd
+(`sloydFaces`, `sloydTexture`), reduziert das Ergebnis auf die Arbeitsfassung
+(`originMaxTriangles`) und nimmt es in die Pflanzliste auf. Danach rechnet sie alle
+Keimling-Varianten vor, nur wenn der Lauf gerade nichts rechnet. Alles liegt in
+`sandbox-objects/` (von Git ignoriert). Die Sloyd-Zugangsdaten stehen in `.env.local`
+(siehe `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`).
+
 Im Viewer blendet **Vorschau** (Taste P, Esc beendet) Oberfläche, Markierungen und
 Hilfslinien aus: dunkelgrauer Boden, der Eingesunkenes verdeckt, mit Horizont im Dunst.
 
@@ -80,6 +89,7 @@ sandbox/
   scenarios/        Startobjekte, Szenario (Fotos, Zeichnungen, Kommentare, Besuche nach Zeitplan)
   runner/           führt die Jobs der Simulation mit den Skripten aus
   planting/         Pflanzszene (Regeln, Szene, Oberfläche) für Viewer und AR-Testszene
+  objects/          neue Objekte: Sloyd, Arbeitsfassung, Katalog, Keimling-Varianten (Seite: viewer/objekte.html)
   render/           Darstellung für Viewer und AR-App: Fotoprojektion, Kommentarschrift, Zeichnungen als Röhren
   test-photos/      gemeinfreie Testfotos (Quellen in QUELLEN.md)
   server.ts         Sandbox-Server: Tempo, Protokoll, Aufzeichnung, Viewer

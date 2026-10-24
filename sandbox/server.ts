@@ -34,6 +34,7 @@ import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import { catalogOf, checkPlanting, type Planting } from "./planting/rules";
+import { objectFile, readCatalog, Workshop } from "./objects/workshop";
 import { grainOf, grainScaleOf, tintIntensity } from "./sim/look";
 import models from "./scenarios/starter-models.json";
 import { SAMPLE_COMMENTS } from "./scenarios/comments";
@@ -80,8 +81,11 @@ const port = Number(args.port ?? 5180);
 
 // ---------------------------------------------------------------- run folder, world
 
+// what can be planted: the 8 starter models (sandbox/models) and the new objects from the
+// upload page (sandbox-objects/, sandbox/objects/workshop.ts)
 const library = models as unknown as Record<string, ModelVersion>;
-const catalog = catalogOf(library);
+const catalog = () => catalogOf({ ...library, ...readCatalog() });
+const modelSource = (name: string) => library[name] ? join(HERE, "models", library[name].glb) : objectFile(name, `${name}.glb`);
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
 if (recorded && recorded.commit !== commit) console.warn(`⚠ aufgezeichnet mit ${recorded.commit}, jetzt ${commit}: hat sich die Simulation seitdem geändert, weicht die Wiedergabe ab`);
@@ -100,7 +104,7 @@ async function startRun(plants: Planting[] | null) {
   const scenario = buildScenario({ scenario: scenarioValues, starters: plants ? plants.map((p) => p.name) : starters });
   if (plants) scenario.starters.forEach((s, i) => Object.assign(s, { pos: plants[i].pos, rotY: plants[i].rotY, size: plants[i].size }));
   for (const s of scenario.starters) {
-    const src = join(HERE, "models", library[s.name].glb);
+    const src = modelSource(s.name);
     if (!replayDir && !existsSync(src)) throw new Error(`Startmodell fehlt: ${src} (die Startmodelle liegen in sandbox/models/)`);
     const rel = `glb/${s.name}.glb`;
     if (replayDir) { s.model = { glb: rel, ...(({ triangles, min, max }) => ({ triangles, min, max }))(await glbInfo(join(runDir, rel))) }; continue; }
@@ -434,7 +438,7 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   if (url.pathname === "/api/planting" && req.method === "GET") {
     const p = params;
     send(res, 200, JSON.stringify({
-      waiting: !started && !replayDir, catalog, plantingPoint: started ? plantingPoint : null,
+      waiting: !started && !replayDir, catalog: catalog(), plantingPoint: started ? plantingPoint : null,
       rules: { originMinSize: p.originMinSize, originMaxSize: p.originMaxSize, originMaxGap: p.originMaxGap, plantMinObjects: p.plantMinObjects, plantMaxObjects: p.plantMaxObjects },
     }));
     return true;
@@ -443,7 +447,7 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     if (started || replayDir) { send(res, 409, JSON.stringify({ error: "Die Sandbox hat schon eine Pflanze. Für eine neue Pflanzung neu starten." })); return true; }
     const body = await readBody(req);
     const plants = body.plants as Planting[], seed = Number(body.seed);
-    const wrong = !Array.isArray(plants) ? "keine Pflanzung" : !Number.isInteger(seed) || seed < 0 || seed > 99 ? `Seed ${body.seed} nicht zwischen 0 und 99` : checkPlanting(plants, catalog, params);
+    const wrong = !Array.isArray(plants) ? "keine Pflanzung" : !Number.isInteger(seed) || seed < 0 || seed > 99 ? `Seed ${body.seed} nicht zwischen 0 und 99` : checkPlanting(plants, catalog(), params);
     if (wrong) { send(res, 400, JSON.stringify({ error: wrong })); return true; }
     scenarioValues.seed = seed;
     await startRun(plants);
@@ -453,7 +457,21 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     return true;
   }
   const model = url.pathname.match(/^\/api\/planting\/models\/([\w-]+\.glb)$/);
-  if (model && existsSync(join(HERE, "models", model[1]))) { send(res, 200, readFileSync(join(HERE, "models", model[1])), "model/gltf-binary"); return true; }
+  if (model) {
+    const item = catalog().find((c) => c.glb === model[1]);
+    const file = item && modelSource(item.name);
+    if (file && existsSync(file)) { send(res, 200, readFileSync(file), "model/gltf-binary"); return true; }
+  }
+  // new objects (the upload page): their state, and a new one
+  if (url.pathname === "/api/objects" && req.method === "GET") {
+    send(res, 200, JSON.stringify({ objects: workshop.list(), settings: { faces: params.sloydFaces, texture: params.sloydTexture, target: params.originMaxTriangles } }));
+    return true;
+  }
+  if (url.pathname === "/api/objects" && req.method === "POST") {
+    const wrong = workshop.add(await readBody(req));
+    send(res, wrong ? 400 : 200, JSON.stringify(wrong ? { error: wrong } : {}));
+    return true;
+  }
   if (!started && url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/planting")) { send(res, 409, JSON.stringify({ planting: true })); return true; }
   if (url.pathname === "/api/plant") { send(res, 200, JSON.stringify(plantFor())); return true; }
   if (url.pathname === "/api/frames") {
@@ -502,6 +520,9 @@ vite = await createViteServer({
   appType: "spa",
   logLevel: "warn",
 });
+// new objects: Sloyd, working version, catalog; their Keimling variants only while the run computes nothing
+const workshop = new Workshop(params, () => started && (running.size > 0 || queue.length > 0 || waitingFor !== null), (name) => !!library[name]);
+
 const waitForPlanting = !replayDir && !args["ohne-pflanzen"] && !input.plants;
 if (!waitForPlanting) await startRun(recorded?.plants ?? input.plants ?? null);
 http.listen(port, () => {

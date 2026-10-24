@@ -13,6 +13,11 @@ export const PARAMS = {
   budgetMin: 70_000,
   budgetMax: 90_000,
   originMaxTriangles: 7_500, // an origin object above this is reduced to it when planted (the budget formula stays: 5 × 7 500 → 85 000)
+  // new objects from the upload page (sandbox/objects): Sloyd makes them with this many faces and
+  // this texture size, the working version is then reduced to originMaxTriangles (not simulation
+  // values, so not in the lifecycle calculator)
+  sloydFaces: 20_000,
+  sloydTexture: 2048, // px (Sloyd: 2k)
 
   // --- Keimlinge (copies)
   growDays: 0.67, // Eigentage until a new copy has fully risen out of the ground

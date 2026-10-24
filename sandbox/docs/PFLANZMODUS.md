@@ -13,7 +13,8 @@ Danach startet die Simulation mit genau dieser Anordnung.
 Die Szene läuft heute an zwei Stellen mit demselben Code: im Viewer der Sandbox am
 Rechner und in der AR-Testszene am Telefon. Woher später die pflanzbaren Objekte
 kommen und wo der Server eine Pflanzung speichert, ist noch offen. Bis dahin sind
-die 8 Startmodelle in `sandbox/models/` die Auswahl, und die Sandbox nimmt die
+die 8 Startmodelle in `sandbox/models/` die Auswahl, dazu die neuen Objekte von
+der Objekt-Seite der Sandbox (`/objekte.html`), und die Sandbox nimmt die
 Pflanzung an.
 
 ## Ablauf
@@ -142,7 +143,8 @@ Form der Abrufe in [Schnittstellen](SCHNITTSTELLEN.md#pflanzen-app--server). Kur
 - **Speichern:** wohin eine Pflanzung geht und wie sie mit einem Ort (Breite,
   Länge) verbunden wird, ist offen.
 - **Objekte:** woher die pflanzbaren Objekte kommen und wie sie in die Datenbank
-  kommen, ist offen. Heute sind es die 8 Startmodelle.
+  kommen, ist offen. Heute sind es die 8 Startmodelle und alles, was auf der
+  Objekt-Seite der Sandbox (`/objekte.html`) entsteht.
 - **Maßstab:** Die Host-App nutzt den responsiven Maßstab von 8th Wall. Die
   Pflanze rechnet in Metern und braucht den absoluten Maßstab, oder die App rechnet
   um.

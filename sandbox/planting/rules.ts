@@ -18,8 +18,8 @@ const LABELS: Record<string, string> = {
   regenschirm: "Regenschirm", rucksack: "Rucksack", "tarot-figur": "Tarotfigur", "tiffany-lampe": "Tiffanylampe",
 };
 
-export function catalogOf(models: Record<string, ModelVersion>): CatalogItem[] {
-  return Object.entries(models).map(([name, m]) => ({ name, label: LABELS[name] ?? name, glb: m.glb, triangles: m.triangles, min: m.min, max: m.max }));
+export function catalogOf(models: Record<string, ModelVersion & { label?: string }>): CatalogItem[] {
+  return Object.entries(models).map(([name, m]) => ({ name, label: m.label ?? LABELS[name] ?? name, glb: m.glb, triangles: m.triangles, min: m.min, max: m.max }));
 }
 
 /** The model's longest side in its own units. */

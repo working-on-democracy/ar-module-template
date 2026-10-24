@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neue Objekte</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600&display=swap">
+<style>
+:root {
+  --bg: #e9ece6; --panel: #fff; --fg: #1c221e; --muted: #5f6a63; --line: #d3d8cf; --accent: #2e6a4c; --bad: #b42318;
+  --font: "Barlow", "Helvetica Neue", Arial, sans-serif; --font-display: "Barlow Semi Condensed", "Barlow", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
+main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+h1 { margin: 0; font: 600 26px var(--font-display); }
+h2 { margin: 0; font: 600 13px var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
+.muted { color: var(--muted); font-size: 13.5px; }
+label { display: grid; gap: 6px; font-weight: 500; }
+input[type=text], textarea { font: 15px var(--font); padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; width: 100%; color: var(--fg); background: #fff; }
+textarea { min-height: 96px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kinds { display: flex; gap: 8px; }
+.kinds button { flex: 1; font: 600 15px var(--font); padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--fg); cursor: pointer; }
+.kinds button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; }
+.drop img { max-width: 100%; max-height: 220px; border-radius: 6px; display: block; margin: 8px auto 0; }
+.submit { font: 600 16px var(--font); padding: 12px; border-radius: 8px; border: none; background: var(--accent); color: #fff; cursor: pointer; }
+.submit:disabled { opacity: 0.45; cursor: default; }
+.error { color: var(--bad); font-weight: 500; }
+.toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: rgba(28, 34, 30, 0.9); color: #fff; padding: 10px 16px; border-radius: 999px; max-width: calc(100% - 32px); text-align: center; transition: opacity 0.5s; }
+.objects { display: grid; gap: 10px; }
+.object { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; }
+.object:first-child { border-top: none; padding-top: 0; }
+.object b { font-weight: 600; }
+.state { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: #eef1ec; color: var(--muted); margin-left: 6px; }
+.state.fertig { background: var(--accent); color: #fff; }
+.state.fehler { background: #fde8e7; color: var(--bad); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+details { font-size: 13.5px; color: var(--muted); }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Neue Objekte</h1>
+    <p class="muted">Ein Bild oder eine Beschreibung wird mit Sloyd zum 3D-Objekt, kommt in die Pflanzliste, und danach werden alle Keimling-Varianten vorbereitet. <a href="/">Zur Sandbox</a></p>
+  </div>
+  <form class="card" id="form" novalidate>
+    <h2>Objekt erstellen</h2>
+    <div class="kinds" role="group" aria-label="Art">
+      <button type="button" id="kind-image" aria-pressed="true">Bild zu 3D</button>
+      <button type="button" id="kind-text" aria-pressed="false">Text zu 3D</button>
+    </div>
+    <label>Name
+      <input type="text" id="label" maxlength="40" placeholder="z. B. Gießkanne" autocomplete="off">
+      <span class="muted">So erscheint es in der Pflanzliste. Daraus wird auch der Dateiname.</span>
+    </label>
+    <div id="image-field">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Bild wählen">
+        <span id="drop-text">Bild wählen oder hierher ziehen (PNG, JPEG, WebP)</span>
+        <img id="preview" alt="" hidden>
+      </div>
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+    <label id="text-field" hidden>Beschreibung (Prompt)
+      <textarea id="prompt" placeholder="z. B. Eine alte grüne Gießkanne aus Blech, leicht verbeult"></textarea>
+    </label>
+    <p class="muted" id="note"></p>
+    <p class="error" id="error" hidden></p>
+    <button class="submit" id="submit" type="submit">Erstellen</button>
+  </form>
+  <section class="card">
+    <h2>Objekte</h2>
+    <div class="objects" id="objects"><span class="muted">noch keine</span></div>
+  </section>
+</main>
+<script type="module" src="./objekte.ts"></script>
+</body>
+</html>

@@ -75,7 +75,7 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
    Kennung pro Sitzung, die einige Minuten gilt (siehe `docs/SCHNITTSTELLEN.md`).
 10. **Mehrere Pflanzen.** Die Sandbox rechnet eine Pflanze mit 3 Jobs
     gleichzeitig. Mehrere Pflanzen teilen sich Rechenzeit, die Reihenfolge der
-. **Keimling-Varianten vorbereiten.** Zwischen Erstellen (Sloyd) und Pflanzen
+11. **Keimling-Varianten vorbereiten.** Zwischen Erstellen (Sloyd) und Pflanzen
     vergeht Zeit. Darin lassen sich alle Varianten einer Linie rechnen:
     Arbeitsfassung des Ursprungsobjekts (höchstens 7 500 Dreiecke), die
     Vorläufer-Varianten (Phase 2 mit 1 500 und 1 275, Voxel 24 vom Ursprung),
@@ -86,7 +86,10 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     wird dann zum Nachschlagen, die Uhr wartet am Anfang nicht mehr. Wird
     vor dem Ende der Vorbereitung gepflanzt, wird vorgezogen, was die
     Simulation braucht. Kopien mit einem Elternteil, das nicht die vorige
-    Generation ist, bleiben normale Jobs.
+    Generation ist, bleiben normale Jobs. Die Sandbox rechnet die Varianten für
+    neue Objekte von der Objekt-Seite schon vor (`sandbox/objects/workshop.ts`,
+    nur wenn der Lauf gerade nichts rechnet) und legt sie in `sandbox-objects/`
+    ab. Die Läufe schlagen sie noch nicht nach.
 12. **Sloyd-Rohdatei löschen.** Bei Objekten über 7 500 Dreiecken kann die
     Rohdatei (0,8 bis 1,7 MB) nach der Vorbereitung weg. Ab dann ist die
     Arbeitsfassung mit 7 500 Dreiecken das Ursprungsobjekt: Sie steht in der
