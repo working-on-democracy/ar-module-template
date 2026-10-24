@@ -29,6 +29,9 @@ export interface PlantingHost {
   desktop: boolean;
   /** m: further away the view hits no ground for planting (default 12; the sandbox's overview camera needs more). */
   maxAimDistance?: number;
+  /** The catalog as it is now: asked every CATALOG_POLL_MS and when the page comes back into view, so
+   *  objects made meanwhile (the objects page) join the list. */
+  fetchCatalog?: () => Promise<CatalogItem[]>;
   /** The finished planting, in the root's frame, with the seed drawn for its simulation (0 … 99). */
   onFinish(plants: Planting[], seed: number): void;
 }
@@ -37,6 +40,7 @@ type State = "list" | "aim" | "placed" | "busy";
 
 interface Placed { item: CatalogItem; pos: Vec3; size: number; rotY: number; object: T.Object3D }
 
+const CATALOG_POLL_MS = 10_000;
 const ROTATE_PER_PIXEL = 0.012; // rad per pixel of a one-finger drag
 const WHEEL_SCALE = 0.0015; // size × e^(−deltaY · this) per wheel step
 
@@ -75,6 +79,13 @@ export class PlantingScene {
     this.listenGestures();
     for (const item of catalog) this.load(item);
     this.showList();
+    if (host.fetchCatalog) {
+      const fetchNow = () => { if (document.visibilityState === "visible") host.fetchCatalog!().then((c) => this.addToCatalog(c)).catch(() => {}); };
+      const timer = setInterval(fetchNow, CATALOG_POLL_MS);
+      document.addEventListener("visibilitychange", fetchNow);
+      window.addEventListener("focus", fetchNow);
+      this.unlisten.push(() => { clearInterval(timer); document.removeEventListener("visibilitychange", fetchNow); window.removeEventListener("focus", fetchNow); });
+    }
   }
 
   /** Objects that came into the catalog meanwhile (e.g. from the objects page): added to the list. */

@@ -3,8 +3,9 @@
 // texture-crush, fuse (+ reduce to the kept share). Every result is a new file
 // in the run's glb/ folder; the scripts always read uncompressed files and
 // never compress, so no geometry is quantized twice.
-import { execFile } from "node:child_process";
-import { copyFileSync, existsSync } from "node:fs";
+import { execFile, type ChildProcess, type ExecFileOptionsWithStringEncoding } from "node:child_process";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CRUSH, STYLIZE_COPY } from "../sim/recipes";
@@ -14,6 +15,10 @@ import { glbInfo } from "./glb-info";
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 /** Prepared models for glb-fuse, shared by all runs (keyed by file content and options, so a model is never prepared twice). */
 const FUSE_CACHE = join(ROOT, "sandbox-runs", "fuse-cache");
+/** Results of the copy steps (Keimlinge), shared by all runs and filled ahead by the objects page
+ *  (objects/workshop.ts): keyed by the input file's content and the step with its settings. */
+const COPY_CACHE = join(ROOT, "sandbox-runs", "copy-cache");
+const COPY_CACHE_VERSION = 1; // raise when a copy step's script changes what it makes
 
 export interface JobOptions {
   runDir: string; // glb paths in the world are relative to it
@@ -26,15 +31,56 @@ const SCRIPT_TIMEOUT_MS = 15 * 60_000;
 /** Texture seams can stop a reduction far above its target: above this × the target it runs again, permissive. */
 const PERMISSIVE_RETRY = 1.5;
 
+// Scripts still running when the server stops are stopped with it: a left-over one would
+// go on on its own (a Sloyd job, for one, would come in after all and clash with a new start).
+const runningScripts = new Set<ChildProcess>();
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.once(sig, () => {
+    for (const c of runningScripts) { try { process.kill(-c.pid!, "SIGTERM"); } catch { c.kill("SIGTERM"); } }
+    process.exit(sig === "SIGINT" ? 130 : 143);
+  });
+}
+
 export function script(name: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("npx", ["tsx", join(ROOT, "scripts", name), ...args], { cwd: ROOT, maxBuffer: 1 << 24, timeout: SCRIPT_TIMEOUT_MS }, (err, stdout, stderr) => {
+    const child = execFile("npx", ["tsx", join(ROOT, "scripts", name), ...args], // own process group (detached), so stopping it reaches npx, tsx and the script alike
+      { cwd: ROOT, maxBuffer: 1 << 24, timeout: SCRIPT_TIMEOUT_MS, encoding: "utf8", detached: true } as ExecFileOptionsWithStringEncoding, (err, stdout, stderr) => {
+      runningScripts.delete(child);
       if (err?.killed) reject(new Error(`${name} ${args.join(" ")}\nnach ${SCRIPT_TIMEOUT_MS / 60_000} Minuten abgebrochen`));
       else if (err) reject(new Error(`${name} ${args.join(" ")}\n${stderr || stdout || err.message}`));
       else resolve(stdout);
     });
+    runningScripts.add(child);
   });
 }
+
+/** A copy step from the cache, or computed and kept there; true if it came from the cache. */
+async function cachedCopy(from: string, step: Record<string, unknown>, to: string, make: () => Promise<void>): Promise<boolean> {
+  const key = createHash("sha1").update(readFileSync(from)).update(JSON.stringify([COPY_CACHE_VERSION, step])).digest("hex");
+  const kept = join(COPY_CACHE, `${key}.glb`);
+  if (existsSync(kept)) { copyFileSync(kept, to); return true; }
+  await make();
+  mkdirSync(COPY_CACHE, { recursive: true });
+  copyFileSync(to, `${kept}.tmp`);
+  renameSync(`${kept}.tmp`, kept); // complete only now
+  return false;
+}
+
+// The copy steps, the same for a run's Keimlinge and the variants computed ahead (absolute paths).
+/** Phase 2: stylized to `faces`; texture seams can stop it far above the target (Muschel-Vase, Rucksack): then permissive. */
+export const stylizeCopy = (from: string, to: string, faces: number) => cachedCopy(from, { step: "p2", faces, texture: STYLIZE_COPY.texture, saturation: STYLIZE_COPY.saturation }, to, async () => {
+  const args = [from, "--faces", String(faces), "--texture", String(STYLIZE_COPY.texture), "--saturation", String(STYLIZE_COPY.saturation), "--no-compress"];
+  await script("stylize-glb.ts", [...args, "--out", to]);
+  if ((await glbInfo(to)).triangles > faces * PERMISSIVE_RETRY) await script("stylize-glb.ts", [...args, "--permissive", "--out", to]);
+});
+/** Phase 5: a cube grid with `cells` over the largest side. */
+export const voxelCopy = (from: string, to: string, cells: number) => cachedCopy(from, { step: "p5", cells }, to, async () => {
+  await script("glb-fuse.ts", [from, "--mode", "voxel", "--voxel-cells", String(cells), "--out", to]);
+});
+/** A copy of the next plain generation: reduced to `target` triangles. */
+export const reduceCopy = (from: string, to: string, target: number) => cachedCopy(from, { step: "reduce", target: Math.max(1, Math.floor(target)) }, to, async () => {
+  await script("glb-reduce.ts", [from, "--target", String(Math.max(1, Math.floor(target))), "--out", to]);
+});
 
 async function version(runDir: string, rel: string): Promise<ModelVersion> {
   const info = await glbInfo(join(runDir, rel));
@@ -53,19 +99,16 @@ export async function runGlbJob(w: World, job: JobRequest, opt: JobOptions): Pro
   const crush = (from: string, to: string) => // Phase 9
     script("glb-texture-crush.ts", [abs(from), "--format", "jpeg", "--quality", String(CRUSH.quality), "--passes", String(CRUSH.passes), "--saturation", String(CRUSH.saturation), "--out", abs(to)]);
 
-  if (job.kind === "copy") {
+  if (job.kind === "copy") { // from the copy cache where the step was made before (any run, or the objects page)
     if (job.voxelCells) { // Phase 5
       const rel = out(`-voxel${job.voxelCells}`);
-      await script("glb-fuse.ts", [abs(o.glb), "--mode", "voxel", "--voxel-cells", String(job.voxelCells), "--out", abs(rel)]);
+      await voxelCopy(abs(o.glb), abs(rel), job.voxelCells);
       return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
     }
     const rel = out(`-kopie-${job.recipe ?? "reduce"}`);
-    if (job.recipe === "p2") { // Phase 2; texture seams can stop it far above the target (Muschel-Vase, Rucksack): then permissive
-      const faces = job.faces ?? STYLIZE_COPY.faces; // a Vorläufer of generation 2 gets fewer
-      await stylize(o.glb, rel, faces);
-      if ((await glbInfo(abs(rel))).triangles > faces * PERMISSIVE_RETRY) await stylize(o.glb, rel, faces, ["--permissive"]);
-    } else if (job.recipe === "copy") copyFileSync(abs(o.glb), abs(rel)); // same generation: a plain copy
-    else await reduce(o.glb, rel, o.triangles * (job.keep ?? 1));
+    if (job.recipe === "p2") await stylizeCopy(abs(o.glb), abs(rel), job.faces ?? STYLIZE_COPY.faces); // a Vorläufer of generation 2 gets fewer faces
+    else if (job.recipe === "copy") copyFileSync(abs(o.glb), abs(rel)); // same generation: a plain copy
+    else await reduceCopy(abs(o.glb), abs(rel), o.triangles * (job.keep ?? 1));
     return { jobId: job.id, outputs: [await version(opt.runDir, rel)] };
   }
   if (job.kind === "compress") {

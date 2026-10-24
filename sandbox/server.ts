@@ -521,7 +521,7 @@ vite = await createViteServer({
   logLevel: "warn",
 });
 // new objects: Sloyd, working version, catalog; their Keimling variants only while the run computes nothing
-const workshop = new Workshop(params, () => started && (running.size > 0 || queue.length > 0 || waitingFor !== null), (name) => !!library[name]);
+const workshop = new Workshop(params, () => started && (running.size > 0 || queue.length > 0 || waitingFor !== null), (name) => !!library[name], port);
 
 const waitForPlanting = !replayDir && !args["ohne-pflanzen"] && !input.plants;
 if (!waitForPlanting) await startRun(recorded?.plants ?? input.plants ?? null);

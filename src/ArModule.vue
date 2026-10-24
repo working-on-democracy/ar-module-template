@@ -84,6 +84,7 @@ async function begin() {
   const Loader = (THREE as unknown as { GLTFLoader: new () => { loadAsync(u: string): Promise<{ scene: T.Object3D }> } }).GLTFLoader;
   planting = new PlantingScene({
     THREE, root: world.object3D, camera: scene.camera, ui, desktop: false,
+    fetchCatalog: async () => ((await (await fetch('/api/planting')).json()) as { catalog: CatalogItem[] }).catalog,
     loadModel: async (item) => (await new Loader().loadAsync(`/api/planting/models/${item.glb}`)).scene,
     onFinish: (plants, seed) => { plant(plants, seed).catch((e) => { console.error(e); toast(ui!, `Die Pflanzung ging nicht durch: ${(e as Error).message}`, 15000); }); },
   }, info.catalog, info.rules);

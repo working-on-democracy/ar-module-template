@@ -50,7 +50,7 @@ sandbox/runner/       runs JobRequests with the real scripts (jobs.ts), reads GL
 sandbox/server.ts     sandbox server: waits for a planting (POST /api/planting) unless --replay / --ohne-pflanzen / --values with plants;
                       speed, tape (tape.jsonl), replay, viewer API (/api/state, /api/frames, /api/cmd), interface 1 (/api/plant)
 sandbox/objects/      new objects from the upload page (viewer/objekte.html): Sloyd (sloydFaces/sloydTexture), working version
-                      (originMaxTriangles), local catalog, Keimling variants computed ahead while the run is idle (not used by runs yet)
+                      (originMaxTriangles), local catalog, Keimling variants computed ahead while the run is idle (into the copy cache)
 sandbox/planting/     planting scene shared by viewer and AR test scene: rules.ts (also checked by the server), scene.ts, ui.ts (inline-styled DOM)
 sandbox/render/       rendering shared by viewer and AR test scene: photo-layer.ts (photo projection + shadow), comment-layer.ts + comment-text.ts
                       (comment text, the platform's font), stroke-tube.ts (drawings as the platform draws them); three.js is passed in
@@ -65,7 +65,8 @@ src/, lib/            AR-module template baseline; src/ArModule.vue = the AR tes
                       dev:ar proxies /api and /run to the sandbox (PLANT_SANDBOX, default port 5180); the AR preview runs 8th Wall with absolute scale;
                       src/a-frame-components/grain-shimmer.ts = the plant's grain look
 guides/, examples/    guide + example for grain-shimmer (the only template feature kept)
-sandbox-runs/         gitignored: run folders + shared fuse cache (sandbox-runs/fuse-cache)
+sandbox-runs/         gitignored: run folders + shared caches: fuse-cache (prepared models for glb-fuse), copy-cache (results of the
+                      copy steps, keyed by input content + step; runs look there first, the objects page fills it ahead)
 sandbox-objects/      gitignored: new objects (sources, Sloyd files, working versions, variants, katalog.json); never commit
 ```
 

@@ -86,10 +86,13 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     wird dann zum Nachschlagen, die Uhr wartet am Anfang nicht mehr. Wird
     vor dem Ende der Vorbereitung gepflanzt, wird vorgezogen, was die
     Simulation braucht. Kopien mit einem Elternteil, das nicht die vorige
-    Generation ist, bleiben normale Jobs. Die Sandbox rechnet die Varianten für
-    neue Objekte von der Objekt-Seite schon vor (`sandbox/objects/workshop.ts`,
-    nur wenn der Lauf gerade nichts rechnet) und legt sie in `sandbox-objects/`
-    ab. Die Läufe schlagen sie noch nicht nach.
+    Generation ist, bleiben normale Jobs. In der Sandbox ist das umgesetzt: Jeder
+    Kopierschritt (Phase 2, Reduktion, Voxel) landet in einem Cache, geschlüsselt
+    nach dem Inhalt der Eingabedatei und dem Schritt mit seinen Einstellungen
+    (`sandbox-runs/copy-cache`, `runner/jobs.ts`). Die Objekt-Seite rechnet die
+    Varianten neuer Objekte damit vor (`sandbox/objects/workshop.ts`, nur wenn der
+    Lauf gerade nichts rechnet), und jeder Lauf schaut zuerst dort nach. Die
+    Startmodelle füllen ihn beim ersten Lauf. Der Server braucht dasselbe.
 12. **Sloyd-Rohdatei löschen.** Bei Objekten über 7 500 Dreiecken kann die
     Rohdatei (0,8 bis 1,7 MB) nach der Vorbereitung weg. Ab dann ist die
     Arbeitsfassung mit 7 500 Dreiecken das Ursprungsobjekt: Sie steht in der

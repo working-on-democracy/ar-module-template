@@ -853,6 +853,7 @@ async function begin() {
   const gltf = new GLTFLoader();
   planting = new PlantingScene({
     THREE, root: scene, camera, ui: document.body, desktop: true, maxAimDistance: 60,
+    fetchCatalog: async () => ((await (await fetch("/api/planting")).json()) as { catalog: CatalogItem[] }).catalog,
     loadModel: async (item) => (await gltf.loadAsync(`/api/planting/models/${item.glb}`)).scene,
     onFinish: (plants, seed) => void plant(plants, seed).then(() => {
       planting?.dispose(); planting = null; hint.remove();
@@ -861,13 +862,6 @@ async function begin() {
       document.body.classList.remove("planting");
     }),
   }, info.catalog, info.rules);
-  // back from the objects page (a new tab): what was made there meanwhile joins the list
-  const fresh = () => {
-    if (document.visibilityState !== "visible" || !planting) return;
-    fetch("/api/planting").then((r) => r.json()).then((i: { catalog: CatalogItem[] }) => planting?.addToCatalog(i.catalog)).catch(() => {});
-  };
-  document.addEventListener("visibilitychange", fresh);
-  window.addEventListener("focus", fresh);
 }
 
 /** Hands the planting to the server and loads only what the first picture needs: the origin objects' models. */

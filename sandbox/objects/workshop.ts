@@ -6,19 +6,20 @@
 // every Keimling variant of its line is computed ahead (SERVER-OFFENE-PUNKTE.md,
 // "Keimling-Varianten vorbereiten"), one step at a time and only while the
 // simulation computes nothing: the Vorläufer copies, generations 1 to 8 and the
-// preparation of every version for fusing (the shared fuse cache). The runs do
-// not use the variants yet.
+// preparation of every version for fusing (the shared fuse cache). They are
+// made with the runs' own copy steps (runner/jobs.ts), whose copy cache the runs
+// look in first: a run of the object then takes its Keimlinge from there.
 //
 // Everything lives in sandbox-objects/ (gitignored):
 //   katalog.json                the objects ready to plant (like starter-models.json, with a label)
 //   <name>/status.json          what was asked for and how far it is
 //   <name>/quelle.<ext> | prompt.txt, roh.glb (Sloyd), <name>.glb (working version), varianten/*.glb
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Params } from "../params";
 import { glbInfo } from "../runner/glb-info";
-import { script } from "../runner/jobs";
+import { reduceCopy, script, stylizeCopy, voxelCopy } from "../runner/jobs";
 import { STYLIZE_COPY } from "../sim/recipes";
 import type { ModelVersion } from "../sim/types";
 
@@ -26,7 +27,7 @@ const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export const OBJECTS_DIR = join(ROOT, "sandbox-objects");
 const CATALOG = join(OBJECTS_DIR, "katalog.json");
 const FUSE_CACHE = join(ROOT, "sandbox-runs", "fuse-cache"); // the one the runs use (runner/jobs.ts)
-const PERMISSIVE_RETRY = 1.5; // as in runner/jobs.ts: texture seams can stop a reduction far above its target
+const LOCK = join(OBJECTS_DIR, ".bearbeiter.json"); // which sandbox works on the objects: only one may (Sloyd costs credits)
 
 export type StepState = "wartet" | "läuft" | "fertig" | "fehler";
 export interface Step { id: string; label: string; state: StepState; triangles?: number; error?: string }
@@ -60,10 +61,19 @@ export class Workshop {
   private readonly busyObjects: string[] = []; // waiting for Sloyd and the working version, in order
   private working = false;
   private variantsRunning = false;
+  /** Another sandbox works on the objects (its port): this one only shows them. */
+  readonly otherWorker: number | null;
 
   /** simulationBusy: true while the sandbox's run computes or waits for jobs (it goes first). */
-  constructor(private readonly params: Params, private readonly simulationBusy: () => boolean, private readonly taken: (name: string) => boolean) {
+  constructor(private readonly params: Params, private readonly simulationBusy: () => boolean, private readonly taken: (name: string) => boolean, port: number) {
     mkdirSync(OBJECTS_DIR, { recursive: true });
+    // one worker for all sandboxes on this machine: a second one would send the same objects to Sloyd again
+    const other = existsSync(LOCK) ? (JSON.parse(readFileSync(LOCK, "utf8")) as { pid: number; port: number }) : null;
+    const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+    this.otherWorker = other && other.pid !== process.pid && alive(other.pid) ? other.port : null;
+    if (this.otherWorker !== null) { console.log(`Neue Objekte: die Sandbox auf Port ${this.otherWorker} verarbeitet sie, diese zeigt sie nur.`); return; }
+    writeFileSync(LOCK, JSON.stringify({ pid: process.pid, port }));
+    process.on("exit", () => { try { if (JSON.parse(readFileSync(LOCK, "utf8")).pid === process.pid) rmSync(LOCK); } catch { /* gone */ } });
     // what was interrupted by a restart goes on
     for (const s of this.list()) {
       if (s.state === "sloyd" || s.state === "arbeitsfassung") this.busyObjects.push(s.name);
@@ -79,6 +89,7 @@ export class Workshop {
 
   /** A new object: checks, stores the input, queues it. Returns an error text or null. */
   add(input: { kind: string; label: string; prompt?: string; image?: string; imageName?: string }): string | null {
+    if (this.otherWorker !== null) return `Neue Objekte nimmt die Sandbox auf Port ${this.otherWorker} an.`;
     const label = String(input.label ?? "").trim();
     const name = slug(label);
     if (!name) return "Bitte einen Namen angeben.";
@@ -123,11 +134,13 @@ export class Workshop {
   private async make(name: string) {
     const dir = join(OBJECTS_DIR, name), raw = join(dir, "roh.glb"), work = join(dir, `${name}.glb`);
     let s = this.status(name);
+    const sloydName = `objekt-${name}`; // in generated-assets/, where the script writes (it never overwrites)
+    const fetched = join(ROOT, "generated-assets", `${sloydName}.glb`);
+    if (!existsSync(raw) && existsSync(fetched)) renameSync(fetched, raw); // came in before an interruption: no second job
     if (!existsSync(raw)) {
       const source = s.kind === "text" ? ["text", readFileSync(join(dir, "prompt.txt"), "utf8")] : ["image", join(dir, readdirSync(dir).find((f) => f.startsWith("quelle."))!)];
-      const sloydName = `objekt-${name}`; // in generated-assets/, where the script writes (it never overwrites)
       await script("sloyd-generate.ts", [...source, "--faces", String(this.params.sloydFaces), "--texture", sloydTexture(this.params.sloydTexture), "--name", sloydName, "--yes"]);
-      renameSync(join(ROOT, "generated-assets", `${sloydName}.glb`), raw);
+      renameSync(fetched, raw);
     }
     this.save(s = { ...this.status(name), state: "arbeitsfassung" });
     const target = this.params.originMaxTriangles;
@@ -182,21 +195,15 @@ export class Workshop {
     const p = this.params, dir = join(OBJECTS_DIR, name), vdir = join(dir, "varianten");
     mkdirSync(vdir, { recursive: true });
     const work = join(dir, `${name}.glb`), file = (v: string) => join(vdir, `${v}.glb`);
-    const stylize = async (from: string, to: string, faces: number) => {
-      const args = [from, "--faces", String(faces), "--texture", String(STYLIZE_COPY.texture), "--saturation", String(STYLIZE_COPY.saturation), "--no-compress", "--out", to];
-      await script("stylize-glb.ts", args);
-      if ((await glbInfo(to)).triangles > faces * PERMISSIVE_RETRY) await script("stylize-glb.ts", [...args.slice(0, -2), "--permissive", "--out", to]);
-    };
-    const voxel = (from: string, to: string, cells: number) => script("glb-fuse.ts", [from, "--mode", "voxel", "--voxel-cells", String(cells), "--out", to]);
+    // the runs' own copy steps (runner/jobs.ts), with their copy cache: a run then finds these results there
+    const cells = (g: number) => Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, g - p.voxelFromGeneration)));
     const gen = /^g(\d+)$/.exec(id), pioneer = /^vorlaeufer-g(\d+)$/.exec(id);
-    if (id === "g1") await stylize(work, file("g1"), STYLIZE_COPY.faces);
-    else if (id === "vorlaeufer-g2") await stylize(work, file(id), Math.round(STYLIZE_COPY.faces * p.copyShrink));
-    else if (id === "g2") await script("glb-reduce.ts", [file("g1"), "--target", String(Math.floor((await glbInfo(file("g1"))).triangles * p.copyShrink)), "--out", file("g2")]);
-    else if (pioneer) await voxel(work, file(id), Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, Number(pioneer[1]) - p.voxelFromGeneration))));
-    else if (gen) {
-      const g = Number(gen[1]);
-      await voxel(file(`g${g - 1}`), file(id), Math.max(1, Math.round(p.voxelCellsStart * Math.pow(p.voxelCellsFactor, g - p.voxelFromGeneration))));
-    } else if (id === "fuse") {
+    if (id === "g1") await stylizeCopy(work, file("g1"), STYLIZE_COPY.faces);
+    else if (id === "vorlaeufer-g2") await stylizeCopy(work, file(id), Math.round(STYLIZE_COPY.faces * p.copyShrink));
+    else if (id === "g2") await reduceCopy(file("g1"), file("g2"), (await glbInfo(file("g1"))).triangles * p.copyShrink);
+    else if (pioneer) await voxelCopy(work, file(id), cells(Number(pioneer[1])));
+    else if (gen) await voxelCopy(file(`g${Number(gen[1]) - 1}`), file(id), cells(Number(gen[1])));
+    else if (id === "fuse") {
       // every version prepared once into the runs' fuse cache, with the options the runs use (runner/jobs.ts)
       for (const f of [work, ...readdirSync(vdir).filter((x) => x.endsWith(".glb")).map((x) => join(vdir, x))]) {
         await script("glb-fuse.ts", [f, f, "--mode", "hart", "--min-fill", "0.15", "--repair", "--cache", FUSE_CACHE, "--pose-only"]);

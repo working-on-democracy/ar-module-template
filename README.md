@@ -74,7 +74,9 @@ rechts „Neue Objekte“, auch beim Pflanzen; öffnet einen neuen Tab): Bild od
 Beschreibung und einen Namen eingeben, die Sandbox schickt beides an Sloyd
 (`sloydFaces`, `sloydTexture`), reduziert das Ergebnis auf die Arbeitsfassung
 (`originMaxTriangles`) und nimmt es in die Pflanzliste auf. Danach rechnet sie alle
-Keimling-Varianten vor, nur wenn der Lauf gerade nichts rechnet. Alles liegt in
+Keimling-Varianten vor, nur wenn der Lauf gerade nichts rechnet. Läufe nehmen
+ihre Keimlinge dann aus dem Cache (`sandbox-runs/copy-cache`), statt sie neu zu
+rechnen. Alles liegt in
 `sandbox-objects/` (von Git ignoriert). Die Sloyd-Zugangsdaten stehen in `.env.local`
 (siehe `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`).
 
