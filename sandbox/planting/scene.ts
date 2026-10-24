@@ -73,14 +73,23 @@ export class PlantingScene {
     this.ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     host.ui.append(this.layer);
     this.listenGestures();
-    for (const item of catalog) {
-      host.loadModel(item).then((m) => {
-        this.models.set(item.name, m);
-        this.thumbs.set(item.name, this.thumbnail(m));
-        if (this.state === "list") this.showList();
-      }).catch((e) => console.error(`Modell ${item.name} lädt nicht`, e));
-    }
+    for (const item of catalog) this.load(item);
     this.showList();
+  }
+
+  /** Objects that came into the catalog meanwhile (e.g. from the objects page): added to the list. */
+  addToCatalog(items: CatalogItem[]) {
+    const fresh = items.filter((i) => !this.catalog.some((c) => c.name === i.name));
+    for (const item of fresh) { this.catalog.push(item); this.load(item); }
+    if (fresh.length && this.state === "list") this.showList();
+  }
+
+  private load(item: CatalogItem) {
+    this.host.loadModel(item).then((m) => {
+      this.models.set(item.name, m);
+      this.thumbs.set(item.name, this.thumbnail(m));
+      if (this.state === "list") this.showList();
+    }).catch((e) => console.error(`Modell ${item.name} lädt nicht`, e));
   }
 
   /** Call once per frame: the see-through copy follows the middle of the view. */

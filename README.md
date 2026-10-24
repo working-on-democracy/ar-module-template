@@ -69,7 +69,8 @@ Die AR-Testszene (`npm run dev:ar`) erreicht die Sandbox über den Vite-Server
 (`PLANT_SANDBOX=http://host:port`, sonst Port 5180) und zeigt danach die Pflanze
 live über `GET /api/plant`.
 
-**Neue Objekte** entstehen auf http://localhost:5180/objekte.html: Bild oder
+**Neue Objekte** entstehen auf http://localhost:5180/objekte.html (im Viewer oben
+rechts „Neue Objekte“, auch beim Pflanzen; öffnet einen neuen Tab): Bild oder
 Beschreibung und einen Namen eingeben, die Sandbox schickt beides an Sloyd
 (`sloydFaces`, `sloydTexture`), reduziert das Ergebnis auf die Arbeitsfassung
 (`originMaxTriangles`) und nimmt es in die Pflanzliste auf. Danach rechnet sie alle

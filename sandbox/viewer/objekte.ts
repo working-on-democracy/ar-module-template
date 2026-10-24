@@ -19,8 +19,14 @@ $("kind-image").onclick = () => setKind("image");
 $("kind-text").onclick = () => setKind("text");
 
 let settings = { faces: 20000, texture: 2048, target: 7500 };
+// Sloyd's API prices (https://www.sloyd.ai/api/pricing, checked 2026-10-24): textured image
+// to 3D 20 credits, from a text +5; credits are bought in US dollars, 75 for 1 USD. Euros
+// at about 0.9 per dollar, so the amount is only a rough guide.
+const CREDITS = { image: 20, text: 25 };
+const CREDITS_PER_USD = 75, EUR_PER_USD = 0.9;
 function note() {
-  $("note").textContent = `Sloyd mit ${settings.faces.toLocaleString("de-DE")} Flächen und ${settings.texture} px Textur, danach auf ${settings.target.toLocaleString("de-DE")} Dreiecke reduziert. Kostet etwa ${kind === "image" ? 20 : 25} Sloyd-Credits.`;
+  const credits = CREDITS[kind], eur = (credits / CREDITS_PER_USD) * EUR_PER_USD;
+  $("note").textContent = `Sloyd mit ${settings.faces.toLocaleString("de-DE")} Flächen und ${settings.texture} px Textur, danach auf ${settings.target.toLocaleString("de-DE")} Dreiecke reduziert. Kostet ${credits} Sloyd-Credits, ungefähr ${eur.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €.`;
 }
 
 // image: click, keyboard or drop

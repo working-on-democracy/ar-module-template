@@ -861,6 +861,13 @@ async function begin() {
       document.body.classList.remove("planting");
     }),
   }, info.catalog, info.rules);
+  // back from the objects page (a new tab): what was made there meanwhile joins the list
+  const fresh = () => {
+    if (document.visibilityState !== "visible" || !planting) return;
+    fetch("/api/planting").then((r) => r.json()).then((i: { catalog: CatalogItem[] }) => planting?.addToCatalog(i.catalog)).catch(() => {});
+  };
+  document.addEventListener("visibilitychange", fresh);
+  window.addEventListener("focus", fresh);
 }
 
 /** Hands the planting to the server and loads only what the first picture needs: the origin objects' models. */
