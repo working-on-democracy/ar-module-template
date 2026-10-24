@@ -56,6 +56,10 @@ eher großzügig: Ein Objekt wird schon rot, kurz bevor sich die Modelle wirklic
 berühren. Um jedes gepflanzte Objekt zeigt beim Ausrichten ein heller Ring, wie
 weit das nächste reichen darf.
 
+**Mit einem Zugangscode** (Workshop, siehe [Anleitung](WORKSHOP.md)) zeigt die
+Liste nur die eigenen Objekte. Sind es weniger als 3, sagt sie das und verweist
+auf die Objekt-Seite.
+
 Das **erste Objekt** darf überall stehen und legt den Ort der Pflanze fest. Jedes
 weitere muss an eins der schon gepflanzten anschließen. Fünf Objekte stehen so
 höchstens rund 4,5 m auseinander, die Notgrenze `originMaxSpread` (6 m) greift

@@ -57,16 +57,23 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+// With an access code (PLANT_ACCESS_CODE, e.g. at a workshop) the job goes through the plant's
+// Sloyd broker (PLANT_PROXY_URL, proxy/worker.js), which holds the key, counts the objects per code
+// and sets faces and texture itself; without one, straight to Sloyd with the key from .env.local.
+const viaBroker = () => !!process.env.PLANT_ACCESS_CODE && !!process.env.PLANT_PROXY_URL;
+
 function credentials(): Record<string, string> {
   if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
+  if (viaBroker()) return { "x-plant-code": process.env.PLANT_ACCESS_CODE! };
   const id = process.env.SLOYD_CLIENT_ID;
   const secret = process.env.SLOYD_CLIENT_SECRET;
-  if (!id || !secret) fail("SLOYD_CLIENT_ID and SLOYD_CLIENT_SECRET must be set in .env.local.");
+  if (!id || !secret) fail("SLOYD_CLIENT_ID and SLOYD_CLIENT_SECRET must be set in .env.local (or an access code: PLANT_ACCESS_CODE).");
   return { "x-client-id": id, "x-client-secret": secret };
 }
 
 async function api(path: string, init: RequestInit = {}): Promise<any> {
-  const res = await fetch(`${API}${path}`, {
+  const base = viaBroker() ? `${process.env.PLANT_PROXY_URL!.replace(/\/+$/, "")}/v1` : API;
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: { ...credentials(), ...(init.headers as Record<string, string>) }
   });
@@ -79,9 +86,9 @@ async function api(path: string, init: RequestInit = {}): Promise<any> {
   }
   if (!res.ok) {
     if (res.status === 402) {
-      fail(`Not enough credits: ${json.required} needed, ${json.available} available.`);
+      fail(json.error ?? `Not enough credits: ${json.required} needed, ${json.available} available.`);
     }
-    fail(`Sloyd ${res.status}: ${json.message ?? body}`);
+    fail(json.error ?? `Sloyd ${res.status}: ${json.message ?? body}`);
   }
   return json;
 }
@@ -248,13 +255,19 @@ async function main(): Promise<void> {
     if (!arg) fail(USAGE);
     path = "/jobs/image-to-3d";
     defaultName = slug(basename(arg, extname(arg)));
-    const form = new FormData();
-    form.append("file", await imageBlob(arg), basename(arg));
-    form.append("targetFaceCount", String(faces));
-    form.append("textureResolution", values.texture);
-    form.append("topology", values.topology);
-    init = { method: "POST", body: form };
+    if (viaBroker()) { // the broker takes the image itself and adds its own settings
+      const blob = await imageBlob(arg);
+      init = { method: "POST", headers: { "Content-Type": blob.type }, body: blob };
+    } else {
+      const form = new FormData();
+      form.append("file", await imageBlob(arg), basename(arg));
+      form.append("targetFaceCount", String(faces));
+      form.append("textureResolution", values.texture);
+      form.append("topology", values.topology);
+      init = { method: "POST", body: form };
+    }
   } else if (command === "multi") {
+    if (viaBroker()) fail("multi is not available with an access code.");
     if (!values.front || !(values.left || values.back || values.right)) {
       fail("multi needs --front and at least one of --left / --back / --right.");
     }

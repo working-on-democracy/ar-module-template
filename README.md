@@ -78,7 +78,11 @@ Keimling-Varianten vor, nur wenn der Lauf gerade nichts rechnet. Läufe nehmen
 ihre Keimlinge dann aus dem Cache (`sandbox-runs/copy-cache`), statt sie neu zu
 rechnen. Alles liegt in
 `sandbox-objects/` (von Git ignoriert). Die Sloyd-Zugangsdaten stehen in `.env.local`
-(siehe `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`).
+(siehe `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`), oder man bekommt einen
+**Zugangscode**: Dann gehen die Aufträge über den Sloyd-Vermittler (`proxy/`), der
+den Schlüssel hält und die Objekte pro Code zählt. Wie Team und Workshop-Teilnehmer
+die Sandbox auf dem eigenen Rechner einrichten, steht in
+[`sandbox/docs/WORKSHOP.md`](sandbox/docs/WORKSHOP.md).
 
 Im Viewer blendet **Vorschau** (Taste P, Esc beendet) Oberfläche, Markierungen und
 Hilfslinien aus: dunkelgrauer Boden, der Eingesunkenes verdeckt, mit Horizont im Dunst.
@@ -92,7 +96,8 @@ sandbox/
   scenarios/        Startobjekte, Szenario (Fotos, Zeichnungen, Kommentare, Besuche nach Zeitplan)
   runner/           führt die Jobs der Simulation mit den Skripten aus
   planting/         Pflanzszene (Regeln, Szene, Oberfläche) für Viewer und AR-Testszene
-  objects/          neue Objekte: Sloyd, Arbeitsfassung, Katalog, Keimling-Varianten (Seite: viewer/objekte.html)
+  objects/          neue Objekte: Sloyd, Arbeitsfassung, Katalog, Keimling-Varianten (Seite: viewer/objekte.html),
+                    Zugang über Zugangscode oder eigenen Schlüssel (access.ts)
   render/           Darstellung für Viewer und AR-App: Fotoprojektion, Kommentarschrift, Zeichnungen als Röhren
   test-photos/      gemeinfreie Testfotos (Quellen in QUELLEN.md)
   server.ts         Sandbox-Server: Tempo, Protokoll, Aufzeichnung, Viewer
@@ -100,6 +105,7 @@ sandbox/
   lifecycle-page/   Lebenszyklus-Rechner (dieselbe Simulation mit Zahlen statt Modellen)
   models/           die acht Startmodelle (aus Sloyd)
   docs/             Dokumentation der Pflanze
+proxy/              Sloyd-Vermittler (Cloudflare Worker) mit Admin-Seite für die Zugangscodes
 scripts/            Rechenschritte und Werkzeuge: glb-fuse, glb-reduce, glb-split, stylize-glb,
                     glb-texture-crush, jimp-image, sloyd-generate, glb-compression, compress-assets
 src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test: src/ArModule.vue ist die
@@ -120,6 +126,7 @@ cross-feature-reference-docs/
 | [`sandbox/docs/PHASEN.md`](sandbox/docs/PHASEN.md) | die Phasen der Pflanze und was in ihnen passiert |
 | [`sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md`](sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor und Time Boosts |
 | [`sandbox/docs/PFLANZMODUS.md`](sandbox/docs/PFLANZMODUS.md) | Leitfaden zum Pflanzmodus: Ablauf, Regeln, Bedienung, Ausprobieren, Code |
+| [`sandbox/docs/WORKSHOP.md`](sandbox/docs/WORKSHOP.md) | Anleitung für Team und Workshop: einrichten, Objekte erstellen, pflanzen; Zugangscodes und Sloyd-Vermittler |
 | [`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md) | Sloyd und die GLB-Werkzeuge im Detail (englisch) |
 | [`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md) | Komprimierung für die Auslieferung, nie doppelt komprimieren (englisch) |
 | [`guides/GRAIN-SHIMMER-FEATURE-GUIDE.md`](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) | die Körnung der Pflanze: Attribute, Werte, Fallstricke (englisch) |

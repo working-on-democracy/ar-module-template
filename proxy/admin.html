@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pflanze: Zugangscodes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@600&display=swap">
+<style>
+:root { --bg: #e9ece6; --fg: #1c221e; --muted: #5f6a63; --line: #d3d8cf; --accent: #2e6a4c; --bad: #b42318; --font: "Barlow", "Helvetica Neue", Arial, sans-serif; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+h1 { margin: 0; font: 600 26px "Barlow Semi Condensed", var(--font); }
+h2 { margin: 0; font: 600 13px "Barlow Semi Condensed", var(--font); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+label { display: grid; gap: 4px; font-weight: 500; font-size: 14px; }
+input, select { font: 15px var(--font); padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--fg); }
+button { font: 600 14px var(--font); padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); font-size: 13.5px; }
+.error { color: var(--bad); font-weight: 500; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-weight: 600; color: var(--muted); font-size: 13px; }
+td.num { font-variant-numeric: tabular-nums; }
+code { font: 600 14px ui-monospace, Menlo, monospace; }
+tr.blocked td { color: var(--muted); text-decoration: line-through; }
+tr.blocked td:last-child { text-decoration: none; }
+.made { font: 14px ui-monospace, Menlo, monospace; white-space: pre; background: #f4f6f2; border-radius: 6px; padding: 10px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pflanze: Zugangscodes</h1>
+  <form class="card" id="login">
+    <h2>Anmelden</h2>
+    <div class="row">
+      <label>Admin-Passwort <input type="password" id="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Anmelden</button>
+    </div>
+    <p class="error" id="login-error" hidden></p>
+  </form>
+  <div id="app" hidden>
+    <form class="card" id="create">
+      <h2>Codes anlegen</h2>
+      <div class="row">
+        <label>Anzahl <input type="number" id="count" min="1" max="200" value="10" style="width:90px"></label>
+        <label>Rolle
+          <select id="role"><option value="teilnehmer">Teilnehmer: eigene Objekte, begrenzt</option><option value="admin">Admin: unbegrenzt, alle Objekte</option></select>
+        </label>
+        <label id="limit-field">Objekte höchstens <input type="number" id="limit" min="0" value="7" style="width:90px"></label>
+        <label>Bezeichnung <input type="text" id="label" placeholder="z. B. Workshop Oktober"></label>
+        <button class="primary" type="submit">Anlegen</button>
+      </div>
+      <div id="made-box" hidden>
+        <p class="muted">Neu angelegt, zum Kopieren und Verteilen:</p>
+        <div class="made" id="made"></div>
+      </div>
+    </form>
+    <section class="card">
+      <div class="row" style="justify-content: space-between; align-items: center">
+        <h2>Alle Codes</h2>
+        <span class="muted" id="summary"></span>
+      </div>
+      <table>
+        <thead><tr><th>Code</th><th>Bezeichnung</th><th>Rolle</th><th>Objekte</th><th>Angelegt</th><th></th></tr></thead>
+        <tbody id="codes"></tbody>
+      </table>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let password = sessionStorage.getItem("pw") || "";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+async function api(method, path, body) {
+  const res = await fetch(path, { method, headers: { "content-type": "application/json", "x-admin-password": password }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.status);
+  return data;
+}
+
+async function load() {
+  const { codes } = await api("GET", "/v1/admin/codes");
+  const used = codes.reduce((n, c) => n + c.used, 0);
+  $("summary").textContent = `${codes.length} Codes, zusammen ${used} Objekte erstellt (etwa ${used * 20}–${used * 25} Credits)`;
+  $("codes").innerHTML = codes.map((c) => `<tr class="${c.blocked ? "blocked" : ""}">
+    <td><code>${esc(c.code)}</code></td>
+    <td>${esc(c.label)}</td>
+    <td>${c.role === "admin" ? "Admin" : "Teilnehmer"}</td>
+    <td class="num">${c.used}${c.limit === null ? "" : ` von ${c.limit}`}</td>
+    <td class="muted">${new Date(c.createdAt).toLocaleDateString("de-DE")}</td>
+    <td style="white-space:nowrap">
+      <button data-act="${c.blocked ? "unblock" : "block"}" data-code="${esc(c.code)}">${c.blocked ? "Entsperren" : "Sperren"}</button>
+      ${c.limit === null ? "" : `<button data-act="more" data-code="${esc(c.code)}" title="erlaubt 1 Objekt mehr">+1</button>`}
+      <button data-act="reset" data-code="${esc(c.code)}" title="Zähler auf 0">Zurücksetzen</button>
+      <button data-act="delete" data-code="${esc(c.code)}">Löschen</button>
+    </td></tr>`).join("") || `<tr><td colspan="6" class="muted">noch keine</td></tr>`;
+}
+
+$("login").onsubmit = async (e) => {
+  e.preventDefault();
+  password = $("password").value;
+  try { await load(); sessionStorage.setItem("pw", password); $("login").hidden = true; $("app").hidden = false; }
+  catch (x) { $("login-error").textContent = x.message; $("login-error").hidden = false; }
+};
+$("role").onchange = () => { $("limit-field").hidden = $("role").value === "admin"; };
+$("create").onsubmit = async (e) => {
+  e.preventDefault();
+  const { codes } = await api("POST", "/v1/admin/codes", { count: Number($("count").value), role: $("role").value, limit: Number($("limit").value), label: $("label").value });
+  $("made").textContent = codes.map((c) => `${c.code}  ${c.label}`).join("\n");
+  $("made-box").hidden = false;
+  load();
+};
+$("codes").onclick = async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const code = b.dataset.code, act = b.dataset.act;
+  if (act === "delete" && !confirm(`Code ${code} löschen? Wer ihn hat, kann danach nichts mehr erstellen.`)) return;
+  const row = (await api("GET", "/v1/admin/codes")).codes.find((c) => c.code === code);
+  if (act === "block") await api("PATCH", `/v1/admin/codes/${code}`, { blocked: true });
+  if (act === "unblock") await api("PATCH", `/v1/admin/codes/${code}`, { blocked: false });
+  if (act === "reset") await api("PATCH", `/v1/admin/codes/${code}`, { used: 0 });
+  if (act === "more") await api("PATCH", `/v1/admin/codes/${code}`, { limit: (row?.limit ?? 0) + 1 });
+  if (act === "delete") await api("DELETE", `/v1/admin/codes/${code}`);
+  load();
+};
+if (password) { $("password").value = password; $("login").requestSubmit(); }
+</script>
+</body>
+</html>

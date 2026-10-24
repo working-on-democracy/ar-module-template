@@ -156,7 +156,17 @@ export class PlantingScene {
     const start = button(done >= this.rules.plantMinObjects ? "Pflanze starten" : `Pflanze starten (ab ${this.rules.plantMinObjects} Objekten)`, "primary");
     setEnabled(start, done >= this.rules.plantMinObjects);
     start.onclick = () => this.finishAsked();
-    p.append(head, grid, el("div", { color: C.muted, fontSize: "13px" }, `Pflanze ${this.rules.plantMinObjects} bis ${this.rules.plantMaxObjects} Objekte, höchstens ${fmt(this.rules.originMaxGap)} m voneinander entfernt.`), start);
+    // with an access code only one's own objects can be planted: too few of them, then make some first
+    const tooFew = this.catalog.length < this.rules.plantMinObjects;
+    const note = el("div", { color: tooFew ? C.ink : C.muted, fontSize: "13px" }, tooFew
+      ? `Zum Pflanzen brauchst du mindestens ${this.rules.plantMinObjects} Objekte, ${this.catalog.length ? `hier sind erst ${this.catalog.length}` : "hier ist noch keins"}. Erstelle zuerst eigene Objekte: `
+      : `Pflanze ${this.rules.plantMinObjects} bis ${this.rules.plantMaxObjects} Objekte, höchstens ${fmt(this.rules.originMaxGap)} m voneinander entfernt.`);
+    if (tooFew) {
+      const link = control(el("a", { color: C.accent, fontWeight: "600" }, "Neue Objekte"));
+      link.href = "/objekte.html"; link.target = "_blank"; link.rel = "noopener";
+      note.append(link, document.createTextNode(". Sie erscheinen hier, sobald sie fertig sind."));
+    }
+    p.append(head, grid, note, start);
   }
 
   private startAim(item: CatalogItem) {

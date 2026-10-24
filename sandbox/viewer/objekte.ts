@@ -67,11 +67,12 @@ $<HTMLFormElement>("form").onsubmit = async (e) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     toast(`„${label}“ wird verarbeitet und in die Datenbank übernommen.`);
     refresh();
+    setTimeout(loadAccess, 15000); // the count, once the job went out
   } catch (x) {
     err.textContent = (x as Error).message || "Das hat nicht geklappt.";
     err.hidden = false;
   }
-  btn.disabled = false;
+  btn.disabled = !mayCreate;
 };
 
 function toast(text: string) {
@@ -82,6 +83,38 @@ function toast(text: string) {
   document.body.append(t);
   setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 600); }, 5000);
 }
+
+// ---------------------------------------------------------------- access: an access code, or our own Sloyd key
+
+interface Access { mode: "code" | "key" | "none"; code?: string; role?: "teilnehmer" | "admin"; label?: string; used?: number; limit?: number | null; error?: string }
+let mayCreate = false;
+function showAccess(a: Access) {
+  const state = $("access-state"), form = $("code-form");
+  form.hidden = a.mode !== "none" && !a.error;
+  if (a.mode === "key") { state.textContent = "Eigener Sloyd-Zugang (.env.local), ohne Begrenzung."; mayCreate = true; }
+  else if (a.mode === "none") { state.textContent = "Um Objekte zu erstellen, brauchst du einen Zugangscode vom Workshop-Team."; mayCreate = false; }
+  else {
+    const left = a.limit === null || a.limit === undefined ? null : a.limit - (a.used ?? 0);
+    mayCreate = !a.error && (left === null || left > 0);
+    state.innerHTML = a.error ? `Zugangscode <b>${esc(a.code ?? "")}</b>: <span class="error">${esc(a.error)}</span>` :
+      `Zugangscode <b>${esc(a.code ?? "")}</b>${a.label ? ` (${esc(a.label)})` : ""}: ` +
+      (a.role === "admin" ? "Admin, ohne Begrenzung." : `${a.used} von ${a.limit} Objekten erstellt${left === 0 ? ", es sind keine mehr übrig" : ""}. Gepflanzt werden nur eigene Objekte, mindestens 3.`) +
+      ` <button type="button" class="link" id="code-change">anderen Code eingeben</button>`;
+    $("code-change")?.addEventListener("click", async () => showAccess(await (await fetch("/api/access", { method: "DELETE" })).json()));
+  }
+  $<HTMLButtonElement>("submit").disabled = !mayCreate;
+}
+$<HTMLFormElement>("code-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const err = $("code-error");
+  err.hidden = true;
+  const res = await fetch("/api/access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: $<HTMLInputElement>("code").value }) });
+  const a = await res.json();
+  if (!res.ok) { err.textContent = a.error; err.hidden = false; return; }
+  $<HTMLInputElement>("code").value = "";
+  showAccess(a);
+};
+const loadAccess = async () => { try { showAccess(await (await fetch("/api/access")).json()); } catch { /* server restarting */ } };
 
 const STATE: Record<ObjectStatus["state"], string> = {
   sloyd: "bei Sloyd", arbeitsfassung: "Arbeitsfassung", varianten: "Varianten", fertig: "fertig", fehler: "Fehler",
@@ -111,3 +144,4 @@ async function refresh() {
 refresh();
 setInterval(refresh, 3000);
 setKind("image");
+loadAccess();

@@ -41,10 +41,15 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-export function script(name: string, args: string[]): Promise<string> {
+const TSX = join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"); // node + tsx directly: works on Windows too (no npx.cmd)
+const WINDOWS = process.platform === "win32";
+
+/** Runs scripts/<name> with tsx; `env` adds to this process's environment. */
+export function script(name: string, args: string[], env: Record<string, string> = {}): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = execFile("npx", ["tsx", join(ROOT, "scripts", name), ...args], // own process group (detached), so stopping it reaches npx, tsx and the script alike
-      { cwd: ROOT, maxBuffer: 1 << 24, timeout: SCRIPT_TIMEOUT_MS, encoding: "utf8", detached: true } as ExecFileOptionsWithStringEncoding, (err, stdout, stderr) => {
+    // own process group (detached, not on Windows), so stopping it reaches tsx and the script alike
+    const child = execFile(process.execPath, [TSX, join(ROOT, "scripts", name), ...args],
+      { cwd: ROOT, maxBuffer: 1 << 24, timeout: SCRIPT_TIMEOUT_MS, encoding: "utf8", detached: !WINDOWS, env: { ...process.env, ...env } } as ExecFileOptionsWithStringEncoding, (err, stdout, stderr) => {
       runningScripts.delete(child);
       if (err?.killed) reject(new Error(`${name} ${args.join(" ")}\nnach ${SCRIPT_TIMEOUT_MS / 60_000} Minuten abgebrochen`));
       else if (err) reject(new Error(`${name} ${args.join(" ")}\n${stderr || stdout || err.message}`));

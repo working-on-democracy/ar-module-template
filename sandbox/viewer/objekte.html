@@ -42,6 +42,10 @@ input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px
 .bar > i { display: block; height: 100%; background: var(--accent); }
 details { font-size: 13.5px; color: var(--muted); }
 a { color: var(--accent); }
+.code-row { display: flex; gap: 8px; }
+.code-row input { flex: 1; font: 600 15px ui-monospace, Menlo, monospace; text-transform: uppercase; }
+button.small, .link { font: 600 14px var(--font); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--fg); cursor: pointer; }
+.link { padding: 0; border: none; background: none; color: var(--accent); text-decoration: underline; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -50,6 +54,15 @@ a { color: var(--accent); }
     <h1>Neue Objekte</h1>
     <p class="muted">Ein Bild oder eine Beschreibung wird mit Sloyd zum 3D-Objekt, kommt in die Pflanzliste, und danach werden alle Keimling-Varianten vorbereitet. <a href="/">Zur Sandbox</a></p>
   </div>
+  <section class="card" id="access" aria-live="polite">
+    <h2>Zugang</h2>
+    <div id="access-state" class="muted">…</div>
+    <form id="code-form" class="code-row" hidden>
+      <input type="text" id="code" placeholder="Zugangscode, z. B. PFL-ABCD-EFGH" autocomplete="off" spellcheck="false" aria-label="Zugangscode">
+      <button type="submit" class="small">Speichern</button>
+    </form>
+    <p class="error" id="code-error" hidden></p>
+  </section>
   <form class="card" id="form" novalidate>
     <h2>Objekt erstellen</h2>
     <div class="kinds" role="group" aria-label="Art">

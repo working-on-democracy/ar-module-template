@@ -35,6 +35,7 @@ import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import { catalogOf, checkPlanting, type Planting } from "./planting/rules";
 import { objectFile, readCatalog, Workshop } from "./objects/workshop";
+import { access, forgetCode, knownRole, setCode } from "./objects/access";
 import { grainOf, grainScaleOf, tintIntensity } from "./sim/look";
 import models from "./scenarios/starter-models.json";
 import { SAMPLE_COMMENTS } from "./scenarios/comments";
@@ -46,6 +47,12 @@ import {
 } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+// Node 20.12 or newer (the scripts read .env.local with process.loadEnvFile)
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 20 || (major === 20 && minor < 12)) {
+  console.error(`✖ Die Sandbox braucht Node.js 20.12 oder neuer, hier läuft ${process.versions.node}. Siehe sandbox/docs/WORKSHOP.md.`);
+  process.exit(1);
+}
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const TEST_PHOTOS = readdirSync(join(HERE, "test-photos")).filter((f) => f.endsWith(".jpg")).sort();
 
@@ -84,7 +91,8 @@ const port = Number(args.port ?? 5180);
 // what can be planted: the 8 starter models (sandbox/models) and the new objects from the
 // upload page (sandbox-objects/, sandbox/objects/workshop.ts)
 const library = models as unknown as Record<string, ModelVersion>;
-const catalog = () => catalogOf({ ...library, ...readCatalog() });
+// a participant's access code plants only their own objects (sandbox/objects/access.ts)
+const catalog = () => catalogOf(knownRole() === "teilnehmer" ? readCatalog() : { ...library, ...readCatalog() });
 const modelSource = (name: string) => library[name] ? join(HERE, "models", library[name].glb) : objectFile(name, `${name}.glb`);
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
@@ -467,6 +475,14 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     send(res, 200, JSON.stringify({ objects: workshop.list(), settings: { faces: params.sloydFaces, texture: params.sloydTexture, target: params.originMaxTriangles } }));
     return true;
   }
+  // access for new objects: an access code (through the Sloyd broker) or our own key
+  if (url.pathname === "/api/access" && req.method === "GET") { send(res, 200, JSON.stringify(await access())); return true; }
+  if (url.pathname === "/api/access" && req.method === "POST") {
+    const wrong = await setCode(String((await readBody(req)).code ?? ""));
+    send(res, wrong ? 400 : 200, JSON.stringify(wrong ? { error: wrong } : await access()));
+    return true;
+  }
+  if (url.pathname === "/api/access" && req.method === "DELETE") { forgetCode(); send(res, 200, JSON.stringify(await access())); return true; }
   if (url.pathname === "/api/objects" && req.method === "POST") {
     const wrong = workshop.add(await readBody(req));
     send(res, wrong ? 400 : 200, JSON.stringify(wrong ? { error: wrong } : {}));
@@ -529,5 +545,5 @@ http.listen(port, () => {
   const tempo = rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : Math.abs(speed / REALTIME - Math.round(speed / REALTIME)) < 1e-9 ? `${Math.round(speed / REALTIME)}× Echtzeit` : `${speed} Kalendertage pro Minute`;
   console.log(replayDir
     ? `\nWiedergabe läuft: http://localhost:${port}/\nTempo: ${tempo}, ${totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
-    : `\nSandbox läuft: http://localhost:${port}/\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n${waitForPlanting ? "Wartet auf die Pflanzung (im Viewer oder in der AR-Testszene).\n" : ""}`);
+    : `\nSandbox läuft: http://localhost:${port}/\nNeue Objekte: http://localhost:${port}/objekte.html\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n${waitForPlanting ? "Wartet auf die Pflanzung (im Viewer oder in der AR-Testszene).\n" : ""}`);
 });

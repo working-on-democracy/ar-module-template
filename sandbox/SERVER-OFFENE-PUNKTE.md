@@ -119,3 +119,10 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     Moderation, wenn einer gesperrt oder gelöscht wird. Wie lange ein Beitrag lebt,
     rechnet die Plattform aus Gebiet und Votes (`src/utils/expiry.ts`); die Sandbox
     nimmt pauschal 14 Kalendertage.
+17. **Zugangscodes und Rechte.** Für den Workshop gibt es Zugangscodes
+    (`proxy/`, Anleitung in `docs/WORKSHOP.md`): Ein Teilnehmer-Code erstellt
+    höchstens 7 Objekte und pflanzt nur eigene, ein Admin-Code hat keine Grenze
+    und pflanzt alles. Der Sloyd-Schlüssel liegt nur beim Vermittler. Der Server
+    der Plattform braucht dasselbe: Codes mit Rolle, Kontingent und Sperre, eine
+    Verwaltung dafür, Objekte, die einem Code gehören, und eine Pflanzliste je
+    nach Rolle (eigene Objekte oder die ganze Datenbank).

@@ -51,6 +51,11 @@ sandbox/server.ts     sandbox server: waits for a planting (POST /api/planting) 
                       speed, tape (tape.jsonl), replay, viewer API (/api/state, /api/frames, /api/cmd), interface 1 (/api/plant)
 sandbox/objects/      new objects from the upload page (viewer/objekte.html): Sloyd (sloydFaces/sloydTexture), working version
                       (originMaxTriangles), local catalog, Keimling variants computed ahead while the run is idle (into the copy cache)
+sandbox/objects/access.ts  who may make objects: an access code through the Sloyd broker (proxy/) or our own key in .env.local;
+                      a participant code plants only its own objects (catalog scoped in server.ts)
+proxy/                Sloyd broker (Cloudflare Worker + admin page for access codes, KV): holds the Sloyd key, counts objects per
+                      code, fixes faces/texture; deploy with wrangler (sandbox/docs/WORKSHOP.md). Never put the Sloyd key in the repo
+                      (public) or in anything participants get.
 sandbox/planting/     planting scene shared by viewer and AR test scene: rules.ts (also checked by the server), scene.ts, ui.ts (inline-styled DOM)
 sandbox/render/       rendering shared by viewer and AR test scene: photo-layer.ts (photo projection + shadow), comment-layer.ts + comment-text.ts
                       (comment text, the platform's font), stroke-tube.ts (drawings as the platform draws them); three.js is passed in

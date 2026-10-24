@@ -28,3 +28,6 @@ sandbox-runs/
 # New objects from the upload page (sandbox/objects): sources, Sloyd files, working versions,
 # Keimling variants and their catalog — local until the platform stores them
 sandbox-objects/
+# Sloyd broker (proxy/): local secrets for wrangler dev, wrangler's own state
+proxy/.dev.vars
+proxy/.wrangler/

@@ -20,11 +20,12 @@ import { fileURLToPath } from "node:url";
 import type { Params } from "../params";
 import { glbInfo } from "../runner/glb-info";
 import { reduceCopy, script, stylizeCopy, voxelCopy } from "../runner/jobs";
+import { access, mayCreate, sloydEnv } from "./access";
 import { STYLIZE_COPY } from "../sim/recipes";
 import type { ModelVersion } from "../sim/types";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-export const OBJECTS_DIR = join(ROOT, "sandbox-objects");
+export const OBJECTS_DIR = process.env.PLANT_OBJECTS_DIR ?? join(ROOT, "sandbox-objects"); // another folder: e.g. for a test sandbox
 const CATALOG = join(OBJECTS_DIR, "katalog.json");
 const FUSE_CACHE = join(ROOT, "sandbox-runs", "fuse-cache"); // the one the runs use (runner/jobs.ts)
 const LOCK = join(OBJECTS_DIR, ".bearbeiter.json"); // which sandbox works on the objects: only one may (Sloyd costs credits)
@@ -90,6 +91,8 @@ export class Workshop {
   /** A new object: checks, stores the input, queues it. Returns an error text or null. */
   add(input: { kind: string; label: string; prompt?: string; image?: string; imageName?: string }): string | null {
     if (this.otherWorker !== null) return `Neue Objekte nimmt die Sandbox auf Port ${this.otherWorker} an.`;
+    const refused = mayCreate(this.list().filter((s) => s.state === "sloyd").length);
+    if (refused) return refused;
     const label = String(input.label ?? "").trim();
     const name = slug(label);
     if (!name) return "Bitte einen Namen angeben.";
@@ -124,7 +127,9 @@ export class Workshop {
     this.working = true;
     try { await this.make(name); } catch (e) {
       const s = this.status(name);
-      this.save({ ...s, state: "fehler", error: (e as Error).message.slice(0, 1500) });
+      // the script's own last words, not the command line (that is in the log)
+      const said = (e as Error).message.split("\n").slice(1).map((l) => l.trim()).filter(Boolean);
+      this.save({ ...s, state: "fehler", error: (said.at(-1) ?? (e as Error).message).slice(0, 500) });
       console.error(`Objekt ${name}: ${(e as Error).message.slice(0, 500)}`);
     }
     this.working = false;
@@ -139,7 +144,9 @@ export class Workshop {
     if (!existsSync(raw) && existsSync(fetched)) renameSync(fetched, raw); // came in before an interruption: no second job
     if (!existsSync(raw)) {
       const source = s.kind === "text" ? ["text", readFileSync(join(dir, "prompt.txt"), "utf8")] : ["image", join(dir, readdirSync(dir).find((f) => f.startsWith("quelle."))!)];
-      await script("sloyd-generate.ts", [...source, "--faces", String(this.params.sloydFaces), "--texture", sloydTexture(this.params.sloydTexture), "--name", sloydName, "--yes"]);
+      // with an access code through the broker (it sets faces and texture itself), else with our own key
+      await script("sloyd-generate.ts", [...source, "--faces", String(this.params.sloydFaces), "--texture", sloydTexture(this.params.sloydTexture), "--name", sloydName, "--yes"], sloydEnv());
+      void access(); // the code's count, fresh
       renameSync(fetched, raw);
     }
     this.save(s = { ...this.status(name), state: "arbeitsfassung" });

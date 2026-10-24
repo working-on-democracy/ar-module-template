@@ -1,0 +1,22 @@
+# Sloyd broker for the plant (worker.js). Set up once, see sandbox/docs/WORKSHOP.md:
+#   npx wrangler login
+#   npx wrangler kv namespace create CODES      → put the id below
+#   npx wrangler secret put SLOYD_CLIENT_ID     (and SLOYD_CLIENT_SECRET, ADMIN_PASSWORD)
+#   npx wrangler deploy
+name = "pflanze-sloyd"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[[kv_namespaces]]
+binding = "CODES"
+id = "4009051ffbbc4d429e0a8a71ee48e065"
+
+[vars]
+SLOYD_FACES = "20000"   # as sloydFaces in sandbox/params.ts
+SLOYD_TEXTURE = "2k"    # as sloydTexture (2048 px)
+DEFAULT_LIMIT = "7"     # objects per participant code
