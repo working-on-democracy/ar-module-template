@@ -158,6 +158,11 @@ function arModuleAssets() {
  *  - `vite build`        → library build → dist/ar-module.js (consumed by the host)
  *  - `vite build --mode ar` → standalone AR app → dist-ar/ (deploy & test on device)
  */
+function sandboxProxy() {
+  const target = process.env.PLANT_SANDBOX ?? "http://localhost:5180";
+  return { "/api": { target, changeOrigin: true }, "/run": { target, changeOrigin: true } };
+}
+
 export default defineConfig(async ({ command, mode }) => {
   const isAr = mode === "ar";
   const isLibBuild = command === "build" && !isAr;
@@ -246,7 +251,10 @@ export default defineConfig(async ({ command, mode }) => {
     // can be served from any subdirectory, not just the domain root.
     base: isArBuild ? "./" : "/",
     plugins,
-    server: isAr ? { host: true } : {},
+    // The AR test scene plants into and shows the plant from the sandbox server
+    // (npm run sandbox, port 5180; PLANT_SANDBOX=http://host:port for another):
+    // proxied, so the phone reaches it over the same https origin.
+    server: isAr ? { host: true, proxy: sandboxProxy() } : {},
     build: isAr
       ? {
           // Standalone AR app for on-device testing.

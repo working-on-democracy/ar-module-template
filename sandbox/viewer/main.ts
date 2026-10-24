@@ -10,11 +10,17 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { Comment, Drawing, Pair, Photo, PhotoFrame, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
-import { COMMENT_ON_OBJECT_OPACITY, COMMENT_ON_OBJECT_SCALE, commentCanvas } from "../render/comment-text";
+import type { Comment, Drawing, Pair, Photo, PlantObject, Sample, SimEvent, Vec3 } from "../sim/types";
 import type { Params } from "../params";
 import { modelMatrix } from "../sim/world";
 import { decompose } from "../sim/pose";
+import { grainOf, grainScaleOf, tintIntensity } from "../sim/look";
+import { PlantingScene } from "../planting/scene";
+import { loadingScreen, saveFile } from "../planting/ui";
+import type { CatalogItem, PlantRules, Planting } from "../planting/rules";
+import { photoLayer } from "../render/photo-layer";
+import { commentCanvas } from "../render/comment-text";
+import { commentLayer } from "../render/comment-layer";
 import { strokeTubes } from "../render/stroke-tube";
 
 type Obj = PlantObject & { sway: number; swayPeriod: number };
@@ -248,10 +254,8 @@ function photoTexture(id: string, level: number, changes: number) {
 let projection: "uv" | "plane" = "plane";
 let grainOn = true;
 
-// Grain shimmer (concept: per object from its own triangles, 0.4 · 2^(−n/1000),
-// 0 from 10 000; grainScale 2400 / model height; textures nearest, no mipmaps) —
-// the shader of src/a-frame-components/grain-shimmer.ts, for plain three.js.
-const grainOf = (triangles: number) => (triangles >= 10000 ? 0 : 0.4 * Math.pow(2, -triangles / 1000));
+// Grain shimmer: the shader of src/a-frame-components/grain-shimmer.ts, for plain three.js
+// (strength and scale from sim/look.ts).
 type GrainUniforms = { grainStrength: { value: number }; grainScale: { value: number }; grainSeed: { value: number } };
 function grainMaterial(original: THREE.Material, u: GrainUniforms): THREE.Material {
   const m = original.clone() as THREE.MeshStandardMaterial;
@@ -285,18 +289,6 @@ diffuseColor.rgb *= 1.0 + (grainHash(floor(vGrainPos * grainScale)) - 0.5) * 2.0
   m.needsUpdate = true;
   return m;
 }
-// Emissive tint: pure hues differ a lot in brightness (yellow ~13× blue). The
-// strength is scaled so every hue gives off as much light (relative luminance,
-// linear) as the average pure hue does at that strength.
-const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-const luminance = (c: Vec3) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-const pureHue = (h: number): Vec3 => {
-  const k = (n: number) => (n + h * 6) % 6, f = (n: number) => 1 - Math.max(0, Math.min(k(n), 4 - k(n), 1));
-  return [f(5), f(3), f(1)];
-};
-const MEAN_HUE_LUMINANCE = Array.from({ length: 360 }, (_, i) => luminance(pureHue(i / 360))).reduce((a, b) => a + b, 0) / 360;
-const tintIntensity = (t: { color: Vec3; strength: number }) => (t.strength * MEAN_HUE_LUMINANCE) / Math.max(1e-3, luminance(t.color));
-
 const withGrain = (mat: THREE.Material | THREE.Material[], u: GrainUniforms) =>
   Array.isArray(mat) ? mat.map((x) => grainMaterial(x, u)) : grainMaterial(mat, u);
 
@@ -308,6 +300,7 @@ interface View {
   originRing: THREE.Line | null;
   photoKey: string;
   commentKey: string; // the comment layer was made for this
+  removeComment: (() => void) | null;
   meshes: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[]; grainy: THREE.Material | THREE.Material[]; geometry: THREE.BufferGeometry }[];
   grain: GrainUniforms;
   grainKey: string;
@@ -324,7 +317,7 @@ function newView(o: Obj): View {
   marker.rotation.x = -Math.PI / 2;
   scene.add(root); markers.add(marker);
   const grain = { grainStrength: { value: 0 }, grainScale: { value: 300 }, grainSeed: { value: 0 } };
-  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", commentKey: "", meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
+  const v: View = { root, model: null, glb: "", marker, originRing: null, photoKey: "", commentKey: "", removeComment: null, meshes: [], grain, grainKey: "", data: o, phase: Math.random() * 10, placed: false };
   if (o.origin) { v.originRing = circle(1, 0x4d4038); markers.add(v.originRing); }
   root.position.set(o.pos[0], 0, o.pos[2]);
   return v;
@@ -343,7 +336,7 @@ async function setModel(v: View, rel: string) {
     m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone(); // own materials per object
     v.meshes.push({ mesh: m, material: m.material, grainy: withGrain(m.material, v.grain), geometry: m.geometry });
   });
-  v.grain.grainScale.value = 2400 / Math.max(1e-6, v.data.max[1] - v.data.min[1]); // ~2400 cells over the model's height
+  v.grain.grainScale.value = grainScaleOf(v.data);
   if (v.model) v.root.remove(v.model);
   v.model = model;
   v.root.add(model);
@@ -393,133 +386,18 @@ function applyLook(v: View) {
   }
 }
 
-/** A comment's text, projected like a photo: a see-through layer over the triangles the
- *  projection reaches, its letters in the comment's colour (unlit, as the platform's text). */
-const hiddenMaterial = new THREE.MeshBasicMaterial({ visible: false });
+const photoLayers = photoLayer(THREE);
+const { litTriangles, splitLit, projectedUv, fitPhoto } = photoLayers;
+
+/** A comment's text on the object (render/comment-layer.ts), made again when the comment or the model changes. */
+const comments = commentLayer(THREE, photoLayers);
 function applyComment(v: View) {
   const o = v.data, c = o.comment && state?.comments.find((x) => x.id === o.comment!.commentId);
-  const key = c && v.model ? `${c.id}-${JSON.stringify(o.comment!.frame)}` : "";
+  const key = c && v.model ? `${c.id}-${v.glb}-${JSON.stringify(o.comment!.frame)}` : "";
   if (key === v.commentKey) return;
   v.commentKey = key;
-  for (const e of v.meshes) for (const child of [...e.mesh.children]) if (child.userData.comment) e.mesh.remove(child);
-  if (!c || !v.model) return;
-  const f = o.comment!.frame, lit = litTriangles(v.model, f);
-  const tex = new THREE.CanvasTexture(commentCanvas(c.text, (f.max[0] - f.min[0]) / Math.max(1e-6, f.max[1] - f.min[1]), 1024, COMMENT_ON_OBJECT_SCALE));
-  tex.flipY = false; // as the photo: v = 0 at the top of the frame
-  const text = new THREE.MeshBasicMaterial({ color: c.color, alphaMap: tex, transparent: true, opacity: COMMENT_ON_OBJECT_OPACITY, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
-  for (const e of v.meshes) {
-    const overlay = new THREE.Mesh(splitLit(projectedUv(e.geometry, e.mesh, v.model, f), lit.get(e.mesh)!), [hiddenMaterial, text]);
-    overlay.userData.comment = true;
-    overlay.renderOrder = 1;
-    e.mesh.add(overlay);
-  }
-}
-
-// The photo is projected from where it hangs (PhotoFrame, in the model's own
-// frame). Only triangles the projection reaches get it; the ones in its shadow
-// (facing away or behind another part of the model) keep their own material.
-// The shadow comes from a small depth buffer seen from the photo.
-const SHADOW_RES = 256;
-const meshToModel = (mesh: THREE.Mesh, model: THREE.Object3D) => {
-  model.updateMatrixWorld(true);
-  return new THREE.Matrix4().copy(model.matrixWorld).invert().multiply(mesh.matrixWorld);
-};
-const along = (p: THREE.Vector3, d: Vec3) => p.x * d[0] + p.y * d[1] + p.z * d[2];
-/** Per mesh, per triangle: 1 = the projection reaches it. */
-function litTriangles(model: THREE.Object3D, f: PhotoFrame): Map<THREE.Mesh, Uint8Array> {
-  // every triangle as seen from the photo: pixel x, y and depth (larger = nearer the photo) per corner
-  const meshes: { mesh: THREE.Mesh; tris: Float32Array }[] = [];
-  const sx = SHADOW_RES / Math.max(1e-6, f.max[0] - f.min[0]), sy = SHADOW_RES / Math.max(1e-6, f.max[1] - f.min[1]);
-  let dMin = Infinity, dMax = -Infinity;
-  const p = new THREE.Vector3();
-  model.traverse((n) => {
-    const mesh = n as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const g = mesh.geometry, pos = g.getAttribute("position"), idx = g.getIndex(), m = meshToModel(mesh, model);
-    const count = (idx ? idx.count : pos.count) / 3, tris = new Float32Array(count * 9);
-    for (let i = 0; i < count * 3; i++) {
-      p.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m);
-      const d = along(p, f.dir);
-      tris[i * 3] = (along(p, f.right) - f.min[0]) * sx; tris[i * 3 + 1] = (along(p, f.up) - f.min[1]) * sy; tris[i * 3 + 2] = d;
-      dMin = Math.min(dMin, d); dMax = Math.max(dMax, d);
-    }
-    meshes.push({ mesh, tris });
-  });
-  const depth = new Float32Array(SHADOW_RES * SHADOW_RES).fill(-Infinity), owner = new Int32Array(SHADOW_RES * SHADOW_RES).fill(-1);
-  const covered: boolean[] = [];
-  const pixel = (x: number, y: number) => Math.min(SHADOW_RES - 1, Math.max(0, Math.floor(y))) * SHADOW_RES + Math.min(SHADOW_RES - 1, Math.max(0, Math.floor(x)));
-  let id = 0;
-  for (const { tris } of meshes) for (let t = 0; t < tris.length; t += 9, id++) {
-    const [ax, ay, ad, bx, by, bd, cx, cy, cd] = tris.subarray(t, t + 9);
-    const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-    covered[id] = false;
-    if (Math.abs(area) < 1e-9) continue;
-    const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx))), x1 = Math.min(SHADOW_RES - 1, Math.ceil(Math.max(ax, bx, cx)));
-    const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy))), y1 = Math.min(SHADOW_RES - 1, Math.ceil(Math.max(ay, by, cy)));
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const px = x + 0.5, py = y + 0.5;
-      const wa = ((bx - px) * (cy - py) - (by - py) * (cx - px)) / area, wb = ((cx - px) * (ay - py) - (cy - py) * (ax - px)) / area, wc = 1 - wa - wb;
-      if (wa < 0 || wb < 0 || wc < 0) continue;
-      covered[id] = true;
-      const d = wa * ad + wb * bd + wc * cd, k = y * SHADOW_RES + x;
-      if (d > depth[k]) { depth[k] = d; owner[k] = id; }
-    }
-  }
-  const owns = new Uint8Array(id);
-  for (const k of owner) if (k >= 0) owns[k] = 1;
-  // a triangle smaller than a pixel: lit if its centre is not behind what the buffer holds there
-  const eps = (dMax - dMin) * 0.01;
-  const lit = new Map<THREE.Mesh, Uint8Array>();
-  id = 0;
-  for (const { mesh, tris } of meshes) {
-    const out = new Uint8Array(tris.length / 9);
-    for (let t = 0; t < out.length; t++, id++) {
-      if (owns[id]) { out[t] = 1; continue; }
-      if (covered[id]) continue;
-      const q = tris.subarray(t * 9, t * 9 + 9), k = pixel((q[0] + q[3] + q[6]) / 3, (q[1] + q[4] + q[7]) / 3);
-      if ((q[2] + q[5] + q[8]) / 3 >= depth[k] - eps) out[t] = 1;
-    }
-    lit.set(mesh, out);
-  }
-  return lit;
-}
-/** The geometry with two groups: 0 = in the shadow (own material), 1 = lit (photo). */
-function splitLit(base: THREE.BufferGeometry, lit: Uint8Array) {
-  const shade: number[] = [], light: number[] = [], idx = base.getIndex();
-  for (let t = 0; t < lit.length; t++) {
-    const list = lit[t] ? light : shade;
-    for (let k = 0; k < 3; k++) list.push(idx ? idx.getX(t * 3 + k) : t * 3 + k);
-  }
-  const g = base.clone();
-  g.setIndex([...shade, ...light]);
-  g.clearGroups();
-  g.addGroup(0, shade.length, 0);
-  g.addGroup(shade.length, light.length, 1);
-  return g;
-}
-/** UVs of the projection: the image spread over the frame, as seen from the photo. */
-function projectedUv(g: THREE.BufferGeometry, mesh: THREE.Mesh, model: THREE.Object3D, f: PhotoFrame) {
-  const out = g.clone(), pos = out.getAttribute("position"), m = meshToModel(mesh, model), p = new THREE.Vector3();
-  const uv = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    p.fromBufferAttribute(pos, i).applyMatrix4(m);
-    uv[i * 2] = (along(p, f.right) - f.min[0]) / Math.max(1e-6, f.max[0] - f.min[0]);
-    uv[i * 2 + 1] = 1 - (along(p, f.up) - f.min[1]) / Math.max(1e-6, f.max[1] - f.min[1]);
-  }
-  out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  return out;
-}
-/** The photo fills the frame and keeps its proportions: what sticks out is cut off. */
-function fitPhoto(tex: THREE.Texture, loaded: Promise<void>, f: PhotoFrame) {
-  const t = tex.clone(); // shares the image
-  const frame = (f.max[0] - f.min[0]) / Math.max(1e-6, f.max[1] - f.min[1]);
-  void loaded.then(() => {
-    const img = t.image as { width: number; height: number }, photo = img.width / Math.max(1, img.height);
-    if (photo > frame) { t.repeat.set(frame / photo, 1); t.offset.set((1 - frame / photo) / 2, 0); }
-    else { t.repeat.set(1, photo / frame); t.offset.set(0, (1 - photo / frame) / 2); }
-    t.needsUpdate = true;
-  });
-  return t;
+  v.removeComment?.();
+  v.removeComment = c && v.model ? comments.add(v.model, o.comment!.frame, c.text, c.color) : null;
 }
 
 // ---------------------------------------------------------------- photos and drawings
@@ -885,6 +763,7 @@ renderer.domElement.addEventListener("dblclick", (e) => {
 
 // ---------------------------------------------------------------- frame loop
 
+let planting: PlantingScene | null = null; // the planting scene, while a new run waits for its planting
 const clock = new THREE.Clock();
 const tmpPos = new THREE.Vector3(), tmpQuat = new THREE.Quaternion();
 let tmpScale = 1;
@@ -946,10 +825,57 @@ function frame() {
     if (u >= 1) flight = null;
   }
   controls.update();
+  planting?.update();
   if (preview) sky.position.copy(camera.position);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+
+// ---------------------------------------------------------------- planting
+// A new run starts with the planting scene: the server waits for the planting,
+// then the run starts with it. Left drag turns the object, the wheel sizes it;
+// the right mouse button turns the view, W A S D moves.
+
+
+async function begin() {
+  const info = await (await fetch("/api/planting")).json() as { waiting: boolean; catalog: CatalogItem[]; rules: PlantRules };
+  if (!info.waiting) { poll(); pollFrames(); return; }
+  document.body.classList.add("planting");
+  const buttons = { ...controls.mouseButtons };
+  controls.mouseButtons = { LEFT: -1 as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+  controls.enableZoom = false;
+  helpers.visible = false;
+  camera.position.set(0, 2.4, 3.6); controls.target.set(0, 0, 0); // close to where the plant will stand
+  const hint = document.createElement("div");
+  hint.className = "planting-hint";
+  hint.textContent = "Rechte Maustaste dreht die Ansicht, W A S D bewegt sie, Q / E nach unten / oben.";
+  document.body.append(hint);
+  const gltf = new GLTFLoader();
+  planting = new PlantingScene({
+    THREE, root: scene, camera, ui: document.body, desktop: true, maxAimDistance: 60,
+    loadModel: async (item) => (await gltf.loadAsync(`/api/planting/models/${item.glb}`)).scene,
+    onFinish: (plants, seed) => void plant(plants, seed).then(() => {
+      planting?.dispose(); planting = null; hint.remove();
+      controls.mouseButtons = buttons; controls.enableZoom = true;
+      helpers.visible = $("helpers").classList.contains("on");
+      document.body.classList.remove("planting");
+    }),
+  }, info.catalog, info.rules);
+}
+
+/** Hands the planting to the server and loads only what the first picture needs: the origin objects' models. */
+async function plant(plants: Planting[], seed: number) {
+  const load = loadingScreen(document.body);
+  load.progress(0.05, "Die Pflanzung wird übergeben …");
+  const res = await fetch("/api/planting", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ plants, seed }) });
+  const answer = await res.json();
+  if (!res.ok) { load.progress(0, `Fehler: ${answer.error}`); throw new Error("planting refused"); }
+  saveFile(answer.file, JSON.stringify(answer.values, null, 2)); // to start the same run again: --values <file>
+  load.progress(0.25, "Die Modelle werden geladen …");
+  let done = 0;
+  await Promise.all(plants.map((p) => loadGlb(`glb/${p.name}.glb`).then(() => load.progress(0.25 + (0.75 * ++done) / plants.length))));
+  poll(); pollFrames();
+  load.done();
+}
 frame();
-poll();
-pollFrames();
+begin().catch((e) => { console.error(e); poll(); pollFrames(); });

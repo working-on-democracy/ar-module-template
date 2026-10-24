@@ -44,7 +44,10 @@ liegt als Archiv in den Branches `ai-asset-tools` und `plant-sandbox`.
 
 ```bash
 npm install
-npm run sandbox                           # neuer Lauf, Viewer auf http://localhost:5180
+npm run sandbox                           # neuer Lauf: erst pflanzen, Viewer auf http://localhost:5180
+npm run sandbox -- --values pflanzung.json   # denselben Lauf noch einmal (Datei aus der Pflanzszene)
+npm run sandbox -- --ohne-pflanzen        # sofort mit den fünf Standardobjekten im Ring
+npm run dev:ar                            # AR-Testszene am Telefon, pflanzt in die laufende Sandbox
 npm run sandbox -- --seed 12              # bestimmter Seed
 npm run sandbox -- --speed echtzeit4      # viermal so schnell wie die echte Zeit
 npm run sandbox -- --replay sandbox-runs/<Ordner>   # aufgezeichneten Lauf wieder abspielen
@@ -57,6 +60,14 @@ Läuft gerade eine Sandbox, braucht eine zweite einen anderen Port (`-- --port 5
 Jeder Lauf legt einen Ordner unter `sandbox-runs/` an (von Git ignoriert): Modelle,
 Protokoll, Aufzeichnung. Die Startmodelle liegen in `sandbox/models/`, die Testfotos
 (gemeinfreie Stadt- und Parkaufnahmen im Hochformat, Quellen in `QUELLEN.md`) in `sandbox/test-photos/`.
+Ein neuer Lauf beginnt mit der **Pflanzszene**, im Viewer oder in der AR-Testszene,
+je nachdem, wo zuerst gepflanzt wird. Sie wählt einen Seed von 0 bis 99 und
+speichert eine Datei, mit der `--values` denselben Lauf noch einmal startet. Ablauf
+und Regeln stehen im Leitfaden [`sandbox/docs/PFLANZMODUS.md`](sandbox/docs/PFLANZMODUS.md).
+Die AR-Testszene (`npm run dev:ar`) erreicht die Sandbox über den Vite-Server
+(`PLANT_SANDBOX=http://host:port`, sonst Port 5180) und zeigt danach die Pflanze
+live über `GET /api/plant`.
+
 Im Viewer blendet **Vorschau** (Taste P, Esc beendet) Oberfläche, Markierungen und
 Hilfslinien aus: dunkelgrauer Boden, der Eingesunkenes verdeckt, mit Horizont im Dunst.
 
@@ -68,6 +79,9 @@ sandbox/
   params.ts         alle Parameter mit Standardwerten
   scenarios/        Startobjekte, Szenario (Fotos, Zeichnungen, Kommentare, Besuche nach Zeitplan)
   runner/           führt die Jobs der Simulation mit den Skripten aus
+  planting/         Pflanzszene (Regeln, Szene, Oberfläche) für Viewer und AR-Testszene
+  render/           Darstellung für Viewer und AR-App: Fotoprojektion, Kommentarschrift, Zeichnungen als Röhren
+  test-photos/      gemeinfreie Testfotos (Quellen in QUELLEN.md)
   server.ts         Sandbox-Server: Tempo, Protokoll, Aufzeichnung, Viewer
   viewer/           3D-Viewer im Browser (three.js)
   lifecycle-page/   Lebenszyklus-Rechner (dieselbe Simulation mit Zahlen statt Modellen)
@@ -75,7 +89,8 @@ sandbox/
   docs/             Dokumentation der Pflanze
 scripts/            Rechenschritte und Werkzeuge: glb-fuse, glb-reduce, glb-split, stylize-glb,
                     glb-texture-crush, jimp-image, sloyd-generate, glb-compression, compress-assets
-src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test,
+src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test: src/ArModule.vue ist die
+                    AR-Testszene (pflanzen, dann die Pflanze live aus src/plant-live.ts),
                     src/a-frame-components/grain-shimmer.ts: der Körnungs-Look der Pflanze
 guides/, examples/  Guide und Beispiel zu grain-shimmer
 cross-feature-reference-docs/
@@ -91,6 +106,7 @@ cross-feature-reference-docs/
 | [`sandbox/docs/SCHNITTSTELLEN.md`](sandbox/docs/SCHNITTSTELLEN.md) | was die AR-App vom Server bekommt, was der Rechendienst bekommt, mit Erklärung |
 | [`sandbox/docs/PHASEN.md`](sandbox/docs/PHASEN.md) | die Phasen der Pflanze und was in ihnen passiert |
 | [`sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md`](sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor und Time Boosts |
+| [`sandbox/docs/PFLANZMODUS.md`](sandbox/docs/PFLANZMODUS.md) | Leitfaden zum Pflanzmodus: Ablauf, Regeln, Bedienung, Ausprobieren, Code |
 | [`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md) | Sloyd und die GLB-Werkzeuge im Detail (englisch) |
 | [`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md) | Komprimierung für die Auslieferung, nie doppelt komprimieren (englisch) |
 | [`guides/GRAIN-SHIMMER-FEATURE-GUIDE.md`](guides/GRAIN-SHIMMER-FEATURE-GUIDE.md) | die Körnung der Pflanze: Attribute, Werte, Fallstricke (englisch) |

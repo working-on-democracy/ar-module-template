@@ -46,7 +46,10 @@ XR8Promise.then((XR8: any) => {
   // configure() — before <a-scene xrweb> starts the session. Passing them later
   // (in mount) is rejected with "Image Targets are not supported in the current
   // session", so declare them up-front here.
-  XR8.XrController.configure({ imageTargetData: manifest.imageTargets });
+  // Absolute scale: one unit is one metre, the ground at y = 0 — the plant's sizes
+  // and distances are in metres (the host still uses responsive scale; see
+  // sandbox/SERVER-OFFENE-PUNKTE.md).
+  XR8.XrController.configure({ imageTargetData: manifest.imageTargets, scale: "absolute" });
   xrReady.value = true;
 });
 

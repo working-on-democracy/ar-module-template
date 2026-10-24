@@ -24,7 +24,8 @@ it. `src/ArModule.vue` here is only a vehicle for local AR tests.
 ## 2. Read order
 
 1. `README.md` — what lives where, quick start, next steps.
-2. `sandbox/docs/PHASEN.md` and `sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md` —
+2. `sandbox/docs/PHASEN.md`, `sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md` and
+   `sandbox/docs/PFLANZMODUS.md` (the planting scene) —
    how the simulation behaves (German).
 3. `sandbox/docs/SCHNITTSTELLEN.md` — the contract between server and AR app
    (`/api/plant` in the sandbox, `plantNearby` on the server) and between
@@ -46,14 +47,21 @@ sandbox/sim/          simulation core (world.ts rules, schedule.ts clock, types,
 sandbox/params.ts     every simulation parameter with its default
 sandbox/scenarios/    starter models (starter-models.json, DEFAULT_STARTERS) + scenario generator
 sandbox/runner/       runs JobRequests with the real scripts (jobs.ts), reads GLB info
-sandbox/server.ts     sandbox server: speed, tape (tape.jsonl), replay, viewer API (/api/state, /api/frames, /api/cmd)
+sandbox/server.ts     sandbox server: waits for a planting (POST /api/planting) unless --replay / --ohne-pflanzen / --values with plants;
+                      speed, tape (tape.jsonl), replay, viewer API (/api/state, /api/frames, /api/cmd), interface 1 (/api/plant)
+sandbox/planting/     planting scene shared by viewer and AR test scene: rules.ts (also checked by the server), scene.ts, ui.ts (inline-styled DOM)
+sandbox/render/       rendering shared by viewer and AR test scene: photo-layer.ts (photo projection + shadow), comment-layer.ts + comment-text.ts
+                      (comment text, the platform's font), stroke-tube.ts (drawings as the platform draws them); three.js is passed in
+                      (npm three in the viewer, 8frame's r137 in AR): use only what both have
 sandbox/viewer/       three.js viewer, buffered playback
 sandbox/lifecycle-page/  lifecycle calculator (same sim, plain-number jobs), built to a single HTML file
 sandbox/models/       starter .glb models (from Sloyd, uncompressed)
 sandbox/test-photos/  public-domain (CC0) outdoor photos the sandbox uses as uploaded photos, sources in QUELLEN.md
 sandbox/docs/         documentation (German), mirrored as online Claude Docs (links at the top of each)
 scripts/              GLB tools; jimp-image.ts = texture work without native libs
-src/, lib/            AR-module template baseline; src/a-frame-components/grain-shimmer.ts = the plant's grain look
+src/, lib/            AR-module template baseline; src/ArModule.vue = the AR test scene (planting, then the live plant via src/plant-live.ts);
+                      dev:ar proxies /api and /run to the sandbox (PLANT_SANDBOX, default port 5180); the AR preview runs 8th Wall with absolute scale;
+                      src/a-frame-components/grain-shimmer.ts = the plant's grain look
 guides/, examples/    guide + example for grain-shimmer (the only template feature kept)
 sandbox-runs/         gitignored: run folders + shared fuse cache (sandbox-runs/fuse-cache)
 ```

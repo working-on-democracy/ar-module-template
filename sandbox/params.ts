@@ -73,6 +73,10 @@ export const PARAMS = {
   originMinSize: 0.2,
   originMaxSize: 0.6,
   originMaxSpread: 6, // m at most between the centres of any two origin objects; planted further apart, they are moved closer to their middle
+  // --- planting (sandbox/planting): visitors place the origin objects themselves
+  plantMinObjects: 3, // the plant can be started once this many are planted …
+  plantMaxObjects: 5, // … and starts by itself with this many
+  originMaxGap: 0.5, // m at most from a newly planted object's footprint to the nearest planted one's (edge to edge); footprints never overlap
   // Keimlinge: the origin's size, a little varied and larger with every generation; the range above
   // may be left by keimSizeSlack, from generation 2 on upwards by keimSizeSlackPerGeneration more each
   keimSizeVariance: 0.15, // ± fraction, random per Keimling

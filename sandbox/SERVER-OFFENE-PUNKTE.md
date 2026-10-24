@@ -92,14 +92,22 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     Arbeitsfassung mit 7 500 Dreiecken das Ursprungsobjekt: Sie steht in der
     Pflanze und wird im Abstieg komprimiert. Objekte mit höchstens 7 500
     Dreiecken werden nicht reduziert, ihre Rohdatei bleibt.
-13. **Pflanzabstand begrenzen.** Wenn Besucher die Ursprungsobjekte selbst
-    pflanzen, dürfen deren Mitten höchstens 6 m auseinander liegen
-    (`originMaxSpread`). Die App muss das beim Pflanzen durchsetzen. Die
-    Simulation rückt zu weit verteilte Objekte nur als Notlösung zusammen, dann
-    stehen sie nicht mehr dort, wo sie gepflanzt wurden. Das Dreieck der
-    Magnetpunkte wächst mit dem Abstand mit (Ecken bei 6 m Abstand bis rund 11 m
-    vom Pflanzpunkt).
-14. **Kommentare anbinden.** Die Sandbox erzeugt Kommentare aus einer Liste von
+13. **Pflanzabstand begrenzen.** Die Pflanzszene lässt jedes Objekt höchstens
+    0,5 m (Kante zu Kante) vom nächsten pflanzen (`originMaxGap`), und die Sandbox
+    prüft eine Pflanzung beim Empfang noch einmal (`checkPlanting` in
+    `sandbox/planting/rules.ts`). Der Server der Plattform muss dieselbe Prüfung
+    machen. Die 6 m von `originMaxSpread` bleiben nur als Notlösung.
+14. **Pflanzung annehmen und speichern.** Die Sandbox nimmt die Pflanzung über
+    `POST /api/planting` an (Form in `docs/SCHNITTSTELLEN.md`) und startet damit
+    den Lauf. Wohin der Server eine Pflanzung speichert, woher später die
+    pflanzbaren Objekte kommen (heute die 8 Startmodelle) und wie sie in die
+    Datenbank kommen, ist offen.
+15. **Absoluter Maßstab in der App.** Die Pflanze rechnet in Metern mit dem Boden
+    bei y = 0. Die AR-Testfassung startet 8th Wall deshalb mit
+    `scale: "absolute"`. Die Host-App nutzt heute den responsiven Maßstab, dort
+    hängt die Größe einer Einheit von der Höhe des Telefons beim Start ab. Für die
+    Pflanze braucht die App den absoluten Maßstab, oder sie rechnet um.
+16. **Kommentare anbinden.** Die Sandbox erzeugt Kommentare aus einer Liste von
     Beispieltexten. Auf dem Server liest die Pflanze die Textbeiträge (`Post`) im
     Umkreis aus der Datenbank, wie Fotos und Zeichnungen, und braucht von der
     Moderation, wenn einer gesperrt oder gelöscht wird. Wie lange ein Beitrag lebt,

@@ -271,7 +271,7 @@ export function createWorld(scenario: Scenario, params: Params): World {
     const o = newObject(w, rng, model, s.name, null, 0, pos, s.rotY ?? rng.range(0, Math.PI * 2));
     o.origin = true;
     const side = Math.max(...[0, 1, 2].map((k) => s.model.max[k] - s.model.min[k])); // longest side
-    if (side > 0) o.scale = Math.min(params.originMaxSize, Math.max(params.originMinSize, side)) / side;
+    if (side > 0) o.scale = Math.min(params.originMaxSize, Math.max(params.originMinSize, s.size ?? side)) / side;
     o.grow = 1; // planted objects stand from the start, no growing time before their first copy
     w.objects.push(o);
     px += pos[0]; pz += pos[2];

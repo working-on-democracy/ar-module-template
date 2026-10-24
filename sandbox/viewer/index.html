@@ -39,6 +39,8 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); o
 .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 body.preview #hud, body.preview #tip { display: none !important; }
+body.planting #hud, body.planting #tip { display: none !important; }
+.planting-hint { position: fixed; top: 12px; left: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--muted); z-index: 900; }
 #tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; display: none; max-width: 260px; }
 </style>
 </head>

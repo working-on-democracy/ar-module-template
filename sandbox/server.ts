@@ -9,6 +9,14 @@
 //   --port <n>            default 5180
 //   --replay <run folder> plays a recorded run again (its tape.jsonl), without computing
 //                         and without waiting, at --speed (default: the run's starting speed)
+//   --ohne-pflanzen       starts at once with the default origin objects in a ring, instead of
+//                         waiting for a planting (the viewer's or the AR test scene's planting scene)
+//
+// Without --replay or --ohne-pflanzen the server first waits for a planting
+// (POST /api/planting, with a seed 0 … 99 drawn by the planting scene); the run
+// starts with it. The planting scene then saves a file with everything that run
+// needs (params, scenario with the seed, planting): --values <that file> starts
+// the same run again at once.
 //
 // Every run gets a folder sandbox-runs/<time>-seed<n>/ (gitignored): run.json
 // (values, seed, commit), events.jsonl, state.json, tape.jsonl (everything
@@ -25,6 +33,8 @@ import { decodeImage, encodeJpeg, saturateBitmap, subsampleChroma } from "../scr
 import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
+import { catalogOf, checkPlanting, type Planting } from "./planting/rules";
+import { grainOf, grainScaleOf, tintIntensity } from "./sim/look";
 import models from "./scenarios/starter-models.json";
 import { SAMPLE_COMMENTS } from "./scenarios/comments";
 import { advance, QUANTUM } from "./sim/schedule";
@@ -41,7 +51,7 @@ const TEST_PHOTOS = readdirSync(join(HERE, "test-photos")).filter((f) => f.endsW
 const { values: args } = parseArgs({
   options: {
     values: { type: "string" }, seed: { type: "string" }, speed: { type: "string" },
-    fuse: { type: "string" }, port: { type: "string" }, replay: { type: "string" },
+    fuse: { type: "string" }, port: { type: "string" }, replay: { type: "string" }, "ohne-pflanzen": { type: "boolean" },
   },
 });
 
@@ -59,51 +69,62 @@ const params: Params = { ...PARAMS, ...(input.params ?? {}) };
 const scenarioValues: ScenarioValues = { ...SCENARIO_DEFAULTS, ...(input.scenario ?? {}) };
 if (args.seed && !recorded) scenarioValues.seed = Number(args.seed);
 const starters: string[] = input.starters ?? DEFAULT_STARTERS;
-const fuseMode = (args.fuse ?? null) as "hart" | "weich" | "voxel" | null; // null: first fusion hard, later ones soft (params)
+const fuseMode = (args.fuse ?? input.fuseMode ?? null) as "hart" | "weich" | "voxel" | null; // null: first fusion hard, later ones soft (params)
 const REALTIME = 1 / 1440; // one calendar day per day
 // calendar days per real minute; echtzeit (default), echtzeit2, echtzeit4, echtzeit8 = that many times real time
-const rt = recorded && !args.speed ? null : /^(?:echtzeit|realtime)(\d*)$/.exec(args.speed ?? "echtzeit");
-let speed = recorded && !args.speed ? recorded.speed : rt ? REALTIME * Number(rt[1] || 1) : Number(args.speed);
+const given = input.speed !== undefined && !args.speed; // a recorded run or a saved planting keeps its speed (the steps decide the run)
+const rt = given ? null : /^(?:echtzeit|realtime)(\d*)$/.exec(args.speed ?? "echtzeit");
+let speed = given ? input.speed : rt ? REALTIME * Number(rt[1] || 1) : Number(args.speed);
 let paused = false;
 const port = Number(args.port ?? 5180);
 
-// ---------------------------------------------------------------- run folder
-
-const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
-const runDir = replayDir ?? join(HERE, "..", "sandbox-runs", `${stamp}-seed${scenarioValues.seed}`);
-for (const d of ["glb", "photos"]) mkdirSync(join(runDir, d), { recursive: true });
+// ---------------------------------------------------------------- run folder, world
 
 const library = models as unknown as Record<string, ModelVersion>;
-const scenario = buildScenario({ scenario: scenarioValues, starters });
-for (const s of scenario.starters) {
-  const src = join(HERE, "models", library[s.name].glb);
-  if (!replayDir && !existsSync(src)) {
-    console.error(`✖ Startmodell fehlt: ${src}\n  (die Startmodelle liegen in sandbox/models/)`);
-    process.exit(1);
-  }
-  const rel = `glb/${s.name}.glb`;
-  if (replayDir) { s.model = { glb: rel, ...(({ triangles, min, max }) => ({ triangles, min, max }))(await glbInfo(join(runDir, rel))) }; continue; }
-  copyFileSync(src, join(runDir, rel));
-  let info = await glbInfo(join(runDir, rel));
-  if (info.triangles > params.originMaxTriangles) { // too heavy for an origin object: reduced to the limit when planted
-    const reduce = (extra: string[]) => script("glb-reduce.ts", [src, "--target", String(params.originMaxTriangles), ...extra, "--out", join(runDir, rel)]);
-    await reduce([]);
-    info = await glbInfo(join(runDir, rel));
-    if (info.triangles > params.originMaxTriangles * 1.1) { await reduce(["--permissive"]); info = await glbInfo(join(runDir, rel)); } // texture seams stopped it
-  }
-  s.model = { glb: rel, triangles: info.triangles, min: info.min, max: info.max };
-}
-
+const catalog = catalogOf(library);
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
 if (recorded && recorded.commit !== commit) console.warn(`⚠ aufgezeichnet mit ${recorded.commit}, jetzt ${commit}: hat sich die Simulation seitdem geändert, weicht die Wiedergabe ab`);
-if (!replayDir) writeFileSync(join(runDir, "run.json"), JSON.stringify({
-  started: new Date().toISOString(), commit, fuseMode, jobLeadDays: params.jobLeadDays, speed, params, scenario: scenarioValues, starters,
-}, null, 2));
 
-// ---------------------------------------------------------------- world, jobs
+// set by startRun: before the planting there is no run (no folder, no world)
+let runDir = replayDir ?? "";
+let w!: World;
+let started = false;
+let plantingPoint: Vec3 = [0, 0, 0]; // in the frame the planting came in
 
-const w: World = createWorld(scenario, params);
+/** Starts the run: with a planting (positions, sizes, turns as planted) or the default ring. */
+async function startRun(plants: Planting[] | null) {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  runDir = replayDir ?? join(HERE, "..", "sandbox-runs", `${stamp}-seed${scenarioValues.seed}`);
+  for (const d of ["glb", "photos"]) mkdirSync(join(runDir, d), { recursive: true });
+  const scenario = buildScenario({ scenario: scenarioValues, starters: plants ? plants.map((p) => p.name) : starters });
+  if (plants) scenario.starters.forEach((s, i) => Object.assign(s, { pos: plants[i].pos, rotY: plants[i].rotY, size: plants[i].size }));
+  for (const s of scenario.starters) {
+    const src = join(HERE, "models", library[s.name].glb);
+    if (!replayDir && !existsSync(src)) throw new Error(`Startmodell fehlt: ${src} (die Startmodelle liegen in sandbox/models/)`);
+    const rel = `glb/${s.name}.glb`;
+    if (replayDir) { s.model = { glb: rel, ...(({ triangles, min, max }) => ({ triangles, min, max }))(await glbInfo(join(runDir, rel))) }; continue; }
+    copyFileSync(src, join(runDir, rel));
+    let info = await glbInfo(join(runDir, rel));
+    if (info.triangles > params.originMaxTriangles) { // too heavy for an origin object: reduced to the limit when planted
+      const reduce = (extra: string[]) => script("glb-reduce.ts", [src, "--target", String(params.originMaxTriangles), ...extra, "--out", join(runDir, rel)]);
+      await reduce([]);
+      info = await glbInfo(join(runDir, rel));
+      if (info.triangles > params.originMaxTriangles * 1.1) { await reduce(["--permissive"]); info = await glbInfo(join(runDir, rel)); } // texture seams stopped it
+    }
+    s.model = { glb: rel, triangles: info.triangles, min: info.min, max: info.max };
+  }
+  if (!replayDir) writeFileSync(join(runDir, "run.json"), JSON.stringify({
+    started: new Date().toISOString(), commit, fuseMode, jobLeadDays: params.jobLeadDays, speed, params, scenario: scenarioValues, starters: scenario.starters.map((s) => s.name), plants,
+  }, null, 2));
+  w = createWorld(scenario, params);
+  plantingPoint = w.plantingPoint;
+  if (replayDir) loadTape();
+  started = true;
+  console.log(`Lauf-Ordner: ${runDir}${plants ? ` (${plants.length} Objekte gepflanzt)` : ""}`);
+  enqueue(w.jobs.slice());
+}
+
 const running = new Map<number, { job: JobRequest; since: number }>();
 const ready = new Map<number, JobResult>(); // computed, waiting for their due time
 let waitingFor: JobRequest | null = null;
@@ -130,7 +151,7 @@ type TapeEntry =
   | { d: number } // this job failed
   | { c: Record<string, unknown> } // a command, with its random parts resolved
   | { k: [number, number, number] }; // checksum: Eigenzeit, triangles, objects
-const TAPE = join(runDir, "tape.jsonl");
+const tapeFile = () => join(runDir, "tape.jsonl");
 const tapeOut: TapeEntry[] = [];
 let stepRun: { s: number; n: number } | null = null;
 const checksum = (): [number, number, number] => [w.eigen, totalTriangles(w), w.objects.length];
@@ -143,14 +164,17 @@ function record(e: TapeEntry) {
 function flushTape() {
   if (replayDir || !tapeOut.length) return;
   tapeOut.push({ k: checksum() });
-  appendFileSync(TAPE, tapeOut.map((e) => JSON.stringify(e)).join("\n") + "\n");
+  appendFileSync(tapeFile(), tapeOut.map((e) => JSON.stringify(e)).join("\n") + "\n");
   tapeOut.length = 0; stepRun = null;
 }
 // replay: the whole tape; every result is "ready" from the start, used at its due time as recorded
-const tape: TapeEntry[] = replayDir ? readFileSync(TAPE, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
-let tapeAt = 0, tapeStepsLeft = 0, replayDone = false, diverged = false;
-if (replayDir) for (const e of tape) if ("r" in e) ready.set(e.r.jobId, e.r);
-const totalStepDays = tape.reduce((t, e) => t + ("s" in e ? e.s * e.n : 0), 0);
+let tape: TapeEntry[] = [];
+let tapeAt = 0, tapeStepsLeft = 0, replayDone = false, diverged = false, totalStepDays = 0;
+function loadTape() {
+  tape = readFileSync(tapeFile(), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  for (const e of tape) if ("r" in e) ready.set(e.r.jobId, e.r);
+  totalStepDays = tape.reduce((t, e) => t + ("s" in e ? e.s * e.n : 0), 0);
+}
 /** Plays the tape up to the next step; returns its size, or null at the end. */
 function nextReplayStep(): number | null {
   for (; tapeAt < tape.length; tapeAt++) {
@@ -247,7 +271,7 @@ const STEP_SECONDS = 1; // real seconds per step at most
 const stepDays = () => Math.min(QUANTUM, (speed / 60) * STEP_SECONDS);
 let budget = 0; // calendar days the clock may still advance
 setInterval(() => {
-  if (paused || w.phase === "ende" || replayDone) return;
+  if (!started || paused || w.phase === "ende" || replayDone) return;
   budget += (speed / 60) * (TICK_MS / 1000);
   waitingFor = null;
   const before = w.calendar;
@@ -279,7 +303,7 @@ setInterval(() => {
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
 }, TICK_MS);
-setInterval(flushTape, 5000);
+setInterval(() => { if (started) flushTape(); }, 5000);
 
 // The viewer plays a little behind the simulation and interpolates between
 // these frames (one per tick in which the clock moved), so the motion stays
@@ -302,7 +326,7 @@ function flushEvents() {
     loggedEvents = w.events.length;
   }
 }
-if (!replayDir) setInterval(() => writeFileSync(join(runDir, "state.json"), JSON.stringify(stateFor(0))), 5000);
+if (!replayDir) setInterval(() => { if (started) writeFileSync(join(runDir, "state.json"), JSON.stringify(stateFor(0))); }, 5000);
 
 // ---------------------------------------------------------------- HTTP
 
@@ -371,8 +395,67 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
   res.end(body);
 }
 
+/** Interface 1 (SCHNITTSTELLEN.md): the whole plant, as the AR app gets it. Positions from the planting point. */
+function plantFor() {
+  const off = (v: Vec3 | number[]): Vec3 => [v[0] - plantingPoint[0], v[1], v[2] - plantingPoint[2]];
+  return {
+    id: "sandbox", location: SANDBOX_LOCATION, serverTime: Date.now(),
+    pollSeconds: speed <= REALTIME * 1.01 ? 3 : 1, // the accelerated sandbox moves more between two answers
+    phase: w.phase,
+    objects: w.objects.map((o) => {
+      const p = decompose(modelMatrix(o));
+      return {
+        id: o.id, model: { url: `/run/${o.glb}`, triangles: o.triangles },
+        pose: { position: off(p.p), rotation: p.q, scale: p.s },
+        state: o.state, origin: o.origin,
+        tint: o.tint ? { color: o.tint.color, intensity: tintIntensity(o.tint) } : null,
+        grain: { strength: grainOf(o.triangles), scale: grainScaleOf(o) },
+        sway: { height: swayOf(o, w.params), period: swayPeriodOf(o, w.params) },
+        photo: o.photo ? { url: `/api/photo/${o.photo.photoId}/${o.crushLevel}/${o.photo.changes}`, frame: o.photo.frame } : null,
+        comment: (() => { const c = o.comment && w.comments.find((x) => x.id === o.comment!.commentId); return c ? { text: c.text, color: c.color, frame: o.comment!.frame } : null; })(),
+      };
+    }),
+    drawings: w.drawings.filter((d) => !d.gone && d.mode !== "frei").map((d) => ({
+      strokeId: d.id, position: off(d.pos), scale: d.scale, state: d.mode, textureFrom: d.texture ? `/run/${d.texture.glb}` : null,
+    })),
+  };
+}
+const SANDBOX_LOCATION = { lat: 50.1109, lng: 8.6821 }; // the sandbox has no place; the same as the AR preview's mock
+
+async function readBody(req: IncomingMessage) {
+  let body = "";
+  for await (const chunk of req) body += chunk;
+  return JSON.parse(body);
+}
+
 async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? "/", "http://x");
+  // planting: what can be planted and how (GET), the planting itself (POST), the models to place
+  if (url.pathname === "/api/planting" && req.method === "GET") {
+    const p = params;
+    send(res, 200, JSON.stringify({
+      waiting: !started && !replayDir, catalog, plantingPoint: started ? plantingPoint : null,
+      rules: { originMinSize: p.originMinSize, originMaxSize: p.originMaxSize, originMaxGap: p.originMaxGap, plantMinObjects: p.plantMinObjects, plantMaxObjects: p.plantMaxObjects },
+    }));
+    return true;
+  }
+  if (url.pathname === "/api/planting" && req.method === "POST") {
+    if (started || replayDir) { send(res, 409, JSON.stringify({ error: "Die Sandbox hat schon eine Pflanze. Für eine neue Pflanzung neu starten." })); return true; }
+    const body = await readBody(req);
+    const plants = body.plants as Planting[], seed = Number(body.seed);
+    const wrong = !Array.isArray(plants) ? "keine Pflanzung" : !Number.isInteger(seed) || seed < 0 || seed > 99 ? `Seed ${body.seed} nicht zwischen 0 und 99` : checkPlanting(plants, catalog, params);
+    if (wrong) { send(res, 400, JSON.stringify({ error: wrong })); return true; }
+    scenarioValues.seed = seed;
+    await startRun(plants);
+    // everything this run needs to start again: npm run sandbox -- --values <this file>
+    const values = { params, scenario: scenarioValues, plants, speed, fuseMode, commit };
+    send(res, 200, JSON.stringify({ plantingPoint, values, file: `pflanzung-${runDir.split("/").pop()}.json` }));
+    return true;
+  }
+  const model = url.pathname.match(/^\/api\/planting\/models\/([\w-]+\.glb)$/);
+  if (model && existsSync(join(HERE, "models", model[1]))) { send(res, 200, readFileSync(join(HERE, "models", model[1])), "model/gltf-binary"); return true; }
+  if (!started && url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/planting")) { send(res, 409, JSON.stringify({ planting: true })); return true; }
+  if (url.pathname === "/api/plant") { send(res, 200, JSON.stringify(plantFor())); return true; }
   if (url.pathname === "/api/frames") {
     const since = Number(url.searchParams.get("since") ?? 0);
     send(res, 200, JSON.stringify(frames.filter((f) => f.seq > since)));
@@ -380,9 +463,8 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   }
   if (url.pathname === "/api/state") { send(res, 200, JSON.stringify(stateFor(Number(url.searchParams.get("since") ?? 0)))); return true; }
   if (url.pathname === "/api/cmd" && req.method === "POST") {
-    let body = "";
-    for await (const chunk of req) body += chunk;
-    try { command(JSON.parse(body)); send(res, 200, "{}"); } catch (e) { send(res, 400, JSON.stringify({ error: (e as Error).message })); }
+    const body = await readBody(req);
+    try { command(body); send(res, 200, "{}"); } catch (e) { send(res, 400, JSON.stringify({ error: (e as Error).message })); }
     return true;
   }
   const photo = url.pathname.match(/^\/api\/photo\/([\w-]+)\/(\d+)(?:\/(\d+))?$/); // id / crush level / changes (saturation)
@@ -393,6 +475,7 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     return true;
   }
   if (url.pathname.startsWith("/run/")) {
+    if (!started) { send(res, 404, "{}"); return true; }
     const file = normalize(join(runDir, decodeURIComponent(url.pathname.slice(5))));
     if (!file.startsWith(runDir) || !existsSync(file)) { send(res, 404, "{}"); return true; }
     send(res, 200, readFileSync(file), MIME[extname(file)] ?? "application/octet-stream");
@@ -419,10 +502,11 @@ vite = await createViteServer({
   appType: "spa",
   logLevel: "warn",
 });
+const waitForPlanting = !replayDir && !args["ohne-pflanzen"] && !input.plants;
+if (!waitForPlanting) await startRun(recorded?.plants ?? input.plants ?? null);
 http.listen(port, () => {
   const tempo = rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : Math.abs(speed / REALTIME - Math.round(speed / REALTIME)) < 1e-9 ? `${Math.round(speed / REALTIME)}× Echtzeit` : `${speed} Kalendertage pro Minute`;
   console.log(replayDir
-    ? `\nWiedergabe läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${tempo}, ${totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
-    : `\nSandbox läuft: http://localhost:${port}/\nLauf-Ordner: ${runDir}\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n`);
+    ? `\nWiedergabe läuft: http://localhost:${port}/\nTempo: ${tempo}, ${totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
+    : `\nSandbox läuft: http://localhost:${port}/\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n${waitForPlanting ? "Wartet auf die Pflanzung (im Viewer oder in der AR-Testszene).\n" : ""}`);
 });
-enqueue(w.jobs.slice());

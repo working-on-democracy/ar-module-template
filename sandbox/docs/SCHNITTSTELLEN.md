@@ -261,7 +261,7 @@ projiziert sie aus der Richtung `photo.frame.dir` auf das Modell:
 Den Rahmen rechnet der Server bei der Übernahme und nach jeder Verschmelzung neu.
 Beim Halbieren bekommen beide Hälften denselben Rahmen, zusammen zeigen sie das
 ganze Bild. Die Sandbox macht die Projektion in `litTriangles`, `splitLit`,
-`projectedUv` und `fitPhoto` (`viewer/main.ts`), den Rahmen in `aimPhoto`
+`projectedUv` und `fitPhoto` (`render/photo-layer.ts`), den Rahmen in `aimPhoto`
 (`sim/world.ts`). Der Server
 erzeugt die gesättigten und zerdrückten Fassungen selbst aus dem Foto in der
 Datenbank und legt sie neben die Modelle, wie die Sandbox es heute tut
@@ -279,8 +279,41 @@ Schrift ist halb so groß, wie sie den Rahmen füllen würde, steht in der Mitte
 ist leicht durchsichtig (Deckkraft 0,7). Sie legt die Leinwand als Alpha-Maske in der Farbe
 `color` mit derselben Projektion und demselben Schatten wie ein Foto über das
 Objekt, unbeleuchtet wie die Kommentare in der App. Die Sandbox macht es so in
-`render/comment-text.ts` und `applyComment` (`viewer/main.ts`). Wird ein Kommentar
+`render/comment-layer.ts` und `render/comment-text.ts`, für den Viewer und die
+AR-Testfassung gleich. Wird ein Kommentar
 gesperrt oder läuft er ab, fällt `comment` bei der nächsten Antwort weg.
+
+## Pflanzen: App → Server
+
+Bevor eine Pflanze läuft, pflanzen Besucher ihre Ursprungsobjekte in der App
+(Ablauf in [Phasen](PHASEN.md#pflanzen)). Die Sandbox bietet dafür zwei Abrufe an,
+die AR-Testfassung und der Viewer nutzen sie. Auch das ist ein Vorschlag.
+
+**`GET /api/planting`** sagt, was gepflanzt werden kann und nach welchen Regeln:
+
+| Feld | Bedeutung |
+| --- | --- |
+| `waiting` | ja: Die Sandbox wartet auf eine Pflanzung. Nein: Es läuft schon eine Pflanze. |
+| `catalog` | die pflanzbaren Objekte: `name`, `label`, `glb`, `triangles`, `min`, `max` (Maße der Datei) |
+| `rules` | `originMinSize`, `originMaxSize` (m, längste Seite), `originMaxGap` (m, Kante zu Kante), `plantMinObjects`, `plantMaxObjects` |
+| `plantingPoint` | wenn schon eine Pflanze läuft: ihr Pflanzpunkt im Rahmen der Pflanzung |
+
+Die Modelle zum Platzieren liefert `GET /api/planting/models/<glb>`.
+
+**`POST /api/planting`** mit `{ plants, seed }` startet die Pflanze. `plants` ist die
+Liste in der Reihenfolge des Pflanzens, jedes Objekt mit `name`, `pos` (`[x, 0, z]`,
+Meter), `size` (Meter, längste Seite) und `rotY` (Drehung um die Hochachse,
+Bogenmaß). `seed` ist eine ganze Zahl von 0 bis 99. Der Server prüft Anzahl, Größen
+und Abstände noch einmal und antwortet mit:
+
+| Feld | Bedeutung |
+| --- | --- |
+| `plantingPoint` | der Pflanzpunkt im Rahmen der Pflanzung. Lagen aus Schnittstelle 1 zählen von hier. |
+| `values` | alles, was derselbe Lauf noch einmal braucht: `params`, `scenario` (mit Seed), `plants`, `speed`, `fuseMode`, `commit` |
+| `file` | ein Dateiname dafür. Die Pflanzszene speichert `values` unter diesem Namen. |
+
+Läuft schon eine Pflanze, antwortet die Sandbox mit 409. Wohin der Server der
+Plattform eine Pflanzung speichert, ist noch offen.
 
 ## Schnittstelle 2: Simulation ↔ Rechendienst
 
@@ -337,15 +370,16 @@ dem Vorrat, ohne ein Skript zu starten. Das Ergebnis ist dasselbe, nur sofort da
 
 ## Was als Nächstes passiert
 
-**In der Sandbox, ich:**
+**In der Sandbox, erledigt:**
 
-1. Ein neuer Abruf `GET /api/plant`, der genau die Form von Schnittstelle 1
-   liefert. Lage, Leuchtstärke, Körnung und Schweben rechnet er aus der Simulation,
-   wie es der Viewer heute für sich tut. Die Sandbox hat keinen echten Ort. Sie
-   bekommt einen einstellbaren Pflanzpunkt als Breite und Länge.
-2. Die AR-Testfassung holt diesen Abruf über den Vite-Server von `npm run dev:ar`,
-   der ihn an die Sandbox weiterreicht. So läuft alles über HTTPS, das die Kamera am
-   Telefon braucht, ohne dass die Sandbox selbst HTTPS können muss.
+1. `GET /api/plant` liefert genau die Form von Schnittstelle 1. Lage, Leuchtstärke,
+   Körnung und Schweben rechnet er aus der Simulation (`sim/look.ts`). Die Sandbox
+   hat keinen echten Ort, `location` ist fest.
+2. Die AR-Testfassung (`src/plant-live.ts`) holt ihn über den Vite-Server von
+   `npm run dev:ar`, der `/api` und `/run` an die Sandbox weiterreicht
+   (`PLANT_SANDBOX`, sonst Port 5180). So läuft alles über HTTPS, das die Kamera am
+   Telefon braucht. Zeichnungen zeigt sie noch nicht: Die Antwort verweist auf `Stroke`-Daten der
+   Plattform, und die gibt es in der Sandbox nicht.
 3. Der Viewer bleibt, wie er ist. Er braucht weiter alle Felder für seine Anzeigen.
 
 **Auf dem Server, der Admin:** die Abfrage `plantNearby` in dieser Form, sobald der

@@ -1,7 +1,26 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue';
-import { manifest } from './manifest';
-import { trackAssetLoading } from './asset-loading-overlay';
+// The plant's AR test scene. On the platform the plant is a host feature, not a
+// module (AGENTS.md); this module is only the vehicle for testing it on a phone
+// with the host runtime (npm run dev:ar). It talks to the sandbox server
+// (npm run sandbox), which dev:ar proxies under /api and /run:
+//
+//   1. planting  — if the sandbox waits for a planting: pick 3 to 5 objects and
+//                  place them on the ground (sandbox/planting/scene.ts, the same
+//                  scene as in the sandbox viewer)
+//   2. loading   — the planting goes to the sandbox, which starts the run; only
+//                  the models of the first answer are loaded
+//   3. the plant — shown live from GET /api/plant (src/plant-live.ts)
+//
+// Positions are in metres with the ground at y = 0: the AR preview runs 8th
+// Wall with absolute scale (lib/preview-ar.ts). Everything is added to the
+// scene itself (world frame), not under the host's module position.
+import { onMounted, onUnmounted } from 'vue';
+import type * as T from 'three';
+import { PlantingScene } from '../sandbox/planting/scene';
+import { layer, loadingScreen, saveFile, toast } from '../sandbox/planting/ui';
+import type { CatalogItem, PlantRules, Planting } from '../sandbox/planting/rules';
+import type { Vec3 } from '../sandbox/sim/types';
+import { LivePlant } from './plant-live';
 
 interface ArModuleData {
   id: string;
@@ -14,153 +33,93 @@ interface ArModuleData {
   createdAt: string;
 }
 
-// arModule isn't read by this placeholder scene, but the prop must stay
-// declared — it's the real shape the host passes to every module.
+// arModule isn't read here, but the prop must stay declared — it's the real
+// shape the host passes to every module.
 defineProps<{ arModule: ArModuleData }>();
 
-// Template-baseline loading UI: a thin top-of-screen progress bar plus a
-// centre-screen spinner, shown while this module's own manifest assets
-// (glbs, images, sounds, ...) are still streaming in, so the visitor sees
-// feedback instead of an empty/popping-in scene. Two parts:
-//
-//   1. Progress tracking (this block) — trackAssetLoading (see
-//      asset-loading-overlay.ts) watches the DOM asset elements the host
-//      injects into <a-assets> before this module mounts, and reports
-//      loaded/total as each one settles.
-//   2. Hiding the 3D content until ready (see the template below) — the
-//      root <a-entity> is bound :visible="assetsLoaded", so nothing pops in
-//      piecemeal; it keeps loading in the background the whole time
-//      (visible:false doesn't pause loading) and only appears once
-//      everything's ready, all at once.
-//
-// This is deliberately NOT an A-Frame component: it's screen-space 2D UI
-// that has to exist and be visible *before* any 3D entity is ready, driven
-// by this Vue wrapper's own onMounted/onUnmounted lifecycle rather than
-// any entity's — there's no 3D content for a component to attach to until
-// the very thing this UI is covering for has already finished. See
-// cross-feature-reference-docs/AR-MODULE-TEMPLATE.md for the module baseline.
-const loadProgress = ref(0);
-const assetsLoaded = ref(false);
-let stopAssetTracking: (() => void) | null = null;
+declare const AFRAME: { THREE: typeof T };
+type Entity = HTMLElement & { object3D: T.Object3D };
+type SceneEl = HTMLElement & { object3D: T.Scene; camera: T.Camera };
 
-const loadBarTrackStyle = computed(() => ({
-  position: 'fixed' as const,
-  top: '0',
-  left: '0',
-  width: '100%',
-  height: '3px',
-  background: 'rgba(255,255,255,0.15)',
-  zIndex: '9999',
-  pointerEvents: 'none' as const,
-  opacity: assetsLoaded.value ? '0' : '1',
-  transition: 'opacity 0.4s ease-out'
-}));
-
-const loadBarFillStyle = computed(() => ({
-  height: '100%',
-  width: `${Math.round(loadProgress.value * 100)}%`,
-  background: 'rgba(255,255,255,0.9)',
-  transition: 'width 0.2s ease-out'
-}));
-
-// Centre-screen spinner + backdrop, shown/hidden by the same assetsLoaded
-// state as the top bar. The spin animation is SMIL (<animateTransform>)
-// rather than a CSS @keyframes rule, since a <style> block never ships to
-// the host (see README "Caveats") — this needs to work from inline
-// markup/styles alone.
-const loadSpinnerBackdropStyle = computed(() => ({
-  position: 'fixed' as const,
-  inset: '0',
-  display: 'flex' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  background: 'rgba(0,0,0,0.55)',
-  zIndex: '9998',
-  pointerEvents: 'none' as const,
-  opacity: assetsLoaded.value ? '0' : '1',
-  transition: 'opacity 0.4s ease-out'
-}));
+let world: Entity | null = null; // the world frame (ground y = 0), on the scene itself
+let ui: HTMLDivElement | null = null;
+let planting: PlantingScene | null = null;
+let live: LivePlant | null = null;
+let stopped = false;
 
 onMounted(() => {
-  stopAssetTracking = trackAssetLoading(
-    manifest.assets ?? [],
-    (loaded, total) => { loadProgress.value = loaded / total; },
-    () => { assetsLoaded.value = true; }
-  );
+  begin().catch((e) => {
+    console.error(e);
+    if (ui) toast(ui, `Keine Verbindung zur Sandbox (${(e as Error).message}). Läuft npm run sandbox?`, 15000);
+  });
 });
 
 onUnmounted(() => {
-  stopAssetTracking?.();
+  stopped = true;
+  planting?.dispose();
+  live?.stop();
+  world?.remove();
+  ui?.remove();
 });
+
+async function begin() {
+  const THREE = AFRAME.THREE;
+  const scene = document.querySelector('a-scene') as SceneEl;
+  world = document.createElement('a-entity') as Entity;
+  scene.appendChild(world);
+  ui = layer(500);
+  document.body.append(ui);
+  // ground that only shows shadows, so the planted objects stand on something
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.3 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  world.object3D.add(ground);
+
+  const info = await (await fetch('/api/planting')).json() as { waiting: boolean; catalog: CatalogItem[]; rules: PlantRules; plantingPoint: Vec3 | null };
+  if (!info.waiting) {
+    toast(ui, 'Die Sandbox hat schon eine Pflanze, sie wird hier gezeigt. Für eine neue Pflanzung die Sandbox neu starten.', 7000);
+    await showPlant(info.plantingPoint ?? [0, 0, 0]);
+    return;
+  }
+  const Loader = (THREE as unknown as { GLTFLoader: new () => { loadAsync(u: string): Promise<{ scene: T.Object3D }> } }).GLTFLoader;
+  planting = new PlantingScene({
+    THREE, root: world.object3D, camera: scene.camera, ui, desktop: false,
+    loadModel: async (item) => (await new Loader().loadAsync(`/api/planting/models/${item.glb}`)).scene,
+    onFinish: (plants, seed) => { plant(plants, seed).catch((e) => { console.error(e); toast(ui!, `Die Pflanzung ging nicht durch: ${(e as Error).message}`, 15000); }); },
+  }, info.catalog, info.rules);
+  const aim = () => { if (stopped || !planting) return; planting.update(); requestAnimationFrame(aim); };
+  requestAnimationFrame(aim);
+}
+
+/** Hands the planting (and its seed) to the sandbox, saves the file to start the same run again, then shows the plant. */
+async function plant(plants: Planting[], seed: number) {
+  const res = await fetch('/api/planting', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plants, seed }) });
+  const answer = await res.json();
+  if (!res.ok) throw new Error(answer.error);
+  saveFile(answer.file, JSON.stringify(answer.values, null, 2));
+  await showPlant(answer.plantingPoint);
+}
+
+/** Loading screen while the first answer's models load; then the plant, live. */
+async function showPlant(plantingPoint: Vec3) {
+  const load = loadingScreen(ui!);
+  load.progress(0.1, 'Die Pflanze wird geladen …');
+  const root = document.createElement('a-entity') as Entity;
+  world!.appendChild(root);
+  root.object3D.position.set(plantingPoint[0], 0, plantingPoint[2]); // positions in the answers are from the planting point
+  live = new LivePlant(root);
+  await live.prepare((f) => load.progress(0.1 + 0.9 * f));
+  planting?.dispose(); // the planted copies make way for the live plant
+  planting = null;
+  live.start();
+  load.done();
+}
 </script>
 
 <template>
-
-  <!-- Assets are declared in the manifest (derived from src/assets/) and injected
-       into the scene's <a-assets> by the host before this module mounts. Reference
-       them here by id (file name without extension): `model.glb` → id "model". Do NOT declare your own <a-assets> here. -->
-  <a-entity
-      position="0 -2 0"
-      :visible="assetsLoaded"
-  >
-    <!-- What the directional light below aims at — move this entity to
-         redirect the light (and the shadows it casts) instead of having to
-         re-aim the light itself. -->
-    <a-entity id="lightTarget" position="0 0 -3"></a-entity>
-
-    <!-- Directional light that casts shadows onto the ground plane below.
-         Positioned above the scene, aimed at #lightTarget above. -->
-    <a-entity
-        position="1 20 10"
-        light="
-                    type: directional;
-                    intensity: 1;
-                    target: #lightTarget;
-                    castShadow: true;
-                    shadowMapHeight:2048;
-                    shadowMapWidth:2048;
-                    shadowCameraTop: 80;
-                    shadowCameraBottom: -80;
-                    shadowCameraRight: 80;
-                    shadowCameraLeft: -80;
-                    shadowRadius: 12"
-        shadow>
-    </a-entity>
-
-    <a-light type="ambient" intensity="0.7"></a-light>
-
-    <!-- Ground plane. Renders ONLY the
-         shadows cast onto it (material="shader: shadow"), not a visible
-         surface of its own, so it stays invisible until something above
-         actually casts a shadow onto it. A good baseline to build a scene
-         on top of. -->
-    <a-plane
-        id="ground"
-        rotation="-90 0 0"
-        position="-50 0 -50"
-        width="500"
-        height="500"
-        material="shader: shadow"
-        shadow
-    ></a-plane>
-
-  </a-entity>
-
-  <!-- 2D loading-progress overlay — screen-space, not part of the 3D scene
-       (a second root node, sibling to the <a-entity> above). Fades out once
-       every manifest asset has loaded; see the <script> block above for why
-       this is plain Vue/DOM rather than an A-Frame component. -->
-  <div :style="loadBarTrackStyle">
-    <div :style="loadBarFillStyle"></div>
-  </div>
-
-  <!-- Centre-screen spinner, shown while the 3D content above stays hidden
-       (:visible="assetsLoaded" on its root) so nothing pops in piecemeal. -->
-  <div :style="loadSpinnerBackdropStyle">
-    <svg viewBox="0 0 50 50" width="48" height="48">
-      <circle cx="25" cy="25" r="20" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="90 150">
-        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
-      </circle>
-    </svg>
-  </div>
+  <!-- Nothing here: the plant's content is added to the scene itself in script
+       (world frame, ground at y = 0), not under the host's module position. No
+       lights of its own either: the plant is lit by the platform's light alone
+       (ambient #BBB + directional 0.6, ArScene.vue's #host-lights; the AR preview
+       gets the same from A-Frame's default lights). -->
 </template>

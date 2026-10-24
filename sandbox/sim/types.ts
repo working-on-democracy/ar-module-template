@@ -265,6 +265,7 @@ export interface Starter {
   model: ModelVersion;
   pos: Vec3;
   rotY?: number;
+  size?: number; // m, longest side as planted (within originMinSize … originMaxSize); default: the model's own, clamped
 }
 
 export interface Scenario {

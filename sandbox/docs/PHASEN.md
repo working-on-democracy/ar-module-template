@@ -63,8 +63,14 @@ wartet die Uhr.
 
 ## Pflanzen
 
-Die Pflanze beginnt mit fünf Ursprungsobjekten. Sie stehen am Boden, ihre Mitte ist
-der Pflanzpunkt, der sich nie mehr ändert.
+Die Pflanze beginnt mit drei bis fünf Ursprungsobjekten. Sie stehen am Boden, ihre
+Mitte ist der Pflanzpunkt, der sich nie mehr ändert.
+
+**Die Pflanzszene.** Besucher pflanzen die Ursprungsobjekte selbst: Sie wählen
+drei bis fünf Objekte aus einer Liste und stellen sie auf den Boden, jedes in einer
+Größe von 0,2 bis 0,6 m und höchstens 0,5 m vom nächsten entfernt. Mit der
+Pflanzung wird ein Seed von 0 bis 99 ausgelost. Ablauf, Regeln und Bedienung stehen
+im Leitfaden [Pflanzmodus](PFLANZMODUS.md).
 
 **Transformationen beim Pflanzen:**
 
@@ -73,8 +79,8 @@ der Pflanzpunkt, der sich nie mehr ändert.
 - Seine längste Seite wird auf 0,2 bis 0,6 m gebracht.
 - Die Mitten zweier Ursprungsobjekte liegen höchstens 6 m auseinander. Wurden sie
   weiter auseinander gepflanzt, rücken alle im selben Verhältnis zu ihrer Mitte
-  zusammen. Auf der Plattform soll die App so weit auseinander gar nicht erst
-  pflanzen lassen.
+  zusammen. Mit der Pflanzszene kommt das nicht vor: Bei höchstens 0,5 m Abstand
+  stehen fünf Objekte höchstens rund 4,5 m auseinander.
 
 **Was festgelegt wird:**
 
