@@ -407,9 +407,11 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
   res.end(body);
 }
 
+/** A position from the planting point, as the AR app gets them. */
+const off = (v: Vec3 | number[]): Vec3 => [v[0] - plantingPoint[0], v[1], v[2] - plantingPoint[2]];
+
 /** Interface 1 (SCHNITTSTELLEN.md): the whole plant, as the AR app gets it. Positions from the planting point. */
 function plantFor() {
-  const off = (v: Vec3 | number[]): Vec3 => [v[0] - plantingPoint[0], v[1], v[2] - plantingPoint[2]];
   return {
     id: "sandbox", location: SANDBOX_LOCATION, serverTime: Date.now(),
     pollSeconds: speed <= REALTIME * 1.01 ? 3 : 1, // the accelerated sandbox moves more between two answers
@@ -490,6 +492,12 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   }
   if (!started && url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/planting")) { send(res, 409, JSON.stringify({ planting: true })); return true; }
   if (url.pathname === "/api/plant") { send(res, 200, JSON.stringify(plantFor())); return true; }
+  // the drawings themselves, in place of the platform's strokesNearby: the lines (points from the anchor, at
+  // scale 1) and the anchor; /api/plant moves the ones the plant attracts
+  if (url.pathname === "/api/strokes") {
+    send(res, 200, JSON.stringify({ strokes: w.drawings.filter((d) => !d.gone).map((d) => ({ id: d.id, position: off(d.pos), lines: d.lines })) }));
+    return true;
+  }
   if (url.pathname === "/api/frames") {
     const since = Number(url.searchParams.get("since") ?? 0);
     send(res, 200, JSON.stringify(frames.filter((f) => f.seq > since)));

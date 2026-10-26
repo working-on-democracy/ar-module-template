@@ -126,3 +126,11 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     der Plattform braucht dasselbe: Codes mit Rolle, Kontingent und Sperre, eine
     Verwaltung dafür, Objekte, die einem Code gehören, und eine Pflanzliste je
     nach Rolle (eigene Objekte oder die ganze Datenbank).
+18. **Boden verdecken in der App.** Teile eines Objekts unter dem Boden (beim
+    Wachsen und Einsinken) muss die App verdecken: eine unsichtbare Fläche auf
+    Bodenhöhe, die nur Tiefe schreibt und vor den Objekten gezeichnet wird
+    (`docs/SCHNITTSTELLEN.md`, so in `src/ArModule.vue`). Dazu werfen die Objekte
+    Schatten auf eine Schattenfläche am Boden. Das Schattenlicht der Host-App
+    reicht nur ±5 m um den Ursprung und bis etwa 1,5 m Höhe; ob das für die
+    Pflanze genügt oder der Admin den Schattenausschnitt vergrößert, ist offen.
+    Die Host-App hat beides noch nicht für die Pflanze.

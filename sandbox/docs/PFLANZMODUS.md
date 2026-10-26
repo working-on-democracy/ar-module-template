@@ -96,7 +96,10 @@ steht nicht darin, das hält die Aufzeichnung (`--replay`).
 
 Danach zeigt der Viewer die laufende Simulation wie gewohnt. Die AR-Testszene zeigt
 die Pflanze live über Schnittstelle 1 (`GET /api/plant`, siehe
-[Schnittstellen](SCHNITTSTELLEN.md)), um den Pflanzpunkt herum.
+[Schnittstellen](SCHNITTSTELLEN.md)), um den Pflanzpunkt herum, mit den Zeichnungen
+(`GET /api/strokes`). Fotos, Zeichnungen und Kommentare kommen über die Knöpfe im
+Viewer dazu. Freie Fotos und Kommentare zeigt die AR-Testszene nicht, erst wenn ein
+Objekt sie übernommen hat.
 
 ## Ausprobieren
 

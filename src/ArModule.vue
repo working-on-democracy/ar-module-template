@@ -39,7 +39,7 @@ defineProps<{ arModule: ArModuleData }>();
 
 declare const AFRAME: { THREE: typeof T };
 type Entity = HTMLElement & { object3D: T.Object3D };
-type SceneEl = HTMLElement & { object3D: T.Scene; camera: T.Camera };
+type SceneEl = HTMLElement & { object3D: T.Scene; camera: T.Camera; renderer: T.WebGLRenderer };
 
 let world: Entity | null = null; // the world frame (ground y = 0), on the scene itself
 let ui: HTMLDivElement | null = null;
@@ -74,6 +74,12 @@ async function begin() {
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   world.object3D.add(ground);
+  // hides what is below the ground (growing out of it, sinking after death): writes depth only, so the
+  // camera image stays; drawn before the plant's opaque objects so they fail the depth test below y = 0
+  const hider = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ colorWrite: false }));
+  hider.rotation.x = -Math.PI / 2;
+  hider.renderOrder = -1;
+  world.object3D.add(hider);
 
   const info = await (await fetch('/api/planting')).json() as { waiting: boolean; catalog: CatalogItem[]; rules: PlantRules; plantingPoint: Vec3 | null };
   if (!info.waiting) {
@@ -81,15 +87,22 @@ async function begin() {
     await showPlant(info.plantingPoint ?? [0, 0, 0]);
     return;
   }
-  const Loader = (THREE as unknown as { GLTFLoader: new () => { loadAsync(u: string): Promise<{ scene: T.Object3D }> } }).GLTFLoader;
+  const Loader = (THREE as unknown as { GLTFLoader: new () => { loadAsync(u: string, progress?: (e: ProgressEvent) => void): Promise<{ scene: T.Object3D }> } }).GLTFLoader;
   planting = new PlantingScene({
-    THREE, root: world.object3D, camera: scene.camera, ui, desktop: false,
+    THREE, root: world.object3D, camera: scene.camera, renderer: scene.renderer, ui, desktop: false,
     fetchCatalog: async () => ((await (await fetch('/api/planting')).json()) as { catalog: CatalogItem[] }).catalog,
-    loadModel: async (item) => (await new Loader().loadAsync(`/api/planting/models/${item.glb}`)).scene,
+    loadModel: async (item, progress) => castsShadow((await new Loader().loadAsync(`/api/planting/models/${item.glb}`, (e) => progress?.(e.loaded, e.lengthComputable ? e.total : 0))).scene),
     onFinish: (plants, seed) => { plant(plants, seed).catch((e) => { console.error(e); toast(ui!, `Die Pflanzung ging nicht durch: ${(e as Error).message}`, 15000); }); },
   }, info.catalog, info.rules);
   const aim = () => { if (stopped || !planting) return; planting.update(); requestAnimationFrame(aim); };
   requestAnimationFrame(aim);
+}
+
+/** The lights are the platform's (A-Frame's defaults = ArScene.vue's #host-lights): its directional light casts
+ *  shadows with A-Frame's default shadow camera; the objects only cast them (receiving would stripe them, bias 0). */
+function castsShadow(model: T.Object3D) {
+  model.traverse((n) => { if ((n as T.Mesh).isMesh) n.castShadow = true; });
+  return model;
 }
 
 /** Hands the planting (and its seed) to the sandbox, saves the file to start the same run again, then shows the plant. */
@@ -109,7 +122,7 @@ async function showPlant(plantingPoint: Vec3) {
   world!.appendChild(root);
   root.object3D.position.set(plantingPoint[0], 0, plantingPoint[2]); // positions in the answers are from the planting point
   live = new LivePlant(root);
-  await live.prepare((f) => load.progress(0.1 + 0.9 * f));
+  await live.prepare((f, note) => load.progress(0.1 + 0.9 * f, note));
   planting?.dispose(); // the planted copies make way for the live plant
   planting = null;
   live.start();

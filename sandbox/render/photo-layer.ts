@@ -99,16 +99,22 @@ export function photoLayer(THREE: typeof T) {
     out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
     return out;
   }
-  /** The photo fills the frame and keeps its proportions: what sticks out is cut off. */
+  /** The photo fills the frame and keeps its proportions: what sticks out is cut off. Fitted at once when the
+   *  photo is there already, else once it loads. With three r137 (8frame) a clone gets only the image the texture
+   *  has at that moment: whoever clones the result again (grain-shimmer) should wait for the photo first. */
   function fitPhoto(tex: T.Texture, loaded: Promise<void>, f: PhotoFrame) {
-    const t = tex.clone(); // shares the image
+    const t = tex.clone(); // shares the image (r155+: its source, also one that is still loading)
     const frame = (f.max[0] - f.min[0]) / Math.max(1e-6, f.max[1] - f.min[1]);
-    void loaded.then(() => {
-      const img = t.image as { width: number; height: number }, photo = img.width / Math.max(1, img.height);
+    const fit = () => {
+      if (t.image !== tex.image) t.image = tex.image; // r137: cloned before the image was there
+      const img = t.image as { width: number; height: number } | undefined;
+      if (!img?.width) return;
+      const photo = img.width / Math.max(1, img.height);
       if (photo > frame) { t.repeat.set(frame / photo, 1); t.offset.set((1 - frame / photo) / 2, 0); }
       else { t.repeat.set(1, photo / frame); t.offset.set(0, (1 - photo / frame) / 2); }
       t.needsUpdate = true;
-    });
+    };
+    if ((tex.image as { width?: number } | undefined)?.width) fit(); else void loaded.then(fit);
     return t;
   }
 

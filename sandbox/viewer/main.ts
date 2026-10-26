@@ -852,9 +852,9 @@ async function begin() {
   document.body.append(hint);
   const gltf = new GLTFLoader();
   planting = new PlantingScene({
-    THREE, root: scene, camera, ui: document.body, desktop: true, maxAimDistance: 60,
+    THREE, root: scene, camera, renderer, ui: document.body, desktop: true, maxAimDistance: 60,
     fetchCatalog: async () => ((await (await fetch("/api/planting")).json()) as { catalog: CatalogItem[] }).catalog,
-    loadModel: async (item) => (await gltf.loadAsync(`/api/planting/models/${item.glb}`)).scene,
+    loadModel: async (item, progress) => (await gltf.loadAsync(`/api/planting/models/${item.glb}`, (e) => progress?.(e.loaded, e.lengthComputable ? e.total : 0))).scene,
     onFinish: (plants, seed) => void plant(plants, seed).then(() => {
       planting?.dispose(); planting = null; hint.remove();
       controls.mouseButtons = buttons; controls.enableZoom = true;

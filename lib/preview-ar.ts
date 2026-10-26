@@ -99,7 +99,9 @@ const ArPreviewApp = {
         "xrextras-gesture-detector": "",
         xrweb: "disableWorldTracking: false",
         "xr-mode-ui": "enabled: false",
-        renderer: "colorManagement: true"
+        // as the host app's ArScene.vue: fog, canvas size cap and drawing buffer
+        fog: "type: linear; density: 0.3",
+        renderer: "colorManagement: true; maxCanvasWidth: 1280; maxCanvasHeight: 1280; preserveDrawingBuffer: true"
       },
       children
     );

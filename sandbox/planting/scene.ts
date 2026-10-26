@@ -21,10 +21,12 @@ export interface PlantingHost {
   /** World frame with the ground at y = 0: the objects are added here. */
   root: T.Object3D;
   camera: T.Camera;
+  /** The page's renderer: the list pictures are drawn with it (Safari on iPhone/iPad gives no further WebGL context next to 8th Wall). */
+  renderer: T.WebGLRenderer;
   /** Where the overlay goes (a full-screen layer is added to it). */
   ui: HTMLElement;
   /** A loaded copy of an object's model (its glTF scene); the scene clones it. */
-  loadModel(item: CatalogItem): Promise<T.Object3D>;
+  loadModel(item: CatalogItem, progress?: (loaded: number, total: number) => void): Promise<T.Object3D>;
   /** Mouse and wheel (sandbox viewer) instead of touch gestures (phone). */
   desktop: boolean;
   /** m: further away the view hits no ground for planting (default 12; the sandbox's overview camera needs more). */
@@ -51,6 +53,8 @@ export class PlantingScene {
   private readonly rings: T.Group;
   private readonly models = new Map<string, T.Object3D>();
   private readonly thumbs = new Map<string, string>();
+  private readonly failed = new Map<string, string>(); // why a model did not load: shown on its card (no console on a phone)
+  private readonly loading = new Map<string, HTMLSpanElement>(); // the card line that shows how far a model has loaded
   private readonly placed: Placed[] = [];
   private state: State = "list";
   private current: { item: CatalogItem; size: number; rotY: number; pos: Vec3 | null; ghost: T.Object3D; footprint: T.Mesh } | null = null;
@@ -96,11 +100,19 @@ export class PlantingScene {
   }
 
   private load(item: CatalogItem) {
-    this.host.loadModel(item).then((m) => {
+    const show = (text: string) => { const line = this.loading.get(item.name); if (line) line.textContent = text; };
+    this.host.loadModel(item, (loaded, total) => {
+      const mb = (n: number) => (n / 1e6).toFixed(1).replace(".", ",");
+      show(loaded >= total && total > 0 ? "wird aufbereitet" : total > 0 ? `lädt ${Math.round((loaded / total) * 100)} %` : `lädt ${mb(loaded)} MB`);
+    }).then((m) => {
       this.models.set(item.name, m);
       this.thumbs.set(item.name, this.thumbnail(m));
       if (this.state === "list") this.showList();
-    }).catch((e) => console.error(`Modell ${item.name} lädt nicht`, e));
+    }).catch((e) => {
+      console.error(`Modell ${item.name} lädt nicht`, e);
+      this.failed.set(item.name, (e as Error)?.message ?? String(e));
+      if (this.state === "list") this.showList();
+    });
   }
 
   /** Call once per frame: the see-through copy follows the middle of the view. */
@@ -148,6 +160,14 @@ export class PlantingScene {
       if (img) (pic as HTMLImageElement).src = img;
       if (img) (pic as HTMLImageElement).alt = "";
       card.append(pic, el("span", {}, used ? "gepflanzt" : item.label));
+      const failed = !ready && this.failed.get(item.name);
+      if (!ready && !failed) {
+        const line = el("span", { color: C.muted, fontSize: "11px", fontWeight: "400" }, this.loading.get(item.name)?.textContent || "lädt");
+        this.loading.set(item.name, line);
+        card.append(line);
+      }
+      if (failed && ready) card.append(el("span", { color: "#c0392b", fontSize: "11px", fontWeight: "400", wordBreak: "break-word" }, `kein Bild: ${failed}`));
+      else if (failed) card.append(el("span", { color: "#c0392b", fontSize: "11px", fontWeight: "400", wordBreak: "break-word" }, `lädt nicht: ${failed}`));
       card.disabled = used || !ready;
       card.setAttribute("aria-label", used ? `${item.label}, schon gepflanzt` : ready ? item.label : `${item.label}, lädt noch`);
       card.onclick = () => this.startAim(item);
@@ -324,14 +344,10 @@ export class PlantingScene {
     }
   }
 
-  /** A small picture of the model for the list (its own little renderer, released afterwards). */
+  /** A small picture of the model for the list, drawn by the page's renderer into a render target (no context of its own). */
   private thumbnail(model: T.Object3D): string {
     const THREE = this.T;
     const size = 128;
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(size, size);
-    const r = renderer as unknown as Record<string, unknown>;
-    if ("outputColorSpace" in r) r.outputColorSpace = "srgb"; else r.outputEncoding = (THREE as unknown as { sRGBEncoding: number }).sRGBEncoding;
     const scene = new THREE.Scene();
     // the platform's light (as in the sandbox viewer); three r155+ needs the intensities × π
     const units = Number(THREE.REVISION) >= 155 ? Math.PI : 1;
@@ -346,11 +362,40 @@ export class PlantingScene {
     const camera = new THREE.PerspectiveCamera(30, 1, extent / 100, extent * 10);
     camera.position.copy(centre).add(new THREE.Vector3(0.9, 0.6, 1.2).normalize().multiplyScalar(extent * 1.9));
     camera.lookAt(centre);
-    renderer.render(scene, camera);
-    const url = renderer.domElement.toDataURL("image/png");
-    renderer.dispose();
-    renderer.forceContextLoss();
-    return url;
+
+    const renderer = this.host.renderer;
+    const target = new THREE.WebGLRenderTarget(size, size);
+    const before = { target: renderer.getRenderTarget(), color: renderer.getClearColor(new THREE.Color()), alpha: renderer.getClearAlpha(), xr: renderer.xr.enabled };
+    const pixels = new Uint8Array(size * size * 4);
+    try {
+      renderer.xr.enabled = false;
+      renderer.setRenderTarget(target);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear();
+      renderer.render(scene, camera);
+      renderer.readRenderTargetPixels(target, 0, 0, size, size, pixels);
+    } finally {
+      renderer.setRenderTarget(before.target);
+      renderer.setClearColor(before.color, before.alpha);
+      renderer.xr.enabled = before.xr;
+      target.dispose();
+    }
+    // a render target stays linear: to sRGB here, and the rows the other way up
+    const srgb = new Uint8ClampedArray(256);
+    for (let i = 0; i < 256; i++) { const c = i / 255; srgb[i] = 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055); }
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    const image = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const from = ((size - 1 - y) * size + x) * 4, to = (y * size + x) * 4;
+        image.data[to] = srgb[pixels[from]]; image.data[to + 1] = srgb[pixels[from + 1]]; image.data[to + 2] = srgb[pixels[from + 2]];
+        image.data[to + 3] = pixels[from + 3];
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL("image/png");
   }
 
   // ------------------------------------------------------------ input

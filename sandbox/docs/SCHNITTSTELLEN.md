@@ -141,6 +141,19 @@ Reise zum Partner rechnet der Server in diese drei Werte ein. Die App setzt sie 
 aufs Modell. Die Sandbox rechnet sie heute schon so für ihre Bewegungsframes
 (`modelMatrix` in `sim/world.ts`).
 
+**Unter dem Boden verdeckt die App:** Beim Wachsen und Einsinken steckt ein Teil des
+Modells im Boden. Die App legt dafür eine unsichtbare Fläche auf die Bodenhöhe, die nur
+Tiefe schreibt (`colorWrite: false`) und vor den Objekten gezeichnet wird
+(`renderOrder` −1). Das Kamerabild bleibt sichtbar, alles darunter ist verdeckt. Die
+AR-Testszene macht es so (`src/ArModule.vue`).
+
+**Schatten:** Die Objekte werfen Schatten (`castShadow`) auf eine Fläche am Boden, die
+nur Schatten zeigt (`ShadowMaterial`). Das Licht ist das der Plattform: das gerichtete
+Licht aus `#host-lights` wirft schon Schatten. Es reicht aber mit den Standardwerten
+von A-Frame nur ±5 m um den Ursprung der Szene und fängt bei Objekten über etwa 1,5 m
+Höhe nicht alles ein. Auf sich selbst werfen die Objekte keinen Schatten, mit
+Schatten-Bias 0 gäbe das Streifen.
+
 **Fertige Werte für den Look:** Die Leuchtstärke ist schon so umgerechnet, dass jede
 Farbe gleich hell wirkt. Die Körnung ergibt sich aus den Dreiecken und der Höhe des
 Modells. Beides rechnet heute der Viewer selbst und zieht auf den Server um, damit
@@ -239,7 +252,10 @@ verweist die Schnittstelle nur auf die Zeichnung und sagt, wo sie gerade ist:
 
 Die App zeichnet eine Zeichnung, die hier steht, an dieser Stelle statt an ihrem
 eigenen Ort. Eine freie Zeichnung, die die Pflanze noch nicht angezogen hat, steht
-nicht in der Liste und erscheint wie gewohnt an ihrem Ort. Wie die übernommene
+nicht in der Liste und erscheint wie gewohnt an ihrem Ort. Die Sandbox hat kein
+`strokesNearby` und liefert stattdessen unter `GET /api/strokes` alle Zeichnungen mit
+Kennung, Ankerpunkt (vom Pflanzpunkt aus) und Linien (Punkte vom Ankerpunkt aus, bei
+Größe 1); die AR-Testszene fragt sie alle 10 Sekunden ab. Wie die übernommene
 Textur auf einer Linie aussehen soll, ist noch offen. Die Sandbox legt sie auf die
 Röhre der Linie, mit demselben Material wie die Plattform (`render/stroke-tube.ts`),
 in Längsrichtung achtmal wiederholt.
