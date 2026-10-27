@@ -21,7 +21,9 @@ Pflanzung an.
 
 1. **Liste.** Sie zeigt die Objekte mit Vorschaubild und Namen und darüber, wie
    viele schon gepflanzt sind. Jedes Objekt lässt sich einmal pflanzen. Gepflanzte
-   sind ausgegraut.
+   sind ausgegraut. Neue Objekte von der Objekt-Seite haben oben rechts ein ×: Nach
+   einer Warnung löscht es das Objekt endgültig, mit allen Dateien und Varianten.
+   Die 8 Startmodelle lassen sich nicht löschen.
 2. **Ausrichten.** Nach der Wahl steht eine durchsichtige Kopie des Objekts auf dem
    Boden in der Mitte des Blickfelds, mit einem Ring für seine Grundfläche. Sie
    ist grün, wo das Objekt stehen darf, und rot, wo nicht. Eine Zeile darunter sagt
@@ -129,6 +131,7 @@ Pflanzung gilt, jede weitere lehnt die Sandbox ab, bis sie neu startet.
 | `sandbox/planting/scene.ts` | die Szene: Zustände, Kopie, Ringe, Gesten, Vorschaubilder (mit dem Renderer der Seite), Ladefortschritt auf den Kacheln |
 | `sandbox/planting/ui.ts` | Oberfläche als DOM mit Inline-Styles: Liste, Knöpfe, Dialoge, Hinweis, Ladebildschirm, Datei speichern |
 | `sandbox/server.ts` | `GET`/`POST /api/planting`, die Modelle zum Platzieren, Start des Laufs, `GET /api/plant` |
+| `sandbox/objects/workshop.ts` | Löschen eines neuen Objekts (`DELETE /api/objects/<name>`): aus dem Katalog und aus `sandbox-objects/` |
 | `sandbox/viewer/main.ts` | Einbindung im Viewer (`begin`, `plant`) |
 | `src/ArModule.vue` | die AR-Testszene: Pflanzen, Laden, Live-Pflanze |
 | `src/plant-live.ts` | die Pflanze in AR nach Schnittstelle 1 |

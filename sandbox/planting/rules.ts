@@ -8,7 +8,7 @@ import type { ModelVersion, Vec3 } from "../sim/types";
 export type PlantRules = Pick<Params, "originMinSize" | "originMaxSize" | "originMaxGap" | "plantMinObjects" | "plantMaxObjects">;
 
 /** An object visitors can plant (for now the 8 starter models in sandbox/models). */
-export interface CatalogItem { name: string; label: string; glb: string; triangles: number; min: Vec3; max: Vec3 }
+export interface CatalogItem { name: string; label: string; glb: string; triangles: number; min: Vec3; max: Vec3; removable?: boolean } // removable: a new object, deletable from the list
 
 /** A planted origin object: model name, place on the ground, size (m, longest side), turn about the vertical. */
 export interface Planting { name: string; pos: Vec3; size: number; rotY: number }

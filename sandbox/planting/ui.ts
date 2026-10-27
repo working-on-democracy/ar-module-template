@@ -28,11 +28,12 @@ export function control<T extends HTMLElement>(e: T): T {
   return e;
 }
 
-export function button(label: string, kind: "primary" | "plain" = "plain"): HTMLButtonElement {
+export function button(label: string, kind: "primary" | "plain" | "danger" = "plain"): HTMLButtonElement {
+  const fill = kind === "primary" ? C.accent : kind === "danger" ? C.bad : null; // danger: something that can't be undone
   const b = control(el("button", {
     font: `600 16px ${FONT}`, padding: "12px 18px", borderRadius: "10px", cursor: "pointer", minHeight: "48px",
-    border: kind === "primary" ? `1px solid ${C.accent}` : `1px solid ${C.line}`,
-    background: kind === "primary" ? C.accent : "#fff", color: kind === "primary" ? "#fff" : C.ink,
+    border: `1px solid ${fill ?? C.line}`,
+    background: fill ?? "#fff", color: fill ? "#fff" : C.ink,
     flex: "1 1 0", touchAction: "manipulation",
   }, label));
   b.type = "button";
@@ -61,7 +62,7 @@ export function row(...children: HTMLElement[]): HTMLDivElement {
 }
 
 /** A modal question with two answers; resolves true for yes. */
-export function confirmDialog(root: HTMLElement, title: string, text: string, yes: string, no = "Zurück"): Promise<boolean> {
+export function confirmDialog(root: HTMLElement, title: string, text: string, yes: string, no = "Zurück", danger = false): Promise<boolean> {
   return new Promise((resolve) => {
     const shade = control(el("div", { position: "absolute", inset: "0", background: C.shade, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }));
     const box = el("div", { background: "#fff", borderRadius: "14px", padding: "20px", maxWidth: "380px", width: "100%", display: "grid", gap: "12px", boxShadow: "0 8px 40px rgba(0,0,0,0.3)" });
@@ -69,14 +70,14 @@ export function confirmDialog(root: HTMLElement, title: string, text: string, ye
     box.setAttribute("aria-modal", "true");
     const h = el("div", { font: `600 19px ${FONT}` }, title);
     const p = el("div", { color: C.muted }, text);
-    const bNo = button(no), bYes = button(yes, "primary");
+    const bNo = button(no), bYes = button(yes, danger ? "danger" : "primary");
     const close = (v: boolean) => { shade.remove(); resolve(v); };
     bNo.onclick = () => close(false);
     bYes.onclick = () => close(true);
     box.append(h, p, row(bNo, bYes));
     shade.append(box);
     root.append(shade);
-    bYes.focus();
+    (danger ? bNo : bYes).focus(); // Enter on a warning keeps things as they are
   });
 }
 

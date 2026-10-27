@@ -129,6 +129,12 @@ Was dann passiert, zeigt die Liste Schritt für Schritt:
 Für jedes Objekt bezahlen wir Sloyd mit **Credits**, einer Art Guthaben. Ein Objekt
 kostet etwa 25 Cent. Deshalb gibt es die Grenze von 7 Objekten pro Code.
 
+**Löschen:** In der Pflanzliste hat jedes neue Objekt oben rechts ein ×. Nach einer
+Warnung ist es endgültig weg, mit allen Dateien. Solange Sloyd oder die
+Arbeitsfassung noch läuft, geht das nicht. Ein gelöschtes Objekt zählt weiter zu
+den 7 eines Codes, denn bezahlt ist es schon. Das Team kann den Zähler auf der
+Verwaltungsseite zurücksetzen.
+
 ## Pflanzen
 
 Sobald 3 deiner Objekte fertig sind, kannst du pflanzen. Zurück im Viewer-Tab

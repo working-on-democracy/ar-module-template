@@ -16,7 +16,7 @@
 // scene itself (world frame), not under the host's module position.
 import { onMounted, onUnmounted } from 'vue';
 import type * as T from 'three';
-import { PlantingScene } from '../sandbox/planting/scene';
+import { PlantingScene, removeObject } from '../sandbox/planting/scene';
 import { layer, loadingScreen, saveFile, toast } from '../sandbox/planting/ui';
 import type { CatalogItem, PlantRules, Planting } from '../sandbox/planting/rules';
 import type { Vec3 } from '../sandbox/sim/types';
@@ -91,6 +91,7 @@ async function begin() {
   planting = new PlantingScene({
     THREE, root: world.object3D, camera: scene.camera, renderer: scene.renderer, ui, desktop: false,
     fetchCatalog: async () => ((await (await fetch('/api/planting')).json()) as { catalog: CatalogItem[] }).catalog,
+    removeItem: removeObject,
     loadModel: async (item, progress) => castsShadow((await new Loader().loadAsync(`/api/planting/models/${item.glb}`, (e) => progress?.(e.loaded, e.lengthComputable ? e.total : 0))).scene),
     onFinish: (plants, seed) => { plant(plants, seed).catch((e) => { console.error(e); toast(ui!, `Die Pflanzung ging nicht durch: ${(e as Error).message}`, 15000); }); },
   }, info.catalog, info.rules);

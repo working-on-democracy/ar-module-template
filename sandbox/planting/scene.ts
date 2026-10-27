@@ -34,11 +34,19 @@ export interface PlantingHost {
   /** The catalog as it is now: asked every CATALOG_POLL_MS and when the page comes back into view, so
    *  objects made meanwhile (the objects page) join the list. */
   fetchCatalog?: () => Promise<CatalogItem[]>;
+  /** Deletes a new object (`removable`) for good; without it the list offers no deleting. Throws with the reason. */
+  removeItem?: (item: CatalogItem) => Promise<void>;
   /** The finished planting, in the root's frame, with the seed drawn for its simulation (0 … 99). */
   onFinish(plants: Planting[], seed: number): void;
 }
 
 type State = "list" | "aim" | "placed" | "busy";
+
+/** PlantingHost.removeItem against the sandbox (DELETE /api/objects/<name>). */
+export async function removeObject(item: CatalogItem): Promise<void> {
+  const res = await fetch(`/api/objects/${encodeURIComponent(item.name)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`);
+}
 
 interface Placed { item: CatalogItem; pos: Vec3; size: number; rotY: number; object: T.Object3D }
 
@@ -84,7 +92,7 @@ export class PlantingScene {
     for (const item of catalog) this.load(item);
     this.showList();
     if (host.fetchCatalog) {
-      const fetchNow = () => { if (document.visibilityState === "visible") host.fetchCatalog!().then((c) => this.addToCatalog(c)).catch(() => {}); };
+      const fetchNow = () => { if (document.visibilityState === "visible") host.fetchCatalog!().then((c) => this.syncCatalog(c)).catch(() => {}); };
       const timer = setInterval(fetchNow, CATALOG_POLL_MS);
       document.addEventListener("visibilitychange", fetchNow);
       window.addEventListener("focus", fetchNow);
@@ -92,11 +100,37 @@ export class PlantingScene {
     }
   }
 
-  /** Objects that came into the catalog meanwhile (e.g. from the objects page): added to the list. */
-  addToCatalog(items: CatalogItem[]) {
+  /** The catalog as it is now: objects made meanwhile (the objects page) join the list, deleted ones leave it
+   *  (unless already planted here: the planting then fails at the sandbox with the reason). */
+  syncCatalog(items: CatalogItem[]) {
     const fresh = items.filter((i) => !this.catalog.some((c) => c.name === i.name));
     for (const item of fresh) { this.catalog.push(item); this.load(item); }
-    if (fresh.length && this.state === "list") this.showList();
+    const gone = this.catalog.filter((c) => !items.some((i) => i.name === c.name) && !this.placed.some((q) => q.item.name === c.name));
+    for (const item of gone) this.forget(item);
+    if ((fresh.length || gone.length) && this.state === "list") this.showList();
+  }
+
+  private forget(item: CatalogItem) {
+    this.catalog.splice(this.catalog.indexOf(item), 1);
+    for (const m of [this.models, this.thumbs, this.failed, this.loading]) m.delete(item.name);
+  }
+
+  /** Asks once more, then deletes a new object for good. */
+  private async removeAsked(item: CatalogItem) {
+    const sure = await confirmDialog(this.layer, `${item.label} löschen?`,
+      `${item.label} wird endgültig gelöscht, mit allen Dateien und vorbereiteten Varianten. Das lässt sich nicht rückgängig machen. Gespeicherte Pflanzungen, die es enthalten, lassen sich danach nicht mehr starten.`,
+      "Endgültig löschen", "Zurück", true);
+    if (!sure) return;
+    let said: string;
+    try {
+      await this.host.removeItem!(item);
+      this.forget(item);
+      said = `${item.label} ist gelöscht.`;
+    } catch (e) {
+      said = `${item.label} ließ sich nicht löschen: ${(e as Error).message}`;
+    }
+    if (this.state === "list") this.showList(); // rebuilds the layer: the notice after it
+    toast(this.layer, said, 6000);
   }
 
   private load(item: CatalogItem) {
@@ -171,7 +205,20 @@ export class PlantingScene {
       card.disabled = used || !ready;
       card.setAttribute("aria-label", used ? `${item.label}, schon gepflanzt` : ready ? item.label : `${item.label}, lädt noch`);
       card.onclick = () => this.startAim(item);
-      grid.append(card);
+      if (item.removable && this.host.removeItem && !used) {
+        // a small button in the card's corner (a button can't hold another): the card goes into a frame with it
+        const frame = el("div", { position: "relative", display: "grid" });
+        const del = control(el("button", {
+          position: "absolute", top: "2px", right: "2px", width: "28px", height: "28px", padding: "0", borderRadius: "50%",
+          border: `1px solid ${C.line}`, background: "#fff", color: C.muted, fontFamily: "inherit", fontSize: "18px", lineHeight: "1", cursor: "pointer", touchAction: "manipulation",
+        }, "×"));
+        del.type = "button";
+        del.title = `${item.label} löschen`;
+        del.setAttribute("aria-label", `${item.label} löschen`);
+        del.onclick = () => void this.removeAsked(item);
+        frame.append(card, del);
+        grid.append(frame);
+      } else grid.append(card);
     }
     const start = button(done >= this.rules.plantMinObjects ? "Pflanze starten" : `Pflanze starten (ab ${this.rules.plantMinObjects} Objekten)`, "primary");
     setEnabled(start, done >= this.rules.plantMinObjects);

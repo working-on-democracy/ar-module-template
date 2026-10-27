@@ -76,13 +76,15 @@ nichts.
 
 ## Was zurück an die Sandbox geht
 
-Die Szene schreibt genau einmal: die Pflanzung. Danach liest sie nur.
+Die Szene schreibt die Pflanzung und, wenn jemand in der Liste ein neues Objekt
+löscht, diese Löschung. Danach liest sie nur.
 
 | Abruf | Wozu |
 | --- | --- |
 | `GET /api/planting` | Katalog, Regeln, ob die Sandbox noch wartet |
 | `GET /api/planting/models/…` | die Modelle für die Pflanzszene |
 | `POST /api/planting` | die Pflanzung mit Seed, startet den Lauf |
+| `DELETE /api/objects/<name>` | ein neues Objekt aus der Liste endgültig löschen |
 | `GET /api/plant` | die Pflanze (Schnittstelle 1), alle 1 bis 3 Sekunden |
 | `GET /api/strokes` | die Zeichnungen, alle 10 Sekunden |
 | `/run/…`, `/api/photo/…` | Modelle und Fotos der laufenden Pflanze |

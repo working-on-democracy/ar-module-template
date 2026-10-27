@@ -55,6 +55,11 @@ export function readCatalog(): Record<string, CatalogEntry> {
   return existsSync(CATALOG) ? JSON.parse(readFileSync(CATALOG, "utf8")) : {};
 }
 
+function writeCatalog(catalog: Record<string, CatalogEntry>) {
+  writeFileSync(`${CATALOG}.tmp`, JSON.stringify(catalog, null, 2));
+  renameSync(`${CATALOG}.tmp`, CATALOG);
+}
+
 /** Where an object's working version is: the 8 starter models in sandbox/models, new ones in sandbox-objects/<name>/. */
 export const objectFile = (name: string, glb: string) => join(OBJECTS_DIR, name, glb);
 
@@ -62,6 +67,8 @@ export class Workshop {
   private readonly busyObjects: string[] = []; // waiting for Sloyd and the working version, in order
   private working = false;
   private variantsRunning = false;
+  private variantOf: string | null = null; // the object whose variant step runs now
+  private readonly doomed = new Set<string>(); // deleted while a variant step of theirs ran: their folder goes after it
   /** Another sandbox works on the objects (its port): this one only shows them. */
   readonly otherWorker: number | null;
 
@@ -118,6 +125,23 @@ export class Workshop {
     return null;
   }
 
+  /** Deletes a new object for good: out of the catalog, its folder with every file and variant. The copy and fuse
+   *  caches keep their entries (keyed by content, harmless). Returns an error text or null. */
+  remove(name: string): string | null {
+    if (this.otherWorker !== null) return `Objekte löscht die Sandbox auf Port ${this.otherWorker}.`;
+    const dir = join(OBJECTS_DIR, name);
+    if (!existsSync(join(dir, "status.json"))) return `Das Objekt ${name} gibt es nicht.`;
+    const s = this.status(name);
+    if (s.state === "sloyd" || s.state === "arbeitsfassung") return `${s.label} wird gerade erstellt. Löschen geht, sobald es fertig ist.`;
+    const catalog = readCatalog();
+    delete catalog[name];
+    writeCatalog(catalog);
+    if (this.variantOf === name) this.doomed.add(name); // its folder goes when the step is done
+    else rmSync(dir, { recursive: true, force: true });
+    console.log(`Objekt ${name} (${s.label}) gelöscht`);
+    return null;
+  }
+
   // ------------------------------------------------------------ Sloyd and the working version (one object at a time)
 
   private async next() {
@@ -158,7 +182,7 @@ export class Workshop {
     const info = await glbInfo(work);
     const catalog = readCatalog();
     catalog[name] = { glb: `${name}.glb`, label: s.label, triangles: info.triangles, min: info.min, max: info.max };
-    writeFileSync(CATALOG, JSON.stringify(catalog, null, 2));
+    writeCatalog(catalog);
     this.save({ ...this.status(name), state: "varianten", steps: this.plan() });
     console.log(`Objekt ${name} (${s.label}) ist im Katalog: ${info.triangles} Dreiecke, Varianten folgen`);
   }
@@ -185,6 +209,7 @@ export class Workshop {
     if (!s) return;
     if (!step) { this.save({ ...s, state: "fertig" }); return; }
     this.variantsRunning = true;
+    this.variantOf = s.name;
     step.state = "läuft";
     this.save(s);
     try {
@@ -194,7 +219,9 @@ export class Workshop {
       step.state = "fehler";
       step.error = (e as Error).message.slice(0, 800);
     }
-    this.save({ ...this.status(s.name), steps: s.steps });
+    if (this.doomed.delete(s.name)) rmSync(join(OBJECTS_DIR, s.name), { recursive: true, force: true }); // deleted meanwhile
+    else this.save({ ...this.status(s.name), steps: s.steps });
+    this.variantOf = null;
     this.variantsRunning = false;
   }
 

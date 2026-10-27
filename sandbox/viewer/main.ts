@@ -15,7 +15,7 @@ import type { Params } from "../params";
 import { modelMatrix } from "../sim/world";
 import { decompose } from "../sim/pose";
 import { grainOf, grainScaleOf, tintIntensity } from "../sim/look";
-import { PlantingScene } from "../planting/scene";
+import { PlantingScene, removeObject } from "../planting/scene";
 import { loadingScreen, saveFile } from "../planting/ui";
 import type { CatalogItem, PlantRules, Planting } from "../planting/rules";
 import { photoLayer } from "../render/photo-layer";
@@ -854,6 +854,7 @@ async function begin() {
   planting = new PlantingScene({
     THREE, root: scene, camera, renderer, ui: document.body, desktop: true, maxAimDistance: 60,
     fetchCatalog: async () => ((await (await fetch("/api/planting")).json()) as { catalog: CatalogItem[] }).catalog,
+    removeItem: removeObject,
     loadModel: async (item, progress) => (await gltf.loadAsync(`/api/planting/models/${item.glb}`, (e) => progress?.(e.loaded, e.lengthComputable ? e.total : 0))).scene,
     onFinish: (plants, seed) => void plant(plants, seed).then(() => {
       planting?.dispose(); planting = null; hint.remove();

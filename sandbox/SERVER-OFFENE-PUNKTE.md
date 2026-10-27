@@ -125,7 +125,10 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     und pflanzt alles. Der Sloyd-Schlüssel liegt nur beim Vermittler. Der Server
     der Plattform braucht dasselbe: Codes mit Rolle, Kontingent und Sperre, eine
     Verwaltung dafür, Objekte, die einem Code gehören, und eine Pflanzliste je
-    nach Rolle (eigene Objekte oder die ganze Datenbank).
+    nach Rolle (eigene Objekte oder die ganze Datenbank). In der Sandbox lassen
+    sich neue Objekte aus der Pflanzliste löschen (`DELETE /api/objects/<name>`);
+    auf der Plattform ist offen, wer welche Objekte löschen darf und ob ein
+    gelöschtes Objekt Kontingent zurückgibt.
 18. **Boden verdecken in der App.** Teile eines Objekts unter dem Boden (beim
     Wachsen und Einsinken) muss die App verdecken: eine unsichtbare Fläche auf
     Bodenhöhe, die nur Tiefe schreibt und vor den Objekten gezeichnet wird

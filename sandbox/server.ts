@@ -92,7 +92,11 @@ const port = Number(args.port ?? 5180);
 // upload page (sandbox-objects/, sandbox/objects/workshop.ts)
 const library = models as unknown as Record<string, ModelVersion>;
 // a participant's access code plants only their own objects (sandbox/objects/access.ts)
-const catalog = () => catalogOf(knownRole() === "teilnehmer" ? readCatalog() : { ...library, ...readCatalog() });
+// new objects can be deleted from the planting list (`removable`), the starter models stay
+const catalog = () => {
+  const made = readCatalog();
+  return catalogOf(knownRole() === "teilnehmer" ? made : { ...library, ...made }).map((c) => (made[c.name] && !library[c.name] ? { ...c, removable: true } : c));
+};
 const modelSource = (name: string) => library[name] ? join(HERE, "models", library[name].glb) : objectFile(name, `${name}.glb`);
 let commit = "unbekannt";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT }).toString().trim(); } catch { /* not a repo */ }
@@ -485,6 +489,14 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
     return true;
   }
   if (url.pathname === "/api/access" && req.method === "DELETE") { forgetCode(); send(res, 200, JSON.stringify(await access())); return true; }
+  const removed = url.pathname.match(/^\/api\/objects\/([a-z0-9-]+)$/);
+  if (removed && req.method === "DELETE") {
+    const name = removed[1];
+    const wrong = library[name] ? "Die Startmodelle lassen sich nicht löschen."
+      : !catalog().some((c) => c.name === name && c.removable) ? `Das Objekt ${name} steht nicht in der Liste.` : workshop.remove(name);
+    send(res, wrong ? 400 : 200, JSON.stringify(wrong ? { error: wrong } : {}));
+    return true;
+  }
   if (url.pathname === "/api/objects" && req.method === "POST") {
     const wrong = workshop.add(await readBody(req));
     send(res, wrong ? 400 : 200, JSON.stringify(wrong ? { error: wrong } : {}));
