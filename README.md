@@ -14,8 +14,9 @@ Hier liegt alles, was die Pflanze braucht, und nichts sonst:
 - die **Sandbox**: ein lokaler Server mit 3D-Viewer, der eine Pflanze mit echten
   Modellen laufen lässt, dazu der Lebenszyklus-Rechner
 - die **Dokumentation** für Entwicklung und Server
-- das **Grundgerüst des AR-Modul-Templates** (`lib/`, `src/`, `npm run dev:ar`), mit
-  dem die Pflanze als Nächstes auf Telefonen in AR getestet wird, und die Komponente
+- die **AR-Testumgebung** auf dem Grundgerüst des AR-Modul-Templates (`lib/`, `src/`,
+  `npm run dev:ar`): die Pflanze der laufenden Sandbox am Telefon in AR, auf der
+  Technik der Plattform-App, und die Komponente
   **`grain-shimmer`**: die körnige, glitzernde Oberfläche ist ein fester Teil des
   Looks der Pflanze (der Viewer der Sandbox nutzt denselben Shader)
 
@@ -67,7 +68,8 @@ speichert eine Datei, mit der `--values` denselben Lauf noch einmal startet. Abl
 und Regeln stehen im Leitfaden [`sandbox/docs/PFLANZMODUS.md`](sandbox/docs/PFLANZMODUS.md).
 Die AR-Testszene (`npm run dev:ar`) erreicht die Sandbox über den Vite-Server
 (`PLANT_SANDBOX=http://host:port`, sonst Port 5180) und zeigt danach die Pflanze
-live über `GET /api/plant`.
+live über `GET /api/plant`, mit den Zeichnungen aus `GET /api/strokes`. Einrichten,
+was sie zeigt und Fehlersuche: [`sandbox/docs/AR-TESTUMGEBUNG.md`](sandbox/docs/AR-TESTUMGEBUNG.md).
 
 **Neue Objekte** entstehen auf http://localhost:5180/objekte.html (im Viewer oben
 rechts „Neue Objekte“, auch beim Pflanzen; öffnet einen neuen Tab): Bild oder
@@ -126,6 +128,7 @@ cross-feature-reference-docs/
 | [`sandbox/docs/PHASEN.md`](sandbox/docs/PHASEN.md) | die Phasen der Pflanze und was in ihnen passiert |
 | [`sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md`](sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor und Time Boosts |
 | [`sandbox/docs/PFLANZMODUS.md`](sandbox/docs/PFLANZMODUS.md) | Leitfaden zum Pflanzmodus: Ablauf, Regeln, Bedienung, Ausprobieren, Code |
+| [`sandbox/docs/AR-TESTUMGEBUNG.md`](sandbox/docs/AR-TESTUMGEBUNG.md) | die Pflanze am Telefon in AR gegen die Sandbox: Einrichten, was sie zeigt, Nähe zur Plattform, Fallstricke, Fehlersuche |
 | [`sandbox/docs/WORKSHOP.md`](sandbox/docs/WORKSHOP.md) | Anleitung für Team und Workshop: einrichten, Objekte erstellen, pflanzen; Zugangscodes und Sloyd-Vermittler |
 | [`cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md`](cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md) | Sloyd und die GLB-Werkzeuge im Detail (englisch) |
 | [`cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md`](cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md) | Komprimierung für die Auslieferung, nie doppelt komprimieren (englisch) |
@@ -140,10 +143,12 @@ stehen jeweils oben im Dokument.
 Drei Spuren laufen parallel:
 
 1. **Feintuning** der Parameter in der Sandbox und im Lebenszyklus-Rechner, wie bisher.
-2. **AR-Test auf Telefonen, lokal:** eine Darstellung der Pflanze als A-Frame-Komponente,
-   die den Zustand der laufenden Sandbox über das WLAN holt und ihn mit `npm run dev:ar`
-   am Telefon in AR zeigt, mit `grain-shimmer` wie im Viewer. Sie wird so gebaut, dass sie später in die Plattform-App
-   wandern kann (8frame 1.3.0, three r137, kein Vue).
+2. **AR-Test auf Telefonen, lokal:** läuft. `npm run dev:ar` zeigt die Pflanze der
+   laufenden Sandbox am Telefon in AR, mit `grain-shimmer`, Fotos, Kommentaren,
+   Zeichnungen, Schatten und den Lichtern der Plattform
+   ([AR-Testumgebung](sandbox/docs/AR-TESTUMGEBUNG.md)). `src/plant-live.ts` ist so
+   gebaut, dass es später in die Plattform-App wandern kann (8frame 1.3.0, three r137,
+   kein Vue). Offen sind ein Test an einem echten Ort und freie Fotos und Kommentare.
 3. **Server und Plattform, der Admin:** die Schritte aus
    [`ADMIN-AUFGABEN.md`](sandbox/docs/ADMIN-AUFGABEN.md).
 

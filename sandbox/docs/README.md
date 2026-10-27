@@ -11,6 +11,9 @@ Bei Änderungen beide Fassungen nachziehen.
 | [SCHNITTSTELLEN.md](SCHNITTSTELLEN.md) | was die AR-App vom Server bekommt und wie Simulation und Rechendienst Aufträge austauschen, mit Erklärung |
 | [PHASEN.md](PHASEN.md) | die Phasen und was in ihnen gerechnet und verwandelt wird, Keimling-Generationen, Vorläufer, schnelle Linie |
 | [ZEITMASSSTAB-UND-BOOSTS.md](ZEITMASSSTAB-UND-BOOSTS.md) | Zeitfaktor, Time Boosts und worauf sie wirken |
+| [PFLANZMODUS.md](PFLANZMODUS.md) | Leitfaden zum Pflanzmodus: Ablauf, Regeln, Bedienung, Ausprobieren, Code |
+| [AR-TESTUMGEBUNG.md](AR-TESTUMGEBUNG.md) | die Pflanze am Telefon in AR gegen die Sandbox: Einrichten, was sie zeigt, Nähe zur Plattform, Fallstricke, Fehlersuche |
+| [WORKSHOP.md](WORKSHOP.md) | Anleitung für Team und Workshop: einrichten, Objekte erstellen, pflanzen |
 | [../SERVER-OFFENE-PUNKTE.md](../SERVER-OFFENE-PUNKTE.md) | laufende Liste der offenen Punkte für die Server-Fassung |
 
 Der Lebenszyklus-Rechner liegt als Seite in `sandbox/lifecycle-page/`

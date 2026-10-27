@@ -212,7 +212,10 @@ werden, wie `deploy.sh` es schon vorsieht.
 Ort der Pflanze darstellt, Bewegungen zwischen zwei Abfragen glättet wie der Viewer
 der Sandbox und Modelle erst lädt, wenn sie gebraucht werden. Zum Look gehört die
 Körnung von `grain-shimmer` (`src/a-frame-components/grain-shimmer.ts`), dieselbe wie
-im Viewer der Sandbox.
+im Viewer der Sandbox. Eine Fassung davon läuft schon gegen die Sandbox
+(`src/plant-live.ts`, [AR-Testumgebung](AR-TESTUMGEBUNG.md)) und kann als Vorlage
+dienen. Dazu gehören eine unsichtbare Fläche, die verdeckt, was im Boden steckt, und
+Schatten der Objekte auf den Boden.
 
 **6. Vorbereitung beim Erstellen eines Ursprungsobjekts.** Ein Objekt wird mit
 Sloyd erstellt, lange bevor es gepflanzt wird. In dieser Zeit lassen sich alle
@@ -331,6 +334,12 @@ die Dauer der Jobs.
 - **Ein Prozess pro Job.** Jeder Job startet `npx tsx` neu und übersetzt das Skript
   jedes Mal. Bei tausenden Jobs lohnt es sich, die Skripte vorher zu JavaScript zu
   bauen.
+- **Darstellung mit three r137 und Safari.** Die App läuft auf 8frame 1.3.0 mit
+  three r137. Dort bekommt eine kopierte Textur nur das Bild, das in dem Moment schon
+  geladen ist, und `grain-shimmer` kopiert jede Textur: Ein Foto bleibt schwarz, wenn
+  das Modell gesetzt wird, bevor das Foto da ist. Safari auf iPhone und iPad gibt
+  neben 8th Wall außerdem keinen weiteren WebGL-Kontext her. Beides ist in der
+  AR-Testszene gelöst und in der [AR-Testumgebung](AR-TESTUMGEBUNG.md) beschrieben.
 - **Grenzen des Kontos.** Höchstens 1 024 Prozesse und 1 024 offene Dateien je
   Prozess, kein Swap. Bei 3 gleichzeitigen Verschmelzungen mit großen Modellen ist
   der Speicherbedarf nicht gemessen.
@@ -407,7 +416,9 @@ Rechner.
 - [ ] Ein Lauf in Echtzeit über die ganzen rund 40 Tage. Alle Sandbox-Läufe waren
   beschleunigt.
 - [ ] Die Darstellung der Pflanze in der AR-App auf einem Telefon, verankert an
-  einem echten Ort
+  einem echten Ort. Gegen die Sandbox läuft sie am iPad
+  ([AR-Testumgebung](AR-TESTUMGEBUNG.md)), an einem echten Ort und in der Host-App
+  noch nicht.
 - [ ] Echte Fotos aus der Datenbank als Textur, Sperrung eines Fotos, das schon auf
   einem Objekt liegt
 - [ ] Echte Zeichnungen (`Stroke` mit mehreren Linien), die angezogen werden und an

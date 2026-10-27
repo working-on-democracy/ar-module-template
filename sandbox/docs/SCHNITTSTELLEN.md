@@ -394,8 +394,9 @@ dem Vorrat, ohne ein Skript zu starten. Das Ergebnis ist dasselbe, nur sofort da
 2. Die AR-Testfassung (`src/plant-live.ts`) holt ihn über den Vite-Server von
    `npm run dev:ar`, der `/api` und `/run` an die Sandbox weiterreicht
    (`PLANT_SANDBOX`, sonst Port 5180). So läuft alles über HTTPS, das die Kamera am
-   Telefon braucht. Zeichnungen zeigt sie noch nicht: Die Antwort verweist auf `Stroke`-Daten der
-   Plattform, und die gibt es in der Sandbox nicht.
+   Telefon braucht. Die Linien der Zeichnungen holt sie aus `GET /api/strokes`, dem
+   Ersatz für `strokesNearby`. Einrichten und Fehlersuche:
+   [AR-Testumgebung](AR-TESTUMGEBUNG.md).
 3. Der Viewer bleibt, wie er ist. Er braucht weiter alle Felder für seine Anzeigen.
 
 **Auf dem Server, der Admin:** die Abfrage `plantNearby` in dieser Form, sobald der

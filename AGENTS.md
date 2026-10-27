@@ -27,17 +27,20 @@ it. `src/ArModule.vue` here is only a vehicle for local AR tests.
 2. `sandbox/docs/PHASEN.md`, `sandbox/docs/ZEITMASSSTAB-UND-BOOSTS.md` and
    `sandbox/docs/PFLANZMODUS.md` (the planting scene) —
    how the simulation behaves (German).
-3. `sandbox/docs/SCHNITTSTELLEN.md` — the contract between server and AR app
+3. `sandbox/docs/AR-TESTUMGEBUNG.md` before touching `src/ArModule.vue`,
+   `src/plant-live.ts` or `lib/preview-ar.ts`: the AR test scene, how close it is to the
+   host app, the three r137 / Safari pitfalls, a second test setup (German).
+4. `sandbox/docs/SCHNITTSTELLEN.md` — the contract between server and AR app
    (`/api/plant` in the sandbox, `plantNearby` on the server) and between
    simulation and compute service (German). Change it only deliberately: the
    admin builds against it.
-4. `sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`, `sandbox/docs/ADMIN-AUFGABEN.md`,
+5. `sandbox/docs/TECHNISCHE-VORAUSSETZUNGEN.md`, `sandbox/docs/ADMIN-AUFGABEN.md`,
    `sandbox/SERVER-OFFENE-PUNKTE.md` — server/platform side (German).
-5. `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md` before touching
+6. `cross-feature-reference-docs/AI-ASSET-GENERATION-GUIDE.md` before touching
    any `scripts/glb-*`, `stylize-glb`, `sloyd-generate`.
-6. `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md` before compressing
+7. `cross-feature-reference-docs/ASSET-COMPRESSION-GUIDE.md` before compressing
    anything for delivery.
-7. `cross-feature-reference-docs/AR-MODULE-TEMPLATE.md` before touching `lib/`,
+8. `cross-feature-reference-docs/AR-MODULE-TEMPLATE.md` before touching `lib/`,
    `src/`, `vite.config.ts` or the AR previews.
 
 ## 3. Layout
@@ -66,8 +69,9 @@ sandbox/models/       starter .glb models (from Sloyd, uncompressed)
 sandbox/test-photos/  public-domain (CC0) outdoor photos the sandbox uses as uploaded photos, sources in QUELLEN.md
 sandbox/docs/         documentation (German), mirrored as online Claude Docs (links at the top of each)
 scripts/              GLB tools; jimp-image.ts = texture work without native libs
-src/, lib/            AR-module template baseline; src/ArModule.vue = the AR test scene (planting, then the live plant via src/plant-live.ts);
-                      dev:ar proxies /api and /run to the sandbox (PLANT_SANDBOX, default port 5180); the AR preview runs 8th Wall with absolute scale;
+src/, lib/            AR-module template baseline; src/ArModule.vue = the AR test scene (planting, then the live plant via src/plant-live.ts,
+                      drawings from GET /api/strokes); dev:ar proxies /api and /run to the sandbox (PLANT_SANDBOX, default port 5180);
+                      the AR preview runs 8th Wall with absolute scale and the host's lights, fog and renderer settings;
                       src/a-frame-components/grain-shimmer.ts = the plant's grain look
 guides/, examples/    guide + example for grain-shimmer (the only template feature kept)
 sandbox-runs/         gitignored: run folders + shared caches: fuse-cache (prepared models for glb-fuse), copy-cache (results of the
@@ -95,7 +99,10 @@ sandbox-objects/      gitignored: new objects (sources, Sloyd files, working ver
   uncompressed working files; delivery files are made from those and never fed
   back into a job (`ASSET-COMPRESSION-GUIDE.md`).
 - **Ports:** 5180 is the sandbox the user runs; never start or stop it. Use
-  5191 for test runs and delete their run folders afterwards.
+  5191 for test runs and delete their run folders afterwards. The user's
+  `dev:ar` runs on 5173: a second Vite (test preview on 5192) needs its own
+  `cacheDir`, or it rebuilds `node_modules/.vite` under the user's server
+  (`sandbox/docs/AR-TESTUMGEBUNG.md`, "Eine zweite Testumgebung").
 - **Verify** with `npm run typecheck` and `npm run build` after non-trivial
   changes; delete `dist-platform/` afterwards.
 - **Template baseline rules still apply** to `src/`: `src/assets/` and

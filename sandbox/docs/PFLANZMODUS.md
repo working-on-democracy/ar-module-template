@@ -110,13 +110,13 @@ Standardobjekten im Ring. Eine Wiedergabe (`--replay`) und ein Lauf aus einer
 gespeicherten Datei (`--values`) starten auch ohne sie.
 
 **Am Telefon:** Erst `npm run sandbox`, dann `npm run dev:ar`. Am Telefon im selben
-WLAN die angezeigte Netzwerkadresse öffnen und das Zertifikat annehmen. Der
-Vite-Server von `dev:ar` reicht `/api` und `/run` an die Sandbox weiter
-(`PLANT_SANDBOX=http://host:port`, sonst Port 5180), so läuft alles über HTTPS. Die
+WLAN die angezeigte Netzwerkadresse öffnen und das Zertifikat annehmen. Die
 Szene startet 8th Wall mit absolutem Maßstab: Eine Einheit ist ein Meter, der Boden
 liegt bei y = 0. Das Telefon braucht am Anfang etwas Bewegung, bis es den Boden
 kennt. Hat die Sandbox schon eine Pflanze, zeigt die AR-Szene diese, statt eine
-neue pflanzen zu lassen. Für eine neue Pflanzung die Sandbox neu starten.
+neue pflanzen zu lassen. Für eine neue Pflanzung die Sandbox neu starten. Alles
+Weitere zur AR-Testszene (Einrichten, was sie zeigt, Fehlersuche) steht in der
+[AR-Testumgebung](AR-TESTUMGEBUNG.md).
 
 Ob zuerst im Viewer oder am Telefon gepflanzt wird, ist gleich: Die erste
 Pflanzung gilt, jede weitere lehnt die Sandbox ab, bis sie neu startet.
@@ -126,7 +126,7 @@ Pflanzung gilt, jede weitere lehnt die Sandbox ab, bis sie neu startet.
 | Datei | Inhalt |
 | --- | --- |
 | `sandbox/planting/rules.ts` | Katalog, Größen, Grundfläche, Abstandsregel, Prüfung einer ganzen Pflanzung (auch für den Server) |
-| `sandbox/planting/scene.ts` | die Szene: Zustände, Kopie, Ringe, Gesten, Vorschaubilder |
+| `sandbox/planting/scene.ts` | die Szene: Zustände, Kopie, Ringe, Gesten, Vorschaubilder (mit dem Renderer der Seite), Ladefortschritt auf den Kacheln |
 | `sandbox/planting/ui.ts` | Oberfläche als DOM mit Inline-Styles: Liste, Knöpfe, Dialoge, Hinweis, Ladebildschirm, Datei speichern |
 | `sandbox/server.ts` | `GET`/`POST /api/planting`, die Modelle zum Platzieren, Start des Laufs, `GET /api/plant` |
 | `sandbox/viewer/main.ts` | Einbindung im Viewer (`begin`, `plant`) |
@@ -161,6 +161,5 @@ Form der Abrufe in [Schnittstellen](SCHNITTSTELLEN.md#pflanzen-app--server). Kur
 - Das Aussehen der Liste, der Knöpfe und der Dialoge ist ein erster Entwurf.
 - Die Grundfläche als Kreis ist großzügig. Eine genauere Form (der Umriss des
   Modells von oben) würde engeres Pflanzen erlauben.
-- In AR sind Zeichnungen der Pflanze noch nicht zu sehen. Die App zeichnet sie
-  selbst, die Sandbox liefert aber keine echten `Stroke`-Daten.
-- Am Telefon ist die Szene noch nicht getestet.
+- Am iPad mit Safari getestet am 26. Oktober 2026. Ein Test an einem echten Ort mit
+  dem Server statt der Sandbox steht aus.
