@@ -31,16 +31,18 @@ Figure out which one you are doing before anything else:
 - **Template work:** adding, porting or changing a feature in
   `feature_template` itself. All rules below apply.
 
-Branches (`main` and `feature_template` are protected against force-push and
-deletion):
+Repositories and branches:
 
-- `main` — the released template and the default branch: what people download
-  and fork. Never commit to it directly. It only receives tested states of
-  `feature_template`, through a pull request (`ADDING-FEATURES-WORKFLOW.md`
-  step 14).
-- `feature_template` — the development branch. Every reusable feature
+- `TobiasStill/ar-module-template`, branch `main` — the main repository and the
+  released template: what people download and fork. Only its owner can merge
+  there. It receives tested states through a pull request
+  (`ADDING-FEATURES-WORKFLOW.md` step 14).
+- `working-on-democracy/ar-module-template`, a fork of it. Its `main` is the bridge
+  for those pull requests; never commit to it directly.
+- `feature_template` — the development branch, in that fork. Every reusable feature
   ever universalized lives here. This is the branch to work on if the task is
-  "add/port/document a feature."
+  "add/port/document a feature." A clone of the main repository doesn't contain
+  it: a contribution from there is a pull request against `main`.
 - `<Name>_module`, `<Name>_production` branches (e.g. `Jakob_module`,
   `Gyumin_production`), `abv-*` / `augmented-bahnhofsviertel`, and `sound-player`,
   `proximity-effekte`, `zwischen-basis`, `host-light-scale`, `ai-asset-tools`,
