@@ -33,8 +33,9 @@ building a feature, but step 11 covers when it needs a touch-up.
 
 ## 0. Work on `feature_template`, not on `main`
 
-`main` is the released template that people download and fork.
-`feature_template` is where all work happens; `main` only receives tested states
+`main` in `TobiasStill/ar-module-template` is the released template that people
+download and fork. `feature_template`, in the fork
+`working-on-democracy/ar-module-template`, is where all work happens; `main` only receives tested states
 of it (step 14). So every feature has to work against the current
 `feature_template`, whether it's ported or original. Never merge `main` or
 `feature_template` into a source feature branch (`Jakob_module`, etc.) — those
@@ -553,12 +554,14 @@ happened (e.g. the generic/feature-specific split), not just a file list.
 ## 14. Release to `main`
 
 Only when explicitly asked, and from a state that has been tested on a phone.
-`main` is what people get, so it never receives commits directly. Open a pull
-request from `feature_template` and merge it with a merge commit:
+`main` is what people get, so it never receives commits directly. Two pull
+requests bring a release there. The first goes from `feature_template` to `main`
+in the fork, the second from the fork's `main` to the main repository, where its
+owner merges it:
 
 ```sh
-gh pr create --base main --head feature_template
-gh pr merge --merge
+gh pr create --repo working-on-democracy/ar-module-template --base main --head feature_template
+gh pr create --repo TobiasStill/ar-module-template --base main --head working-on-democracy:main
 ```
 
 `src/assets/` and `src/image-targets/` must still be empty, and a fresh clone must

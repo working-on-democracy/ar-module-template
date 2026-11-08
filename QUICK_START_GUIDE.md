@@ -9,7 +9,7 @@ real space around them through the camera. Each artwork is a **module** — a
 shows.
 
 Modules are built from **`ar-module-template`**, a project on GitHub:
-[github.com/working-on-democracy/ar-module-template](https://github.com/working-on-democracy/ar-module-template).
+[github.com/TobiasStill/ar-module-template](https://github.com/TobiasStill/ar-module-template).
 The branch to start from is **`main`**, the one GitHub shows
 first: it holds the starter scene, every ready-made AR effect and all the guides.
 
@@ -63,7 +63,7 @@ When the template gets updates later (new effects, fixes), bring them into your
 branch. The first command is needed only once:
 
 ```
-git remote add -t main upstream https://github.com/working-on-democracy/ar-module-template.git
+git remote add -t main upstream https://github.com/TobiasStill/ar-module-template.git
 git fetch upstream
 git merge upstream/main
 ```
@@ -167,8 +167,7 @@ them and look at the result.
 
 If something you built on your own project turns out generic and useful
 enough that future projects should have it too, you can propose adding it
-to `ar-module-template` itself with a pull request. Open it against the
-`feature_template` branch, where the template is developed, not against `main`.
+to `ar-module-template` itself with a pull request against its `main` branch.
 Before opening one, make sure it's ready:
 
 - **It's a finished feature, not a work-in-progress experiment.** Half-done
