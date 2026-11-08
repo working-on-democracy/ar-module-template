@@ -116,6 +116,12 @@ coordinates, which doesn't work for a module.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+- **Pinned order has no effect in the host.** The host runs 8frame 1.3.0
+  with `renderer.sortObjects: false`, so three.js never sorts there and
+  the portal's `renderOrder` values are ignored; objects draw in
+  scene-graph order. Keep the hider walls before the portal's contents in
+  the markup so it also works unsorted — see
+  [RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §1.1](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#11-whether-the-lists-are-sorted-at-all-depends-on-the-runtime).
 - **renderOrder of contents is overwritten.** Meshes inside `contents`,
   `walls`, `portalWall` and `door` get the portal's orders. Don't use
   [Render Order](RENDER-ORDER-FEATURE-GUIDE.md) /

@@ -13,7 +13,9 @@ See-through things — glass, smoke, glowing veils, objects fading in or
 out — are harder. To look right, whatever lies behind them has to be
 painted *first*, and they are painted on top, letting it shine through.
 So the phone paints all solid objects first, then all see-through ones,
-from the farthest to the nearest. Usually that works. But when
+ideally from the farthest to the nearest. Not every setup sorts like that,
+though: the platform's AR runtime skips sorting entirely and paints
+objects in the order the scene happens to list them. Usually that works. But when
 see-through objects overlap, interlock or are about equally far away, the
 phone can pick the wrong order: parts flicker, vanish behind each other,
 or suddenly swap places as the visitor moves.
@@ -88,6 +90,39 @@ Two things follow that matter a lot when combining features:
   two overlapping faces of the *same* mesh, or a mesh whose front and back
   faces both draw in one pass (§4.2).
 
+### 1.1 Whether the lists are sorted at all depends on the runtime
+
+The sorting described above only happens when `renderer.sortObjects` is
+`true`, and A-Frame decides that, not three.js (three.js itself defaults to
+`true`). Read from the runtimes' own code:
+
+| Runtime | `sortObjects` | Opaque list | Transparent list |
+|---|---|---|---|
+| 8frame 1.3.0 / three r137 (the host, and branches whose `ar.html` loads the CDN 8frame 1.3.0) | `false` (A-Frame's `renderer` default `sortObjects: false`; the host's `<a-scene renderer=…>` doesn't set it) | scene-graph order | scene-graph order |
+| 8frame 1.5.0 / three r158 (`dev:ar`/`build:ar`, `lib/vendor/`) | `true` (A-Frame forces it) | `renderOrder`, then front-to-back | `renderOrder` only, ties keep scene-graph order; back-to-front only with `renderer="sortTransparentObjects: true"` |
+
+three r137 skips `renderList.sort()` entirely when `sortObjects` is
+false, so in the host:
+
+- **`renderOrder` has no effect** — neither a standalone
+  [`render-order`](../guides/RENDER-ORDER-FEATURE-GUIDE.md) value, nor
+  [`mesh-render-order`](../guides/MESH-RENDER-ORDER-FEATURE-GUIDE.md), nor
+  `lod-manager`'s banding (§2), nor [`portal`](#portal)'s pinned order.
+  They only act in the 8frame 1.5 previews.
+- **Transparent objects draw in scene-graph order** (depth-first, in the
+  order entities appear in the markup), never back-to-front. Which of two
+  overlapping transparent objects wins is decided by where they sit in
+  the markup.
+- The opaque/transparent split still holds: three.js always draws the
+  whole opaque list before the transparent one.
+
+A module can't safely switch sorting on for itself: `renderer` is one
+object shared by every module on screen. The fix belongs in the host
+(`renderer="…; sortObjects: true"` on its `<a-scene>`), and would need
+testing against every live module, since it changes their draw order too.
+Until then, check draw-order-dependent effects in a 1.3.0 runtime, not
+only in `dev:ar`.
+
 ### Depth buffer basics
 
 Every drawn pixel writes a *depth* value if `material.depthWrite = true`
@@ -95,8 +130,10 @@ Every drawn pixel writes a *depth* value if `material.depthWrite = true`
 against what's already there (`depthTest`, default on) and only draw where
 they pass. `depthWrite: false` (the glTF default for genuinely
 `alphaMode: BLEND` materials) means a transparent surface never occludes
-anything drawn after it via the depth buffer — draw order (`renderOrder`)
-is the *only* thing keeping it composited correctly.
+anything drawn after it via the depth buffer — draw order (`renderOrder`
+where the runtime sorts, scene-graph order where it doesn't, §1.1) is the
+*only* thing keeping it composited correctly. The reverse case — a
+transparent surface that *does* write depth — is §4.7.
 
 ## 2. How `render-order` + `lod-object`/`lod-manager` compose
 
@@ -307,6 +344,49 @@ visible depth-occlusion glitches against other billboards despite writing
 depth once fully faded in — depth writing only turns on once it's already
 fully opaque.
 
+### 4.7 A shadow catcher writes depth and hides transparent content behind it
+
+A shadow-catcher plane (`material="shader: shadow"`, three's
+`ShadowMaterial`) looks invisible except where a shadow falls, but it is a
+transparent material with `depthWrite: true`. It goes into the transparent
+list and fills the depth buffer wherever it covers the screen. So:
+
+- **Opaque content behind it stays visible** — the opaque list is drawn
+  first, before the plane writes anything.
+- **Transparent content behind it disappears** if it is drawn after the
+  plane: it fails the depth test against the "invisible" plane. In the
+  host (no sorting, §1.1) "after" means later in the scene graph, which a
+  module's content always is relative to a floor that the page puts
+  before the module root.
+
+The symptom is confusing: a test box shows up, the model's bounding box
+and visibility chain are fine, flat-coloured or `alphaTest`-only versions
+of the same meshes render, and only the real `transparent: true`
+materials vanish. Removing the plane, or giving it `depthWrite: false`,
+brings them back.
+
+When it bites: a large floor catcher at world y = 0 and content that ends
+up *below* that height from the camera's point of view — typically an
+image target lying lower than 8th Wall's floor estimate (the tracked image
+can sit anywhere relative to it), or a dev/standalone page that adds its
+own floor next to a module that brings one. Fix by not having a world
+floor where content can go below it (an image-target scene uses a
+catcher the size of the image instead), or by `depthWrite: false` on the
+catcher — it needs no depth to receive shadows.
+
+<!-- project-specific -->
+#### Project context: `Rosa_imagetarget`
+
+Found 08.11.2026 porting Rosa's scene onto a postcard target: the
+standalone page (`src/preview-ar.ts`) added a 100 × 100 m shadow catcher at
+y = 0; in the headless test the card was tracked below it, and Rosa's
+layered cut-out figure (`unlit-materials`: `MeshBasicMaterial`,
+`transparent: true`, `alphaTest: 0.5`) vanished while a red test box
+rendered. Confirmed by removing only that plane (materials unchanged):
+the figure appeared.
+
+<!-- /project-specific -->
+
 ## 5. Execution order — where components can silently interfere
 
 Most subtle bugs in this area come from **when** code runs relative to
@@ -364,6 +444,8 @@ in `el.components` means "ready."
 | [`dither-material`](../guides/DITHER-MATERIAL-FEATURE-GUIDE.md) alongside LOD, `proximity-fade-dither`, or `proximity-cutout` | A fourth `onBeforeCompile` writer (§4.4) — don't target the same material with two of these four at once, last patch wins. |
 | [`material-properties`](../guides/MATERIAL-PROPERTIES-FEATURE-GUIDE.md) or `dither-material` alongside `unlit-material` | Don't put either on the same entity as `unlit-material` (§4.5) — same replace-vs-tune conflict as the proximity features above. |
 | `material-properties` alongside `dither-material` | Both clone-then-mutate (not replace), so combining is supported — but same-element registration order decides who tunes whose output (§5.2). Author `material-properties` first if you want its values to be what gets dithered. |
+| Anything that relies on `renderOrder` or back-to-front sorting | The host doesn't sort at all (§1.1): `renderOrder` is ignored there and transparent objects draw in scene-graph order. Order the markup so it also works unsorted, and check in a 8frame 1.3.0 runtime. |
+| A shadow-catcher plane (`shader: shadow`) | It writes depth: transparent content drawn after it and lying behind it vanishes (§4.7). Size it to the content's own floor, or give it `depthWrite: false`. |
 | Adding any new material-mutating component | Ask: does it run on the same element as another material-mutating component? If yes, registration order decides who sees whose output (§5.2) — make that explicit in a comment. |
 
 ## Portal
@@ -371,8 +453,10 @@ in `el.components` means "ready."
 [`portal`](../guides/PORTAL-FEATURE-GUIDE.md) pins its own draw order with
 `renderOrder`: hider walls, portal wall and door 1, contents 2, everything
 else 0. Hider materials (`xrextras-hider-material`, depth only) mask only
-what is drawn after them; three r137 (8frame 1.3, the host) sorts opaque
-objects by material id and r158 (8frame 1.5) by distance, so without the
-pinned order a portal flickers with camera movement. Render Order / Mesh
+what is drawn after them; r158 (8frame 1.5, `dev:ar`) sorts opaque objects
+by distance, so without the pinned order a portal flickers with camera
+movement there. In the host (8frame 1.3, `sortObjects: false`, §1.1) the
+pinned `renderOrder` is ignored and scene-graph order decides instead —
+keep the hider walls before the portal's contents in the markup. Render Order / Mesh
 Render Order / LOD values inside a portal subtree are overwritten by it.
 

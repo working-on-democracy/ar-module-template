@@ -192,6 +192,15 @@ model: it is the student's work, so the combined example uses a generated one.
 
 ## 4. Incompatibilities, risks & troubleshooting
 
+### No effect in the host: it doesn't sort
+
+The host runs 8frame 1.3.0 with `renderer.sortObjects: false`, so three.js
+never sorts its render lists there and every `renderOrder` value
+(including the per-sub-mesh values this component sets) is ignored; objects draw in scene-graph order. It only acts in the 8frame
+1.5 previews (`dev:ar`, `build:ar`). Order the markup so the scene also
+works unsorted, and see
+[RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md §1.1](../cross-feature-reference-docs/RENDER-ORDER-AND-TRANSPARENCY-GUIDE.md#11-whether-the-lists-are-sorted-at-all-depends-on-the-runtime).
+
 ### Portal overwrites renderOrder in its subtree
 
 [`portal`](PORTAL-FEATURE-GUIDE.md) sets `renderOrder` on every mesh inside
