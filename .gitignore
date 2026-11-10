@@ -31,3 +31,7 @@ sandbox-objects/
 # Sloyd broker (proxy/): local secrets for wrangler dev, wrangler's own state
 proxy/.dev.vars
 proxy/.wrangler/
+
+# Replay recordings (npm run replay-export): models and photos of a run, played by dev:replay / build:replay
+sandbox-replays/
+dist-replay/

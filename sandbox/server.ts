@@ -29,22 +29,21 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createServer as createViteServer } from "vite";
 import { PARAMS, type Params } from "./params";
-import { decodeImage, encodeJpeg, saturateBitmap, subsampleChroma } from "../scripts/jimp-image";
 import { glbInfo } from "./runner/glb-info";
 import { runGlbJob, script } from "./runner/jobs";
+import { photoFile } from "./runner/photos";
+import { fromPlantingPoint, plantDrawingAnswer, plantObjectAnswer } from "./runner/plant-answer";
+import { applyWorldCommand, checksum, readTape, TapePlayer, type TapeEntry } from "./runner/tape";
 import { buildScenario, DEFAULT_STARTERS, SCENARIO_DEFAULTS, type ScenarioValues } from "./scenarios/generate";
 import { catalogOf, checkPlanting, type Planting } from "./planting/rules";
 import { objectFile, readCatalog, Workshop } from "./objects/workshop";
 import { access, forgetCode, knownRole, setCode } from "./objects/access";
-import { grainOf, grainScaleOf, tintIntensity } from "./sim/look";
 import models from "./scenarios/starter-models.json";
 import { SAMPLE_COMMENTS } from "./scenarios/comments";
 import { advance, QUANTUM } from "./sim/schedule";
 import { decompose } from "./sim/pose";
 import type { JobRequest, JobResult, ModelVersion, Vec3, World } from "./sim/types";
-import {
-  addComment, addDrawing, addPhoto, applyJob, removeComment, createWorld, jobFailed, modelMatrix, ecosystemBounds, ecosystemCenter, removePhoto, setViewers, step, swayOf, swayPeriodOf, totalTriangles, updateFactor,
-} from "./sim/world";
+import { createWorld, jobFailed, modelMatrix, ecosystemBounds, ecosystemCenter, swayOf, swayPeriodOf, totalTriangles } from "./sim/world";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // Node 20.12 or newer (the scripts read .env.local with process.loadEnvFile)
@@ -155,22 +154,10 @@ function enqueue(jobs: JobRequest[]) {
 }
 
 // ---------------------------------------------------------------- tape (--replay)
-// Everything that decides a run, in order: the size of every step (equal steps
-// in a row as one line), every result when it arrives, results used while the
-// clock waits for another one, failed jobs, commands that change the world, and
-// a checksum with every write. The simulation itself is deterministic, so this
-// gives the same run again, at any speed and without computing.
-type TapeEntry =
-  | { s: number; n: number } // n steps of s calendar days
-  | { r: JobResult } // a result arrived
-  | { a: number[] } // these results were used while the clock waited
-  | { d: number } // this job failed
-  | { c: Record<string, unknown> } // a command, with its random parts resolved
-  | { k: [number, number, number] }; // checksum: Eigenzeit, triangles, objects
+// Everything that decides a run (runner/tape.ts): recorded here, played with --replay.
 const tapeFile = () => join(runDir, "tape.jsonl");
 const tapeOut: TapeEntry[] = [];
 let stepRun: { s: number; n: number } | null = null;
-const checksum = (): [number, number, number] => [w.eigen, totalTriangles(w), w.objects.length];
 function record(e: TapeEntry) {
   if (replayDir) return;
   if ("s" in e && stepRun?.s === e.s) { stepRun.n++; return; }
@@ -179,38 +166,15 @@ function record(e: TapeEntry) {
 }
 function flushTape() {
   if (replayDir || !tapeOut.length) return;
-  tapeOut.push({ k: checksum() });
+  tapeOut.push({ k: checksum(w) });
   appendFileSync(tapeFile(), tapeOut.map((e) => JSON.stringify(e)).join("\n") + "\n");
   tapeOut.length = 0; stepRun = null;
 }
 // replay: the whole tape; every result is "ready" from the start, used at its due time as recorded
-let tape: TapeEntry[] = [];
-let tapeAt = 0, tapeStepsLeft = 0, replayDone = false, diverged = false, totalStepDays = 0;
+let player: TapePlayer | null = null;
+let replayDone = false;
 function loadTape() {
-  tape = readFileSync(tapeFile(), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-  for (const e of tape) if ("r" in e) ready.set(e.r.jobId, e.r);
-  totalStepDays = tape.reduce((t, e) => t + ("s" in e ? e.s * e.n : 0), 0);
-}
-/** Plays the tape up to the next step; returns its size, or null at the end. */
-function nextReplayStep(): number | null {
-  for (; tapeAt < tape.length; tapeAt++) {
-    const e = tape[tapeAt];
-    if ("s" in e) {
-      if (!tapeStepsLeft) tapeStepsLeft = e.n;
-      return e.s;
-    }
-    if ("a" in e) for (const id of e.a) { const r = ready.get(id); if (r) { ready.delete(id); applyJob(w, r); } }
-    else if ("d" in e) { const job = w.jobs.find((j) => j.id === e.d); if (job) dropJob(job); }
-    else if ("c" in e) applyCommand(e.c);
-    else if ("k" in e && !diverged && (Math.abs(e.k[0] - w.eigen) > 1e-9 || e.k[1] !== totalTriangles(w) || e.k[2] !== w.objects.length)) {
-      diverged = true;
-      console.warn(`⚠ Wiedergabe weicht ab bei Kalendertag ${w.calendar.toFixed(3)}: aufgezeichnet ${JSON.stringify(e.k)}, jetzt ${JSON.stringify(checksum())}`);
-    }
-  }
-  return null;
-}
-function replayStepDone() {
-  if (--tapeStepsLeft === 0) tapeAt++;
+  player = new TapePlayer(w, readTape(tapeFile()), ready, { command: applyCommand, drop: dropJob });
 }
 
 function pump() {
@@ -238,7 +202,7 @@ function dropJob(job: JobRequest) {
   for (let i = queue.length - 1; i >= 0; i--) if (ids.includes(queue[i].id)) queue.splice(i, 1);
 }
 
-// Photos are generated when they appear (scenario or button).
+// Photos are generated when they appear (scenario or button); the versions objects show on request (runner/photos.ts).
 const madePhotos = new Set<string>();
 async function ensurePhotos() {
   for (const ph of w.photos) {
@@ -255,24 +219,6 @@ async function makeTestPhoto(id: string, file: string) {
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const pick = TEST_PHOTOS[h % TEST_PHOTOS.length];
   copyFileSync(join(HERE, "test-photos", pick), file);
-}
-
-/** A photo as an object shows it, made on first request (server-side, as planned): saturated
- *  for the object's changes since it took the photo, then crushed for its crush level. */
-async function photoFile(id: string, level: number, changes = 0): Promise<string | null> {
-  const base = join(runDir, "photos", `${id}-0.jpg`);
-  if (!existsSync(base)) return null;
-  if (level <= 0 && changes <= 0) return base;
-  const file = join(runDir, "photos", `${id}-${level}${changes > 0 ? `-s${changes}` : ""}.jpg`);
-  if (!existsSync(file)) {
-    let buf: Uint8Array = readFileSync(base);
-    const amount = Math.min(params.photoSaturateMax, Math.pow(params.photoSaturatePerChange, changes));
-    if (changes > 0) buf = await encodeJpeg(saturateBitmap(await decodeImage(buf), amount), 90);
-    const q = [30, 15, 8, 4, 2][Math.min(5, Math.max(1, level)) - 1];
-    for (let i = 0; i < level; i++) buf = await encodeJpeg(subsampleChroma(await decodeImage(buf)), q);
-    writeFileSync(file, buf);
-  }
-  return file;
 }
 
 // ---------------------------------------------------------------- the loop
@@ -293,11 +239,11 @@ setInterval(() => {
   const before = w.calendar;
   if (replayDir) {
     // the recorded step sizes, as fast as the chosen speed asks for
-    for (let q = nextReplayStep(); ; q = nextReplayStep()) {
+    for (let q = player!.next(); ; q = player!.next()) {
       if (q === null) { replayDone = true; console.log("\nAufzeichnung zu Ende."); break; }
       if (budget < q) break;
       if ("waiting" in advance(w, ready, q)) { replayDone = true; console.log("\nAufzeichnung endet hier (ein Ergebnis fehlt)."); break; }
-      replayStepDone();
+      player!.stepDone();
       budget -= q;
     }
   } else {
@@ -350,7 +296,7 @@ function stateFor(sinceSample: number) {
   return {
     run: {
       dir: runDir.replace(ROOT, ""), commit, fuseMode, speed, paused,
-      replay: replayDir ? { progress: totalStepDays ? w.calendar / totalStepDays : 1, done: replayDone, diverged } : null,
+      replay: player ? { progress: player.totalStepDays ? w.calendar / player.totalStepDays : 1, done: replayDone, diverged: player.diverged } : null,
       waitingFor: waitingFor ? { id: waitingFor.id, kind: waitingFor.kind, objectId: waitingFor.objectId, partnerId: waitingFor.partnerId } : null,
     },
     phase: w.phase, eigen: w.eigen, calendar: w.calendar, factor: w.factor, fastFactor: w.fastFactor, factorParts: w.factorParts, boostsPaused: w.boostsPaused, slowed: w.slowed, lastWatched: w.lastWatched,
@@ -388,18 +334,7 @@ function command(cmd: Record<string, unknown>) {
 
 /** A command that changes the world (live, or from the tape). */
 function applyCommand(cmd: Record<string, unknown>) {
-  switch (cmd.type) {
-    case "viewers": setViewers(w, w.viewers + Number(cmd.delta ?? 0)); break;
-    case "addPhoto": addPhoto(w, cmd.pos as Vec3); break;
-    case "addDrawing": addDrawing(w, cmd.pos as Vec3); break;
-    case "block": removePhoto(w, String(cmd.photoId), "gesperrt"); break;
-    case "delete": removePhoto(w, String(cmd.photoId), "gelöscht"); break;
-    case "addComment": addComment(w, cmd.pos as Vec3, String(cmd.text)); break;
-    case "blockComment": removeComment(w, String(cmd.commentId), "gesperrt"); break;
-    case "deleteComment": removeComment(w, String(cmd.commentId), "gelöscht"); break;
-    default: throw new Error(`unbekannter Befehl ${String(cmd.type)}`);
-  }
-  updateFactor(w); // devices, photos, drawings and comments count at once, not only at the next step
+  applyWorldCommand(w, cmd);
   ensurePhotos().catch((e) => console.error(e));
   flushEvents();
 }
@@ -411,31 +346,14 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
   res.end(body);
 }
 
-/** A position from the planting point, as the AR app gets them. */
-const off = (v: Vec3 | number[]): Vec3 => [v[0] - plantingPoint[0], v[1], v[2] - plantingPoint[2]];
-
 /** Interface 1 (SCHNITTSTELLEN.md): the whole plant, as the AR app gets it. Positions from the planting point. */
 function plantFor() {
   return {
     id: "sandbox", location: SANDBOX_LOCATION, serverTime: Date.now(),
     pollSeconds: speed <= REALTIME * 1.01 ? 3 : 1, // the accelerated sandbox moves more between two answers
     phase: w.phase,
-    objects: w.objects.map((o) => {
-      const p = decompose(modelMatrix(o));
-      return {
-        id: o.id, model: { url: `/run/${o.glb}`, triangles: o.triangles },
-        pose: { position: off(p.p), rotation: p.q, scale: p.s },
-        state: o.state, origin: o.origin,
-        tint: o.tint ? { color: o.tint.color, intensity: tintIntensity(o.tint) } : null,
-        grain: { strength: grainOf(o.triangles), scale: grainScaleOf(o) },
-        sway: { height: swayOf(o, w.params), period: swayPeriodOf(o, w.params) },
-        photo: o.photo ? { url: `/api/photo/${o.photo.photoId}/${o.crushLevel}/${o.photo.changes}`, frame: o.photo.frame } : null,
-        comment: (() => { const c = o.comment && w.comments.find((x) => x.id === o.comment!.commentId); return c ? { text: c.text, color: c.color, frame: o.comment!.frame } : null; })(),
-      };
-    }),
-    drawings: w.drawings.filter((d) => !d.gone && d.mode !== "frei").map((d) => ({
-      strokeId: d.id, position: off(d.pos), scale: d.scale, state: d.mode, textureFrom: d.texture ? `/run/${d.texture.glb}` : null,
-    })),
+    objects: w.objects.map((o) => plantObjectAnswer(w, o)),
+    drawings: w.drawings.filter((d) => !d.gone && d.mode !== "frei").map((d) => plantDrawingAnswer(w, d)),
   };
 }
 const SANDBOX_LOCATION = { lat: 50.1109, lng: 8.6821 }; // the sandbox has no place; the same as the AR preview's mock
@@ -507,7 +425,7 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   // the drawings themselves, in place of the platform's strokesNearby: the lines (points from the anchor, at
   // scale 1) and the anchor; /api/plant moves the ones the plant attracts
   if (url.pathname === "/api/strokes") {
-    send(res, 200, JSON.stringify({ strokes: w.drawings.filter((d) => !d.gone).map((d) => ({ id: d.id, position: off(d.pos), lines: d.lines })) }));
+    send(res, 200, JSON.stringify({ strokes: w.drawings.filter((d) => !d.gone).map((d) => ({ id: d.id, position: fromPlantingPoint(w, d.pos), lines: d.lines })) }));
     return true;
   }
   if (url.pathname === "/api/frames") {
@@ -523,7 +441,7 @@ async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> 
   }
   const photo = url.pathname.match(/^\/api\/photo\/([\w-]+)\/(\d+)(?:\/(\d+))?$/); // id / crush level / changes (saturation)
   if (photo) {
-    const file = await photoFile(photo[1], Number(photo[2]), Number(photo[3] ?? 0));
+    const file = await photoFile(runDir, params, photo[1], Number(photo[2]), Number(photo[3] ?? 0));
     if (!file) send(res, 404, "{}");
     else send(res, 200, readFileSync(file), "image/jpeg");
     return true;
@@ -564,6 +482,6 @@ if (!waitForPlanting) await startRun(recorded?.plants ?? input.plants ?? null);
 http.listen(port, () => {
   const tempo = rt ? `${Number(rt[1] || 1) > 1 ? `${rt[1]}× ` : ""}Echtzeit` : Math.abs(speed / REALTIME - Math.round(speed / REALTIME)) < 1e-9 ? `${Math.round(speed / REALTIME)}× Echtzeit` : `${speed} Kalendertage pro Minute`;
   console.log(replayDir
-    ? `\nWiedergabe läuft: http://localhost:${port}/\nTempo: ${tempo}, ${totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
+    ? `\nWiedergabe läuft: http://localhost:${port}/\nTempo: ${tempo}, ${player!.totalStepDays.toFixed(2)} aufgezeichnete Kalendertage\n`
     : `\nSandbox läuft: http://localhost:${port}/\nNeue Objekte: http://localhost:${port}/objekte.html\nTempo: ${tempo}, Verschmelzen: ${fuseMode ?? "erste hart, danach weich"}, Rechenvorlauf ${params.jobLeadDays} Eigentage\n${waitForPlanting ? "Wartet auf die Pflanzung (im Viewer oder in der AR-Testszene).\n" : ""}`);
 });

@@ -49,6 +49,8 @@ npm run sandbox                           # neuer Lauf: erst pflanzen, Viewer au
 npm run sandbox -- --values pflanzung.json   # denselben Lauf noch einmal (Datei aus der Pflanzszene)
 npm run sandbox -- --ohne-pflanzen        # sofort mit den fünf Standardobjekten im Ring
 npm run dev:ar                            # AR-Testszene am Telefon, pflanzt in die laufende Sandbox
+npm run replay-export -- sandbox-runs/<Ordner>   # aufgezeichneten Lauf für die Wiedergabe-App aufbereiten
+npm run dev:replay                        # Wiedergabe-App am Telefon, ohne Sandbox (build:replay → dist-replay/)
                                           # neue Objekte: http://localhost:5180/objekte.html
 npm run sandbox -- --seed 12              # bestimmter Seed
 npm run sandbox -- --speed echtzeit4      # viermal so schnell wie die echte Zeit
@@ -112,6 +114,7 @@ scripts/            Rechenschritte und Werkzeuge: glb-fuse, glb-reduce, glb-spli
                     glb-texture-crush, jimp-image, sloyd-generate, glb-compression, compress-assets
 src/, lib/          Grundgerüst des AR-Modul-Templates für den AR-Test: src/ArModule.vue ist die
                     AR-Testszene (pflanzen, dann die Pflanze live aus src/plant-live.ts),
+                    src/ReplayModule.vue die Wiedergabe eines aufgezeichneten Laufs ohne Server,
                     src/a-frame-components/grain-shimmer.ts: der Körnungs-Look der Pflanze
 guides/, examples/  Guide und Beispiel zu grain-shimmer
 cross-feature-reference-docs/
@@ -146,9 +149,10 @@ Drei Spuren laufen parallel:
 2. **AR-Test auf Telefonen, lokal:** läuft. `npm run dev:ar` zeigt die Pflanze der
    laufenden Sandbox am Telefon in AR, mit `grain-shimmer`, Fotos, Kommentaren,
    Zeichnungen, Schatten und den Lichtern der Plattform
-   ([AR-Testumgebung](sandbox/docs/AR-TESTUMGEBUNG.md)). `src/plant-live.ts` ist so
-   gebaut, dass es später in die Plattform-App wandern kann (8frame 1.3.0, three r137,
-   kein Vue). Offen sind ein Test an einem echten Ort und freie Fotos und Kommentare.
+   ([AR-Testumgebung](sandbox/docs/AR-TESTUMGEBUNG.md)). `src/plant-live.ts` und
+   `src/plant-view.ts` sind so gebaut, dass sie später in die Plattform-App wandern
+   können (8frame 1.3.0, three r137, kein Vue). Ein aufgezeichneter Lauf lässt sich
+   ohne Sandbox am Telefon abspielen und spulen (`npm run dev:replay`). Offen sind ein Test an einem echten Ort und freie Fotos und Kommentare.
 3. **Server und Plattform, der Admin:** die Schritte aus
    [`ADMIN-AUFGABEN.md`](sandbox/docs/ADMIN-AUFGABEN.md).
 

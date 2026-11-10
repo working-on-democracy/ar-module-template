@@ -31,7 +31,9 @@ declare const THREE: any;
 //
 // Materials and textures are cloned before they're changed (glTF instances
 // share them — AGENTS.md §4) and restored on remove(). Applies on
-// `object3dset` (type mesh), so primitives and models swapped later work.
+// `object3dset` (type mesh), so primitives and models swapped later work; the
+// copies made for a swapped-out model are given back then (a plant swaps its
+// models all the time).
 // The shader patch chains any onBeforeCompile already on the material and
 // extends customProgramCacheKey, so it composes with other patches (dither,
 // proximity effects) instead of replacing them.
@@ -54,7 +56,9 @@ export default {
     };
     self.elapsed = 0;
     self.onObject3DSet = (e: any) => {
-      if (e.detail?.type === "mesh") self.apply();
+      if (e.detail?.type !== "mesh") return;
+      self.forgetDetached();
+      self.apply();
     };
     self.el.addEventListener("object3dset", self.onObject3DSet);
     // A-Frame primitives load their `material` texture asynchronously and set
@@ -171,19 +175,33 @@ diffuseColor.rgb *= 1.0 + (grainHash(floor(vGrainPos * grainScale)) - 0.5) * 2.0
 
   restore() {
     const self = this as any;
-    self.originals.forEach((original: any, node: any) => {
-      const current = Array.isArray(node.material) ? node.material : [node.material];
-      current.forEach((m: any) => {
-        if (!m) return;
-        for (const key of ["map", "emissiveMap", "roughnessMap", "metalnessMap", "aoMap", "normalMap", "alphaMap"]) {
-          const origMats = Array.isArray(original) ? original : [original];
-          if (m[key] && !origMats.some((o: any) => o?.[key] === m[key])) m[key].dispose();
-        }
-        m.dispose();
-      });
-      node.material = original;
-    });
+    self.originals.forEach((original: any, node: any) => self.restoreNode(node, original));
     self.originals.clear();
+  },
+
+  /** Nodes of a model that is no longer this entity's mesh: their own materials back, the copies disposed. */
+  forgetDetached() {
+    const self = this as any;
+    const attached = new Set<any>();
+    self.el.getObject3D("mesh")?.traverse((n: any) => attached.add(n));
+    self.originals.forEach((original: any, node: any) => {
+      if (attached.has(node)) return;
+      self.restoreNode(node, original);
+      self.originals.delete(node);
+    });
+  },
+
+  restoreNode(node: any, original: any) {
+    const current = Array.isArray(node.material) ? node.material : [node.material];
+    current.forEach((m: any) => {
+      if (!m) return;
+      for (const key of ["map", "emissiveMap", "roughnessMap", "metalnessMap", "aoMap", "normalMap", "alphaMap"]) {
+        const origMats = Array.isArray(original) ? original : [original];
+        if (m[key] && !origMats.some((o: any) => o?.[key] === m[key])) m[key].dispose();
+      }
+      m.dispose();
+    });
+    node.material = original;
   },
 
   tick(_t: number, delta: number) {

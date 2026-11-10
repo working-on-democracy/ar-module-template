@@ -28,8 +28,9 @@ it. `src/ArModule.vue` here is only a vehicle for local AR tests.
    `sandbox/docs/PFLANZMODUS.md` (the planting scene) —
    how the simulation behaves (German).
 3. `sandbox/docs/AR-TESTUMGEBUNG.md` before touching `src/ArModule.vue`,
-   `src/plant-live.ts` or `lib/preview-ar.ts`: the AR test scene, how close it is to the
-   host app, the three r137 / Safari pitfalls, a second test setup (German).
+   `src/ReplayModule.vue`, `src/plant-*.ts` or `lib/preview-ar.ts`: the AR test scene,
+   the replay of a recorded run, how close it is to the host app, the three r137 /
+   Safari pitfalls, a second test setup (German).
 4. `sandbox/docs/SCHNITTSTELLEN.md` — the contract between server and AR app
    (`/api/plant` in the sandbox, `plantNearby` on the server) and between
    simulation and compute service (German). Change it only deliberately: the
@@ -50,6 +51,9 @@ sandbox/sim/          simulation core (world.ts rules, schedule.ts clock, types,
 sandbox/params.ts     every simulation parameter with its default
 sandbox/scenarios/    starter models (starter-models.json, DEFAULT_STARTERS) + scenario generator
 sandbox/runner/       runs JobRequests with the real scripts (jobs.ts), reads GLB info
+sandbox/replay-export.ts  a recorded run (tape.jsonl) → sandbox-replays/<run>/: aufzeichnung.json (tracks over calendar time) + the
+                      models (compressed) and photos it shows; played by dev:replay / build:replay
+sandbox/runner/tape.ts, plant-answer.ts, photos.ts  shared by server and replay export: playing a tape, interface 1 per object, photo versions
 sandbox/server.ts     sandbox server: waits for a planting (POST /api/planting) unless --replay / --ohne-pflanzen / --values with plants;
                       speed, tape (tape.jsonl), replay, viewer API (/api/state, /api/frames, /api/cmd), interface 1 (/api/plant)
 sandbox/objects/      new objects from the upload page (viewer/objekte.html): Sloyd (sloydFaces/sloydTexture), working version
@@ -71,11 +75,14 @@ sandbox/docs/         documentation (German), mirrored as online Claude Docs (li
 scripts/              GLB tools; jimp-image.ts = texture work without native libs
 src/, lib/            AR-module template baseline; src/ArModule.vue = the AR test scene (planting, then the live plant via src/plant-live.ts,
                       drawings from GET /api/strokes); dev:ar proxies /api and /run to the sandbox (PLANT_SANDBOX, default port 5180);
+                      src/ReplayModule.vue + src/plant-replay.ts = a recorded run without any server (--mode replay, dist-replay/,
+                      PLANT_REPLAY or the newest sandbox-replays/ folder); both draw through src/plant-view.ts;
                       the AR preview runs 8th Wall with absolute scale and the host's lights, fog and renderer settings;
                       src/a-frame-components/grain-shimmer.ts = the plant's grain look
 guides/, examples/    guide + example for grain-shimmer (the only template feature kept)
 sandbox-runs/         gitignored: run folders + shared caches: fuse-cache (prepared models for glb-fuse), copy-cache (results of the
                       copy steps, keyed by input content + step; runs look there first, the objects page fills it ahead)
+sandbox-replays/      gitignored: recordings for the replay app (npm run replay-export)
 sandbox-objects/      gitignored: new objects (sources, Sloyd files, working versions, variants, katalog.json); never commit
 ```
 

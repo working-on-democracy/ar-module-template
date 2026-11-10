@@ -1,6 +1,6 @@
 # Pflanze: AR-Testumgebung
 
-Stand: 27. Oktober 2026. Online-Fassung zum Kommentieren:
+Stand: 29. Oktober 2026. Online-Fassung zum Kommentieren:
 https://claude.ai/artifact/PkqZ4YQJ2PEzK2uLxKvyks
 
 ## Kurz erklärt
@@ -131,6 +131,12 @@ derselben Technik und trifft sie genauso.
 - **Safari lädt Texturen anders.** Der GLTFLoader von r137 nimmt in Safari den
   `TextureLoader` statt `createImageBitmap`. Was in Chrome am Rechner geht, ist in
   Safari deshalb nicht automatisch geprüft.
+- **Wenige Verbindungen über das WLAN.** Über den Vite-Server (HTTP/1.1) hat der
+  Browser höchstens 6 Verbindungen zur selben Adresse. Lädt die Pflanzliste noch
+  ihre Modelle (ein Katalog hat leicht 40 MB), wenn die Pflanze startet, warten die
+  Modelle der Pflanze dahinter, und der Ladebalken steht. Die Testszene lädt die
+  Liste deshalb höchstens 3 Modelle auf einmal und bricht den Rest ab, sobald die
+  Pflanzung angenommen ist.
 - **Zwei Vite-Server teilen sich einen Cache.** Ein zweiter `vite` im selben Projekt
   baut `node_modules/.vite` neu und kann dem ersten seine Abhängigkeiten wegnehmen.
   Abhilfe steht unter „Eine zweite Testumgebung“.
@@ -150,6 +156,54 @@ derselben Technik und trifft sie genauso.
   auch in Chrome am Rechner. Ohne Kamera ist das Bild schwarz, Liste, Laden und die
   Objekte in der Szene lassen sich aber prüfen, auch mit der Konsole. Die Meldung
   „No valid session manager“ von 8th Wall ist dort normal.
+
+## Wiedergabe einer Aufzeichnung
+
+Eine eigene AR-App spielt einen aufgezeichneten Lauf ab, ohne Sandbox und ohne
+Server: Alles, was sie braucht, sind Dateien neben der Seite. Gedacht zum Zeigen,
+zum Beispiel an einem Ort ohne Rechner.
+
+```bash
+npm run replay-export -- sandbox-runs/<Ordner>   # Aufzeichnung aufbereiten, etwa 2 Minuten
+npm run dev:replay                               # am Telefon wie dev:ar, Adresse von Vite
+npm run build:replay                             # dasselbe als Dateien in dist-replay/
+```
+
+**Aufbereiten:** `replay-export` spielt die `tape.jsonl` des Laufs mit derselben
+Simulation nach wie `--replay` und hält nach jedem Schritt fest, was die AR-App
+über Schnittstelle 1 bekäme. Daraus wird `aufzeichnung.json`: pro Objekt seine
+Lagen über die Kalendertage (nur so viele, wie das Überblenden braucht) und sein
+Aussehen, sobald es sich ändert, pro Zeichnung Ort, Größe und Textur. Dazu kommen
+nur die Modelle und Fotos, die die Pflanze zeigt. Die Modelle werden für die
+Auslieferung komprimiert (meshopt, Texturen als WebP in ihrer eigenen Größe), ein
+ganzer Lauf hat dann etwa 65 statt 440 MB. `--unkomprimiert` kopiert sie, wie sie
+sind. Das Ergebnis liegt in `sandbox-replays/<Lauf>/` (von Git ignoriert).
+
+**Welche Aufzeichnung:** `dev:replay` und `build:replay` nehmen die neueste unter
+`sandbox-replays/`, eine bestimmte mit `PLANT_REPLAY=sandbox-replays/<Lauf>`.
+`dist-replay/` lässt sich auf jeden Webserver mit HTTPS legen, die Aufzeichnung
+liegt darin unter `aufzeichnung/`.
+
+**In der App:** Zuerst lädt die App alle Modelle und Fotos der Aufzeichnung, mit
+einer Ladeleiste. Bis dahin lässt sich nichts bedienen, danach muss beim Spulen
+nichts mehr aus dem Netz kommen. Nach dem Laden steht die Pflanze vor dem Telefon, weit genug weg,
+um sie ganz zu sehen. Sie läuft im Tempo der Plattform, also in echter Zeit.
+Finger links halten spult zurück, rechts halten vor, beide mit etwa vier
+Kalendertagen pro Minute. Unten stehen der Tag und die Phase. Ein Tipp auf die
+Zeitleiste springt zu diesem Tag, Ziehen auf ihr spult mit. Ein Tipp in die
+Mitte blendet die Leiste aus und wieder ein. Mit `?tag=12` beginnt
+die Wiedergabe an diesem Tag, mit `?tempo=0.5` läuft sie mit einem halben
+Kalendertag pro Minute statt in echter Zeit.
+
+**Speicher:** Die Dateien liegen nach dem Laden im Arbeitsspeicher des Browsers,
+beim Lauf `20261023-221502-seed7` rund 70 MB. Auf die Grafikkarte kommt ein Modell
+erst, wenn es gebraucht wird. Wer durch einen ganzen Lauf spult, braucht etwa
+tausend Modelle. Die App gibt den Grafikspeicher eines Modells wieder frei, sobald
+kein Objekt es mehr zeigt und mehr als 60 solche Modelle bereitliegen. Was
+vorausliegt, bereitet sie schon vorher vor, höchstens drei Modelle auf einmal. Die Live-Testszene nutzt dieselbe Darstellung.
+
+Getestet am 29. Oktober 2026 nur in Chrome am Rechner (ohne Kamera), noch nicht
+am Telefon.
 
 ## Eine zweite Testumgebung
 
@@ -172,15 +226,19 @@ den neuen Cache kopieren. Den Lauf-Ordner unter `sandbox-runs/` danach löschen.
 | Datei | Inhalt |
 | --- | --- |
 | `src/ArModule.vue` | die Testszene: Boden, Schatten, Pflanzen, Ladebildschirm, Live-Pflanze |
-| `src/plant-live.ts` | die Pflanze nach Schnittstelle 1: Abfragen, Überblenden, Modelle, Fotos, Kommentare, Zeichnungen |
+| `src/plant-live.ts` | die Pflanze nach Schnittstelle 1: Abfragen, Überblenden |
+| `src/plant-view.ts` | die Darstellung: Modelle, Fotos, Kommentare, Zeichnungen, Speicher freigeben |
+| `src/plant-replay.ts`, `src/ReplayModule.vue` | die Wiedergabe einer Aufzeichnung: Uhr, Spulen, Anzeige |
+| `src/plant-ground.ts` | Schattenboden und unsichtbarer Boden |
+| `sandbox/replay-export.ts` | eine Aufzeichnung für die Wiedergabe aufbereiten |
 | `sandbox/planting/` | die Pflanzszene, dieselbe wie im Viewer |
 | `sandbox/render/` | Fotoprojektion, Kommentarschrift, Zeichnungen als Röhren, gemeinsam mit dem Viewer |
 | `src/a-frame-components/grain-shimmer.ts` | die Körnung |
 | `lib/preview-ar.ts` | die Vorschau-Szene: 8th Wall mit absolutem Maßstab, Nebel, Renderer wie die Host-App |
-| `vite.config.ts` | `dev:ar`: HTTPS, Weiterleitung von `/api` und `/run` an die Sandbox |
+| `vite.config.ts` | `dev:ar`: HTTPS, Weiterleitung von `/api` und `/run` an die Sandbox; `--mode replay`: die Aufzeichnung unter `aufzeichnung/` |
 | `sandbox/server.ts` | `GET /api/plant`, `GET /api/strokes`, Pflanzung |
 
-Was in `src/plant-live.ts` steht, soll später in die Host-App wandern. Es nutzt nur,
+Was in `src/plant-live.ts` und `src/plant-view.ts` steht, soll später in die Host-App wandern. Es nutzt nur,
 was three r137 hat, und kein Vue.
 
 ## Offen

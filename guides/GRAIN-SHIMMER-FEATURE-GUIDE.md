@@ -100,7 +100,10 @@ movement exactly like texture grain); `animated` changes a seed uniform
 them never recompiles; the program cache key is extended with
 `|grain-shimmer`.
 
-**Materials are cloned** and the originals restored on `remove()`. The
+**Materials are cloned** and the originals restored on `remove()`; when the
+entity gets a new `mesh`, the copies made for the old one are disposed then
+(the plant swaps models all the time, without that their textures would pile
+up on the GPU). The
 patch chains an `onBeforeCompile` already on the original material (and its
 cache key) — `material.clone()` doesn't copy those, so they're taken over
 explicitly. A-Frame primitives load their `material` texture asynchronously

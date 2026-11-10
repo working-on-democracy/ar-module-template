@@ -152,11 +152,29 @@ function arModuleAssets() {
 }
 
 /**
- * Three flavours, selected by command + `--mode ar`:
+ * The recording the replay plays (npm run replay-export): PLANT_REPLAY, or the
+ * newest folder under sandbox-replays/.
+ */
+function replayFolder(): string {
+  const given = process.env.PLANT_REPLAY;
+  if (given) return fileURLToPath(new URL(given.replace(/\/?$/, "/"), new URL("./", import.meta.url)));
+  const root = fileURLToPath(new URL("./sandbox-replays", import.meta.url));
+  const found = existsSync(root)
+    ? readdirSync(root).map((f) => join(root, f)).filter((d) => existsSync(join(d, "aufzeichnung.json"))).sort((a, b) => statSync(join(b, "aufzeichnung.json")).mtimeMs - statSync(join(a, "aufzeichnung.json")).mtimeMs)
+    : [];
+  if (!found.length) throw new Error("Keine Aufzeichnung: erst npm run replay-export -- sandbox-runs/<Ordner>");
+  return found[0];
+}
+
+/**
+ * Flavours, selected by command + `--mode ar` / `--mode replay`:
  *  - `vite`              → VR/desktop preview (stock A-Frame via CDN, index.html)
  *  - `vite --mode ar`    → 8th Wall AR preview (8frame + engine, ar.html, https)
  *  - `vite build`        → library build → dist/ar-module.js (consumed by the host)
  *  - `vite build --mode ar` → standalone AR app → dist-ar/ (deploy & test on device)
+ *  - `vite --mode replay` / `vite build --mode replay` → the same AR preview playing a
+ *    recorded plant (src/ReplayModule.vue), no sandbox; the build → dist-replay/ with the
+ *    recording under aufzeichnung/, plain files for any web server
  */
 function sandboxProxy() {
   const target = process.env.PLANT_SANDBOX ?? "http://localhost:5180";
@@ -164,7 +182,8 @@ function sandboxProxy() {
 }
 
 export default defineConfig(async ({ command, mode }) => {
-  const isAr = mode === "ar";
+  const isReplay = mode === "replay";
+  const isAr = mode === "ar" || isReplay;
   const isLibBuild = command === "build" && !isAr;
   const isArBuild = command === "build" && isAr;
 
@@ -242,6 +261,11 @@ export default defineConfig(async ({ command, mode }) => {
   if (isAr) {
     copyTargets.push({ src: "node_modules/@8thwall/engine-binary/dist/*", dest: "external/xr" });
   }
+  if (isReplay) {
+    const folder = replayFolder();
+    console.log(`Aufzeichnung: ${folder}`);
+    copyTargets.push({ src: `${folder.split(sep).join("/").replace(/\/$/, "")}/*`, dest: "aufzeichnung" });
+  }
   if (copyTargets.length) {
     plugins.push(viteStaticCopy({ targets: copyTargets }));
   }
@@ -254,11 +278,11 @@ export default defineConfig(async ({ command, mode }) => {
     // The AR test scene plants into and shows the plant from the sandbox server
     // (npm run sandbox, port 5180; PLANT_SANDBOX=http://host:port for another):
     // proxied, so the phone reaches it over the same https origin.
-    server: isAr ? { host: true, proxy: sandboxProxy() } : {},
+    server: isReplay ? { host: true } : isAr ? { host: true, proxy: sandboxProxy() } : {},
     build: isAr
       ? {
           // Standalone AR app for on-device testing.
-          outDir: "dist-ar",
+          outDir: isReplay ? "dist-replay" : "dist-ar",
           emptyOutDir: true,
           rollupOptions: {
             input: fileURLToPath(new URL("./ar.html", import.meta.url))

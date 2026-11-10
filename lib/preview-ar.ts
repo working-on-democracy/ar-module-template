@@ -1,5 +1,7 @@
+/// <reference types="vite/client" />
 import { createApp, h, ref, nextTick } from "vue";
-import ArModule from "../src/ArModule.vue";
+import TestScene from "../src/ArModule.vue";
+import ReplayScene from "../src/ReplayModule.vue";
 import { manifest } from "../src/manifest";
 import {
   registerManifestComponents,
@@ -8,6 +10,15 @@ import {
   assetElement
 } from "./host-runtime";
 import { disableFrustumCulling } from "./frustum-culling";
+
+// The plant's AR test scene, or with --mode replay a recorded plant without the sandbox.
+const replay = import.meta.env.MODE === "replay";
+const ArModule = replay ? ReplayScene : TestScene;
+// The replay is shown to people, not tested: no preview notices.
+if (replay) {
+  document.querySelector(".preview-overlay")?.remove();
+  document.title = "Pflanze";
+}
 
 // Same data shape the host injects.
 const mockArModule = {
@@ -59,7 +70,7 @@ const ArPreviewApp = {
       return h(
         "div",
         { style: "color:#94a3b8;font-family:sans-serif;padding:24px" },
-        "Initializing 8th Wall AR…"
+        replay ? "" : "Initializing 8th Wall AR…"
       );
     }
 

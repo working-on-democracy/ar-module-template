@@ -21,6 +21,7 @@ import { layer, loadingScreen, saveFile, toast } from '../sandbox/planting/ui';
 import type { CatalogItem, PlantRules, Planting } from '../sandbox/planting/rules';
 import type { Vec3 } from '../sandbox/sim/types';
 import { LivePlant } from './plant-live';
+import { addGround } from './plant-ground';
 
 interface ArModuleData {
   id: string;
@@ -69,17 +70,7 @@ async function begin() {
   scene.appendChild(world);
   ui = layer(500);
   document.body.append(ui);
-  // ground that only shows shadows, so the planted objects stand on something
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.3 }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  world.object3D.add(ground);
-  // hides what is below the ground (growing out of it, sinking after death): writes depth only, so the
-  // camera image stays; drawn before the plant's opaque objects so they fail the depth test below y = 0
-  const hider = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ colorWrite: false }));
-  hider.rotation.x = -Math.PI / 2;
-  hider.renderOrder = -1;
-  world.object3D.add(hider);
+  addGround(THREE, world.object3D); // shadows, and hides what is below the ground
 
   const info = await (await fetch('/api/planting')).json() as { waiting: boolean; catalog: CatalogItem[]; rules: PlantRules; plantingPoint: Vec3 | null };
   if (!info.waiting) {
@@ -87,16 +78,45 @@ async function begin() {
     await showPlant(info.plantingPoint ?? [0, 0, 0]);
     return;
   }
-  const Loader = (THREE as unknown as { GLTFLoader: new () => { loadAsync(u: string, progress?: (e: ProgressEvent) => void): Promise<{ scene: T.Object3D }> } }).GLTFLoader;
   planting = new PlantingScene({
     THREE, root: world.object3D, camera: scene.camera, renderer: scene.renderer, ui, desktop: false,
     fetchCatalog: async () => ((await (await fetch('/api/planting')).json()) as { catalog: CatalogItem[] }).catalog,
     removeItem: removeObject,
-    loadModel: async (item, progress) => castsShadow((await new Loader().loadAsync(`/api/planting/models/${item.glb}`, (e) => progress?.(e.loaded, e.lengthComputable ? e.total : 0))).scene),
+    loadModel: async (item, progress) => castsShadow(await catalogModel(item, progress)),
     onFinish: (plants, seed) => { plant(plants, seed).catch((e) => { console.error(e); toast(ui!, `Die Pflanzung ging nicht durch: ${(e as Error).message}`, 15000); }); },
   }, info.catalog, info.rules);
   const aim = () => { if (stopped || !planting) return; planting.update(); requestAnimationFrame(aim); };
   requestAnimationFrame(aim);
+}
+
+/** The planting list's models: at most CATALOG_LOADS at a time, and stopped once the planting is in. A phone loads
+ *  them over the WLAN through the dev server (HTTP/1.1, 6 connections per address): models still loading when the
+ *  plant starts (a catalog easily has 40 MB) would hold up the plant's own. Fetched here (fetch can be stopped,
+ *  r137's GLTFLoader can't), then parsed. */
+const CATALOG_LOADS = 3;
+const catalogLoads = new AbortController();
+let catalogLoading = 0;
+const catalogWaiting: (() => void)[] = [];
+async function catalogModel(item: CatalogItem, progress?: (loaded: number, total: number) => void): Promise<T.Object3D> {
+  if (catalogLoading >= CATALOG_LOADS) await new Promise<void>((go) => catalogWaiting.push(go));
+  catalogLoading++;
+  try {
+    const signal = catalogLoads.signal;
+    if (signal.aborted) throw new Error('nicht mehr nötig, die Pflanze ist gestartet');
+    const res = await fetch(`/api/planting/models/${item.glb}`, { signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const total = Number(res.headers.get('content-length')) || 0;
+    const reader = res.body!.getReader(), chunks: Uint8Array[] = [];
+    let loaded = 0;
+    for (let r = await reader.read(); !r.done; r = await reader.read()) { chunks.push(r.value); loaded += r.value.length; progress?.(loaded, total); }
+    const glb = new Uint8Array(loaded);
+    chunks.reduce((at, c) => (glb.set(c, at), at + c.length), 0);
+    const Loader = (AFRAME.THREE as unknown as { GLTFLoader: new () => { parse(data: ArrayBuffer, path: string, onLoad: (g: { scene: T.Object3D }) => void, onError: (e: unknown) => void): void } }).GLTFLoader;
+    return await new Promise((ok, fail) => new Loader().parse(glb.buffer, '', (g) => ok(g.scene), fail));
+  } finally {
+    catalogLoading--;
+    catalogWaiting.shift()?.();
+  }
 }
 
 /** The lights are the platform's (A-Frame's defaults = ArScene.vue's #host-lights): its directional light casts
@@ -111,6 +131,7 @@ async function plant(plants: Planting[], seed: number) {
   const res = await fetch('/api/planting', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plants, seed }) });
   const answer = await res.json();
   if (!res.ok) throw new Error(answer.error);
+  catalogLoads.abort(); // the rest of the list's models: no longer needed, the plant's go first
   saveFile(answer.file, JSON.stringify(answer.values, null, 2));
   await showPlant(answer.plantingPoint);
 }
