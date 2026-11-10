@@ -75,6 +75,7 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
    Kennung pro Sitzung, die einige Minuten gilt (siehe `docs/SCHNITTSTELLEN.md`).
 10. **Mehrere Pflanzen.** Die Sandbox rechnet eine Pflanze mit 3 Jobs
     gleichzeitig. Mehrere Pflanzen teilen sich Rechenzeit, die Reihenfolge der
+    Jobs muss dann über alle Pflanzen geregelt werden.
 11. **Keimling-Varianten vorbereiten.** Zwischen Erstellen (Sloyd) und Pflanzen
     vergeht Zeit. Darin lassen sich alle Varianten einer Linie rechnen:
     Arbeitsfassung des Ursprungsobjekts (höchstens 7 500 Dreiecke), die
@@ -137,3 +138,37 @@ auch das scheitert, muss der Rechendienst auf einen anderen Rechner.
     reicht nur ±5 m um den Ursprung und bis etwa 1,5 m Höhe; ob das für die
     Pflanze genügt oder der Admin den Schattenausschnitt vergrößert, ist offen.
     Die Host-App hat beides noch nicht für die Pflanze.
+19. **Verankerung der Pflanze und Heranziehen von Inhalten.** Tobias berichtet
+    (2026-11-10): GPS ist ungenau, die Kamera hält die Inhalte nach dem Platzieren
+    fest, und der Reposition-Knopf lässt sie an die aktuelle GPS-Position
+    springen. Damit gebe es keinen verlässlichen Weg, Zeichnungen an die
+    Pflanze heranzuziehen, und es sei unklar, wie die Pflanze zu den anderen
+    Objekten steht.
+    Nach `docs/POSITIONING.md` im Host-Repo (Stand 30.10.) ist das lösbar: Alle
+    Inhalte werden aus einem gemeinsamen Rahmen abgeleitet (geschätzte
+    Geo-Adresse des SLAM-Ursprungs plus Kompasskorrektur). Ist der Rahmen
+    falsch, stehen alle gemeinsam falsch, ihr Abstand zueinander bleibt exakt.
+    Seit 28.10. gilt das auch für die eigenen Beiträge einer Sitzung. Der
+    Reposition-Knopf schätzt nur diesen Rahmen neu, alles springt gemeinsam.
+    Daraus folgt für die Pflanze:
+    - Sie braucht einen eigenen gespeicherten Geo-Anker (Breite/Länge) wie
+      Zeichnungen, Fotos und Kommentare und muss aus demselben Rahmen gerendert
+      werden. Wird sie beim ersten Erscheinen relativ zur Kamera oder zum
+      Rahmen jenes Moments festgehalten, konserviert sie dessen Fehler und
+      steht schief zu ihren Nachbarn. Genau das beschreibt Tobias.
+    - Das Heranziehen rechnet der Server in Geo-Koordinaten: Der Anker einer
+      Zeichnung rückt in Metern auf den Anker der Pflanze zu und wird
+      gespeichert. Auf dem Handy gleitet sie beim nächsten Abruf (10 s) über
+      `smooth-position` dorthin. Für alle Betrachter ist das Verhältnis gleich.
+    - Was ungenau bleibt: wo das ganze Ensemble in der echten Straße steht
+      (pro Gerät einige Meter und Grad), und die Lage von Inhalten, die ihr
+      Autor ohne sichtbaren Nachbarn mit eigenem GPS-Fehler abgelegt hat.
+    - Möglicher Ausbau für den ersten Punkt: ein Image Target am Standort der
+      Pflanze (Schild, Aufkleber). Beim Scannen korrigiert die App den Rahmen,
+      sodass die Pflanze genau am Marker steht. Alle Inhalte am Rahmen rücken
+      mit. In der Host-Doku als geparkte Idee („Fixed physical anchors" in
+      `docs/MULTIUSER_POSITIONING.md`); für einen einzelnen festen Ort wiegen
+      die Einwände dort (Genauigkeit nur solange im Bild, Anbringen vor Ort)
+      wenig.
+    Mit Tobias zu klären: wie die Pflanze im Host heute verankert wäre, und ob
+    der Rahmen von außen (Marker) korrigiert werden darf.
