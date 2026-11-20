@@ -161,6 +161,52 @@ onUnmounted(() => {
         shadow
     ></a-plane>
 
+    <!-- Fuenf unsichtbare, okkludierende Kugeln im Kreis um den Nutzer: in
+         der ersten (vorne rechts) die Weinflasche, in den anderen vier je
+         eine Milchkanne.
+
+         Der Nutzer steht beim Start bei z = 2 in scene-root (place-in-front
+         stellt die Szene 2 m vor ihn), deshalb sitzt der Ring-Mittelpunkt
+         dort. Kugeln auf 2.8 m Ringradius (1.8 m Abstand zur Kugelwand beim
+         Start), um 36 Grad versetzt, so dass keine genau in Blickrichtung
+         steht (eine Okkluder-Kugel verdeckt auch alles Virtuelle dahinter).
+
+         `occluder` (src/a-frame-components/occluder.ts): die Kugel schreibt
+         nur Tiefe, keine Farbe, und nur ihre Aussenseiten - von aussen
+         sieht man das Kamerabild, der Inhalt ist verdeckt; sobald die
+         Kamera die Kugelwand durchquert, wird er sichtbar.
+         Mittelpunkt auf 1.2 m, Radius 1 m (reicht von 0.2 bis 2.2 m):
+         auf Augenhoehe (~1.5 m) erreichbar, indem man hineingeht.
+
+         Die Kugeln sind unsichtbar. Zum Platzieren/Testen sichtbar machen:
+         occluder="opacity: 0.35; color: #9fd3ff" (verdeckt weiterhin).
+
+         Modelle, jeweils mittig in die Kugel gesetzt (y = -halbe Hoehe):
+         - gino_48-bottle-4079.glb: ~5.5 Einheiten hoch, Ursprung unten;
+           scale 0.1154 -> 64 cm (doppelt so gross wie echt).
+         - pixellabs-milk-can-3784.glb: ~1.05 Einheiten hoch, Ursprung unten;
+           scale 0.571 -> 60 cm.
+         Die Modelle werfen bewusst keinen Schatten - der waere auf dem
+         Boden ausserhalb der Kugel sichtbar und wuerde sie verraten. -->
+    <a-entity id="bottle-spheres" position="0 0 2">
+      <a-entity v-for="(item, i) in [
+                  { x: 1.646, z: -2.265, model: 'gino_48-bottle-4079', scale: 0.1154, y: -0.32 },
+                  { x: 2.663, z: 0.865, model: 'pixellabs-milk-can-3784', scale: 0.571, y: -0.3 },
+                  { x: 0, z: 2.8, model: 'pixellabs-milk-can-3784', scale: 0.571, y: -0.3 },
+                  { x: -2.663, z: 0.865, model: 'pixellabs-milk-can-3784', scale: 0.571, y: -0.3 },
+                  { x: -1.646, z: -2.265, model: 'pixellabs-milk-can-3784', scale: 0.571, y: -0.3 }
+                ]"
+                :key="i" :position="`${item.x} 1.2 ${item.z}`">
+        <a-sphere occluder radius="1" segments-width="64" segments-height="40"></a-sphere>
+        <a-entity
+            :gltf-model="`#${item.model}`"
+            :scale="`${item.scale} ${item.scale} ${item.scale}`"
+            :position="`0 ${item.y} 0`"
+            :animation="`property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: ${9000 + i * 1300}; easing: linear`"
+        ></a-entity>
+      </a-entity>
+    </a-entity>
+
   </a-entity>
   </a-entity>
 
