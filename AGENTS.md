@@ -140,13 +140,14 @@ src/ArOverlay.vue              AR Overlay feature (Vue, not an A-Frame component
 examples/*.html                copy-paste reference markup per feature, never compiled/served
 examples/assets/, examples/image-targets/  generated demo files; never scanned; copied into src/ when a project uses them
 guides/*-FEATURE-GUIDE.md      one guide per feature: setup, attributes, internals, incompatibilities
-cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, scene placement, build & export, architecture, tool introductions)
+cross-feature-reference-docs/  docs spanning multiple features, not owned by any one (render-order/transparency, asset compression, headless AR testing, debugging on the phone, scene placement, build & export, architecture, tool introductions)
 lib/                            host/preview plumbing — not edited by a project fork; includes gltf-meshopt-setup.ts.
                                dev:ar/build:ar run 8frame 1.5.0 (lib/vendor/), the host runs 8frame 1.3.0 (three r137) —
                                verify three.js-version-sensitive behaviour (colorSpace/encoding, opaque sorting, PMREM) against the host
 scripts/compress-assets.ts     `npm run compress-assets` — interactive mesh/texture compression tool
 scripts/generate-demo-assets.ts  generates the demo files and mirror-shard's shards.json from code
 scripts/dev-qr-code.ts         Vite plugin: prints the network URL as a QR code in dev:ar
+scripts/dev-console-relay.ts   Vite plugin: console of every device (phones too) → terminal + dev-console.log, dev servers only
 scripts/used-components.ts     scan behind automatic component registration (virtual:used-components in vite.config.ts)
 uncompressed-assets/            gitignored, local-only; pristine originals kept by compress-assets.ts
 *.md (repo root)                general, not-feature-specific docs (this file, workflow, catalog, README, quick-start)
@@ -262,6 +263,13 @@ uncompressed-assets/            gitignored, local-only; pristine originals kept 
   phone, run `dev:ar` headless with a fake camera video per
   `cross-feature-reference-docs/HEADLESS-AR-TESTING-GUIDE.md`, and state
   what that could not verify (device motion/SLAM, real-GPU performance).
+- **A problem on the phone: read `dev-console.log` first.** While a dev
+  server runs, every browser that opens a preview (phones included) sends
+  its console output there (`scripts/dev-console-relay.ts`): warnings and
+  errors also in the terminal. Reset per server start, ignored by Git. If
+  it's empty, ask the user to reproduce the problem with the dev server
+  running. Cable-based remote debugging per device:
+  `cross-feature-reference-docs/DEBUGGING-ON-THE-PHONE-GUIDE.md`.
 - **Never mesh/texture-compress an asset that's already compressed** —
   always compress from the pristine original in `uncompressed-assets/`
   (via `npm run compress-assets`, never by hand-invoking `gltfpack`

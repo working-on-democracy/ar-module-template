@@ -151,6 +151,12 @@ together is written down.
   you don't see it, tilt the phone down. Colours and lighting can look a little
   different in the real app, which runs an older engine version, so check your
   finished work there too.
+  **Something doesn't work on the phone?** Error messages from the phone
+  show up in the terminal where the command runs, and all of the phone's
+  messages are collected in the file `dev-console.log` in the project
+  folder. Ask your AI assistant: "Read dev-console.log and tell me what's
+  wrong." More:
+  [DEBUGGING-ON-THE-PHONE-GUIDE.md](cross-feature-reference-docs/DEBUGGING-ON-THE-PHONE-GUIDE.md).
 - `npm run build` — packages the whole project into the one file that gets
   published for the real installation. Run this once you're ready to hand
   a piece off — if it finishes without red error text, it worked.

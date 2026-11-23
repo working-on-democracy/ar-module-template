@@ -71,7 +71,10 @@ acceptable way out in a component.
    No registration: a component used in the scene is found, bundled and
    registered automatically.
 4. **Look at it** with `npm run dev`; save the file and the preview
-   reloads. Watch the browser console for errors.
+   reloads. Watch the browser console for errors. On the phone
+   (`npm run dev:ar`), its errors appear in the terminal and in
+   `dev-console.log` in the project folder; an AI assistant can read that
+   file directly ([DEBUGGING-ON-THE-PHONE-GUIDE.md](DEBUGGING-ON-THE-PHONE-GUIDE.md)).
 5. **Check it builds:** `npm run build` (type check + build).
 
 ## 4. Example: float and spin

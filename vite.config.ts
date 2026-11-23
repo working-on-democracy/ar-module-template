@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from "node:url";
 import { readdirSync, readFileSync, existsSync, statSync, renameSync, createReadStream } from "node:fs";
 import { join, parse, extname, sep } from "node:path";
 import { usedComponents } from "./scripts/used-components";
+import { devConsoleRelay } from "./scripts/dev-console-relay";
 import { devQrCode } from "./scripts/dev-qr-code";
 
 const ASSETS_SRC = fileURLToPath(new URL("./src/assets", import.meta.url));
@@ -226,7 +227,10 @@ export default defineConfig(async ({ command, mode }) => {
       }
     }),
     arModuleAssets(),
-    autoComponents()
+    autoComponents(),
+    // Console output of every browser that opens a preview (phones included)
+    // → terminal and dev-console.log. Dev servers only (dev and dev:ar).
+    devConsoleRelay()
   ];
 
   if (isAr) {
